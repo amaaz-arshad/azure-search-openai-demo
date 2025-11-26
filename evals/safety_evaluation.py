@@ -62,7 +62,7 @@ async def callback(
         "stream": stream,
         "context": {
             "overrides": {
-                "top": 5,
+                "top": 3,
                 "temperature": 0.3,
                 "minimum_reranker_score": 0,
                 "minimum_search_score": 0,
