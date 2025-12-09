@@ -24,16 +24,16 @@ If the question is not in English, translate the question to English before gene
 If you cannot generate a search query, return just the number 0.
 
 user:
-Tell me about the Netherlands.
+Tell me about HYROX.
 
 assistant:
-Explain the Netherlands using the information from the LearningNL training curriculum.
+Explain HYROX using information from the uploaded HYROX learning units.
 
 user:
-What chapters, topics, and themes are covered in the LearningNL curriculum?
+What modules, topics, and categories/tags are present in the HYROX Training Curriculum?
 
 assistant:
-Show the list of all chapters, topics, themes, and learning goals present in the LearningNL training curriculum.
+Show the list of all modules, topics and categories/tags present in the HYROX Training Curriculum.
 
 {% for message in past_messages %}
 {{ message["role"] }}:

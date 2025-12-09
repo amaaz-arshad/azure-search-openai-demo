@@ -94,7 +94,7 @@ export type ChatAppResponseOrError = {
 export type ChatAppResponse = {
     message: ResponseMessage;
     delta: ResponseMessage;
-    context: ResponseContext;
+    context?: ResponseContext;
     session_state: any;
 };
 

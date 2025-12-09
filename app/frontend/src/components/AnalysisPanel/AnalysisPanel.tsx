@@ -24,8 +24,8 @@ interface Props {
 const pivotItemDisabledStyle = { disabled: true, style: { color: "grey" } };
 
 export const AnalysisPanel = ({ answer, activeTab, activeCitation, citationHeight, className, onActiveTabChanged, onCitationClicked }: Props) => {
-    const isDisabledThoughtProcessTab: boolean = !answer.context.thoughts;
-    const dataPoints = answer.context.data_points;
+    const isDisabledThoughtProcessTab: boolean = !answer.context?.thoughts;
+    const dataPoints = answer.context?.data_points;
     const hasSupportingContent = Boolean(
         dataPoints &&
             ((dataPoints.text && dataPoints.text.length > 0) ||
@@ -89,14 +89,14 @@ export const AnalysisPanel = ({ answer, activeTab, activeCitation, citationHeigh
                 headerText={t("headerTexts.thoughtProcess")}
                 headerButtonProps={isDisabledThoughtProcessTab ? pivotItemDisabledStyle : undefined}
             >
-                <ThoughtProcess thoughts={answer.context.thoughts || []} onCitationClicked={onCitationClicked} />
+                <ThoughtProcess thoughts={answer.context?.thoughts || []} onCitationClicked={onCitationClicked} />
             </PivotItem>
             <PivotItem
                 itemKey={AnalysisPanelTabs.SupportingContentTab}
                 headerText={t("headerTexts.supportingContent")}
                 headerButtonProps={isDisabledSupportingContentTab ? pivotItemDisabledStyle : undefined}
             >
-                <SupportingContent supportingContent={answer.context.data_points} />
+                <SupportingContent supportingContent={answer.context?.data_points} />
             </PivotItem>
             <PivotItem
                 itemKey={AnalysisPanelTabs.CitationTab}

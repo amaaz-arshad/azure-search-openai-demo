@@ -85,10 +85,16 @@ export const QuestionInput = ({ onSend, disabled, placeholder, clearOnSend, init
                 onKeyDown={onEnterPress}
                 onCompositionStart={handleCompositionStart}
                 onCompositionEnd={handleCompositionEnd}
+                styles={{
+                    field: {
+                        fontSize: 16, // Ensure minimum 16px font size for iPhone
+                        minHeight: 44 // Minimum touch target size for iOS
+                    }
+                }}
             />
             <div className={styles.questionInputButtonsContainer}>
                 <Tooltip content={t("tooltips.submitQuestion")} relationship="label">
-                    <Button size="large" icon={<Send28Filled primaryFill="rgba(115, 118, 225, 1)" />} disabled={sendQuestionDisabled} onClick={sendQuestion} />
+                    <Button size="large" icon={<Send28Filled primaryFill="black" />} disabled={sendQuestionDisabled} onClick={sendQuestion} />
                 </Tooltip>
             </div>
             {showSpeechInput && <SpeechInput updateQuestion={setQuestion} />}

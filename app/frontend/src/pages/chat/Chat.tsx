@@ -25,8 +25,22 @@ import { TokenClaimsDisplay } from "../../components/TokenClaimsDisplay";
 import { LoginContext } from "../../loginContext";
 import { LanguagePicker } from "../../i18n/LanguagePicker";
 import { Settings } from "../../components/Settings/Settings";
+import { setGlobalClearChat } from "../layout/Layout";
 
 const Chat = () => {
+    const initialUserMessage: string = "Hallo";
+    const initialAssistantMessageContent: string = `Willkommen! Schön, dass Du da bist. Möchtest Du Dein Wissen zu einem Thema selbst überprüfen oder hast Du Fragen, die Du klären möchtest?`;
+    const initialAssistantResponse: ChatAppResponse = {
+        message: {
+            content: initialAssistantMessageContent,
+            role: "assistant"
+        },
+        delta: {
+            content: initialAssistantMessageContent,
+            role: "assistant"
+        },
+        session_state: null
+    };
     const [isConfigPanelOpen, setIsConfigPanelOpen] = useState(false);
     const [isHistoryPanelOpen, setIsHistoryPanelOpen] = useState(false);
     const [promptTemplate, setPromptTemplate] = useState<string>("");
@@ -64,8 +78,8 @@ const Chat = () => {
     const [activeAnalysisPanelTab, setActiveAnalysisPanelTab] = useState<AnalysisPanelTabs | undefined>(undefined);
 
     const [selectedAnswer, setSelectedAnswer] = useState<number>(0);
-    const [answers, setAnswers] = useState<[user: string, response: ChatAppResponse][]>([]);
-    const [streamedAnswers, setStreamedAnswers] = useState<[user: string, response: ChatAppResponse][]>([]);
+    const [answers, setAnswers] = useState<[user: string, response: ChatAppResponse][]>([[initialUserMessage, initialAssistantResponse]]);
+    const [streamedAnswers, setStreamedAnswers] = useState<[user: string, response: ChatAppResponse][]>([[initialUserMessage, initialAssistantResponse]]);
     const [speechUrls, setSpeechUrls] = useState<(string | null)[]>([]);
 
     const [showMultimodalOptions, setShowMultimodalOptions] = useState<boolean>(false);
@@ -315,12 +329,29 @@ const Chat = () => {
         error && setError(undefined);
         setActiveCitation(undefined);
         setActiveAnalysisPanelTab(undefined);
-        setAnswers([]);
-        setSpeechUrls([]);
-        setStreamedAnswers([]);
+        setAnswers([[initialUserMessage, initialAssistantResponse]]); // Reset to welcome message
+        setStreamedAnswers([[initialUserMessage, initialAssistantResponse]]); // Reset to welcome message
+        setSpeechUrls([null]);
         setIsLoading(false);
         setIsStreaming(false);
     };
+
+    useEffect(() => {
+        setGlobalClearChat(clearChat);
+        return () => {
+            setGlobalClearChat(() => {});
+        };
+    }, [clearChat]);
+
+    // Also add an effect to set initial state on component mount
+    useEffect(() => {
+        // Ensure welcome message is shown on initial load
+        if (answers.length === 0) {
+            setAnswers([[initialUserMessage, initialAssistantResponse]]);
+            setStreamedAnswers([[initialUserMessage, initialAssistantResponse]]);
+            setSpeechUrls([null]);
+        }
+    }, []);
 
     useEffect(() => chatMessageStreamEnd.current?.scrollIntoView({ behavior: "smooth" }), [isLoading]);
     useEffect(() => chatMessageStreamEnd.current?.scrollIntoView({ behavior: "auto" }), [streamedAnswers]);
@@ -481,7 +512,7 @@ const Chat = () => {
             <Helmet>
                 <title>{t("pageTitle")}</title>
             </Helmet>
-            <div className={styles.commandsSplitContainer}>
+            {/* <div className={styles.commandsSplitContainer}>
                 <div className={styles.commandsContainer}>
                     {((useLogin && showChatHistoryCosmos) || showChatHistoryBrowser) && (
                         <HistoryButton className={styles.commandButton} onClick={() => setIsHistoryPanelOpen(!isHistoryPanelOpen)} />
@@ -492,86 +523,84 @@ const Chat = () => {
                     {showUserUpload && <UploadFile className={styles.commandButton} disabled={!loggedIn} />}
                     <SettingsButton className={styles.commandButton} onClick={() => setIsConfigPanelOpen(!isConfigPanelOpen)} />
                 </div>
-            </div>
+            </div> */}
             <div className={styles.chatRoot} style={{ marginLeft: isHistoryPanelOpen ? "300px" : "0" }}>
                 <div className={styles.chatContainer}>
-                    {!lastQuestionRef.current ? (
+                    {/* {!lastQuestionRef.current && answers.length === 1 && answers[0][0] === "" ? (
                         <div className={styles.chatEmptyState}>
                             <img src={appLogo} alt="App logo" width="120" height="120" />
-
                             <h1 className={styles.chatEmptyStateTitle}>{t("chatEmptyStateTitle")}</h1>
                             <h2 className={styles.chatEmptyStateSubtitle}>{t("chatEmptyStateSubtitle")}</h2>
                             {showLanguagePicker && <LanguagePicker onLanguageChange={newLang => i18n.changeLanguage(newLang)} />}
-
                             <ExampleList onExampleClicked={onExampleClicked} useMultimodalAnswering={showMultimodalOptions} />
                         </div>
-                    ) : (
-                        <div className={styles.chatMessageStream}>
-                            {isStreaming &&
-                                streamedAnswers.map((streamedAnswer, index) => (
-                                    <div key={index}>
-                                        <UserChatMessage message={streamedAnswer[0]} />
-                                        <div className={styles.chatMessageGpt}>
-                                            <Answer
-                                                isStreaming={true}
-                                                key={index}
-                                                answer={streamedAnswer[1]}
-                                                index={index}
-                                                speechConfig={speechConfig}
-                                                isSelected={false}
-                                                onCitationClicked={c => onShowCitation(c, index)}
-                                                onThoughtProcessClicked={() => onToggleTab(AnalysisPanelTabs.ThoughtProcessTab, index)}
-                                                onSupportingContentClicked={() => onToggleTab(AnalysisPanelTabs.SupportingContentTab, index)}
-                                                onFollowupQuestionClicked={q => makeApiRequest(q)}
-                                                showFollowupQuestions={useSuggestFollowupQuestions && answers.length - 1 === index}
-                                                showSpeechOutputAzure={showSpeechOutputAzure}
-                                                showSpeechOutputBrowser={showSpeechOutputBrowser}
-                                            />
-                                        </div>
+                    ) : ( */}
+                    <div className={styles.chatMessageStream}>
+                        {isStreaming &&
+                            streamedAnswers.map((streamedAnswer, index) => (
+                                <div key={index}>
+                                    {streamedAnswer[0] !== initialUserMessage && <UserChatMessage message={streamedAnswer[0]} />}
+                                    <div className={styles.chatMessageGpt}>
+                                        <Answer
+                                            isStreaming={true}
+                                            key={index}
+                                            answer={streamedAnswer[1]}
+                                            index={index}
+                                            speechConfig={speechConfig}
+                                            isSelected={false}
+                                            onCitationClicked={c => onShowCitation(c, index)}
+                                            onThoughtProcessClicked={() => onToggleTab(AnalysisPanelTabs.ThoughtProcessTab, index)}
+                                            onSupportingContentClicked={() => onToggleTab(AnalysisPanelTabs.SupportingContentTab, index)}
+                                            onFollowupQuestionClicked={q => makeApiRequest(q)}
+                                            showFollowupQuestions={useSuggestFollowupQuestions && answers.length - 1 === index}
+                                            showSpeechOutputAzure={showSpeechOutputAzure}
+                                            showSpeechOutputBrowser={showSpeechOutputBrowser}
+                                        />
                                     </div>
-                                ))}
-                            {!isStreaming &&
-                                answers.map((answer, index) => (
-                                    <div key={index}>
-                                        <UserChatMessage message={answer[0]} />
-                                        <div className={styles.chatMessageGpt}>
-                                            <Answer
-                                                isStreaming={false}
-                                                key={index}
-                                                answer={answer[1]}
-                                                index={index}
-                                                speechConfig={speechConfig}
-                                                isSelected={selectedAnswer === index && activeAnalysisPanelTab !== undefined}
-                                                onCitationClicked={c => onShowCitation(c, index)}
-                                                onThoughtProcessClicked={() => onToggleTab(AnalysisPanelTabs.ThoughtProcessTab, index)}
-                                                onSupportingContentClicked={() => onToggleTab(AnalysisPanelTabs.SupportingContentTab, index)}
-                                                onFollowupQuestionClicked={q => makeApiRequest(q)}
-                                                showFollowupQuestions={useSuggestFollowupQuestions && answers.length - 1 === index}
-                                                showSpeechOutputAzure={showSpeechOutputAzure}
-                                                showSpeechOutputBrowser={showSpeechOutputBrowser}
-                                            />
-                                        </div>
+                                </div>
+                            ))}
+                        {!isStreaming &&
+                            answers.map((answer, index) => (
+                                <div key={index}>
+                                    {answer[0] !== initialUserMessage && <UserChatMessage message={answer[0]} />}
+                                    <div className={styles.chatMessageGpt}>
+                                        <Answer
+                                            isStreaming={false}
+                                            key={index}
+                                            answer={answer[1]}
+                                            index={index}
+                                            speechConfig={speechConfig}
+                                            isSelected={selectedAnswer === index && activeAnalysisPanelTab !== undefined}
+                                            onCitationClicked={c => onShowCitation(c, index)}
+                                            onThoughtProcessClicked={() => onToggleTab(AnalysisPanelTabs.ThoughtProcessTab, index)}
+                                            onSupportingContentClicked={() => onToggleTab(AnalysisPanelTabs.SupportingContentTab, index)}
+                                            onFollowupQuestionClicked={q => makeApiRequest(q)}
+                                            showFollowupQuestions={useSuggestFollowupQuestions && answers.length - 1 === index}
+                                            showSpeechOutputAzure={showSpeechOutputAzure}
+                                            showSpeechOutputBrowser={showSpeechOutputBrowser}
+                                        />
                                     </div>
-                                ))}
-                            {isLoading && (
-                                <>
-                                    <UserChatMessage message={lastQuestionRef.current} />
-                                    <div className={styles.chatMessageGptMinWidth}>
-                                        <AnswerLoading />
-                                    </div>
-                                </>
-                            )}
-                            {error ? (
-                                <>
-                                    <UserChatMessage message={lastQuestionRef.current} />
-                                    <div className={styles.chatMessageGptMinWidth}>
-                                        <AnswerError error={error.toString()} onRetry={() => makeApiRequest(lastQuestionRef.current)} />
-                                    </div>
-                                </>
-                            ) : null}
-                            <div ref={chatMessageStreamEnd} />
-                        </div>
-                    )}
+                                </div>
+                            ))}
+                        {isLoading && (
+                            <>
+                                <UserChatMessage message={lastQuestionRef.current} />
+                                <div className={styles.chatMessageGptMinWidth}>
+                                    <AnswerLoading />
+                                </div>
+                            </>
+                        )}
+                        {error ? (
+                            <>
+                                <UserChatMessage message={lastQuestionRef.current} />
+                                <div className={styles.chatMessageGptMinWidth}>
+                                    <AnswerError error={error.toString()} onRetry={() => makeApiRequest(lastQuestionRef.current)} />
+                                </div>
+                            </>
+                        ) : null}
+                        <div ref={chatMessageStreamEnd} />
+                    </div>
+                    {/* )} */}
 
                     <div className={styles.chatInput}>
                         <QuestionInput
@@ -604,7 +633,8 @@ const Chat = () => {
                         onClose={() => setIsHistoryPanelOpen(false)}
                         onChatSelected={answers => {
                             if (answers.length === 0) return;
-                            setAnswers(answers);
+                            // Add welcome message at the beginning of the loaded history
+                            setAnswers([[initialUserMessage, initialAssistantResponse], ...answers]);
                             lastQuestionRef.current = answers[answers.length - 1][0];
                         }}
                     />

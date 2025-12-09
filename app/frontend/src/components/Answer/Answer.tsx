@@ -12,6 +12,7 @@ import { parseAnswerToHtml } from "./AnswerParser";
 import { AnswerIcon } from "./AnswerIcon";
 import { SpeechOutputBrowser } from "./SpeechOutputBrowser";
 import { SpeechOutputAzure } from "./SpeechOutputAzure";
+import lemonChatbotLogo from "../../assets/lemon-chatbot.png";
 
 interface Props {
     answer: ChatAppResponse;
@@ -68,7 +69,11 @@ export const Answer = ({
         <Stack className={`${styles.answerContainer} ${isSelected && styles.selected}`} verticalAlign="space-between">
             <Stack.Item>
                 <Stack horizontal horizontalAlign="space-between">
-                    <AnswerIcon />
+                    {/* <AnswerIcon /> */}
+                    <div className={styles.assistantHeader}>
+                        <img src={lemonChatbotLogo} alt="Lemon AID logo" className={styles.assistantAvatar} />
+                        <div className={styles.assistantName}>{t("headerTitle")}</div>
+                    </div>
                     <div>
                         <IconButton
                             style={{ color: "black" }}
@@ -77,13 +82,13 @@ export const Answer = ({
                             ariaLabel={copied ? t("tooltips.copied") : t("tooltips.copy")}
                             onClick={handleCopy}
                         />
-                        <IconButton
+                        {/* <IconButton
                             style={{ color: "black" }}
                             iconProps={{ iconName: "Lightbulb" }}
                             title={t("tooltips.showThoughtProcess")}
                             ariaLabel={t("tooltips.showThoughtProcess")}
                             onClick={() => onThoughtProcessClicked()}
-                            disabled={!answer.context.thoughts?.length || isStreaming}
+                            disabled={!answer.context?.thoughts?.length || isStreaming}
                         />
                         <IconButton
                             style={{ color: "black" }}
@@ -91,8 +96,8 @@ export const Answer = ({
                             title={t("tooltips.showSupportingContent")}
                             ariaLabel={t("tooltips.showSupportingContent")}
                             onClick={() => onSupportingContentClicked()}
-                            disabled={!answer.context.data_points || isStreaming}
-                        />
+                            disabled={!answer.context?.data_points || isStreaming}
+                        /> */}
                         {showSpeechOutputAzure && (
                             <SpeechOutputAzure answer={sanitizedAnswerHtml} index={index} speechConfig={speechConfig} isStreaming={isStreaming} />
                         )}
@@ -117,7 +122,7 @@ export const Answer = ({
                             const reference = citation.reference;
                             if (isWeb) {
                                 // Attempt to find the matching web data point to retrieve its title
-                                const webEntry = answer.context.data_points.external_results_metadata?.find(w => w.url === reference);
+                                const webEntry = answer.context?.data_points.external_results_metadata?.find(w => w.url === reference);
                                 const titleOrUrl = webEntry?.title?.trim() ? webEntry.title : reference;
                                 return (
                                     <span key={`${reference}-${displayIndex}`} className={styles.citationEntry}>

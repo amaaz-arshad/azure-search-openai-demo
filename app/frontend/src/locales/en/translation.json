@@ -1,6 +1,6 @@
 {
-    "pageTitle": "Netherland Chatbot",
-    "headerTitle": "Netherland Chatbot",
+    "pageTitle": "Lemon®AID",
+    "headerTitle": "Lemon®AID",
     "chat": "Chat",
     "qa": "Ask a question",
     "login": "Login",
@@ -37,9 +37,9 @@
     "chatEmptyStateTitle": "Chat with your data",
     "chatEmptyStateSubtitle": "Ask anything or try an example",
     "defaultExamples": {
-        "1": "What are the main chapters in the LearningNL course?",
-        "2": "What is the political structure of the Netherlands?",
-        "3": "What are the key characteristics of the Dutch landscape?",
+        "1": "Who founded HYROX?",
+        "2": "What are the key physical qualities required for strong HYROX performance?",
+        "3": "What should coaches focus on when planning HYROX training?",
         "placeholder": "Type any question"
     },
     "askTitle": "Ask your data",
