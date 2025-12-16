@@ -40,14 +40,14 @@
         "1": "Who founded HYROX?",
         "2": "What are the key physical qualities required for strong HYROX performance?",
         "3": "What should coaches focus on when planning HYROX training?",
-        "placeholder": "Type any question"
+        "placeholder": "Gib deine Nachricht ein"
     },
     "askTitle": "Ask your data",
     "multimodalExamples": {
         "1": "Compare the impact of interest rates and GDP in financial markets.",
         "2": "What is the expected trend for the S&P 500 index over the next five years? Compare it to the past S&P 500 performance",
         "3": "Can you identify any correlation between oil prices and stock market trends?",
-        "placeholder": "Type any question"
+        "placeholder": "Gib deine Nachricht ein"
     },
     "generatingAnswer": "Generating answer",
     "citationWithColon": "Citation:",
