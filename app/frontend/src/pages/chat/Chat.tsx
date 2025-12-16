@@ -28,8 +28,8 @@ import { Settings } from "../../components/Settings/Settings";
 import { setGlobalClearChat } from "../layout/Layout";
 
 const Chat = () => {
-    const initialUserMessage: string = "Hallo";
-    const initialAssistantMessageContent: string = `Willkommen! Schön, dass Du da bist. Möchtest Du Dein Wissen zu einem Thema selbst überprüfen oder hast Du Fragen, die Du klären möchtest?`;
+    const initialUserMessage: string = "Hello";
+    const initialAssistantMessageContent: string = `Welcome! Glad you're here. Would you like to test your knowledge on a topic yourself, or do you have questions you want to clarify?`;
     const initialAssistantResponse: ChatAppResponse = {
         message: {
             content: initialAssistantMessageContent,
@@ -44,9 +44,9 @@ const Chat = () => {
     const [isConfigPanelOpen, setIsConfigPanelOpen] = useState(false);
     const [isHistoryPanelOpen, setIsHistoryPanelOpen] = useState(false);
     const [promptTemplate, setPromptTemplate] = useState<string>("");
-    const [temperature, setTemperature] = useState<number>(0.1);
+    const [temperature, setTemperature] = useState<number>(0);
     const [seed, setSeed] = useState<number | null>(null);
-    const [minimumRerankerScore, setMinimumRerankerScore] = useState<number>(1.2);
+    const [minimumRerankerScore, setMinimumRerankerScore] = useState<number>(1);
     const [minimumSearchScore, setMinimumSearchScore] = useState<number>(0);
     const [retrieveCount, setRetrieveCount] = useState<number>(5);
     const [agenticReasoningEffort, setRetrievalReasoningEffort] = useState<string>("minimal");

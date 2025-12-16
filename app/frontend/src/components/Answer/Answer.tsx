@@ -12,7 +12,7 @@ import { parseAnswerToHtml } from "./AnswerParser";
 import { AnswerIcon } from "./AnswerIcon";
 import { SpeechOutputBrowser } from "./SpeechOutputBrowser";
 import { SpeechOutputAzure } from "./SpeechOutputAzure";
-import lemonChatbotLogo from "../../assets/lemon-chatbot.png";
+import fbnLogo from "../../assets/fbn.png";
 
 interface Props {
     answer: ChatAppResponse;
@@ -71,7 +71,7 @@ export const Answer = ({
                 <Stack horizontal horizontalAlign="space-between">
                     {/* <AnswerIcon /> */}
                     <div className={styles.assistantHeader}>
-                        <img src={lemonChatbotLogo} alt="Lemon AID logo" className={styles.assistantAvatar} />
+                        <img src={fbnLogo} alt="FBN logo" className={styles.assistantAvatar} />
                         <div className={styles.assistantName}>{t("headerTitle")}</div>
                     </div>
                     <div>

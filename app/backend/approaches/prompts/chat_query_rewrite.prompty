@@ -24,16 +24,16 @@ If the question is not in English, translate the question to English before gene
 If you cannot generate a search query, return just the number 0.
 
 user:
-Tell me about HYROX.
+Tell me about the Wet op de inkomstenbelasting 2001 (Wet IB 2001).
 
 assistant:
-Explain HYROX using information from the uploaded HYROX learning units.
+Explain the Wet op de inkomstenbelasting 2001 using information from the uploaded Wetstoelichtingen file.
 
 user:
-What modules, topics, and categories/tags are present in the HYROX Training Curriculum?
+What chapters, topics, and themes are present in the Wet IB 2001 as described in the Wetstoelichtingen?
 
 assistant:
-Show the list of all modules, topics and categories/tags present in the HYROX Training Curriculum.
+Show the list of all chapters, main topics, and themes present in the Wet IB 2001 according to the uploaded Wetstoelichtingen file.
 
 {% for message in past_messages %}
 {{ message["role"] }}:

@@ -1,11 +1,13 @@
 {
-    "pageTitle": "Lemon®AID",
-    "headerTitle": "Lemon®AID",
+    "pageTitle": "SNAP Chatbot",
+    "headerTitle": "SNAP Chatbot",
     "chat": "Chat",
     "qa": "Ask a question",
     "login": "Login",
     "logout": "Logout",
     "clearChat": "Clear chat",
+    "initialUserMessage": "Hello",
+    "initialAssistantMessage": "Welcome! Glad you're here. Would you like to test your knowledge on a topic yourself, or do you have questions you want to clarify?",
     "history": {
         "chatHistory": "Chat history",
         "openChatHistory": "Open chat history",
@@ -40,14 +42,14 @@
         "1": "Who founded HYROX?",
         "2": "What are the key physical qualities required for strong HYROX performance?",
         "3": "What should coaches focus on when planning HYROX training?",
-        "placeholder": "Gib deine Nachricht ein"
+        "placeholder": "Type your message"
     },
     "askTitle": "Ask your data",
     "multimodalExamples": {
         "1": "Compare the impact of interest rates and GDP in financial markets.",
         "2": "What is the expected trend for the S&P 500 index over the next five years? Compare it to the past S&P 500 performance",
         "3": "Can you identify any correlation between oil prices and stock market trends?",
-        "placeholder": "Gib deine Nachricht ein"
+        "placeholder": "Type your message"
     },
     "generatingAnswer": "Generating answer",
     "citationWithColon": "Citation:",

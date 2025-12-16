@@ -8,7 +8,7 @@ import { useLogin } from "../../authConfig";
 import { LoginButton } from "../../components/LoginButton";
 import { IconButton } from "@fluentui/react";
 import { MoreHorizontal24Regular, ChatAdd24Regular, ChatDismiss24Regular, History24Regular } from "@fluentui/react-icons";
-import lemonChatbotLogo from "../../assets/lemon-chatbot.png";
+import fbnLogo from "../../assets/fbn.png";
 
 // At the top of the file, outside the component
 let globalClearChat: () => void = () => {};
@@ -78,7 +78,7 @@ const Layout = () => {
                     {/* Left: Logo */}
                     <Link to="/" className={styles.logoContainer}>
                         <div className={styles.logoCircle}>
-                            <img src={lemonChatbotLogo} alt="Logo" />
+                            <img src={fbnLogo} alt="Logo" />
                         </div>
                     </Link>
 
