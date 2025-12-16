@@ -7,8 +7,9 @@ import { useLogin } from "../../authConfig";
 
 import { LoginButton } from "../../components/LoginButton";
 import { IconButton } from "@fluentui/react";
-import { MoreHorizontal24Regular, ChatAdd24Regular, ChatDismiss24Regular, History24Regular } from "@fluentui/react-icons";
+import { MoreHorizontal24Regular, ChatAdd24Regular, ChatDismiss24Regular, History24Regular, SignOut24Regular } from "@fluentui/react-icons";
 import fbnLogo from "../../assets/fbn.png";
+import { logout } from "../basicauth/basicAuth";
 
 // At the top of the file, outside the component
 let globalClearChat: () => void = () => {};
@@ -71,6 +72,12 @@ const Layout = () => {
         console.log("View recent chats");
     };
 
+    const handleBasicLogout = () => {
+        setDropdownOpen(false);
+        logout();
+        window.location.reload(); // Forces AppGate to re-check auth
+    };
+
     return (
         <div className={styles.layout}>
             <header className={styles.header} role={"banner"}>
@@ -97,22 +104,28 @@ const Layout = () => {
                             />
                             {dropdownOpen && (
                                 <ul className={styles.dropdownMenu}>
-                                    <li>
+                                    {/* <li>
                                         <button className={styles.dropdownItem} style={{ opacity: 0.5, cursor: "not-allowed" }} onClick={() => {}} disabled>
                                             <ChatAdd24Regular />
                                             <span>Start a new chat</span>
                                         </button>
-                                    </li>
+                                    </li> */}
                                     <li>
                                         <button className={styles.dropdownItem} onClick={handleEndChat}>
                                             <ChatDismiss24Regular />
                                             <span>Clear chat</span>
                                         </button>
                                     </li>
-                                    <li>
+                                    {/* <li>
                                         <button className={styles.dropdownItem} style={{ opacity: 0.5, cursor: "not-allowed" }} onClick={() => {}} disabled>
                                             <History24Regular />
                                             <span>View recent chats</span>
+                                        </button>
+                                    </li> */}
+                                    <li>
+                                        <button className={styles.dropdownItem} onClick={handleBasicLogout}>
+                                            <SignOut24Regular />
+                                            <span>Logout</span>
                                         </button>
                                     </li>
                                 </ul>
