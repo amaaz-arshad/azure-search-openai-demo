@@ -76,10 +76,10 @@ const buildActivityStepMap = (answer: ChatAppResponse): Record<string, ActivityS
 };
 
 const collectCitations = (answer: ChatAppResponse, isStreaming: boolean): { fragments: CitationFragment[]; citations: CitationDetail[] } => {
-    const possibleCitations = answer.context.data_points.citations || [];
-    const citationActivityDetails = answer.context.data_points.citation_activity_details ?? {};
+    const possibleCitations = answer.context?.data_points.citations || [];
+    const citationActivityDetails = answer.context?.data_points.citation_activity_details ?? {};
     const activitySteps = buildActivityStepMap(answer);
-    const externalResults = answer.context.data_points.external_results_metadata || [];
+    const externalResults = answer.context?.data_points.external_results_metadata || [];
     const parsedAnswer = normalizeAnswerText(answer, isStreaming);
     const parts = parsedAnswer.split(/\[([^\]]+)\]/g);
 

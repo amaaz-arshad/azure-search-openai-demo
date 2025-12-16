@@ -83,7 +83,7 @@ export const Answer = ({
                             title={t("tooltips.showThoughtProcess")}
                             ariaLabel={t("tooltips.showThoughtProcess")}
                             onClick={() => onThoughtProcessClicked()}
-                            disabled={!answer.context.thoughts?.length || isStreaming}
+                            disabled={!answer.context?.thoughts?.length || isStreaming}
                         />
                         <IconButton
                             style={{ color: "black" }}
@@ -91,7 +91,7 @@ export const Answer = ({
                             title={t("tooltips.showSupportingContent")}
                             ariaLabel={t("tooltips.showSupportingContent")}
                             onClick={() => onSupportingContentClicked()}
-                            disabled={!answer.context.data_points || isStreaming}
+                            disabled={!answer.context?.data_points || isStreaming}
                         />
                         {showSpeechOutputAzure && (
                             <SpeechOutputAzure answer={sanitizedAnswerHtml} index={index} speechConfig={speechConfig} isStreaming={isStreaming} />
@@ -117,7 +117,7 @@ export const Answer = ({
                             const reference = citation.reference;
                             if (isWeb) {
                                 // Attempt to find the matching web data point to retrieve its title
-                                const webEntry = answer.context.data_points.external_results_metadata?.find(w => w.url === reference);
+                                const webEntry = answer.context?.data_points.external_results_metadata?.find(w => w.url === reference);
                                 const titleOrUrl = webEntry?.title?.trim() ? webEntry.title : reference;
                                 return (
                                     <span key={`${reference}-${displayIndex}`} className={styles.citationEntry}>
