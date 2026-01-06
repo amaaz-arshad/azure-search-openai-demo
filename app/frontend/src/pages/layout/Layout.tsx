@@ -97,24 +97,24 @@ const Layout = () => {
                             />
                             {dropdownOpen && (
                                 <ul className={styles.dropdownMenu}>
-                                    <li>
+                                    {/* <li>
                                         <button className={styles.dropdownItem} style={{ opacity: 0.5, cursor: "not-allowed" }} onClick={() => {}} disabled>
                                             <ChatAdd24Regular />
                                             <span>Start a new chat</span>
                                         </button>
-                                    </li>
+                                    </li> */}
                                     <li>
                                         <button className={styles.dropdownItem} onClick={handleEndChat}>
                                             <ChatDismiss24Regular />
                                             <span>Clear chat</span>
                                         </button>
                                     </li>
-                                    <li>
+                                    {/* <li>
                                         <button className={styles.dropdownItem} style={{ opacity: 0.5, cursor: "not-allowed" }} onClick={() => {}} disabled>
                                             <History24Regular />
                                             <span>View recent chats</span>
                                         </button>
-                                    </li>
+                                    </li> */}
                                 </ul>
                             )}
                         </div>
