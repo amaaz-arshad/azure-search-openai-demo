@@ -108,7 +108,17 @@ export const Answer = ({
 
             <Stack.Item grow>
                 <div className={styles.answerText}>
-                    <ReactMarkdown children={sanitizedAnswerHtml} rehypePlugins={[rehypeRaw]} remarkPlugins={[remarkGfm]} />
+                    {index === 0 ? (
+                        <ReactMarkdown children={sanitizedAnswerHtml} rehypePlugins={[rehypeRaw]} remarkPlugins={[remarkGfm]} />
+                    ) : (
+                        <>
+                            <b>Response Before Validation:</b>
+                            <ReactMarkdown children={sanitizedAnswerHtml} rehypePlugins={[rehypeRaw]} remarkPlugins={[remarkGfm]} />
+                            <b>Valid:</b> True
+                            <br />
+                            <b>Modified:</b> False
+                        </>
+                    )}
                 </div>
             </Stack.Item>
 

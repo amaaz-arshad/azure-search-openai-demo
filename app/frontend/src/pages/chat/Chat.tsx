@@ -54,8 +54,8 @@ const Chat = () => {
     const [useSemanticRanker, setUseSemanticRanker] = useState<boolean>(true);
     const [useQueryRewriting, setUseQueryRewriting] = useState<boolean>(false);
     const [reasoningEffort, setReasoningEffort] = useState<string>("");
-    const [streamingEnabled, setStreamingEnabled] = useState<boolean>(true);
-    const [shouldStream, setShouldStream] = useState<boolean>(true);
+    const [streamingEnabled, setStreamingEnabled] = useState<boolean>(false);
+    const [shouldStream, setShouldStream] = useState<boolean>(false);
     const previousShouldStreamRef = useRef<boolean>(true);
     const forcedStreamingRef = useRef<boolean>(false);
     const [useSemanticCaptions, setUseSemanticCaptions] = useState<boolean>(false);
