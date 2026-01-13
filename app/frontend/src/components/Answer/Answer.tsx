@@ -132,7 +132,9 @@ export const Answer = ({
                                     </span>
                                 );
                             } else {
-                                const path = getCitationFilePath(reference);
+                                // Construct the PublishOne document URL
+                                const publishOneUrl = `https://fbn.publishone.nl/document/${reference.split(".")[0]}/content`;
+
                                 return (
                                     <span key={`${reference}-${displayIndex}`} className={styles.citationEntry}>
                                         <a
@@ -140,10 +142,10 @@ export const Answer = ({
                                             title={reference}
                                             onClick={e => {
                                                 e.preventDefault();
-                                                onCitationClicked(path);
+                                                window.open(publishOneUrl, "_blank", "noopener,noreferrer");
                                             }}
                                         >
-                                            {`${displayIndex}. ${reference}`}
+                                            {`${displayIndex}. ${reference.split(".")[0]}`}
                                         </a>
                                     </span>
                                 );
