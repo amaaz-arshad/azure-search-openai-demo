@@ -83,12 +83,21 @@ export type ResponseContext = {
     answer?: string;
 };
 
+// Add this type definition
+export type ValidationResult = {
+    is_valid: boolean;
+    was_modified?: boolean;
+    response: string;
+    validation_reason: string;
+};
+
 export type ChatAppResponseOrError = {
     message: ResponseMessage;
     delta: ResponseMessage;
     context: ResponseContext;
     session_state: any;
     error?: string;
+    validation_result?: ValidationResult; // Add this
 };
 
 export type ChatAppResponse = {
@@ -96,6 +105,7 @@ export type ChatAppResponse = {
     delta: ResponseMessage;
     context?: ResponseContext;
     session_state: any;
+    validation_result?: ValidationResult; // Add this
 };
 
 export type ChatAppRequestContext = {

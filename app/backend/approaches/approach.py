@@ -49,7 +49,7 @@ from prepdocslib.blobmanager import AdlsBlobManager, BlobManager
 from prepdocslib.embeddings import ImageEmbeddings
 
 from approaches.sampleprompt import SAMPLE_PROMPT
-
+from approaches.validationagent import ValidationAgent
 @dataclass
 class ActivityDetail:
     id: int
@@ -246,13 +246,13 @@ class Approach(ABC):
         knowledgebase_deployment: Optional[str],
         query_language: Optional[str],
         query_speller: Optional[str],
-        embedding_deployment: Optional[str],  # Not needed for non-Azure OpenAI or for retrieval_mode="text"
+        embedding_deployment: Optional[str],
         embedding_model: str,
         embedding_dimensions: int,
         embedding_field: str,
         openai_host: str,
         chatgpt_model: str,
-        chatgpt_deployment: Optional[str],  # Not needed for non-Azure OpenAI
+        chatgpt_deployment: Optional[str],
         prompt_manager: PromptManager,
         reasoning_effort: Optional[str] = None,
         multimodal_enabled: bool = False,
@@ -282,6 +282,14 @@ class Approach(ABC):
         self.image_embeddings_client = image_embeddings_client
         self.global_blob_manager = global_blob_manager
         self.user_blob_manager = user_blob_manager
+        # Initialize validation agent
+        self.validation_agent = ValidationAgent(
+            openai_client=openai_client,
+            chatgpt_model=chatgpt_model,
+            chatgpt_deployment=chatgpt_deployment,
+            prompt_manager=prompt_manager,
+            reasoning_effort=reasoning_effort,
+        )
 
     def build_filter(self, overrides: dict[str, Any]) -> Optional[str]:
         include_category = overrides.get("include_category")

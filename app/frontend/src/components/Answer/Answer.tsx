@@ -43,6 +43,7 @@ export const Answer = ({
     showSpeechOutputAzure,
     showSpeechOutputBrowser
 }: Props) => {
+    console.log(answer.validation_result);
     const followupQuestions = answer.context?.followup_questions;
     const parsedAnswer = useMemo(() => parseAnswerToHtml(answer, isStreaming, onCitationClicked), [answer, isStreaming, onCitationClicked]);
     const { t } = useTranslation();
@@ -114,9 +115,17 @@ export const Answer = ({
                         <>
                             <b>Response Before Validation:</b>
                             <ReactMarkdown children={sanitizedAnswerHtml} rehypePlugins={[rehypeRaw]} remarkPlugins={[remarkGfm]} />
-                            <b>Valid:</b> True
+                            <b>Valid:</b> {answer.validation_result?.is_valid ? "Yes" : "No"}
                             <br />
-                            <b>Modified:</b> False
+                            <b>Validation Reason:</b> {answer.validation_result?.validation_reason}
+                            <br />
+                            {answer.validation_result?.was_modified && (
+                                <>
+                                    <br />
+                                    <b>Modified response:</b>{" "}
+                                    <ReactMarkdown children={answer.validation_result?.response} rehypePlugins={[rehypeRaw]} remarkPlugins={[remarkGfm]} />
+                                </>
+                            )}
                         </>
                     )}
                 </div>

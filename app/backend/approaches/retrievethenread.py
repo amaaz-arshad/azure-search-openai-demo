@@ -16,6 +16,9 @@ from approaches.promptmanager import PromptManager
 from prepdocslib.blobmanager import AdlsBlobManager, BlobManager
 from prepdocslib.embeddings import ImageEmbeddings
 
+# Add this import
+from approaches.sampleprompt import SAMPLE_PROMPT
+
 
 class RetrieveThenReadApproach(Approach):
     """
@@ -57,6 +60,31 @@ class RetrieveThenReadApproach(Approach):
         retrieval_reasoning_effort: Optional[str] = None,
     ):
         self.search_client = search_client
+        # ==== ADDED: Call parent class constructor ====
+        super().__init__(
+            search_client=search_client,
+            openai_client=openai_client,
+            knowledgebase_model=knowledgebase_model,
+            knowledgebase_deployment=knowledgebase_deployment,
+            query_language=query_language,
+            query_speller=query_speller,
+            embedding_deployment=embedding_deployment,
+            embedding_model=embedding_model,
+            embedding_dimensions=embedding_dimensions,
+            embedding_field=embedding_field,
+            openai_host="azure",  # Default to "azure" - update if needed
+            chatgpt_model=chatgpt_model,
+            chatgpt_deployment=chatgpt_deployment,
+            prompt_manager=prompt_manager,
+            reasoning_effort=reasoning_effort,
+            multimodal_enabled=multimodal_enabled,
+            image_embeddings_client=image_embeddings_client,
+            global_blob_manager=global_blob_manager,
+            user_blob_manager=user_blob_manager,
+        )
+        # ==============================================
+        
+        # Set child class specific attributes
         self.search_index_name = search_index_name
         self.knowledgebase_model = knowledgebase_model
         self.knowledgebase_deployment = knowledgebase_deployment
@@ -111,7 +139,7 @@ class RetrieveThenReadApproach(Approach):
             answer = extra_info.answer
         else:
             # Process results
-            messages = self.prompt_manager.render_prompt(
+            answer_messages = self.prompt_manager.render_prompt(
                 self.answer_prompt,
                 self.get_system_prompt_variables(overrides.get("prompt_template"))
                 | {
@@ -127,7 +155,7 @@ class RetrieveThenReadApproach(Approach):
                 await self.create_chat_completion(
                     self.chatgpt_deployment,
                     self.chatgpt_model,
-                    messages=messages,
+                    messages=answer_messages,
                     overrides=overrides,
                     response_token_limit=self.get_response_token_limit(self.chatgpt_model, 1024),
                 ),
@@ -135,7 +163,7 @@ class RetrieveThenReadApproach(Approach):
             extra_info.thoughts.append(
                 self.format_thought_step_for_chatcompletion(
                     title="Prompt to generate answer",
-                    messages=messages,
+                    messages=answer_messages,
                     overrides=overrides,
                     model=self.chatgpt_model,
                     deployment=self.chatgpt_deployment,
@@ -143,6 +171,90 @@ class RetrieveThenReadApproach(Approach):
                 )
             )
             answer = chat_completion.choices[0].message.content or ""
+        
+        # === ADD PRINT STATEMENT HERE ===
+        print("\n" + "="*80)
+        print("📝 ORIGINAL LLM RESPONSE (/ask - BEFORE VALIDATION):")
+        print("="*80)
+        print(f"User Query: {q}")
+        print(f"Answer:\n{answer}")
+        print("="*80 + "\n")
+        # =================================
+        
+        # VALIDATION AGENT: Validate with conversation context
+        if not extra_info.answer and answer and not overrides.get("skip_validation", False):
+            # Get system prompt
+            system_prompt_vars = self.get_system_prompt_variables(overrides.get("prompt_template"))
+            system_prompt = system_prompt_vars.get("override_prompt", SAMPLE_PROMPT)
+            
+            # For /ask endpoint, reconstruct conversation history
+            conversation_history = []
+            
+            # Add system message
+            conversation_history.append({
+                "role": "system",
+                "content": system_prompt
+            })
+            
+            # Add user message(s)
+            conversation_history.extend(messages)
+            
+            # Add the assistant's response
+            conversation_history.append({
+                "role": "assistant",
+                "content": answer
+            })
+            
+            # Validate response
+            validation_result = await self.validation_agent.validate_response(
+                system_prompt=system_prompt,
+                conversation_history=conversation_history,
+                llm_response=answer,
+                context={
+                    "auth_claims": auth_claims, 
+                    "overrides": overrides,
+                    "session_state": session_state,
+                },
+                overrides=overrides,
+            )
+            
+            # === ADD PRINT STATEMENT HERE ===
+            print("\n" + "="*80)
+            print("✅ VALIDATION AGENT RESULT (/ask):")
+            print("="*80)
+            print(f"Valid: {validation_result['is_valid']}")
+            print(f"Modified: {validation_result['was_modified']}")
+            print(f"Reason: {validation_result['validation_reason']}")
+            print(f"Mode: {validation_result.get('conversation_mode', 'unknown')}")
+            print("="*80 + "\n")
+            
+            if validation_result['was_modified']:
+                print("\n" + "="*80)
+                print("🔄 MODIFIED RESPONSE (/ask - AFTER VALIDATION):")
+                print("="*80)
+                print(f"Content:\n{validation_result['response']}")
+                print("="*80 + "\n")
+            else:
+                print("\n" + "="*80)
+                print("✓ RESPONSE ACCEPTED AS-IS (NO MODIFICATIONS)")
+                print("="*80 + "\n")
+            # =================================
+            
+            # Use validated/modified response
+            answer = validation_result["response"]
+            
+            # Add validation step to thoughts
+            validation_thought = ThoughtStep(
+                title="Response Validation",
+                description=f"Validation result: {validation_result['validation_reason']}",
+                props={
+                    "is_valid": validation_result["is_valid"],
+                    "was_modified": validation_result["was_modified"],
+                    "validation_reason": validation_result["validation_reason"],
+                    "conversation_mode": validation_result.get("conversation_mode", "unknown"),
+                }
+            )
+            extra_info.thoughts.append(validation_thought)
 
         return {
             "message": {

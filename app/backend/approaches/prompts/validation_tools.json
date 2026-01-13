@@ -1,0 +1,40 @@
+[
+  {
+    "type": "function",
+    "function": {
+      "name": "accept_response",
+      "description": "Accept the LLM response as valid and compliant with all system prompt rules",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "validation_reason": {
+            "type": "string",
+            "description": "Brief reason why response is valid and which rules were checked"
+          }
+        },
+        "required": ["validation_reason"]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "modify_response",
+      "description": "Modify the LLM response to make it fully comply with ALL system prompt rules",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "modified_response": {
+            "type": "string",
+            "description": "The completely modified response that complies with ALL rules"
+          },
+          "validation_reason": {
+            "type": "string",
+            "description": "Detailed reason for modification, listing ALL rules that were violated"
+          }
+        },
+        "required": ["modified_response", "validation_reason"]
+      }
+    }
+  }
+]

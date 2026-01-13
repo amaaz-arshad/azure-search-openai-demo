@@ -188,6 +188,9 @@ const Chat = () => {
                 } else if (event["context"]) {
                     // Update context with new keys from latest event
                     askResponse.context = { ...askResponse.context, ...event["context"] };
+                } else if (event["validation_result"]) {
+                    // Store validation result
+                    askResponse.validation_result = event["validation_result"];
                 } else if (event["error"]) {
                     throw Error(event["error"]);
                 }

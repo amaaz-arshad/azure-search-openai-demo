@@ -24,6 +24,9 @@ from approaches.promptmanager import PromptManager
 from prepdocslib.blobmanager import AdlsBlobManager, BlobManager
 from prepdocslib.embeddings import ImageEmbeddings
 
+# Add this import
+from approaches.sampleprompt import SAMPLE_PROMPT
+
 
 class ChatReadRetrieveReadApproach(Approach):
     """
@@ -67,6 +70,31 @@ class ChatReadRetrieveReadApproach(Approach):
         retrieval_reasoning_effort: Optional[str] = None,
     ):
         self.search_client = search_client
+        # ==== ADDED: Call parent class constructor ====
+        super().__init__(
+            search_client=search_client,
+            openai_client=openai_client,
+            knowledgebase_model=knowledgebase_model,
+            knowledgebase_deployment=knowledgebase_deployment,
+            query_language=query_language,
+            query_speller=query_speller,
+            embedding_deployment=embedding_deployment,
+            embedding_model=embedding_model,
+            embedding_dimensions=embedding_dimensions,
+            embedding_field=embedding_field,
+            openai_host="azure",  # Default to "azure" - update if needed
+            chatgpt_model=chatgpt_model,
+            chatgpt_deployment=chatgpt_deployment,
+            prompt_manager=prompt_manager,
+            reasoning_effort=reasoning_effort,
+            multimodal_enabled=multimodal_enabled,
+            image_embeddings_client=image_embeddings_client,
+            global_blob_manager=global_blob_manager,
+            user_blob_manager=user_blob_manager,
+        )
+        # ==============================================
+        
+        # Set child class specific attributes
         self.search_index_name = search_index_name
         self.knowledgebase_model = knowledgebase_model
         self.knowledgebase_deployment = knowledgebase_deployment
@@ -125,13 +153,105 @@ class ChatReadRetrieveReadApproach(Approach):
         chat_completion_response: ChatCompletion = await cast(Awaitable[ChatCompletion], chat_coroutine)
         content = chat_completion_response.choices[0].message.content
         role = chat_completion_response.choices[0].message.role
+        
+        # === ADD PRINT STATEMENT HERE ===
+        print("\n" + "="*80)
+        print("📝 ORIGINAL LLM RESPONSE (BEFORE VALIDATION):")
+        print("="*80)
+        print(f"Role: {role}")
+        print(f"Content:\n{content}")
+        print("="*80 + "\n")
+        # =================================
+        
+        # VALIDATION AGENT: Validate with FULL conversation context
+        if content and not overrides.get("skip_validation", False):
+            # Get system prompt
+            system_prompt_vars = self.get_system_prompt_variables(overrides.get("prompt_template"))
+            system_prompt = system_prompt_vars.get("override_prompt", SAMPLE_PROMPT)
+            
+            # The 'messages' parameter contains the ENTIRE conversation history
+            # but we need to add the system prompt to it for validation
+            conversation_history = []
+            
+            # Add system message
+            conversation_history.append({
+                "role": "system",
+                "content": system_prompt
+            })
+            
+            # Add all other messages
+            conversation_history.extend(messages)
+            
+            # Add the assistant's current response to the history for validation context
+            conversation_history.append({
+                "role": "assistant",
+                "content": content
+            })
+            
+            # Get user query
+            user_query = ""
+            for msg in reversed(messages):
+                if msg["role"] == "user":
+                    user_query = str(msg.get("content", ""))
+                    break
+            
+            # Validate response with full context
+            validation_result = await self.validation_agent.validate_response(
+                system_prompt=system_prompt,
+                conversation_history=conversation_history,
+                llm_response=content,
+                context={
+                    "auth_claims": auth_claims, 
+                    "overrides": overrides,
+                    "session_state": session_state,
+                },
+                overrides=overrides,
+            )
+            
+            # === ADD PRINT STATEMENT HERE ===
+            print("\n" + "="*80)
+            print("✅ VALIDATION AGENT RESULT:")
+            print("="*80)
+            print(f"Valid: {validation_result['is_valid']}")
+            print(f"Modified: {validation_result['was_modified']}")
+            print(f"Reason: {validation_result['validation_reason']}")
+            print(f"Mode: {validation_result.get('conversation_mode', 'unknown')}")
+            print("="*80 + "\n")
+            
+            if validation_result['was_modified']:
+                print("\n" + "="*80)
+                print("🔄 MODIFIED RESPONSE (AFTER VALIDATION):")
+                print("="*80)
+                print(f"Content:\n{validation_result['response']}")
+                print("="*80 + "\n")
+            else:
+                print("\n" + "="*80)
+                print("✓ RESPONSE ACCEPTED AS-IS (NO MODIFICATIONS)")
+                print("="*80 + "\n")
+            # =================================
+            
+            # Add validation step to thoughts
+            validation_thought = ThoughtStep(
+                title="Response Validation",
+                description=f"Validation result: {validation_result['validation_reason']}",
+                props={
+                    "is_valid": validation_result["is_valid"],
+                    "was_modified": validation_result["was_modified"],
+                    "validation_reason": validation_result["validation_reason"],
+                    "conversation_mode": validation_result.get("conversation_mode", "unknown"),
+                }
+            )
+            extra_info.thoughts.append(validation_thought)
+        
         if overrides.get("suggest_followup_questions"):
             content, followup_questions = self.extract_followup_questions(content)
             extra_info.followup_questions = followup_questions
-        # Assume last thought is for generating answer
-        # TODO: Update for agentic? This isn't still true?
+        
+        # Update token usage for the thought before validation (which is at index -2)
         if self.include_token_usage and extra_info.thoughts and chat_completion_response.usage:
-            extra_info.thoughts[-1].update_token_usage(chat_completion_response.usage)
+            if len(extra_info.thoughts) >= 2:  # Make sure we have at least 2 thoughts
+                extra_info.thoughts[-2].update_token_usage(chat_completion_response.usage)
+        
         chat_app_response = {
             "message": {"content": content, "role": role},
             "context": {
@@ -142,6 +262,7 @@ class ChatReadRetrieveReadApproach(Approach):
                 "followup_questions": extra_info.followup_questions,
             },
             "session_state": session_state,
+            "validation_result": validation_result if content and not overrides.get("skip_validation", False) else None,
         }
         return chat_app_response
 
