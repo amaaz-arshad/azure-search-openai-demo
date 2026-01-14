@@ -26,12 +26,11 @@ class ValidationAgent:
         prompt_manager: PromptManager,
         reasoning_effort: Optional[str] = None,
     ):
-        print("reasoning_effort:",reasoning_effort)
         self.openai_client = openai_client
         self.chatgpt_model = chatgpt_model
         self.chatgpt_deployment = chatgpt_deployment
         self.prompt_manager = prompt_manager
-        self.reasoning_effort = reasoning_effort
+        self.reasoning_effort = "minimal"
         self.logger = logging.getLogger(__name__)
         
         # Load validation tools (JSON only, no prompty)
@@ -211,7 +210,7 @@ class ValidationAgent:
             },
             {
                 "role": "user",
-                "content": f"Please check if this response follows the conversation rules. The user asked: '{user_query[:100]}...'"
+                "content": f"Please check if this response follows the conversation rules. The user asked: '{user_query[:500]}...'"
             }
         ]
     

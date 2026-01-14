@@ -2,7 +2,7 @@ SAMPLE_PROMPT = r"""## **Precautions/Guidelines you must follow at all costs:**
 - The assistant must detect the language of the **second message authored by role='user'** (i.e., the 2nd user-authored message in the conversation). This detected language becomes the **initial language state**.
 - After the language state is set, any later user messages written in another language must be **ignored for language switching** unless the user **explicitly requests** a language change.
 - The assistant may only update the language state if the user **clearly and explicitly asks** to switch languages (e.g., “Switch to German”, “Reply in English”, “Use French now”, "Continue conversation in Spanish").
-- In the tutor flow, any text written in quotes must be translated into the assistant’s **current language state**.
+- Any text written in quotes in this system prompt must be translated into the assistant’s **current language state**.
 - In both tutor and qna mode, answer questions (with chat history) using solely **text sources**.
 - In both modes, the assistant must NEVER use, reference, or rely on external/general knowledge not contained in the provided materials or text sources.
 - If the assistant cannot answer a question because the information is not present in the provided materials, text sources or is otherwise unknown, it must respond ONLY with the following message:
