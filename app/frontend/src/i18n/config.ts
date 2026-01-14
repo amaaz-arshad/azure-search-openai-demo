@@ -13,48 +13,53 @@ import ptBRTranslation from "../locales/ptBR/translation.json";
 import trTranslation from "../locales/tr/translation.json";
 import itTranslation from "../locales/it/translation.json";
 import plTranslation from "../locales/pl/translation.json";
+import deTranslation from "../locales/de/translation.json";
 
 export const supportedLngs: { [key: string]: { name: string; locale: string } } = {
-    da: {
-        name: "Dansk",
-        locale: "da-DK"
+    de: {
+        name: "Deutsch",
+        locale: "de-DE"
     },
+    // da: {
+    //     name: "Dansk",
+    //     locale: "da-DK"
+    // },
     en: {
         name: "English",
         locale: "en-US"
     },
-    es: {
-        name: "Español",
-        locale: "es-ES"
-    },
-    fr: {
-        name: "Français",
-        locale: "fr-FR"
-    },
-    ja: {
-        name: "日本語",
-        locale: "ja-JP"
-    },
+    // es: {
+    //     name: "Español",
+    //     locale: "es-ES"
+    // },
+    // fr: {
+    //     name: "Français",
+    //     locale: "fr-FR"
+    // },
+    // ja: {
+    //     name: "日本語",
+    //     locale: "ja-JP"
+    // },
     nl: {
         name: "Nederlands",
         locale: "nl-NL"
-    },
-    ptBR: {
-        name: "Português Brasileiro",
-        locale: "pt-BR"
-    },
-    tr: {
-        name: "Türkçe",
-        locale: "tr-TR"
-    },
-    it: {
-        name: "Italiano",
-        locale: "it-IT"
-    },
-    pl: {
-        name: "Polski",
-        locale: "pl-PL"
     }
+    //     ptBR: {
+    //         name: "Português Brasileiro",
+    //         locale: "pt-BR"
+    //     },
+    //     tr: {
+    //         name: "Türkçe",
+    //         locale: "tr-TR"
+    //     },
+    //     it: {
+    //         name: "Italiano",
+    //         locale: "it-IT"
+    //     },
+    //     pl: {
+    //         name: "Polski",
+    //         locale: "pl-PL"
+    //     }
 };
 
 i18next
@@ -65,16 +70,17 @@ i18next
     // for all options read: https://www.i18next.com/overview/configuration-options
     .init({
         resources: {
-            da: { translation: daTranslation },
+            // da: { translation: daTranslation },
+            de: { translation: deTranslation },
             en: { translation: enTranslation },
-            es: { translation: esTranslation },
-            fr: { translation: frTranslation },
-            ja: { translation: jaTranslation },
-            nl: { translation: nlTranslation },
-            ptBR: { translation: ptBRTranslation },
-            tr: { translation: trTranslation },
-            it: { translation: itTranslation },
-            pl: { translation: plTranslation }
+            // es: { translation: esTranslation },
+            // fr: { translation: frTranslation },
+            // ja: { translation: jaTranslation },
+            nl: { translation: nlTranslation }
+            // ptBR: { translation: ptBRTranslation },
+            // tr: { translation: trTranslation },
+            // it: { translation: itTranslation },
+            // pl: { translation: plTranslation }
         },
         fallbackLng: "en",
         supportedLngs: Object.keys(supportedLngs),
