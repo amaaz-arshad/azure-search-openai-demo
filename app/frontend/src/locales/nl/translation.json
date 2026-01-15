@@ -1,6 +1,8 @@
 {
     "pageTitle": "Netherland Chatbot",
     "headerTitle": "Netherland Chatbot",
+    "initialUserMsg": "Hallo",
+    "initialAssistantMsg": "Welkom! Fijn dat je er bent. Wil je je kennis over een onderwerp testen of heb je vragen die je wilt verduidelijken?",
     "chat": "Chat",
     "qa": "Stel een vraag",
     "login": "Inloggen",

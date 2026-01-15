@@ -15,6 +15,12 @@ import itTranslation from "../locales/it/translation.json";
 import plTranslation from "../locales/pl/translation.json";
 import deTranslation from "../locales/de/translation.json";
 
+/* =======================
+   🔍 BROWSER LANGUAGE LOGS
+   ======================= */
+console.log("navigator.language:", navigator.language);
+console.log("navigator.languages:", navigator.languages);
+
 export const supportedLngs: { [key: string]: { name: string; locale: string } } = {
     de: {
         name: "Deutsch",
@@ -86,8 +92,25 @@ i18next
         supportedLngs: Object.keys(supportedLngs),
         debug: import.meta.env.DEV,
         interpolation: {
-            escapeValue: false // not needed for react as it escapes by default
+            escapeValue: false
         }
     });
+
+/* =======================
+   🔍 I18NEXT RESOLUTION LOGS
+   ======================= */
+i18next.on("initialized", () => {
+    console.log("i18next resolved language:", i18next.language);
+    console.log("i18next language chain:", i18next.languages);
+
+    const detector = i18next.services.languageDetector;
+    if (detector) {
+        console.log("languageDetector.detect():", detector.detect());
+    }
+});
+
+i18next.on("languageChanged", lng => {
+    console.log("languageChanged →", lng);
+});
 
 export default i18next;

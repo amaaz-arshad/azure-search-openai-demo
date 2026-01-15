@@ -7,9 +7,10 @@ import { useLogin } from "../../authConfig";
 
 import { LoginButton } from "../../components/LoginButton";
 import { IconButton } from "@fluentui/react";
+import { LanguagePicker } from "../../i18n";
 
 const Layout = () => {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const [menuOpen, setMenuOpen] = useState(false);
     const menuRef: RefObject<HTMLDivElement> = useRef(null);
 
@@ -43,7 +44,7 @@ const Layout = () => {
                     </Link>
                     <nav>
                         <ul className={`${styles.headerNavList} ${menuOpen ? styles.show : ""}`}>
-                            <li>
+                            {/* <li>
                                 <NavLink
                                     to="/"
                                     className={({ isActive }) => (isActive ? styles.headerNavPageLinkActive : styles.headerNavPageLink)}
@@ -51,8 +52,8 @@ const Layout = () => {
                                 >
                                     {t("chat")}
                                 </NavLink>
-                            </li>
-                            <li>
+                            </li> */}
+                            {/* <li>
                                 <NavLink
                                     to="/qa"
                                     className={({ isActive }) => (isActive ? styles.headerNavPageLinkActive : styles.headerNavPageLink)}
@@ -60,10 +61,11 @@ const Layout = () => {
                                 >
                                     {t("qa")}
                                 </NavLink>
-                            </li>
+                            </li> */}
                         </ul>
                     </nav>
                     <div className={styles.loginMenuContainer}>
+                        {/* <LanguagePicker onLanguageChange={newLang => i18n.changeLanguage(newLang)} /> */}
                         {useLogin && <LoginButton />}
                         <IconButton
                             iconProps={{ iconName: "GlobalNavButton" }}
