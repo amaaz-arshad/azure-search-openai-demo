@@ -106,7 +106,7 @@ const Layout = () => {
                                     <li>
                                         <button className={styles.dropdownItem} onClick={handleEndChat}>
                                             <ChatDismiss24Regular />
-                                            <span>Clear chat</span>
+                                            <span>{t("clearChat")}</span>
                                         </button>
                                     </li>
                                     {/* <li>
