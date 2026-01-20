@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import fbnLogo from "../../assets/fbn.png";
+import knollLogo from "../../assets/knoll.png";
 import { login } from "./basicAuth";
 
 const BasicLogin = ({ onSuccess }: { onSuccess: () => void }) => {
@@ -20,7 +20,7 @@ const BasicLogin = ({ onSuccess }: { onSuccess: () => void }) => {
     return (
         <div style={styles.container}>
             <form onSubmit={handleSubmit} style={styles.form}>
-                <img src={fbnLogo} alt="Logo" style={styles.logo} />
+                <img src={knollLogo} alt="Logo" style={styles.logo} />
                 <h2 style={styles.title}>Welcome</h2>
 
                 <input placeholder="Username" value={username} onChange={e => setUsername(e.target.value)} style={styles.input} />
@@ -43,7 +43,7 @@ const styles: { [key: string]: React.CSSProperties } = {
         justifyContent: "center",
         alignItems: "center",
         height: "100vh",
-        backgroundColor: "#00cc96"
+        backgroundColor: "#0199fe"
     },
     form: {
         backgroundColor: "#ffffff",
@@ -78,7 +78,7 @@ const styles: { [key: string]: React.CSSProperties } = {
         padding: "10px 12px",
         borderRadius: 6,
         border: "none",
-        backgroundColor: "#0078d4",
+        backgroundColor: "#0199fe",
         color: "#fff",
         fontSize: 16,
         cursor: "pointer",

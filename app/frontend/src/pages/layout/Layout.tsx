@@ -8,7 +8,7 @@ import { useLogin } from "../../authConfig";
 import { LoginButton } from "../../components/LoginButton";
 import { IconButton } from "@fluentui/react";
 import { MoreHorizontal24Regular, ChatAdd24Regular, ChatDismiss24Regular, History24Regular, SignOut24Regular } from "@fluentui/react-icons";
-import fbnLogo from "../../assets/fbn.png";
+import knollLogo from "../../assets/knoll.png";
 import { logout } from "../basicauth/basicAuth";
 
 // At the top of the file, outside the component
@@ -85,7 +85,7 @@ const Layout = () => {
                     {/* Left: Logo */}
                     <Link to="/" className={styles.logoContainer}>
                         <div className={styles.logoCircle}>
-                            <img src={fbnLogo} alt="Logo" />
+                            <img src={knollLogo} alt="Logo" />
                         </div>
                     </Link>
 

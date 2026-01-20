@@ -12,7 +12,7 @@ import { parseAnswerToHtml } from "./AnswerParser";
 import { AnswerIcon } from "./AnswerIcon";
 import { SpeechOutputBrowser } from "./SpeechOutputBrowser";
 import { SpeechOutputAzure } from "./SpeechOutputAzure";
-import fbnLogo from "../../assets/fbn.png";
+import knollLogo from "../../assets/knoll.png";
 
 interface Props {
     answer: ChatAppResponse;
@@ -71,7 +71,7 @@ export const Answer = ({
                 <Stack horizontal horizontalAlign="space-between">
                     {/* <AnswerIcon /> */}
                     <div className={styles.assistantHeader}>
-                        <img src={fbnLogo} alt="FBN logo" className={styles.assistantAvatar} />
+                        <img src={knollLogo} alt="KNOLL logo" className={styles.assistantAvatar} />
                         <div className={styles.assistantName}>{t("headerTitle")}</div>
                     </div>
                     <div>
@@ -145,7 +145,7 @@ export const Answer = ({
                                                 window.open(publishOneUrl, "_blank", "noopener,noreferrer");
                                             }}
                                         >
-                                            {`${displayIndex}. ${reference.split(".")[0]}`}
+                                            {`${displayIndex}. ${reference}`}
                                         </a>
                                     </span>
                                 );

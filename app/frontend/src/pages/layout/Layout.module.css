@@ -12,7 +12,7 @@
 
 /* Navbar background and text color */
 .header {
-    background-color: #00cc96 !important;
+    background-color: #0199fe !important;
     color: #000000;
     position: sticky;
     top: 0;
@@ -47,7 +47,7 @@
 }
 
 .logoCircle img {
-    max-width: 90%;
+    max-width: 100%;
     height: auto;
     display: block;
 }

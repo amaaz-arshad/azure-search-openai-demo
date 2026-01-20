@@ -1,5 +1,5 @@
-export const BASIC_AUTH_USER = "fbnuser";
-export const BASIC_AUTH_PASS = "fbn@123";
+export const BASIC_AUTH_USER = "knolluser";
+export const BASIC_AUTH_PASS = "knoll@123";
 
 const KEY = "basic-auth";
 

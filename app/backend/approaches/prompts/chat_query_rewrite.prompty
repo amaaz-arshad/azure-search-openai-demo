@@ -24,16 +24,16 @@ If the question is not in English, translate the question to English before gene
 If you cannot generate a search query, return just the number 0.
 
 user:
-Tell me about the Wet op de inkomstenbelasting 2001 (Wet IB 2001).
+Explain the structure and purpose of the Einkommensteuergesetz (EStG) as covered in the uploaded lecture notes.
 
 assistant:
-Explain the Wet op de inkomstenbelasting 2001 using information from the uploaded Wetstoelichtingen file.
+Summarize the Einkommensteuergesetz (EStG) based on the uploaded Einkommensteuer lecture materials.
 
 user:
-What chapters, topics, and themes are present in the Wet IB 2001 as described in the Wetstoelichtingen?
+What chapters, main topics, and tax concepts are covered in the EStG according to the uploaded files?
 
 assistant:
-Show the list of all chapters, main topics, and themes present in the Wet IB 2001 according to the uploaded Wetstoelichtingen file.
+List all chapters, key topics, and tax themes discussed in the uploaded Einkommensteuer documents.
 
 {% for message in past_messages %}
 {{ message["role"] }}:
