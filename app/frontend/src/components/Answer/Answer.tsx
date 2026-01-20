@@ -133,7 +133,7 @@ export const Answer = ({
                                 );
                             } else {
                                 // Construct the PublishOne document URL
-                                const publishOneUrl = `https://fbn.publishone.nl/document/${reference.split(".")[0]}/content`;
+                                const publishOneUrl = `https://fbn.publishone.nl/document/${reference.match(/\.([0-9]+)\.md$/)?.[1]}/content`;
 
                                 return (
                                     <span key={`${reference}-${displayIndex}`} className={styles.citationEntry}>
@@ -145,7 +145,7 @@ export const Answer = ({
                                                 window.open(publishOneUrl, "_blank", "noopener,noreferrer");
                                             }}
                                         >
-                                            {`${displayIndex}. ${reference.split(".")[0]}`}
+                                            {`${displayIndex}. ${reference.replace(/\.\d+\.md$/, "")}`}
                                         </a>
                                     </span>
                                 );
