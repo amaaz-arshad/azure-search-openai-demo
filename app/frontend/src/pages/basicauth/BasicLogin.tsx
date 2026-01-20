@@ -1,8 +1,11 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import fbnLogo from "../../assets/fbn.png";
 import { login } from "./basicAuth";
 
 const BasicLogin = ({ onSuccess }: { onSuccess: () => void }) => {
+    const { t } = useTranslation();
+
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
@@ -13,7 +16,7 @@ const BasicLogin = ({ onSuccess }: { onSuccess: () => void }) => {
         if (ok) {
             onSuccess();
         } else {
-            setError("Invalid username or password");
+            setError(t("loginPage.invalidCredentials"));
         }
     };
 
@@ -21,16 +24,22 @@ const BasicLogin = ({ onSuccess }: { onSuccess: () => void }) => {
         <div style={styles.container}>
             <form onSubmit={handleSubmit} style={styles.form}>
                 <img src={fbnLogo} alt="Logo" style={styles.logo} />
-                <h2 style={styles.title}>Welcome</h2>
+                <h2 style={styles.title}>{t("loginPage.title")}</h2>
 
-                <input placeholder="Username" value={username} onChange={e => setUsername(e.target.value)} style={styles.input} />
+                <input placeholder={t("loginPage.username")} value={username} onChange={e => setUsername(e.target.value)} style={styles.input} />
 
-                <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} style={styles.input} />
+                <input
+                    type="password"
+                    placeholder={t("loginPage.password")}
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    style={styles.input}
+                />
 
                 {error && <div style={styles.error}>{error}</div>}
 
                 <button type="submit" style={styles.button}>
-                    Login
+                    {t("loginPage.login")}
                 </button>
             </form>
         </div>
