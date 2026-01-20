@@ -13,11 +13,16 @@ import ptBRTranslation from "../locales/ptBR/translation.json";
 import trTranslation from "../locales/tr/translation.json";
 import itTranslation from "../locales/it/translation.json";
 import plTranslation from "../locales/pl/translation.json";
+import deTranslation from "../locales/de/translation.json";
 
 export const supportedLngs: { [key: string]: { name: string; locale: string } } = {
     da: {
         name: "Dansk",
         locale: "da-DK"
+    },
+    de: {
+        name: "Deutsch",
+        locale: "de-DE"
     },
     en: {
         name: "English",
@@ -66,6 +71,7 @@ i18next
     .init({
         resources: {
             da: { translation: daTranslation },
+            de: { translation: deTranslation },
             en: { translation: enTranslation },
             es: { translation: esTranslation },
             fr: { translation: frTranslation },
