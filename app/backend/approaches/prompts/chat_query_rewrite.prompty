@@ -24,16 +24,16 @@ If the question is not in English, translate the question to English before gene
 If you cannot generate a search query, return just the number 0.
 
 user:
-Tell me about the Netherlands.
+Tell me about Steuertipps – Der SteuerBerater.
 
 assistant:
-Explain the Netherlands using the information from the LearningNL training curriculum.
+Explain Steuertipps – Der SteuerBerater using the information from the Steuertipps knowledge base.
 
 user:
-What chapters, topics, and themes are covered in the LearningNL curriculum?
+What chapters, topics, and themes are covered in Steuertipps – Der SteuerBerater?
 
 assistant:
-Show the list of all chapters, topics, themes, and learning goals present in the LearningNL training curriculum.
+Show the list of all chapters, topics, and themes present in the Steuertipps – Der SteuerBerater content structure.
 
 {% for message in past_messages %}
 {{ message["role"] }}:
