@@ -26,14 +26,18 @@ export const supportedLngs: { [key: string]: { name: string; locale: string } } 
         name: "Deutsch",
         locale: "de-DE"
     },
-    // da: {
-    //     name: "Dansk",
-    //     locale: "da-DK"
-    // },
     en: {
         name: "English",
         locale: "en-US"
     },
+    nl: {
+        name: "Nederlands",
+        locale: "nl-NL"
+    }
+    // da: {
+    //     name: "Dansk",
+    //     locale: "da-DK"
+    // },
     // es: {
     //     name: "Español",
     //     locale: "es-ES"
@@ -46,10 +50,6 @@ export const supportedLngs: { [key: string]: { name: string; locale: string } } 
     //     name: "日本語",
     //     locale: "ja-JP"
     // },
-    nl: {
-        name: "Nederlands",
-        locale: "nl-NL"
-    }
     //     ptBR: {
     //         name: "Português Brasileiro",
     //         locale: "pt-BR"
@@ -76,21 +76,25 @@ i18next
     // for all options read: https://www.i18next.com/overview/configuration-options
     .init({
         resources: {
-            // da: { translation: daTranslation },
             de: { translation: deTranslation },
             en: { translation: enTranslation },
+            nl: { translation: nlTranslation }
+            // da: { translation: daTranslation },
             // es: { translation: esTranslation },
             // fr: { translation: frTranslation },
             // ja: { translation: jaTranslation },
-            nl: { translation: nlTranslation }
             // ptBR: { translation: ptBRTranslation },
             // tr: { translation: trTranslation },
             // it: { translation: itTranslation },
             // pl: { translation: plTranslation }
         },
-        fallbackLng: "en",
         supportedLngs: Object.keys(supportedLngs),
-        debug: import.meta.env.DEV,
+        fallbackLng: "en",
+        load: "languageOnly",
+        detection: {
+            order: ["navigator"], // ONLY navigator
+            caches: [] // NO cookies / localStorage
+        },
         interpolation: {
             escapeValue: false
         }
