@@ -112,7 +112,7 @@ export const Answer = ({
                 </div>
             </Stack.Item>
 
-            {!!parsedAnswer.citations.length && (
+            {!!parsedAnswer.citations.length && !isStreaming && (
                 <Stack.Item>
                     <Stack horizontal wrap tokens={{ childrenGap: 5 }}>
                         <span className={styles.citationLearnMore}>{t("citationWithColon")}</span>
