@@ -1,6 +1,6 @@
 {
-    "pageTitle": "Steuertipps Chatbot",
-    "headerTitle": "Steuertipps Chatbot",
+    "pageTitle": "Demo Chatbot",
+    "headerTitle": "Demo Chatbot",
     "initialUserMsg": "Hello",
     "initialAssistantMsg": "Welcome! Glad you're here. Would you like to test your knowledge on a topic or do you have questions you'd like to clarify?",
     "chat": "Chat",
@@ -39,9 +39,8 @@
     "chatEmptyStateTitle": "Chat with your data",
     "chatEmptyStateSubtitle": "Ask anything or try an example",
     "defaultExamples": {
-        "1": "What are the main chapters in the LearningNL course?",
-        "2": "What is the political structure of the Netherlands?",
-        "3": "What are the key characteristics of the Dutch landscape?",
+        "1": "Tutor mode",
+        "2": "Q&A mode",
         "placeholder": "Type your message"
     },
     "askTitle": "Ask your data",

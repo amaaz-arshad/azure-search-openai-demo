@@ -11,7 +11,7 @@ interface Props {
 export const ExampleList = ({ onExampleClicked, useMultimodalAnswering }: Props) => {
     const { t } = useTranslation();
 
-    const DEFAULT_EXAMPLES: string[] = [t("defaultExamples.1"), t("defaultExamples.2"), t("defaultExamples.3")];
+    const DEFAULT_EXAMPLES: string[] = [t("defaultExamples.1"), t("defaultExamples.2")];
     const MULTIMODAL_EXAMPLES: string[] = [t("multimodalExamples.1"), t("multimodalExamples.2"), t("multimodalExamples.3")];
 
     return (

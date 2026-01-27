@@ -1,6 +1,6 @@
 {
-    "pageTitle": "Steuertipps Chatbot",
-    "headerTitle": "Steuertipps Chatbot",
+    "pageTitle": "Demo Chatbot",
+    "headerTitle": "Demo Chatbot",
     "initialUserMsg": "Hallo",
     "initialAssistantMsg": "Welkom! Fijn dat je er bent. Wil je je kennis over een onderwerp testen of heb je vragen die je wilt verduidelijken?",
     "chat": "Chat",
@@ -39,9 +39,8 @@
     "chatEmptyStateTitle": "Chat met je gegevens",
     "chatEmptyStateSubtitle": "Stel een vraag of probeer een voorbeeld",
     "defaultExamples": {
-        "1": "Wat zijn de belangrijkste hoofdstukken van de LearningNL-cursus?",
-        "2": "Wat is de politieke structuur van Nederland?",
-        "3": "Wat zijn de belangrijkste kenmerken van het Nederlandse landschap?",
+        "1": "Leermodus",
+        "2": "Vraag-en-antwoordmodus",
         "placeholder": "Typ je bericht"
     },
     "askTitle": "Stel je vraag aan de data",

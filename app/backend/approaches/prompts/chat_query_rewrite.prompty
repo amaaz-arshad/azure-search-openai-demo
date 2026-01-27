@@ -24,16 +24,16 @@ If the question is not in English, translate the question to English before gene
 If you cannot generate a search query, return just the number 0.
 
 user:
-Tell me about Steuertipps – Der SteuerBerater.
+Tell me about Digital Learning Design – Designing Effective Online and Blended Learning.
 
 assistant:
-Explain Steuertipps – Der SteuerBerater using the information from the Steuertipps knowledge base.
+Explain Digital Learning Design – Designing Effective Online and Blended Learning using the information from the uploaded knowledge base.
 
 user:
-What chapters, topics, and themes are covered in Steuertipps – Der SteuerBerater?
+What chapters, topics, and themes are covered in Digital Learning Design – Designing Effective Online and Blended Learning?
 
 assistant:
-Show the list of all chapters, topics, and themes present in the Steuertipps – Der SteuerBerater content structure.
+Show the list of all chapters, topics, and themes present in the Digital Learning Design content structure.
 
 {% for message in past_messages %}
 {{ message["role"] }}:
