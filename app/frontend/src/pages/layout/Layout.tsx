@@ -113,7 +113,7 @@ const Layout = () => {
                                     <li>
                                         <button className={styles.dropdownItem} onClick={handleEndChat}>
                                             <ChatDismiss24Regular />
-                                            <span>Clear chat</span>
+                                            <span>{t("clearChat")}</span>
                                         </button>
                                     </li>
                                     {/* <li>
@@ -125,7 +125,7 @@ const Layout = () => {
                                     <li>
                                         <button className={styles.dropdownItem} onClick={handleBasicLogout}>
                                             <SignOut24Regular />
-                                            <span>Logout</span>
+                                            <span>{t("logout")}</span>
                                         </button>
                                     </li>
                                 </ul>

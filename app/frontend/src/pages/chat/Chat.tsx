@@ -28,8 +28,9 @@ import { Settings } from "../../components/Settings/Settings";
 import { setGlobalClearChat } from "../layout/Layout";
 
 const Chat = () => {
-    const initialUserMessage: string = "Hello";
-    const initialAssistantMessageContent: string = `Welcome! Glad you're here. Would you like to test your knowledge on a topic yourself, or do you have questions you want to clarify?`;
+    const { t, i18n } = useTranslation();
+    const initialUserMessage: string = t("initialUserMsg");
+    const initialAssistantMessageContent: string = t("initialAssistantMsg");
     const initialAssistantResponse: ChatAppResponse = {
         message: {
             content: initialAssistantMessageContent,
@@ -503,8 +504,6 @@ const Chat = () => {
 
         setSelectedAnswer(index);
     };
-
-    const { t, i18n } = useTranslation();
 
     return (
         <div className={styles.container}>

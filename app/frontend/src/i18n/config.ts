@@ -15,11 +15,13 @@ import itTranslation from "../locales/it/translation.json";
 import plTranslation from "../locales/pl/translation.json";
 import deTranslation from "../locales/de/translation.json";
 
+/* =======================
+   🔍 BROWSER LANGUAGE LOGS
+   ======================= */
+console.log("navigator.language:", navigator.language);
+console.log("navigator.languages:", navigator.languages);
+
 export const supportedLngs: { [key: string]: { name: string; locale: string } } = {
-    da: {
-        name: "Dansk",
-        locale: "da-DK"
-    },
     de: {
         name: "Deutsch",
         locale: "de-DE"
@@ -28,38 +30,42 @@ export const supportedLngs: { [key: string]: { name: string; locale: string } } 
         name: "English",
         locale: "en-US"
     },
-    es: {
-        name: "Español",
-        locale: "es-ES"
-    },
-    fr: {
-        name: "Français",
-        locale: "fr-FR"
-    },
-    ja: {
-        name: "日本語",
-        locale: "ja-JP"
-    },
     nl: {
         name: "Nederlands",
         locale: "nl-NL"
-    },
-    ptBR: {
-        name: "Português Brasileiro",
-        locale: "pt-BR"
-    },
-    tr: {
-        name: "Türkçe",
-        locale: "tr-TR"
-    },
-    it: {
-        name: "Italiano",
-        locale: "it-IT"
-    },
-    pl: {
-        name: "Polski",
-        locale: "pl-PL"
     }
+    // da: {
+    //     name: "Dansk",
+    //     locale: "da-DK"
+    // },
+    // es: {
+    //     name: "Español",
+    //     locale: "es-ES"
+    // },
+    // fr: {
+    //     name: "Français",
+    //     locale: "fr-FR"
+    // },
+    // ja: {
+    //     name: "日本語",
+    //     locale: "ja-JP"
+    // },
+    //     ptBR: {
+    //         name: "Português Brasileiro",
+    //         locale: "pt-BR"
+    //     },
+    //     tr: {
+    //         name: "Türkçe",
+    //         locale: "tr-TR"
+    //     },
+    //     it: {
+    //         name: "Italiano",
+    //         locale: "it-IT"
+    //     },
+    //     pl: {
+    //         name: "Polski",
+    //         locale: "pl-PL"
+    //     }
 };
 
 i18next
@@ -70,21 +76,25 @@ i18next
     // for all options read: https://www.i18next.com/overview/configuration-options
     .init({
         resources: {
-            da: { translation: daTranslation },
             de: { translation: deTranslation },
             en: { translation: enTranslation },
-            es: { translation: esTranslation },
-            fr: { translation: frTranslation },
-            ja: { translation: jaTranslation },
-            nl: { translation: nlTranslation },
-            ptBR: { translation: ptBRTranslation },
-            tr: { translation: trTranslation },
-            it: { translation: itTranslation },
-            pl: { translation: plTranslation }
+            nl: { translation: nlTranslation }
+            // da: { translation: daTranslation },
+            // es: { translation: esTranslation },
+            // fr: { translation: frTranslation },
+            // ja: { translation: jaTranslation },
+            // ptBR: { translation: ptBRTranslation },
+            // tr: { translation: trTranslation },
+            // it: { translation: itTranslation },
+            // pl: { translation: plTranslation }
         },
-        fallbackLng: "en",
         supportedLngs: Object.keys(supportedLngs),
-        debug: import.meta.env.DEV,
+        fallbackLng: "en",
+        load: "languageOnly",
+        detection: {
+            order: ["navigator"], // ONLY navigator
+            caches: [] // NO cookies / localStorage
+        },
         interpolation: {
             escapeValue: false // not needed for react as it escapes by default
         }
