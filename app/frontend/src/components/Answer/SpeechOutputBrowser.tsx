@@ -26,6 +26,8 @@ const getUtterance = function (text: string, lngCode: string = "en-US") {
         utterance.pitch = 1;
 
         let voice = synth.getVoices().filter((voice: SpeechSynthesisVoice) => voice.lang === lngCode)[0];
+        console.log("getUtterance - voice for lang code", lngCode);
+        console.log("voice:", voice);
         if (!voice) {
             voice = synth.getVoices().filter((voice: SpeechSynthesisVoice) => voice.lang === "en-US")[0];
         }
@@ -39,6 +41,8 @@ export const SpeechOutputBrowser = ({ answer }: Props) => {
     const { t, i18n } = useTranslation();
     const currentLng = i18n.language;
     let lngCode = supportedLngs[currentLng]?.locale;
+    console.log("SpeechOutputBrowser - currentLng:", currentLng);
+    console.log("SpeechOutputBrowser - lngCode:", lngCode);
     if (!lngCode) {
         lngCode = "en-US";
     }

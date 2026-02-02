@@ -13,6 +13,8 @@ const useCustomSpeechRecognition = () => {
     const { i18n } = useTranslation();
     const currentLng = i18n.language;
     let lngCode = supportedLngs[currentLng]?.locale;
+    console.log("useCustomSpeechRecognition - currentLng:", currentLng);
+    console.log("useCustomSpeechRecognition - lngCode:", lngCode);
     if (!lngCode) {
         lngCode = "en-US";
     }

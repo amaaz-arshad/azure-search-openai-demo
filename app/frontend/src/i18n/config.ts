@@ -26,6 +26,10 @@ export const supportedLngs: { [key: string]: { name: string; locale: string } } 
         name: "Deutsch",
         locale: "de-DE"
     },
+    "de-DE": {
+        name: "Deutsch",
+        locale: "de-DE"
+    },
     en: {
         name: "English",
         locale: "en-US"
@@ -33,6 +37,14 @@ export const supportedLngs: { [key: string]: { name: string; locale: string } } 
     nl: {
         name: "Nederlands",
         locale: "nl-NL"
+    },
+    "nl-NL": {
+        name: "Nederlands",
+        locale: "nl-NL"
+    },
+    "nl-BE": {
+        name: "Nederlands (België)",
+        locale: "nl-BE"
     }
     // da: {
     //     name: "Dansk",
