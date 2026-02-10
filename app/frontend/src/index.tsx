@@ -13,23 +13,16 @@ import Chat from "./pages/chat/Chat";
 import LayoutWrapper from "./layoutWrapper";
 import i18next from "./i18n/config";
 import { msalConfig, useLogin } from "./authConfig";
-import Landing from "./pages/landing/Landing";
 
 initializeIcons();
 
 const router = createHashRouter([
-    // Landing page - no layout
-    {
-        path: "/",
-        element: <Landing />
-    },
-    // Routes with layout
     {
         path: "/",
         element: <LayoutWrapper />,
         children: [
             {
-                path: "chat",
+                index: true,
                 element: <Chat />
             },
             {

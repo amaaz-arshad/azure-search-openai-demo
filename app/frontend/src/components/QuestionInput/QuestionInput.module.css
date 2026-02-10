@@ -1,10 +1,10 @@
 .questionInputContainer {
-    border-radius: 2rem;
+    border-radius: 2.5rem;
     box-shadow:
         0px 0.5rem 1rem rgba(0, 0, 0, 0.14),
         0px 0px 0.125rem rgba(0, 0, 0, 0.12);
     width: 100%;
-    padding: 0.3rem;
+    padding: 0.4rem;
     background: white;
     /* border: 1px solid silver; */
     display: flex;

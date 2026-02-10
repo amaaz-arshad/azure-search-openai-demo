@@ -68,8 +68,10 @@ const Layout = () => {
 
     const handleCloseChat = () => {
         setDropdownOpen(false);
-        globalClearChat();
-        navigate("/");
+        // globalClearChat();
+
+        // Notify parent window to close the iframe popup
+        window.parent.postMessage({ type: "CLOSE_CHATBOT" }, "*");
     };
 
     const handleViewRecentChats = () => {
