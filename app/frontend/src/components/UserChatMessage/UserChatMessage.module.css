@@ -8,10 +8,11 @@
 
 .message {
     padding: 1em;
-    background: #fec701;
-    border-radius: 1.5em;
+    background: #ac44c6;
+    border-radius: 0.5em;
     box-shadow:
         0px 0.125em 0.25em rgba(0, 0, 0, 0.14),
         0px 0px 0.125em rgba(0, 0, 0, 0.12);
     outline: transparent solid 0.0625em;
+    color: white;
 }

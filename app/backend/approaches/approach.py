@@ -908,7 +908,8 @@ class Approach(ABC):
     def get_system_prompt_variables(self, override_prompt: Optional[str]) -> dict[str, str]:
         # Allows client to replace the entire prompt, or to inject into the existing prompt using >>>
         if override_prompt is None:
-            return {"override_prompt": SAMPLE_PROMPT}
+            return {}
+            # return {"override_prompt": SAMPLE_PROMPT}
         elif override_prompt.startswith(">>>"):
             return {"injected_prompt": override_prompt[3:]}
         else:

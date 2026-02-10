@@ -12,7 +12,7 @@ import { parseAnswerToHtml } from "./AnswerParser";
 import { AnswerIcon } from "./AnswerIcon";
 import { SpeechOutputBrowser } from "./SpeechOutputBrowser";
 import { SpeechOutputAzure } from "./SpeechOutputAzure";
-import lemonChatbotLogo from "../../assets/lemon-chatbot.png";
+import chatbotLogo from "../../assets/robo1.png";
 
 interface Props {
     answer: ChatAppResponse;
@@ -71,17 +71,17 @@ export const Answer = ({
                 <Stack horizontal horizontalAlign="space-between">
                     {/* <AnswerIcon /> */}
                     <div className={styles.assistantHeader}>
-                        <img src={lemonChatbotLogo} alt="Lemon AID logo" className={styles.assistantAvatar} />
-                        <div className={styles.assistantName}>{t("headerTitle")}</div>
+                        <img src={chatbotLogo} alt="nerilio logo" className={styles.assistantAvatar} />
+                        {/* <div className={styles.assistantName}>{t("headerTitle")}</div> */}
                     </div>
                     <div>
-                        <IconButton
+                        {/* <IconButton
                             style={{ color: "black" }}
                             iconProps={{ iconName: copied ? "CheckMark" : "Copy" }}
                             title={copied ? t("tooltips.copied") : t("tooltips.copy")}
                             ariaLabel={copied ? t("tooltips.copied") : t("tooltips.copy")}
                             onClick={handleCopy}
-                        />
+                        /> */}
                         {/* <IconButton
                             style={{ color: "black" }}
                             iconProps={{ iconName: "Lightbulb" }}

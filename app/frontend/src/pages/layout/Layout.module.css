@@ -12,8 +12,8 @@
 
 /* Navbar background and text color */
 .header {
-    background-color: #fec701 !important;
-    color: #000000;
+    background-color: #ac44c6 !important;
+    color: white;
     position: sticky;
     top: 0;
     z-index: 1000;
@@ -57,7 +57,7 @@
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
-    color: #000000;
+    /* color: #000000; */
     font-weight: 600;
     font-size: 1.4rem;
     pointer-events: none;
@@ -80,7 +80,7 @@
 }
 
 .menuButton {
-    color: #000000 !important;
+    color: white !important;
     background: none;
     border: none;
     padding: 8px;

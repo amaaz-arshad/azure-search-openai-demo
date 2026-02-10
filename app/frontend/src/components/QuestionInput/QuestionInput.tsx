@@ -1,7 +1,7 @@
 import { useState, useEffect, useContext } from "react";
 import { Stack, TextField } from "@fluentui/react";
 import { Button, Tooltip } from "@fluentui/react-components";
-import { Send28Filled } from "@fluentui/react-icons";
+import { Send28Filled, Send28Regular, Send32Regular } from "@fluentui/react-icons";
 import { useTranslation } from "react-i18next";
 
 import styles from "./QuestionInput.module.css";
@@ -77,8 +77,8 @@ export const QuestionInput = ({ onSend, disabled, placeholder, clearOnSend, init
                 className={styles.questionInputTextArea}
                 disabled={disableRequiredAccessControl}
                 placeholder={placeholder}
-                multiline
-                resizable={false}
+                // multiline
+                // resizable={false}
                 borderless
                 value={question}
                 onChange={onQuestionChange}
@@ -87,15 +87,16 @@ export const QuestionInput = ({ onSend, disabled, placeholder, clearOnSend, init
                 onCompositionEnd={handleCompositionEnd}
                 styles={{
                     field: {
-                        fontSize: 16, // Ensure minimum 16px font size for iPhone
-                        minHeight: 44 // Minimum touch target size for iOS
+                        fontSize: 16 // Ensure minimum 16px font size for iPhone
+                        // minHeight: 44 // Minimum touch target size for iOS
                     }
                 }}
             />
             <div className={styles.questionInputButtonsContainer}>
-                <Tooltip content={t("tooltips.submitQuestion")} relationship="label">
-                    <Button size="large" icon={<Send28Filled primaryFill="black" />} disabled={sendQuestionDisabled} onClick={sendQuestion} />
-                </Tooltip>
+                <Button size="large" className={styles.sendButton} icon={<Send32Regular />} disabled={sendQuestionDisabled} onClick={sendQuestion} />
+                {/* <Tooltip content={t("tooltips.submitQuestion")} relationship="label"> */}
+                {/* <Button size="large" icon={<Send28Filled primaryFill="black" />} disabled={sendQuestionDisabled} onClick={sendQuestion} /> */}
+                {/* </Tooltip> */}
             </div>
             {showSpeechInput && <SpeechInput updateQuestion={setQuestion} />}
         </Stack>

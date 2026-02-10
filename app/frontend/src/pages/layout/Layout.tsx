@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, RefObject } from "react";
-import { Outlet, NavLink, Link } from "react-router-dom";
+import { Outlet, NavLink, Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import styles from "./Layout.module.css";
 
@@ -7,8 +7,8 @@ import { useLogin } from "../../authConfig";
 
 import { LoginButton } from "../../components/LoginButton";
 import { IconButton } from "@fluentui/react";
-import { MoreHorizontal24Regular, ChatAdd24Regular, ChatDismiss24Regular, History24Regular } from "@fluentui/react-icons";
-import lemonChatbotLogo from "../../assets/lemon-chatbot.png";
+import { MoreHorizontal24Regular, ChatAdd24Regular, ChatDismiss24Regular, History24Regular, Delete24Regular } from "@fluentui/react-icons";
+import chatbotLogo from "../../assets/robo1.png";
 
 // At the top of the file, outside the component
 let globalClearChat: () => void = () => {};
@@ -24,6 +24,7 @@ const Layout = () => {
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const menuRef: RefObject<HTMLDivElement> = useRef(null);
     const dropdownRef: RefObject<HTMLDivElement> = useRef(null);
+    const navigate = useNavigate();
 
     const toggleMenu = () => {
         setMenuOpen(!menuOpen);
@@ -65,6 +66,12 @@ const Layout = () => {
         globalClearChat();
     };
 
+    const handleCloseChat = () => {
+        setDropdownOpen(false);
+        globalClearChat();
+        navigate("/");
+    };
+
     const handleViewRecentChats = () => {
         setDropdownOpen(false);
         // Add your view recent chats logic here
@@ -78,7 +85,7 @@ const Layout = () => {
                     {/* Left: Logo */}
                     <Link to="/" className={styles.logoContainer}>
                         <div className={styles.logoCircle}>
-                            <img src={lemonChatbotLogo} alt="Logo" />
+                            <img src={chatbotLogo} alt="Logo" />
                         </div>
                     </Link>
 
@@ -90,7 +97,7 @@ const Layout = () => {
                         {useLogin && <LoginButton />}
                         <div className={styles.dropdown} ref={dropdownRef}>
                             <IconButton
-                                iconProps={{ iconName: "More", styles: { root: { fontSize: "25px" } } }} // Increase from default 16px
+                                iconProps={{ iconName: "ChevronDown" }}
                                 className={styles.menuButton}
                                 onClick={toggleDropdown}
                                 ariaLabel={t("labels.openMenu")}
@@ -105,10 +112,17 @@ const Layout = () => {
                                     </li> */}
                                     <li>
                                         <button className={styles.dropdownItem} onClick={handleEndChat}>
-                                            <ChatDismiss24Regular />
+                                            <Delete24Regular />
                                             <span>{t("clearChat")}</span>
                                         </button>
                                     </li>
+                                    <li>
+                                        <button className={styles.dropdownItem} onClick={handleCloseChat}>
+                                            <ChatDismiss24Regular />
+                                            <span>{t("close")}</span>
+                                        </button>
+                                    </li>
+
                                     {/* <li>
                                         <button className={styles.dropdownItem} style={{ opacity: 0.5, cursor: "not-allowed" }} onClick={() => {}} disabled>
                                             <History24Regular />
