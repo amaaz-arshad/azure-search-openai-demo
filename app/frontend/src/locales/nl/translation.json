@@ -4,7 +4,6 @@
     "initialUserMsg": "Hallo",
     "initialAssistantMsg": "Hallo, ik ben nerilio. Hoe kan ik je helpen?",
     "chat": "Chat",
-    "qa": "Stel een vraag",
     "login": "Inloggen",
     "logout": "Uitloggen",
     "clearChat": "Chat wissen",
@@ -58,6 +57,7 @@
 
     "tooltips": {
         "submitQuestion": "Vraag indienen",
+        "stopStreaming": "Stop streaming",
         "askWithVoice": "Vraag stellen met stem",
         "stopRecording": "Opname stoppen",
         "showThoughtProcess": "Denkproces tonen",

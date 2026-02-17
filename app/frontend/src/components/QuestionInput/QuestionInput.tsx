@@ -1,13 +1,20 @@
 import { useState, useEffect, useContext } from "react";
 import { Stack, TextField } from "@fluentui/react";
 import { Button, Tooltip } from "@fluentui/react-components";
-import { Send28Filled, Send28Regular, Send32Regular } from "@fluentui/react-icons";
+import { Send28Filled, Send28Regular, Send32Filled, Send32Regular, Stop24Filled } from "@fluentui/react-icons";
 import { useTranslation } from "react-i18next";
 
 import styles from "./QuestionInput.module.css";
 import { SpeechInput } from "./SpeechInput";
 import { LoginContext } from "../../loginContext";
 import { requireLogin } from "../../authConfig";
+
+const StopCircleIcon = () => (
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="14" cy="14" r="12.5" stroke="black" strokeWidth="2" fill="none" />
+        <rect x="9" y="9" width="10" height="10" rx="1" fill="black" />
+    </svg>
+);
 
 interface Props {
     onSend: (question: string) => void;
@@ -16,9 +23,12 @@ interface Props {
     placeholder?: string;
     clearOnSend?: boolean;
     showSpeechInput?: boolean;
+    onStop: () => void;
+    isStreaming: boolean;
+    isLoading: boolean;
 }
 
-export const QuestionInput = ({ onSend, disabled, placeholder, clearOnSend, initQuestion, showSpeechInput }: Props) => {
+export const QuestionInput = ({ onSend, onStop, disabled, placeholder, clearOnSend, initQuestion, showSpeechInput, isStreaming, isLoading }: Props) => {
     const [question, setQuestion] = useState<string>("");
     const { loggedIn } = useContext(LoginContext);
     const { t } = useTranslation();
@@ -59,7 +69,7 @@ export const QuestionInput = ({ onSend, disabled, placeholder, clearOnSend, init
     const onQuestionChange = (_ev: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, newValue?: string) => {
         if (!newValue) {
             setQuestion("");
-        } else if (newValue.length <= 1000) {
+        } else {
             setQuestion(newValue);
         }
     };
@@ -93,10 +103,22 @@ export const QuestionInput = ({ onSend, disabled, placeholder, clearOnSend, init
                 }}
             />
             <div className={styles.questionInputButtonsContainer}>
-                <Button size="large" className={styles.sendButton} icon={<Send32Regular />} disabled={sendQuestionDisabled} onClick={sendQuestion} />
-                {/* <Tooltip content={t("tooltips.submitQuestion")} relationship="label"> */}
-                {/* <Button size="large" icon={<Send28Filled primaryFill="black" />} disabled={sendQuestionDisabled} onClick={sendQuestion} /> */}
-                {/* </Tooltip> */}
+                {isStreaming || isLoading ? (
+                    <Button size="large" className={styles.sendButton} icon={<Stop24Filled />} onClick={onStop} />
+                ) : (
+                    // <Tooltip content={t("tooltips.stopStreaming")} relationship="label">
+                    //     <Button size="large" icon={<StopCircleIcon />} onClick={onStop} />
+                    // </Tooltip>
+                    <Button size="large" className={styles.sendButton} icon={<Send32Filled />} disabled={sendQuestionDisabled} onClick={sendQuestion} />
+                    // <Tooltip content={t("tooltips.submitQuestion")} relationship="label">
+                    //     <Button
+                    //         size="large"
+                    //         icon={<Send28Filled primaryFill="rgba(115, 118, 225, 1)" />}
+                    //         disabled={sendQuestionDisabled}
+                    //         onClick={sendQuestion}
+                    //     />
+                    // </Tooltip>
+                )}
             </div>
             {showSpeechInput && <SpeechInput updateQuestion={setQuestion} />}
         </Stack>

@@ -4,7 +4,6 @@
     "initialUserMsg": "Hello",
     "initialAssistantMsg": "Hello, I'm nerilio. How can I assist you today?",
     "chat": "Chat",
-    "qa": "Ask a question",
     "login": "Login",
     "logout": "Logout",
     "clearChat": "Clear chat",
@@ -58,6 +57,7 @@
 
     "tooltips": {
         "submitQuestion": "Submit question",
+        "stopStreaming": "Stop streaming",
         "askWithVoice": "Ask question with voice",
         "stopRecording": "Stop recording question",
         "showThoughtProcess": "Show thought process",
