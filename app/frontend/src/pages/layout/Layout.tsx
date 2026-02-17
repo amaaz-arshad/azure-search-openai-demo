@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, RefObject } from "react";
-import { Outlet, NavLink, Link } from "react-router-dom";
+import { Outlet, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import styles from "./Layout.module.css";
 

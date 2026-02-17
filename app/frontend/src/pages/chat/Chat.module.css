@@ -66,7 +66,7 @@
 .chatInput {
     position: sticky;
     bottom: 0;
-    flex-shrink: 0; /* Prevent input from shrinking */
+    flex-shrink: 0;
     padding: 1rem;
     width: 100%;
     max-width: 64.25rem;
