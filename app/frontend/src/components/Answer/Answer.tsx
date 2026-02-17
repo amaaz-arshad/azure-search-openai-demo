@@ -65,6 +65,14 @@ export const Answer = ({
             .catch(err => console.error("Failed to copy text: ", err));
     };
 
+    const answerForSpeech = (() => {
+        const temp = document.createElement("div");
+        temp.innerHTML = sanitizedAnswerHtml;
+        temp.querySelectorAll("sup").forEach(node => node.remove());
+        temp.querySelectorAll(".citationStepBadge").forEach(node => node.remove());
+        return temp.textContent ?? "";
+    })();
+
     return (
         <Stack className={`${styles.answerContainer} ${isSelected && styles.selected}`} verticalAlign="space-between">
             <Stack.Item>
@@ -98,9 +106,7 @@ export const Answer = ({
                             onClick={() => onSupportingContentClicked()}
                             disabled={!answer.context?.data_points || isStreaming}
                         /> */}
-                        {showSpeechOutputAzure && (
-                            <SpeechOutputAzure answer={sanitizedAnswerHtml} index={index} speechConfig={speechConfig} isStreaming={isStreaming} />
-                        )}
+                        {showSpeechOutputAzure && <SpeechOutputAzure answer={answerForSpeech} speechConfig={speechConfig} isStreaming={isStreaming} />}
                         {showSpeechOutputBrowser && <SpeechOutputBrowser answer={sanitizedAnswerHtml} />}
                     </div>
                 </Stack>
