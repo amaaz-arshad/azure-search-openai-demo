@@ -13,6 +13,9 @@ import { AnswerIcon } from "./AnswerIcon";
 import { SpeechOutputBrowser } from "./SpeechOutputBrowser";
 import { SpeechOutputAzure } from "./SpeechOutputAzure";
 import knollLogo from "../../assets/knoll.png";
+import rehypeSlug from "rehype-slug";
+import rehypeAutolinkHeadings from "rehype-autolink-headings";
+import supersub from "remark-supersub";
 
 interface Props {
     answer: ChatAppResponse;
@@ -113,9 +116,7 @@ export const Answer = ({
             </Stack.Item>
 
             <Stack.Item grow>
-                <div className={styles.answerText}>
-                    <ReactMarkdown children={sanitizedAnswerHtml} rehypePlugins={[rehypeRaw]} remarkPlugins={[remarkGfm]} />
-                </div>
+                <ReactMarkdown children={sanitizedAnswerHtml} rehypePlugins={[rehypeRaw]} remarkPlugins={[remarkGfm, supersub]} />
             </Stack.Item>
 
             {!!parsedAnswer.citations.length && !isStreaming && (

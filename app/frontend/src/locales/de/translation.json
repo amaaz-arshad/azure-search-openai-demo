@@ -62,6 +62,7 @@
     "followupQuestions": "Folgefragen:",
     "tooltips": {
         "submitQuestion": "Frage einreichen",
+        "stopStreaming": "Stopp",
         "askWithVoice": "Frage per Stimme stellen",
         "stopRecording": "Aufnahme stoppen",
         "showThoughtProcess": "Denkprozess anzeigen",
