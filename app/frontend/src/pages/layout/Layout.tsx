@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useRef, RefObject } from "react";
-import { Outlet, NavLink, Link } from "react-router-dom";
+import { Outlet, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import styles from "./Layout.module.css";
 
@@ -9,6 +8,7 @@ import { LoginButton } from "../../components/LoginButton";
 import { IconButton } from "@fluentui/react";
 import { MoreHorizontal24Regular, ChatAdd24Regular, ChatDismiss24Regular, History24Regular } from "@fluentui/react-icons";
 import lemonChatbotLogo from "../../assets/lemon-chatbot.png";
+import { RefObject, useEffect, useRef, useState } from "react";
 
 // At the top of the file, outside the component
 let globalClearChat: () => void = () => {};
@@ -20,30 +20,21 @@ export const setGlobalClearChat = (fn: () => void) => {
 
 const Layout = () => {
     const { t } = useTranslation();
-    const [menuOpen, setMenuOpen] = useState(false);
     const [dropdownOpen, setDropdownOpen] = useState(false);
-    const menuRef: RefObject<HTMLDivElement> = useRef(null);
     const dropdownRef: RefObject<HTMLDivElement> = useRef(null);
-
-    const toggleMenu = () => {
-        setMenuOpen(!menuOpen);
-    };
 
     const toggleDropdown = () => {
         setDropdownOpen(!dropdownOpen);
     };
 
     const handleClickOutside = (event: MouseEvent) => {
-        if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-            setMenuOpen(false);
-        }
         if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
             setDropdownOpen(false);
         }
     };
 
     useEffect(() => {
-        if (menuOpen || dropdownOpen) {
+        if (dropdownOpen) {
             document.addEventListener("mousedown", handleClickOutside);
         } else {
             document.removeEventListener("mousedown", handleClickOutside);
@@ -51,7 +42,7 @@ const Layout = () => {
         return () => {
             document.removeEventListener("mousedown", handleClickOutside);
         };
-    }, [menuOpen, dropdownOpen]);
+    }, [dropdownOpen]);
 
     const handleStartNewChat = () => {
         setDropdownOpen(false);

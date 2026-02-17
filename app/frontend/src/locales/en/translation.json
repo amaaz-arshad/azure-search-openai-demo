@@ -4,7 +4,6 @@
     "initialUserMsg": "Hello",
     "initialAssistantMsg": "Welcome! Glad you're here. Would you like to test your knowledge on a topic or do you have questions you'd like to clarify?",
     "chat": "Chat",
-    "qa": "Ask a question",
     "login": "Login",
     "logout": "Logout",
     "clearChat": "Clear chat",
@@ -57,6 +56,7 @@
 
     "tooltips": {
         "submitQuestion": "Submit question",
+        "stopStreaming": "Stop streaming",
         "askWithVoice": "Ask question with voice",
         "stopRecording": "Stop recording question",
         "showThoughtProcess": "Show thought process",
