@@ -17,6 +17,30 @@ import rehypeSlug from "rehype-slug";
 import rehypeAutolinkHeadings from "rehype-autolink-headings";
 import supersub from "remark-supersub";
 
+const cleanSpeechText = (rawText: string): string => {
+    let cleaned = rawText;
+
+    cleaned = cleaned.replace(/```[\s\S]*?```/g, " ");
+    cleaned = cleaned.replace(/`([^`]+)`/g, "$1");
+    cleaned = cleaned.replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1");
+    cleaned = cleaned.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+    cleaned = cleaned.replace(/<((?:https?:\/\/|mailto:)[^>]+)>/g, "$1");
+    cleaned = cleaned.replace(/^\s{0,3}#{1,6}\s+/gm, "");
+    cleaned = cleaned.replace(/^\s{0,3}>\s?/gm, "");
+    cleaned = cleaned.replace(/^\s*[-*+]\s+/gm, "");
+    cleaned = cleaned.replace(/^\s*\d+\.\s+/gm, "");
+    cleaned = cleaned.replace(/(\*\*|__)(.*?)\1/g, "$2");
+    cleaned = cleaned.replace(/(\*|_)(.*?)\1/g, "$2");
+    cleaned = cleaned.replace(/~~(.*?)~~/g, "$1");
+    cleaned = cleaned.replace(/^\s*\|?[-:\s|]+\|?\s*$/gm, " ");
+    cleaned = cleaned.replace(/\|/g, " ");
+    cleaned = cleaned.replace(/\[\^?\d+\]/g, " ");
+    cleaned = cleaned.replace(/\s*\n+\s*/g, ". ");
+    cleaned = cleaned.replace(/\s{2,}/g, " ");
+
+    return cleaned.trim();
+};
+
 interface Props {
     answer: ChatAppResponse;
     index: number;
@@ -68,13 +92,13 @@ export const Answer = ({
             .catch(err => console.error("Failed to copy text: ", err));
     };
 
-    const answerForSpeech = (() => {
+    const answerForSpeech = useMemo(() => {
         const temp = document.createElement("div");
         temp.innerHTML = sanitizedAnswerHtml;
-        temp.querySelectorAll("sup").forEach(node => node.remove());
-        temp.querySelectorAll(".citationStepBadge").forEach(node => node.remove());
-        return temp.textContent ?? "";
-    })();
+        temp.querySelectorAll("sup, .citationStepBadge, .citationBadgeContainer").forEach(node => node.remove());
+        const plainText = temp.textContent ?? "";
+        return cleanSpeechText(plainText);
+    }, [sanitizedAnswerHtml]);
 
     return (
         <Stack className={`${styles.answerContainer} ${isSelected && styles.selected}`} verticalAlign="space-between">
@@ -109,7 +133,7 @@ export const Answer = ({
                             onClick={() => onSupportingContentClicked()}
                             disabled={!answer.context?.data_points || isStreaming}
                         /> */}
-                        {showSpeechOutputAzure && <SpeechOutputAzure answer={answerForSpeech} speechConfig={speechConfig} isStreaming={isStreaming} />}
+                        {showSpeechOutputAzure && <SpeechOutputAzure answer={answerForSpeech} isStreaming={isStreaming} />}
                         {showSpeechOutputBrowser && <SpeechOutputBrowser answer={sanitizedAnswerHtml} />}
                     </div>
                 </Stack>

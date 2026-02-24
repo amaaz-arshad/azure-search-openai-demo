@@ -1,20 +1,89 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IconButton } from "@fluentui/react";
-import { SpeechConfig } from "../../api";
 import * as SpeechSDK from "microsoft-cognitiveservices-speech-sdk";
+
+let activePlaybackOwner: symbol | null = null;
+let activePlaybackStop: (() => void) | null = null;
 
 interface Props {
     answer: string;
-    speechConfig: SpeechConfig;
     isStreaming: boolean;
 }
 
-export const SpeechOutputAzure = ({ answer, speechConfig, isStreaming }: Props) => {
+export const SpeechOutputAzure = ({ answer, isStreaming }: Props) => {
     const [isLoading, setIsLoading] = useState(false);
     const [isPlaying, setIsPlaying] = useState(false);
-    const audioRef = useRef<HTMLAudioElement>(null);
+    const instanceIdRef = useRef(Symbol("SpeechOutputAzure"));
+    const synthesizerRef = useRef<SpeechSDK.SpeechSynthesizer | null>(null);
+    const playerRef = useRef<SpeechSDK.SpeakerAudioDestination | null>(null);
+    const playbackFallbackTimerRef = useRef<number | null>(null);
     const { t } = useTranslation();
+
+    const clearPlaybackFallbackTimer = () => {
+        if (playbackFallbackTimerRef.current !== null) {
+            window.clearTimeout(playbackFallbackTimerRef.current);
+            playbackFallbackTimerRef.current = null;
+        }
+    };
+
+    const closeSynthesizer = () => {
+        if (synthesizerRef.current) {
+            synthesizerRef.current.close();
+            synthesizerRef.current = null;
+        }
+    };
+
+    const stopPlayerAudio = () => {
+        if (!playerRef.current) return;
+        try {
+            playerRef.current.pause();
+        } catch {
+            // Ignore pause errors from browser/media state transitions.
+        }
+        try {
+            const audio = playerRef.current.internalAudio;
+            audio.pause();
+            audio.currentTime = 0;
+            audio.removeAttribute("src");
+            audio.load();
+        } catch {
+            // Ignore direct element-stop errors; close() will still run.
+        }
+    };
+
+    const closePlayer = () => {
+        if (playerRef.current) {
+            playerRef.current.onAudioStart = () => undefined;
+            playerRef.current.onAudioEnd = () => undefined;
+            playerRef.current.close();
+            playerRef.current = null;
+        }
+    };
+
+    const releaseActivePlaybackIfOwned = () => {
+        if (activePlaybackOwner === instanceIdRef.current) {
+            activePlaybackOwner = null;
+            activePlaybackStop = null;
+        }
+    };
+
+    const finishPlayback = (forceStopAudio: boolean = false) => {
+        clearPlaybackFallbackTimer();
+        if (forceStopAudio) {
+            stopPlayerAudio();
+        }
+        closeSynthesizer();
+        closePlayer();
+        releaseActivePlaybackIfOwned();
+        setIsPlaying(false);
+        setIsLoading(false);
+    };
+
+    const handleStop = () => {
+        if (!synthesizerRef.current && !playerRef.current) return;
+        finishPlayback(true);
+    };
 
     const handlePlay = () => {
         if (!answer) return alert("Enter text to speak");
@@ -22,48 +91,86 @@ export const SpeechOutputAzure = ({ answer, speechConfig, isStreaming }: Props) 
         setIsPlaying(true);
 
         // Configure speech
-        const speechConfig = SpeechSDK.SpeechConfig.fromSubscription("8ca3a8c2671046c9849d763655670358", "swedencentral");
-        speechConfig.speechSynthesisVoiceName = "de-DE-Florian:DragonHDLatestNeural";
+        const sdkSpeechConfig = SpeechSDK.SpeechConfig.fromSubscription("8ca3a8c2671046c9849d763655670358", "swedencentral");
+        sdkSpeechConfig.speechSynthesisVoiceName = "de-DE-Florian:DragonHDLatestNeural";
 
-        // Use browser audio
-        const audioConfig = SpeechSDK.AudioConfig.fromDefaultSpeakerOutput();
+        if (activePlaybackOwner !== instanceIdRef.current && activePlaybackStop) {
+            activePlaybackStop();
+        }
+        clearPlaybackFallbackTimer();
+        closeSynthesizer();
+        closePlayer();
+        releaseActivePlaybackIfOwned();
 
-        const synthesizer = new SpeechSDK.SpeechSynthesizer(speechConfig, audioConfig);
+        const player = new SpeechSDK.SpeakerAudioDestination();
+        player.onAudioStart = () => {
+            setIsLoading(false);
+            setIsPlaying(true);
+        };
+        player.onAudioEnd = () => {
+            finishPlayback();
+        };
+        playerRef.current = player;
+
+        // Use browser audio with explicit player hooks so we can track real playback end.
+        const audioConfig = SpeechSDK.AudioConfig.fromSpeakerOutput(player);
+
+        const synthesizer = new SpeechSDK.SpeechSynthesizer(sdkSpeechConfig, audioConfig);
+        synthesizerRef.current = synthesizer;
+        activePlaybackOwner = instanceIdRef.current;
+        activePlaybackStop = () => {
+            finishPlayback(true);
+        };
 
         synthesizer.speakTextAsync(
             answer,
             result => {
                 if (result.reason === SpeechSDK.ResultReason.SynthesizingAudioCompleted) {
-                    console.log("Speech finished");
+                    const sdkDurationMs = result.audioDuration > 0 ? result.audioDuration / 10000 : 0;
+                    const estimatedDurationMs = Math.max(1500, answer.length * 70);
+                    const totalDurationMs = sdkDurationMs > 0 ? sdkDurationMs : estimatedDurationMs;
+                    const currentTimeMs = playerRef.current ? Math.max(0, playerRef.current.currentTime * 1000) : 0;
+                    // This timer is only a fallback when onAudioEnd doesn't fire.
+                    const remainingMs = Math.max(0, totalDurationMs - currentTimeMs + 100);
+
+                    clearPlaybackFallbackTimer();
+                    playbackFallbackTimerRef.current = window.setTimeout(() => {
+                        finishPlayback();
+                    }, remainingMs);
                 } else if (result.reason === SpeechSDK.ResultReason.Canceled) {
                     const cancel = SpeechSDK.CancellationDetails.fromResult(result);
                     console.error("Canceled:", cancel.errorDetails);
+                    finishPlayback();
                 }
-                synthesizer.close();
-                setIsPlaying(false);
-                setIsLoading(false);
             },
-            err => {
+            (err: string) => {
                 console.error(err);
-                synthesizer.close();
-                setIsPlaying(false);
-                setIsLoading(false);
+                finishPlayback();
             }
         );
     };
 
-    const color = isPlaying ? "red" : "black";
+    useEffect(() => {
+        return () => {
+            clearPlaybackFallbackTimer();
+            closeSynthesizer();
+            closePlayer();
+            releaseActivePlaybackIfOwned();
+        };
+    }, []);
 
-    return isLoading ? (
-        <IconButton style={{ color }} iconProps={{ iconName: "Sync" }} title="Loading speech" ariaLabel="Loading speech" disabled={true} />
-    ) : (
+    const color = isPlaying ? "red" : "black";
+    const title = isPlaying ? t("tooltips.stopStreaming") : t("tooltips.speakAnswer");
+    const iconName = isLoading ? "Sync" : isPlaying ? "Stop" : "Volume3";
+
+    return (
         <IconButton
             style={{ color }}
-            iconProps={{ iconName: "Volume3" }}
-            title={t("tooltips.speakAnswer")}
-            ariaLabel={t("tooltips.speakAnswer")}
-            onClick={handlePlay}
-            disabled={isStreaming || isPlaying}
+            iconProps={{ iconName }}
+            title={title}
+            ariaLabel={title}
+            onClick={isPlaying ? handleStop : handlePlay}
+            disabled={isStreaming || isLoading}
         />
     );
 };
