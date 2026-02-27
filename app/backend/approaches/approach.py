@@ -232,6 +232,10 @@ class Approach(ABC):
         "gpt-5": GPTReasoningModelSupport(streaming=True, minimal_effort=True),
         "gpt-5-nano": GPTReasoningModelSupport(streaming=True, minimal_effort=True),
         "gpt-5-mini": GPTReasoningModelSupport(streaming=True, minimal_effort=True),
+        "gpt-5.1": GPTReasoningModelSupport(streaming=True, minimal_effort=True),
+        "gpt-5.1-chat": GPTReasoningModelSupport(streaming=True, minimal_effort=True),
+        "gpt-5.2": GPTReasoningModelSupport(streaming=True, minimal_effort=True),
+        "gpt-5.2-chat": GPTReasoningModelSupport(streaming=True, minimal_effort=True),
     }
     # Set a higher token limit for GPT reasoning models
     RESPONSE_DEFAULT_TOKEN_LIMIT = 1024

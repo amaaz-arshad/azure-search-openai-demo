@@ -93,7 +93,7 @@ export const Answer = ({
                             ariaLabel={copied ? t("tooltips.copied") : t("tooltips.copy")}
                             onClick={handleCopy}
                         />
-                        {/* <IconButton
+                        <IconButton
                             style={{ color: "black" }}
                             iconProps={{ iconName: "Lightbulb" }}
                             title={t("tooltips.showThoughtProcess")}
@@ -108,7 +108,7 @@ export const Answer = ({
                             ariaLabel={t("tooltips.showSupportingContent")}
                             onClick={() => onSupportingContentClicked()}
                             disabled={!answer.context?.data_points || isStreaming}
-                        /> */}
+                        />
                         {showSpeechOutputAzure && <SpeechOutputAzure answer={answerForSpeech} speechConfig={speechConfig} isStreaming={isStreaming} />}
                         {showSpeechOutputBrowser && <SpeechOutputBrowser answer={sanitizedAnswerHtml} />}
                     </div>
