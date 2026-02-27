@@ -883,6 +883,11 @@ module searchService 'core/search/search-services.bicep' = {
     location: !empty(searchServiceLocation) ? searchServiceLocation : location
     tags: tags
     disableLocalAuth: false
+    authOptions: {
+      aadOrApiKey: {
+        aadAuthFailureMode: 'http401WithBearerChallenge'
+      }
+    }
     sku: {
       name: searchServiceSkuName
     }

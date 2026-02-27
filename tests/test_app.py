@@ -675,6 +675,42 @@ async def test_chat_stream_text(client, snapshot):
 
 
 @pytest.mark.asyncio
+async def test_chat_stream_writes_timing_log(client):
+    class CapturingTimingWriter:
+        def __init__(self):
+            self.payloads: list[dict[str, Any]] = []
+
+        async def append_timing(self, timing_context):
+            self.payloads.append(timing_context.to_payload())
+
+    capturing_writer = CapturingTimingWriter()
+    client.app.config[app.CONFIG_CHAT_STREAM_TIMING_LOG_WRITER] = capturing_writer
+    client.app.config[app.CONFIG_CHAT_STREAM_TIMING_ENABLED] = True
+
+    response = await client.post(
+        "/chat/stream",
+        json={
+            "messages": [{"content": "What is the capital of France?", "role": "user"}],
+            "context": {
+                "overrides": {"retrieval_mode": "text"},
+            },
+        },
+    )
+    assert response.status_code == 200
+    await response.get_data()
+
+    assert len(capturing_writer.payloads) == 1
+    request_payload = capturing_writer.payloads[0]
+    assert request_payload["status"] == "completed"
+    assert "request_json_parse_seconds" in request_payload["step_durations_seconds"]
+    assert "query_rewrite_seconds" in request_payload["step_durations_seconds"]
+    total_time = request_payload["total_time_taken_to_generate_response"]["api_to_llm_stream_start_seconds"]
+    assert total_time is not None
+    steps_sum = sum(request_payload["step_durations_seconds"].values())
+    assert steps_sum == total_time
+
+
+@pytest.mark.asyncio
 async def test_chat_text_reasoning(reasoning_client, snapshot):
     response = await reasoning_client.post(
         "/chat",

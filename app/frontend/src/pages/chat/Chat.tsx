@@ -27,6 +27,13 @@ import { LanguagePicker } from "../../i18n/LanguagePicker";
 import { Settings } from "../../components/Settings/Settings";
 import { setGlobalClearChat } from "../layout/Layout";
 
+const createChatSessionId = () => {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+        return crypto.randomUUID();
+    }
+    return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+};
+
 const Chat = () => {
     const { t, i18n } = useTranslation();
     const initialUserMessage: string = t("initialUserMsg");
@@ -84,6 +91,7 @@ const Chat = () => {
     const [answers, setAnswers] = useState<[user: string, response: ChatAppResponse][]>([[initialUserMessage, initialAssistantResponse]]);
     const [streamedAnswers, setStreamedAnswers] = useState<[user: string, response: ChatAppResponse][]>([[initialUserMessage, initialAssistantResponse]]);
     const [speechUrls, setSpeechUrls] = useState<(string | null)[]>([]);
+    const [chatSessionId, setChatSessionId] = useState<string>(createChatSessionId());
 
     const [showMultimodalOptions, setShowMultimodalOptions] = useState<boolean>(false);
     const [showSemanticRankerOption, setShowSemanticRankerOption] = useState<boolean>(false);
@@ -282,6 +290,7 @@ const Chat = () => {
             const request: ChatAppRequest = {
                 messages: [...messages, { content: question, role: "user" }],
                 context: {
+                    chat_session_id: chatSessionId,
                     overrides: {
                         prompt_template: promptTemplate.length === 0 ? undefined : promptTemplate,
                         include_category: includeCategory.length === 0 ? undefined : includeCategory,
@@ -370,6 +379,7 @@ const Chat = () => {
         setIsLoading(false);
         setIsStreaming(false);
         setRestoredQuestion("");
+        setChatSessionId(createChatSessionId());
     };
 
     useEffect(() => {

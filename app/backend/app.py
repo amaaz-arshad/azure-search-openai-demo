@@ -7,7 +7,7 @@ import os
 import time
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Optional, cast
 
 from azure.cognitiveservices.speech import (
     ResultReason,
@@ -47,6 +47,11 @@ from quart_cors import cors
 from approaches.approach import Approach, DataPoints
 from approaches.chatreadretrieveread import ChatReadRetrieveReadApproach
 from approaches.promptmanager import PromptManager
+from chatstreamtiming import (
+    ChatStreamTimingContext,
+    ChatStreamTimingLogWriter,
+    create_chat_timing_session_id,
+)
 from chat_history.cosmosdb import chat_history_cosmosdb_bp
 from config import (
     CONFIG_AGENTIC_KNOWLEDGEBASE_ENABLED,
@@ -54,6 +59,8 @@ from config import (
     CONFIG_CHAT_APPROACH,
     CONFIG_CHAT_HISTORY_BROWSER_ENABLED,
     CONFIG_CHAT_HISTORY_COSMOS_ENABLED,
+    CONFIG_CHAT_STREAM_TIMING_ENABLED,
+    CONFIG_CHAT_STREAM_TIMING_LOG_WRITER,
     CONFIG_CREDENTIAL,
     CONFIG_DEFAULT_REASONING_EFFORT,
     CONFIG_DEFAULT_RETRIEVAL_REASONING_EFFORT,
@@ -203,6 +210,25 @@ async def format_as_ndjson(r: AsyncGenerator[dict, None]) -> AsyncGenerator[str,
         yield json.dumps(error_dict(error))
 
 
+async def track_chat_stream_timing(
+    events: AsyncGenerator[dict, None],
+    timing_context: ChatStreamTimingContext,
+    timing_log_writer: ChatStreamTimingLogWriter,
+) -> AsyncGenerator[dict, None]:
+    try:
+        async for event in events:
+            yield event
+    except Exception as error:
+        timing_context.mark_error(error)
+        raise
+    finally:
+        timing_context.mark_completed()
+        try:
+            await timing_log_writer.append_timing(timing_context)
+        except Exception as write_error:
+            logging.exception("Failed to persist chat stream timing log: %s", write_error)
+
+
 @bp.route("/chat", methods=["POST"])
 @authenticated
 async def chat(auth_claims: dict[str, Any]):
@@ -235,11 +261,13 @@ async def chat(auth_claims: dict[str, Any]):
 @bp.route("/chat/stream", methods=["POST"])
 @authenticated
 async def chat_stream(auth_claims: dict[str, Any]):
+    api_request_started = time.perf_counter()
     if not request.is_json:
         return jsonify({"error": "request must be json"}), 415
     request_json = await request.get_json()
-    context = request_json.get("context", {})
+    context = request_json.get("context") or {}
     context["auth_claims"] = auth_claims
+    timing_context: Optional[ChatStreamTimingContext] = None
     try:
         approach: Approach = cast(Approach, current_app.config[CONFIG_CHAT_APPROACH])
 
@@ -251,16 +279,40 @@ async def chat_stream(auth_claims: dict[str, Any]):
                 current_app.config[CONFIG_CHAT_HISTORY_COSMOS_ENABLED],
                 current_app.config[CONFIG_CHAT_HISTORY_BROWSER_ENABLED],
             )
+
+        if current_app.config[CONFIG_CHAT_STREAM_TIMING_ENABLED]:
+            chat_session_id = context.get("chat_session_id")
+            timing_context = ChatStreamTimingContext(
+                session_id=create_chat_timing_session_id(session_state, chat_session_id=chat_session_id),
+                request_started_perf_counter=api_request_started,
+            )
+            timing_context.record_step("request_json_parse_seconds")
+            timing_context.record_step("session_state_resolution_seconds")
+            context["chat_stream_timing"] = timing_context
+
         result = await approach.run_stream(
             request_json["messages"],
             context=context,
             session_state=session_state,
         )
+        if timing_context:
+            timing_context.record_step("run_stream_setup_seconds")
+            timing_log_writer: ChatStreamTimingLogWriter = current_app.config[CONFIG_CHAT_STREAM_TIMING_LOG_WRITER]
+            result = track_chat_stream_timing(result, timing_context, timing_log_writer)
+
         response = await make_response(format_as_ndjson(result))
         response.timeout = None  # type: ignore
         response.mimetype = "application/json-lines"
         return response
     except Exception as error:
+        if timing_context is not None:
+            timing_context.mark_error(error)
+            timing_context.mark_completed()
+            timing_log_writer: ChatStreamTimingLogWriter = current_app.config[CONFIG_CHAT_STREAM_TIMING_LOG_WRITER]
+            try:
+                await timing_log_writer.append_timing(timing_context)
+            except Exception as write_error:
+                logging.exception("Failed to persist chat stream timing log after route error: %s", write_error)
         return error_response(error, "/chat")
 
 
@@ -545,6 +597,8 @@ async def setup_clients():
         image_container=AZURE_IMAGESTORAGE_CONTAINER,
     )
     current_app.config[CONFIG_GLOBAL_BLOB_MANAGER] = global_blob_manager
+    timing_log_writer: ChatStreamTimingLogWriter = current_app.config[CONFIG_CHAT_STREAM_TIMING_LOG_WRITER]
+    timing_log_writer.configure_blob_service_client(global_blob_manager.blob_service_client)
 
     # Set up authentication helper
     search_index = None
@@ -748,6 +802,14 @@ def create_app():
     app = Quart(__name__)
     app.register_blueprint(bp)
     app.register_blueprint(chat_history_cosmosdb_bp)
+
+    chat_stream_timing_enabled = os.getenv("CHAT_STREAM_TIMING_ENABLED", "true").lower() != "false"
+    requested_logfile_name = (os.getenv("LOGFILE_NAME") or "chat_stream_timings").strip()
+    app.config[CONFIG_CHAT_STREAM_TIMING_ENABLED] = chat_stream_timing_enabled
+    app.config[CONFIG_CHAT_STREAM_TIMING_LOG_WRITER] = ChatStreamTimingLogWriter(
+        logfile_name=requested_logfile_name,
+        container_name="logfiles",
+    )
 
     if os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING"):
         app.logger.info("APPLICATIONINSIGHTS_CONNECTION_STRING is set, enabling Azure Monitor")

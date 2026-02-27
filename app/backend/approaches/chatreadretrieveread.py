@@ -1,4 +1,5 @@
 import re
+import time
 from collections.abc import AsyncGenerator, Awaitable
 from dataclasses import asdict
 from typing import Any, Optional, cast
@@ -21,6 +22,7 @@ from approaches.approach import (
     ThoughtStep,
 )
 from approaches.promptmanager import PromptManager
+from chatstreamtiming import ChatStreamTimingContext
 from prepdocslib.blobmanager import AdlsBlobManager, BlobManager
 from prepdocslib.embeddings import ImageEmbeddings
 
@@ -149,15 +151,22 @@ class ChatReadRetrieveReadApproach(Approach):
         overrides: dict[str, Any],
         auth_claims: dict[str, Any],
         session_state: Any = None,
+        timing_context: Optional[ChatStreamTimingContext] = None,
     ) -> AsyncGenerator[dict, None]:
         extra_info, chat_coroutine = await self.run_until_final_call(
-            messages, overrides, auth_claims, should_stream=True
+            messages,
+            overrides,
+            auth_claims,
+            should_stream=True,
+            timing_context=timing_context,
         )
         yield {"delta": {"role": "assistant"}, "context": extra_info, "session_state": session_state}
 
         followup_questions_started = False
         followup_content = ""
         chat_result = await chat_coroutine
+        if timing_context:
+            timing_context.record_step("final_llm_request_seconds")
 
         if isinstance(chat_result, ChatCompletion):
             message = chat_result.choices[0].message
@@ -175,6 +184,10 @@ class ChatReadRetrieveReadApproach(Approach):
             delta_payload: dict[str, Any] = {"role": role}
             if content:
                 delta_payload["content"] = content
+            if timing_context:
+                stream_start = time.perf_counter()
+                timing_context.record_step("wait_for_first_llm_output_seconds", ended_perf_counter=stream_start)
+                timing_context.mark_llm_stream_started(stream_started_perf_counter=stream_start)
             yield {"delta": delta_payload}
 
             yield {"delta": {"role": "assistant"}, "context": extra_info, "session_state": session_state}
@@ -187,11 +200,17 @@ class ChatReadRetrieveReadApproach(Approach):
             return
 
         chat_result = cast(AsyncStream[ChatCompletionChunk], chat_result)
+        llm_stream_started = False
 
         async for event_chunk in chat_result:
             # "2023-07-01-preview" API version has a bug where first response has empty choices
             event = event_chunk.model_dump()  # Convert pydantic model to dict
             if event["choices"]:
+                if timing_context and not llm_stream_started:
+                    stream_start = time.perf_counter()
+                    timing_context.record_step("wait_for_first_llm_stream_chunk_seconds", ended_perf_counter=stream_start)
+                    timing_context.mark_llm_stream_started(stream_started_perf_counter=stream_start)
+                    llm_stream_started = True
                 # No usage during streaming
                 completion = {
                     "delta": {
@@ -247,7 +266,16 @@ class ChatReadRetrieveReadApproach(Approach):
     ) -> AsyncGenerator[dict[str, Any], None]:
         overrides = context.get("overrides", {})
         auth_claims = context.get("auth_claims", {})
-        return self.run_with_streaming(messages, overrides, auth_claims, session_state)
+        timing_context = context.get("chat_stream_timing")
+        if timing_context is not None and not isinstance(timing_context, ChatStreamTimingContext):
+            timing_context = None
+        return self.run_with_streaming(
+            messages,
+            overrides,
+            auth_claims,
+            session_state,
+            timing_context=timing_context,
+        )
 
     async def run_until_final_call(
         self,
@@ -255,6 +283,7 @@ class ChatReadRetrieveReadApproach(Approach):
         overrides: dict[str, Any],
         auth_claims: dict[str, Any],
         should_stream: bool = False,
+        timing_context: Optional[ChatStreamTimingContext] = None,
     ) -> tuple[ExtraInfo, Awaitable[ChatCompletion] | Awaitable[AsyncStream[ChatCompletionChunk]]]:
         use_agentic_knowledgebase = True if overrides.get("use_agentic_knowledgebase") else False
         original_user_query = messages[-1]["content"]
@@ -269,9 +298,19 @@ class ChatReadRetrieveReadApproach(Approach):
                 raise Exception(
                     "Streaming is not supported with agentic retrieval when web source is enabled. Please disable streaming or web source."
                 )
-            extra_info = await self.run_agentic_retrieval_approach(messages, overrides, auth_claims)
+            extra_info = await self.run_agentic_retrieval_approach(
+                messages,
+                overrides,
+                auth_claims,
+                timing_context=timing_context,
+            )
         else:
-            extra_info = await self.run_search_approach(messages, overrides, auth_claims)
+            extra_info = await self.run_search_approach(
+                messages,
+                overrides,
+                auth_claims,
+                timing_context=timing_context,
+            )
 
         if extra_info.answer:
             # If agentic retrieval already provided an answer, skip final call to LLM
@@ -311,6 +350,8 @@ class ChatReadRetrieveReadApproach(Approach):
             user_image_sources=extra_info.data_points.images,
             past_messages=messages[:-1],
         )
+        if timing_context:
+            timing_context.record_step("build_answer_prompt_seconds")
 
         chat_coroutine = cast(
             Awaitable[ChatCompletion] | Awaitable[AsyncStream[ChatCompletionChunk]],
@@ -323,6 +364,8 @@ class ChatReadRetrieveReadApproach(Approach):
                 should_stream,
             ),
         )
+        if timing_context:
+            timing_context.record_step("prepare_final_llm_call_seconds")
         extra_info.thoughts.append(
             self.format_thought_step_for_chatcompletion(
                 title="Prompt to generate answer",
@@ -336,7 +379,11 @@ class ChatReadRetrieveReadApproach(Approach):
         return (extra_info, chat_coroutine)
 
     async def run_search_approach(
-        self, messages: list[ChatCompletionMessageParam], overrides: dict[str, Any], auth_claims: dict[str, Any]
+        self,
+        messages: list[ChatCompletionMessageParam],
+        overrides: dict[str, Any],
+        auth_claims: dict[str, Any],
+        timing_context: Optional[ChatStreamTimingContext] = None,
     ):
         use_text_search = overrides.get("retrieval_mode") in ["text", "hybrid", None]
         use_vector_search = overrides.get("retrieval_mode") in ["vectors", "hybrid", None]
@@ -360,7 +407,6 @@ class ChatReadRetrieveReadApproach(Approach):
             raise ValueError("The most recent message content must be a string.")
 
         # STEP 1: Generate an optimized keyword search query based on the chat history and the last question
-
         rewrite_result = await self.rewrite_query(
             prompt_template="query_rewrite.system.jinja2",
             prompt_variables={
@@ -378,6 +424,8 @@ class ChatReadRetrieveReadApproach(Approach):
             temperature=0.0,  # Minimize creativity for search query generation
             no_response_token=self.NO_RESPONSE,
         )
+        if timing_context:
+            timing_context.record_step("query_rewrite_seconds")
 
         query_text = rewrite_result.query
 
@@ -387,8 +435,12 @@ class ChatReadRetrieveReadApproach(Approach):
         if use_vector_search:
             if search_text_embeddings:
                 vectors.append(await self.compute_text_embedding(query_text))
+                if timing_context:
+                    timing_context.record_step("compute_text_embedding_seconds")
             if search_image_embeddings:
                 vectors.append(await self.compute_multimodal_embedding(query_text))
+                if timing_context:
+                    timing_context.record_step("compute_multimodal_embedding_seconds")
 
         results = await self.search(
             top,
@@ -404,6 +456,8 @@ class ChatReadRetrieveReadApproach(Approach):
             use_query_rewriting,
             access_token,
         )
+        if timing_context:
+            timing_context.record_step("search_index_query_seconds")
 
         # STEP 3: Generate a contextual and content specific answer using the search results and chat history
         data_points = await self.get_sources_content(
@@ -413,6 +467,8 @@ class ChatReadRetrieveReadApproach(Approach):
             download_image_sources=send_image_sources,
             user_oid=auth_claims.get("oid"),
         )
+        if timing_context:
+            timing_context.record_step("build_sources_payload_seconds")
         extra_info = ExtraInfo(
             data_points,
             thoughts=[
@@ -453,6 +509,7 @@ class ChatReadRetrieveReadApproach(Approach):
         messages: list[ChatCompletionMessageParam],
         overrides: dict[str, Any],
         auth_claims: dict[str, Any],
+        timing_context: Optional[ChatStreamTimingContext] = None,
     ):
         search_index_filter = self.build_filter(overrides)
         access_token = auth_claims.get("access_token")
@@ -489,6 +546,8 @@ class ChatReadRetrieveReadApproach(Approach):
             use_sharepoint_source=effective_sharepoint_source,
             retrieval_reasoning_effort=retrieval_reasoning_effort,
         )
+        if timing_context:
+            timing_context.record_step("agentic_retrieval_seconds")
 
         data_points = await self.get_sources_content(
             agentic_results.documents,
@@ -499,6 +558,8 @@ class ChatReadRetrieveReadApproach(Approach):
             web_results=agentic_results.web_results,
             sharepoint_results=agentic_results.sharepoint_results,
         )
+        if timing_context:
+            timing_context.record_step("build_sources_payload_seconds")
 
         return ExtraInfo(
             data_points,

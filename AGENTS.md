@@ -9,6 +9,8 @@ If necessary, edit this file to ensure it accurately reflects the current state 
 
 * app: Contains the main application code, including frontend and backend.
   * app/backend: Contains the Python backend code, written with Quart framework.
+    * app/backend/chatstreamtiming.py: Collects per-request `/chat/stream` step timings and persists them to a session-grouped JSON log file
+    * app/backend/logfiles: Local placeholder directory kept in repo; chat stream timing logs are persisted to Azure Blob Storage container `logfiles`
     * app/backend/approaches: Contains the different approaches
       * app/backend/approaches/approach.py: Base class for all approaches
       * app/backend/approaches/chatreadretrieveread.py: Chat approach, includes query rewriting step first
@@ -57,6 +59,15 @@ If necessary, edit this file to ensure it accurately reflects the current state 
     * app/frontend/src/pages: Contains the main pages of the application
 * infra: Contains the Bicep templates for provisioning Azure resources.
 * tests: Contains the test code, including e2e tests, app integration tests, and unit tests.
+
+## Chat stream timing logs
+
+`/chat/stream` records backend step timing (seconds) per request and groups entries by session id in a JSON log.
+
+* log destination: Azure Blob Storage container `logfiles`, blob name `<LOGFILE_NAME>.json` (from `LOGFILE_NAME`, without `.json` in env value)
+* frontend chat requests include `context.chat_session_id` (UUID) and regenerate it when chat is cleared
+* set `CHAT_STREAM_TIMING_ENABLED=false` to disable timing log writes
+* log schema includes top-level `logfile_name`, per-request `step_durations_seconds`, and `total_time_taken_to_generate_response.api_to_llm_stream_start_seconds`
 
 ## Adding new data
 

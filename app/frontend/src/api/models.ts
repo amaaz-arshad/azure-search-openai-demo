@@ -99,6 +99,7 @@ export type ChatAppResponse = {
 };
 
 export type ChatAppRequestContext = {
+    chat_session_id?: string;
     overrides?: ChatAppRequestOverrides;
 };
 
