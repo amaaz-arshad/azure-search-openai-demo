@@ -47,7 +47,9 @@ If necessary, edit this file to ensure it accurately reflects the current state 
     * app/frontend/src/index.tsx: Frontend entry point and router setup. It resolves chatbot UI by URL path (`/<chatbot_name>`), serves a landing/error page on `/`, and routes unknown frontend paths back to `/`.
     * app/frontend/src/chatbots/registry.ts: Registry of available chatbot UIs, including the chatbot-specific i18n instance.
     * app/frontend/src/chatbots/<chatbot_name>: Chatbot-specific frontend implementation (pages, components, layout wrapper, i18n, locales, assets, and chatbot wiring).
-      * app/frontend/src/chatbots/nerilio: Current chatbot implementation.
+      * app/frontend/src/chatbots/nerilio: Chatbot implementation.
+      * app/frontend/src/chatbots/steuertipps: Chatbot implementation.
+      * app/frontend/src/chatbots/knoll: Chatbot implementation with an additional basic username/password login gate shown before chat.
     * app/frontend/src/api: Contains the API client code for communicating with the backend.
     * app/frontend/src/chatbots/<chatbot_name>/locales: Chatbot-specific translation files.
       * app/frontend/src/chatbots/nerilio/locales/da/translation.json: Danish translations
@@ -76,6 +78,7 @@ Frontend chatbot UIs are routed by path segment (`/<chatbot_name>`). To add a ne
 1. Export its definition (`name`, `LayoutWrapper`, `Chat`, `NoPage`, `i18n`) from `app/frontend/src/chatbots/<chatbot_name>/index.ts`.
 1. Register it in `app/frontend/src/chatbots/registry.ts`.
 1. Add chatbot-specific i18n setup in `app/frontend/src/chatbots/<chatbot_name>/i18n/` and chatbot-specific translations in `app/frontend/src/chatbots/<chatbot_name>/locales/`.
+1. If chatbot-specific auth is needed (for example, a basic username/password page), implement the gate in that chatbot's `layoutWrapper.tsx` so it applies only to that chatbot route.
 
 ## Adding a new azd environment variable
 

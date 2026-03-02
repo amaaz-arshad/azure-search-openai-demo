@@ -1,0 +1,140 @@
+.layout {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.main {
+    display: flex;
+    flex: 1;
+    min-height: 0; /* allow inner scroll areas to work inside flex container */
+}
+
+/* Navbar background and text color */
+.header {
+    background-color: #0199fe !important;
+    color: #000000;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.headerContainer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1rem;
+    height: 56px; /* fixed height for navbar */
+    position: relative;
+}
+
+/* Circular logo */
+.logoContainer {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+}
+
+.logoCircle {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.logoCircle img {
+    max-width: 65%;
+    height: auto;
+    display: block;
+}
+
+/* Title centered */
+.navbarTitle {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #000000;
+    font-weight: 600;
+    font-size: 1.4rem;
+    pointer-events: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 60%; /* so it doesn't overlap with the right section */
+}
+
+/* Right section with dropdown */
+.rightSection {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+/* Dropdown menu */
+.dropdown {
+    position: relative;
+}
+
+.menuButton {
+    color: #000000 !important;
+    background: none;
+    border: none;
+    padding: 8px;
+}
+
+.menuButton:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+.dropdownMenu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background-color: #ffffff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    list-style: none;
+    padding: 0.5rem 0;
+    min-width: 200px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    z-index: 1001;
+}
+
+.dropdownItem {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.5rem 1rem;
+    background: none;
+    border: none;
+    text-align: left;
+    color: #000000;
+    cursor: pointer;
+    font-size: 0.875rem;
+}
+
+.dropdownItem:hover {
+    background-color: #f2f2f2;
+}
+
+/* Remove old navbar styles */
+.headerTitleContainer,
+.headerNavList,
+.headerNavPageLink,
+.headerNavPageLinkActive,
+.menuToggle {
+    display: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .navbarTitle {
+        max-width: 50%;
+        font-size: 1.7rem;
+    }
+}

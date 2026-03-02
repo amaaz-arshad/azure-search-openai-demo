@@ -9,11 +9,11 @@ const RootLanding = () => {
     return (
         <div className={styles.page}>
             <Helmet>
-                <title>{t("rootLanding.pageTitle")}</title>
+                <title>{t("rootLanding.pageTitle", "Page not found | nerilio")}</title>
             </Helmet>
 
-            <header className={styles.nav} role="navigation" aria-label={t("rootLanding.topbarAriaLabel")}>
-                <a href="https://nerilio.ai/index.html" aria-label={t("rootLanding.homeAriaLabel")}>
+            <header className={styles.nav} role="navigation" aria-label={t("rootLanding.topbarAriaLabel", "Topbar")}>
+                <a href="https://nerilio.ai/index.html" aria-label={t("rootLanding.homeAriaLabel", "Go to homepage")}>
                     <img
                         src="https://nerilio.ai/images/nerilio-logo-white.svg"
                         alt="nerilio"
@@ -25,9 +25,9 @@ const RootLanding = () => {
 
             <main className={styles.main}>
                 <div className={styles.wrap}>
-                    <h1 className={styles.title}>{t("rootLanding.title")}</h1>
+                    <h1 className={styles.title}>{t("rootLanding.title", "Please use your specific chat URL.")}</h1>
                     <a className={styles.back} href="https://nerilio.ai/index.html">
-                        {t("rootLanding.backToHome")}
+                        {t("rootLanding.backToHome", "→ Or click here to return to the homepage.")}
                     </a>
                     <img className={styles.robot} src="https://nerilio.ai/images/nerilio-frei.png" alt="" draggable={false} />
                 </div>
