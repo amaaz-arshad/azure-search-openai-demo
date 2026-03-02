@@ -29,6 +29,7 @@ import { setGlobalClearChat } from "../layout/Layout";
 
 const Chat = () => {
     const { t, i18n } = useTranslation();
+    const chatbotCategory = "nerilio";
     const initialUserMessage: string = t("initialUserMsg");
     const initialAssistantMessageContent: string = t("initialAssistantMsg");
     const initialAssistantResponse: ChatAppResponse = {
@@ -284,8 +285,8 @@ const Chat = () => {
                 context: {
                     overrides: {
                         prompt_template: promptTemplate.length === 0 ? undefined : promptTemplate,
-                        include_category: includeCategory.length === 0 ? undefined : includeCategory,
-                        exclude_category: excludeCategory.length === 0 ? undefined : excludeCategory,
+                        include_category: chatbotCategory,
+                        exclude_category: undefined,
                         top: retrieveCount,
                         ...(useAgenticKnowledgeBase ? { retrieval_reasoning_effort: agenticReasoningEffort } : {}),
                         temperature: temperature,

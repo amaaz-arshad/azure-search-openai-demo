@@ -28,6 +28,7 @@ import { Settings } from "../../components/Settings/Settings";
 
 const Chat = () => {
     const { t, i18n } = useTranslation();
+    const chatbotCategory = "steuertipps";
 
     const initialUserMessage: string = t("initialUserMsg");
     const initialAssistantMessageContent: string = t("initialAssistantMsg");
@@ -264,8 +265,8 @@ const Chat = () => {
                 context: {
                     overrides: {
                         prompt_template: promptTemplate.length === 0 ? undefined : promptTemplate,
-                        include_category: includeCategory.length === 0 ? undefined : includeCategory,
-                        exclude_category: excludeCategory.length === 0 ? undefined : excludeCategory,
+                        include_category: chatbotCategory,
+                        exclude_category: undefined,
                         top: retrieveCount,
                         ...(useAgenticKnowledgeBase ? { retrieval_reasoning_effort: agenticReasoningEffort } : {}),
                         temperature: temperature,
