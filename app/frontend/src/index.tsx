@@ -1,35 +1,53 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { createHashRouter, RouterProvider } from "react-router-dom";
-import { I18nextProvider } from "react-i18next";
+import { Navigate, RouterProvider, createBrowserRouter } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { initializeIcons } from "@fluentui/react";
 import { MsalProvider } from "@azure/msal-react";
 import { AuthenticationResult, EventType, PublicClientApplication } from "@azure/msal-browser";
+import { I18nextProvider } from "react-i18next";
 
 import "./index.css";
 
-import Chat from "./pages/chat/Chat";
-import LayoutWrapper from "./layoutWrapper";
-import i18next from "./i18n/config";
+import { chatbotDefinitions } from "./chatbots/registry";
+import i18n from "./chatbots/nerilio/i18n/config";
+import RootLanding from "./pages/RootLanding";
 import { msalConfig, useLogin } from "./authConfig";
 
 initializeIcons();
 
-const router = createHashRouter([
+const chatbotRoutes = chatbotDefinitions.map(chatbot => ({
+    path: chatbot.name,
+    element: (
+        <I18nextProvider i18n={chatbot.i18n}>
+            <chatbot.LayoutWrapper />
+        </I18nextProvider>
+    ),
+    children: [
+        {
+            index: true,
+            element: <chatbot.Chat />
+        },
+        {
+            path: "*",
+            element: <chatbot.NoPage />
+        }
+    ]
+}));
+
+const router = createBrowserRouter([
     {
         path: "/",
-        element: <LayoutWrapper />,
-        children: [
-            {
-                index: true,
-                element: <Chat />
-            },
-            {
-                path: "*",
-                lazy: () => import("./pages/NoPage")
-            }
-        ]
+        element: (
+            <I18nextProvider i18n={i18n}>
+                <RootLanding />
+            </I18nextProvider>
+        )
+    },
+    ...chatbotRoutes,
+    {
+        path: "*",
+        element: <Navigate to="/" replace />
     }
 ]);
 
@@ -68,17 +86,15 @@ const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
 
     const appTree = (
         <React.StrictMode>
-            <I18nextProvider i18n={i18next}>
-                <HelmetProvider>
-                    {useLogin && msalInstance ? (
-                        <MsalProvider instance={msalInstance}>
-                            <RouterProvider router={router} />
-                        </MsalProvider>
-                    ) : (
+            <HelmetProvider>
+                {useLogin && msalInstance ? (
+                    <MsalProvider instance={msalInstance}>
                         <RouterProvider router={router} />
-                    )}
-                </HelmetProvider>
-            </I18nextProvider>
+                    </MsalProvider>
+                ) : (
+                    <RouterProvider router={router} />
+                )}
+            </HelmetProvider>
         </React.StrictMode>
     );
 

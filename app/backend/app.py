@@ -38,6 +38,7 @@ from quart import (
     current_app,
     jsonify,
     make_response,
+    redirect as quart_redirect,
     request,
     send_file,
     send_from_directory,
@@ -109,17 +110,47 @@ bp = Blueprint("routes", __name__, static_folder="static")
 # Fix Windows registry issue with mimetypes
 mimetypes.add_type("application/javascript", ".js")
 mimetypes.add_type("text/css", ".css")
+STATIC_ROOT = Path(__file__).resolve().parent / "static"
+
+NON_CHATBOT_FRONTEND_PREFIXES = {
+    "assets",
+    "auth_setup",
+    "chat",
+    "chat_history",
+    "config",
+    "content",
+    "delete_uploaded",
+    "favicon.ico",
+    "list_uploaded",
+    "redirect",
+    "speech",
+    "upload",
+}
+
+# Keep in sync with frontend chatbot routes in app/frontend/src/chatbots/registry.ts.
+KNOWN_CHATBOT_NAMES = {
+    "nerilio",
+}
+
+
+async def serve_spa_index():
+    # Avoid caching index.html so route changes and new bundles are picked up immediately.
+    response = await send_from_directory(STATIC_ROOT, "index.html")
+    response.cache_control.no_store = True
+    response.cache_control.max_age = 0
+    response.headers["Pragma"] = "no-cache"
+    return response
 
 
 @bp.route("/")
 async def index():
-    return await bp.send_static_file("index.html")
+    return await serve_spa_index()
 
 
 # Empty page is recommended for login redirect to work.
 # See https://github.com/AzureAD/microsoft-authentication-library-for-js/blob/dev/lib/msal-browser/docs/initialization.md#redirecturi-considerations for more information
 @bp.route("/redirect")
-async def redirect():
+async def redirect_page():
     return ""
 
 
@@ -130,7 +161,18 @@ async def favicon():
 
 @bp.route("/assets/<path:path>")
 async def assets(path):
-    return await send_from_directory(Path(__file__).resolve().parent / "static" / "assets", path)
+    return await send_from_directory(STATIC_ROOT / "assets", path)
+
+
+@bp.route("/<chatbot_name>")
+@bp.route("/<chatbot_name>/<path:subpath>")
+async def chatbot_entry(chatbot_name: str, subpath: str | None = None):
+    # Avoid treating API/static endpoints as chatbot names.
+    if chatbot_name in NON_CHATBOT_FRONTEND_PREFIXES or "." in chatbot_name:
+        abort(404)
+    if chatbot_name not in KNOWN_CHATBOT_NAMES:
+        return quart_redirect("/")
+    return await serve_spa_index()
 
 
 @bp.route("/content/<path>")

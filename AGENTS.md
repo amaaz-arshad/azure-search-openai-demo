@@ -12,6 +12,8 @@ If necessary, edit this file to ensure it accurately reflects the current state 
     * app/backend/approaches: Contains the different approaches
       * app/backend/approaches/approach.py: Base class for all approaches
       * app/backend/approaches/chatreadretrieveread.py: Chat approach, includes query rewriting step first
+      * app/backend/approaches/chatbot_prompt_registry.py: Maps chatbot names to chatbot-specific prompt modules
+      * app/backend/approaches/chatbots/<chatbot_name>/sampleprompt.py: Chatbot-specific `SAMPLE_PROMPT` definitions used by `get_system_prompt_variables`
       * app/backend/approaches/promptmanager.py: Manages loading and rendering of Jinja2 prompt templates
       * app/backend/approaches/prompts/query_rewrite.system.jinja2: Jinja2 template used to rewrite the query based off search history into a better search query
       * app/backend/approaches/prompts/chat_query_rewrite_tools.json: Tools used by the query rewriting prompt
@@ -39,28 +41,41 @@ If necessary, edit this file to ensure it accurately reflects the current state 
       * app/backend/prepdocslib/textparser.py: Parses plain text and markdown files
       * app/backend/prepdocslib/textprocessor.py: Processes text chunks for cloud ingestion (merges figures, generates embeddings)
       * app/backend/prepdocslib/textsplitter.py: Splits text into chunks using different strategies
-    * app/backend/app.py: The main entry point for the backend application.
+    * app/backend/app.py: The main entry point for the backend application, including SPA fallback routes for chatbot URLs like `/<chatbot_name>`, server-side redirect of unknown chatbot names back to `/`, and no-store caching headers for `index.html` responses to avoid stale frontend routing behavior.
   * app/functions: Azure Functions used for cloud ingestion custom skills (document extraction, figure processing, text processing). Each function bundles a synchronized copy of `prepdocslib`; run `python scripts/copy_prepdocslib.py` to refresh the local copies if you modify the library.
   * app/frontend: Contains the React frontend code, built with TypeScript, built with vite.
+    * app/frontend/src/index.tsx: Frontend entry point and router setup. It resolves chatbot UI by URL path (`/<chatbot_name>`), serves a landing/error page on `/`, and routes unknown frontend paths back to `/`.
+    * app/frontend/src/chatbots/registry.ts: Registry of available chatbot UIs, including the chatbot-specific i18n instance.
+    * app/frontend/src/chatbots/<chatbot_name>: Chatbot-specific frontend implementation (pages, components, layout wrapper, i18n, locales, assets, and chatbot wiring).
+      * app/frontend/src/chatbots/nerilio: Current chatbot implementation.
     * app/frontend/src/api: Contains the API client code for communicating with the backend.
-    * app/frontend/src/components: Contains the React components for the frontend.
-    * app/frontend/src/locales: Contains the translation files for internationalization.
-      * app/frontend/src/locales/da/translation.json: Danish translations
-      * app/frontend/src/locales/en/translation.json: English translations
-      * app/frontend/src/locales/es/translation.json: Spanish translations
-      * app/frontend/src/locales/fr/translation.json: French translations
-      * app/frontend/src/locales/it/translation.json: Italian translations
-      * app/frontend/src/locales/ja/translation.json: Japanese translations
-      * app/frontend/src/locales/nl/translation.json: Dutch translations
-      * app/frontend/src/locales/ptBR/translation.json: Portuguese translations
-      * app/frontend/src/locales/tr/translation.json: Turkish translations
-    * app/frontend/src/pages: Contains the main pages of the application
+    * app/frontend/src/chatbots/<chatbot_name>/locales: Chatbot-specific translation files.
+      * app/frontend/src/chatbots/nerilio/locales/da/translation.json: Danish translations
+      * app/frontend/src/chatbots/nerilio/locales/de/translation.json: German translations
+      * app/frontend/src/chatbots/nerilio/locales/en/translation.json: English translations
+      * app/frontend/src/chatbots/nerilio/locales/es/translation.json: Spanish translations
+      * app/frontend/src/chatbots/nerilio/locales/fr/translation.json: French translations
+      * app/frontend/src/chatbots/nerilio/locales/it/translation.json: Italian translations
+      * app/frontend/src/chatbots/nerilio/locales/ja/translation.json: Japanese translations
+      * app/frontend/src/chatbots/nerilio/locales/nl/translation.json: Dutch translations
+      * app/frontend/src/chatbots/nerilio/locales/pl/translation.json: Polish translations
+      * app/frontend/src/chatbots/nerilio/locales/ptBR/translation.json: Portuguese translations
+      * app/frontend/src/chatbots/nerilio/locales/tr/translation.json: Turkish translations
 * infra: Contains the Bicep templates for provisioning Azure resources.
 * tests: Contains the test code, including e2e tests, app integration tests, and unit tests.
 
 ## Adding new data
 
 New files should be added to the `data` folder, and then either run scripts/prepdocs.sh or scripts/prepdocs.ps1 to ingest the data.
+
+## Adding a new chatbot UI
+
+Frontend chatbot UIs are routed by path segment (`/<chatbot_name>`). To add a new chatbot:
+
+1. Create `app/frontend/src/chatbots/<chatbot_name>/` with that chatbot's pages/components/layout.
+1. Export its definition (`name`, `LayoutWrapper`, `Chat`, `NoPage`, `i18n`) from `app/frontend/src/chatbots/<chatbot_name>/index.ts`.
+1. Register it in `app/frontend/src/chatbots/registry.ts`.
+1. Add chatbot-specific i18n setup in `app/frontend/src/chatbots/<chatbot_name>/i18n/` and chatbot-specific translations in `app/frontend/src/chatbots/<chatbot_name>/locales/`.
 
 ## Adding a new azd environment variable
 
@@ -83,9 +98,9 @@ When adding a new developer setting, update:
 
 * frontend:
   * app/frontend/src/api/models.ts : Add to ChatAppRequestOverrides
-  * app/frontend/src/components/Settings.tsx : Add a UI element for the setting
-  * app/frontend/src/locales/*/translations.json: Add a translation for the setting label/tooltip for all languages
-  * app/frontend/src/pages/chat/Chat.tsx: Add the setting to the component, pass it to Settings
+  * app/frontend/src/chatbots/<chatbot_name>/components/Settings/Settings.tsx : Add a UI element for the setting
+  * app/frontend/src/chatbots/<chatbot_name>/locales/*/translation.json: Add a translation for the setting label/tooltip for all languages of that chatbot
+  * app/frontend/src/chatbots/<chatbot_name>/pages/chat/Chat.tsx: Add the setting to the component, pass it to Settings
 
 * backend:
   * app/backend/approaches/chatreadretrieveread.py :  Retrieve from overrides parameter
