@@ -1,0 +1,164 @@
+{
+    "pageTitle": "Steuertipps Chatbot",
+    "headerTitle": "Steuertipps Chatbot",
+    "initialUserMsg": "Olá",
+    "initialAssistantMsg": "Bem-vindo(a)! Que bom ter você aqui. Você gostaria de testar seus conhecimentos sobre um tema ou tem perguntas que gostaria de esclarecer?",
+    "chat": "Chat",
+    "qa": "FaÃ§a uma pergunta",
+    "login": "Entrar",
+    "logout": "Sair",
+    "clearChat": "Limpar chat",
+    "history": {
+        "chatHistory": "HistÃ³rico do chat",
+        "openChatHistory": "Abrir o histÃ³rico do chat",
+        "noHistory": "Nenhum histÃ³rico de chat",
+        "deleteModalTitle": "Excluir histÃ³rico do chat",
+        "deleteModalDescription": "Esta aÃ§Ã£o nÃ£o pode ser desfeita. Deseja excluir o histÃ³rico do chat?",
+        "deleteLabel": "Excluir",
+        "cancelLabel": "Cancelar",
+        "today": "Hoje",
+        "yesterday": "Ontem",
+        "last7days": "Ãšltimos 7 dias",
+        "last30days": "Ãšltimos 30 dias"
+    },
+    "upload": {
+        "fileLabel": "Carregar arquivo:",
+        "uploadedFilesLabel": "Arquivos previamente carregados:",
+        "noFilesUploaded": "Nenhum arquivo carregado ainda",
+        "loading": "Carregando...",
+        "manageFileUploads": "Gerenciar uploads de arquivos",
+        "uploadingFiles": "Carregando arquivos...",
+        "uploadedFileError": "Erro ao carregar arquivo - tente novamente ou entre em contato com o administrador.",
+        "deleteFile": "Excluir arquivo",
+        "deletingFile": "Excluindo arquivo...",
+        "errorDeleting": "Erro ao excluir.",
+        "fileDeleted": "Arquivo excluÃ­do"
+    },
+    "developerSettings": "ConfiguraÃ§Ãµes do desenvolvedor",
+    "chatEmptyStateTitle": "Converse com seus dados",
+    "chatEmptyStateSubtitle": "Pergunte qualquer coisa ou tente um exemplo",
+    "defaultExamples": {
+        "1": "Quais são os principais capítulos do curso LearningNL?",
+        "2": "Qual é a estrutura política dos Países Baixos?",
+        "3": "Quais são as principais características da paisagem neerlandesa?",
+        "placeholder": "Digite sua mensagem"
+    },
+    "askTitle": "Pergunte aos seus dados",
+    "multimodalExamples": {
+        "1": "Compare o impacto das taxas de juros e do PIB nos mercados financeiros.",
+        "2": "Qual Ã© a tendÃªncia esperada para o Ã­ndice S&P 500 nos prÃ³ximos cinco anos? Compare com o desempenho passado do S&P 500",
+        "3": "VocÃª pode identificar alguma correlaÃ§Ã£o entre os preÃ§os do petrÃ³leo e as tendÃªncias do mercado de aÃ§Ãµes?",
+        "placeholder": "Digite sua mensagem"
+    },
+    "generatingAnswer": "Gerando resposta",
+    "citationWithColon": "CitaÃ§Ã£o:",
+    "followupQuestions": "Acompanhar as respostas:",
+    "tooltips": {
+        "submitQuestion": "Enviar pergunta",
+        "askWithVoice": "FaÃ§a uma pergunta com voz",
+        "stopRecording": "Parar de gravar a pergunta",
+        "showThoughtProcess": "Mostrar o processo de pensamento",
+        "showSupportingContent": "Mostrar conteÃºdo de suporte",
+        "speakAnswer": "Falar a resposta",
+        "info": "Info",
+        "save": "Save",
+        "copy": "Copiar",
+        "copied": "Copiado!"
+    },
+    "headerTexts": {
+        "thoughtProcess": "Processo de pensamento",
+        "supportingContent": "ConteÃºdo de suporte",
+        "citation": "CitaÃ§Ã£o"
+    },
+    "labels": {
+        "toggleMenu": "Alternar menu",
+        "languagePicker": "Selecione seu idioma",
+        "headerText": "Configurar a geraÃ§Ã£o de respostas",
+        "closeButton": "Fechar",
+        "promptTemplate": "Substituir o modelo de prompt",
+        "temperature": "Temperatura",
+        "seed": "Seed",
+        "minimumSearchScore": "PontuaÃ§Ã£o mÃ­nima de pesquisa",
+        "minimumRerankerScore": "PontuaÃ§Ã£o mÃ­nima de reclassificaÃ§Ã£o",
+        "retrieveCount": "Recuperar esta quantidade de resultados de pesquisa:",
+        "agenticReasoningEffort": "EsforÃ§o de raciocÃ­nio na recuperaÃ§Ã£o",
+        "agenticReasoningEffortOptions": {
+            "minimal": "MÃ­nimo",
+            "low": "Baixo",
+            "medium": "MÃ©dio"
+        },
+        "includeCategory": "Incluir categoria",
+        "includeCategoryOptions": {
+            "all": "Todos"
+        },
+        "excludeCategory": "Excluir categoria",
+        "useSemanticRanker": "Usar rankeador semÃ¢ntico para recuperaÃ§Ã£o",
+        "useSemanticCaptions": "Usar legendas semÃ¢nticas",
+        "useQueryRewriting": "Utilize a reescrita de consultas para a recuperaÃ§Ã£o",
+        "reasoningEffort": "EsforÃ§o de raciocÃ­nio",
+        "reasoningEffortOptions": {
+            "minimal": "MÃ­nimo (apenas GPT-5)",
+            "low": "Baixo",
+            "medium": "MÃ©dio",
+            "high": "Alto"
+        },
+        "useSuggestFollowupQuestions": "Sugerir perguntas complementares",
+        "useAgenticKnowledgeBase": "Usar a recuperaÃ§Ã£o agÃªntica",
+        "useWebSource": "Incluir pesquisa web",
+        "useSharePointSource": "Incluir fonte SharePoint",
+        "llmInputs": "Entradas para LLM",
+        "llmInputsOptions": {
+            "texts": "Textos",
+            "images": "Imagens",
+            "textAndImages": "Textos e Imagens"
+        },
+        "retrievalMode": {
+            "label": "Modo de recuperaÃ§Ã£o",
+            "options": {
+                "hybrid": "Vetores + Texto (HÃ­brido)",
+                "vectors": "Vetores",
+                "texts": "Texto"
+            }
+        },
+        "vector": {
+            "label": "Campos vetoriais incluÃ­dos",
+            "options": {
+                "embedding": "IncorporaÃ§Ãµes de texto (Embeddings)",
+                "imageEmbedding": "IncorporaÃ§Ãµes de imagem"
+            }
+        },
+        "useOidSecurityFilter": "Usar filtro de seguranÃ§a oid",
+        "useGroupsSecurityFilter": "Usar filtro de seguranÃ§a de grupos",
+        "shouldStream": "Stream chat completion responses"
+    },
+    "helpTexts": {
+        "promptTemplate": "Substitui o prompt usado para gerar a resposta com base na pergunta e nos resultados da pesquisa. Para adicionar ao prompt existente em vez de substituÃ­-lo por completo, comece seu prompt com '>>>'.",
+        "temperature": "Define a temperatura da solicitaÃ§Ã£o para o LLM que gera a resposta. Temperaturas mais altas resultam em respostas mais criativas, mas podem ser menos fundamentadas.",
+        "seed": "Define um seed para melhorar a reprodutibilidade das respostas do modelo. O seed pode ser qualquer nÃºmero inteiro.",
+        "searchScore": "Define uma pontuaÃ§Ã£o mÃ­nima para os resultados da pesquisa retornados pela pesquisa do Azure AI. O intervalo de pontuaÃ§Ã£o depende de vocÃª usar o modo hÃ­brido (padrÃ£o), vetores ou texto.",
+        "rerankerScore": "Define uma pontuaÃ§Ã£o mÃ­nima para os resultados da pesquisa retornados pelo ranker semÃ¢ntico. A pontuaÃ§Ã£o varia de 0 a 4. Quanto maior a pontuaÃ§Ã£o, mais relevante Ã© o resultado em relaÃ§Ã£o Ã  pergunta.",
+        "retrieveNumber": "Define o nÃºmero de resultados de pesquisa a serem recuperados na pesquisa do Azure AI. Mais resultados podem aumentar a chance de encontrar a resposta correta, mas podem fazer com que o modelo se 'perca'.",
+        "agenticReasoningEffort": "Controla quanto raciocÃ­nio o agente aplica ao montar planos com vÃ¡rias consultas. Um esforÃ§o maior pode melhorar a cobertura, mas aumenta tokens e latÃªncia.",
+        "includeCategory": "Especifica uma categoria para incluir nos resultados da pesquisa. NÃ£o hÃ¡ categorias usadas no conjunto de dados padrÃ£o.",
+        "excludeCategory": "Especifica uma categoria para excluir dos resultados da pesquisa. NÃ£o hÃ¡ categorias usadas no conjunto de dados padrÃ£o.",
+        "useSemanticReranker": "Ativa o rankeador semÃ¢ntico da pesquisa do Azure AI, um modelo que reordena os resultados da pesquisa com base na similaridade semÃ¢ntica Ã  consulta do usuÃ¡rio.",
+        "useQueryRewriting": "Habilita a reescrita de consultas do Azure AI Search, um processo que modifica a consulta do usuÃ¡rio para melhorar os resultados da pesquisa. Requer que o rankeador semÃ¢ntico esteja habilitado.",
+        "reasoningEffort": "Define o esforÃ§o de raciocÃ­nio para o LLM. Valores mais altos resultam em mais raciocÃ­nio, mas podem levar mais tempo para gerar uma resposta. O padrÃ£o Ã© mÃ©dio.",
+        "useSemanticCaptions": "Envia legendas semÃ¢nticas para o LLM em vez do resultado completo da pesquisa. Uma legenda semÃ¢ntica Ã© extraÃ­da durante o processo de ranqueamento semÃ¢ntico.",
+        "suggestFollowupQuestions": "Solicita ao LLM que sugira perguntas de acompanhamento com base na consulta do usuÃ¡rio.",
+        "textEmbeddings": "Quando selecionado, a pesquisa usarÃ¡ incorporaÃ§Ãµes do modelo de incorporaÃ§Ãµes apenas de texto para os trechos de texto extraÃ­dos.",
+        "imageEmbeddings": "Quando selecionado, a pesquisa usarÃ¡ incorporaÃ§Ãµes do modelo de incorporaÃ§Ãµes multimodal para as imagens extraÃ­das.",
+        "llmTextInputs": "Quando selecionado, o conteÃºdo de texto dos resultados de pesquisa Ã© enviado ao LLM como contexto.",
+        "llmImageInputs": "Quando selecionado, as imagens dos resultados de pesquisa sÃ£o enviadas ao LLM como contexto.",
+        "retrievalMode": "Define o modo de recuperaÃ§Ã£o para a consulta do Azure AI Search. 'Vetores + Texto (HÃ­brido)' usa uma combinaÃ§Ã£o de busca vetorial e de texto completo, 'Vetores' usa apenas a busca vetorial, e 'Texto' usa apenas a busca de texto completo. O hÃ­brido geralmente Ã© o ideal.",
+        "streamChat": "Transmite continuamente a resposta para a interface do chat conforme Ã© gerada.",
+        "useOidSecurityFilter": "Filtra os resultados da pesquisa com base no OID do usuÃ¡rio autenticado.",
+        "useGroupsSecurityFilter": "Filtra os resultados da pesquisa com base nos grupos do usuÃ¡rio autenticado.",
+        "useAgenticKnowledgeBase": "Use a recuperaÃ§Ã£o agÃªntica do Azure AI Search para planejamento de mÃºltiplas consultas. Sempre usa o rankeador semÃ¢ntico.",
+        "useWebSource": "Aumente a recuperaÃ§Ã£o com resultados de pesquisa web junto com seu conjunto de dados indexado.",
+        "useSharePointSource": "Aumente a recuperaÃ§Ã£o com conteÃºdo do SharePoint junto com seu conjunto de dados indexado."
+    },
+    "overallSettings": "ConfiguraÃ§Ãµes gerais",
+    "searchSettings": "ConfiguraÃ§Ãµes de pesquisa",
+    "llmSettings": "ConfiguraÃ§Ãµes LLM"
+}

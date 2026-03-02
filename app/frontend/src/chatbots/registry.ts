@@ -2,6 +2,7 @@ import type { ComponentType } from "react";
 import type { i18n as I18nInstance } from "i18next";
 
 import { nerilioChatbot } from "./nerilio";
+import { steuertippsChatbot } from "./steuertipps";
 
 export interface ChatbotDefinition {
     name: string;
@@ -11,4 +12,4 @@ export interface ChatbotDefinition {
     i18n: I18nInstance;
 }
 
-export const chatbotDefinitions: ChatbotDefinition[] = [nerilioChatbot];
+export const chatbotDefinitions: ChatbotDefinition[] = [nerilioChatbot, steuertippsChatbot];

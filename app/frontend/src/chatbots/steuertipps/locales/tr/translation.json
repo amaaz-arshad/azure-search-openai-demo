@@ -1,0 +1,164 @@
+{
+    "pageTitle": "Steuertipps Chatbot",
+    "headerTitle": "Steuertipps Chatbot",
+    "initialUserMsg": "Merhaba",
+    "initialAssistantMsg": "Hoş geldiniz! Burada olmanıza sevindik. Bir konuda bilginizi test etmek ister misiniz, yoksa açıklığa kavuşturmak istediğiniz sorularınız mı var?",
+    "chat": "Sohbet",
+    "qa": "Bir soru sor",
+    "login": "GiriÅŸ yap",
+    "logout": "Ã‡Ä±kÄ±ÅŸ yap",
+    "clearChat": "Sohbeti temizle",
+    "history": {
+        "chatHistory": "Sohbet geÃ§miÅŸi",
+        "openChatHistory": "Sohbet geÃ§miÅŸini aÃ§",
+        "noHistory": "Sohbet geÃ§miÅŸi yok",
+        "deleteModalTitle": "Sohbet geÃ§miÅŸini sil",
+        "deleteModalDescription": "Bu iÅŸlem geri alÄ±namaz. Bu sohbet geÃ§miÅŸini silmek istiyor musunuz?",
+        "deleteLabel": "Sil",
+        "cancelLabel": "Ä°ptal",
+        "today": "BugÃ¼n",
+        "yesterday": "DÃ¼n",
+        "last7days": "Son 7 gÃ¼n",
+        "last30days": "Son 30 gÃ¼n"
+    },
+    "upload": {
+        "fileLabel": "Dosya yÃ¼kle:",
+        "uploadedFilesLabel": "Ã–nceden yÃ¼klenmiÅŸ dosyalar:",
+        "noFilesUploaded": "HenÃ¼z dosya yÃ¼klenmedi",
+        "loading": "YÃ¼kleniyor...",
+        "manageFileUploads": "Dosya yÃ¼klemelerini yÃ¶net",
+        "uploadingFiles": "Dosyalar yÃ¼kleniyor...",
+        "uploadedFileError": "Dosya yÃ¼klenirken hata oluÅŸtu - lÃ¼tfen tekrar deneyin veya yÃ¶netici ile iletiÅŸime geÃ§in.",
+        "deleteFile": "DosyayÄ± sil",
+        "deletingFile": "Dosya siliniyor...",
+        "errorDeleting": "Silme hatasÄ±.",
+        "fileDeleted": "Dosya silindi"
+    },
+    "developerSettings": "GeliÅŸtirici ayarlarÄ±",
+    "chatEmptyStateTitle": "Verilerinizle sohbet edin",
+    "chatEmptyStateSubtitle": "Bir soru sorun veya bir Ã¶rnek deneyin",
+    "defaultExamples": {
+        "1": "LearningNL kursunun ana bölümleri nelerdir?",
+        "2": "Hollanda'nın siyasi yapısı nasıldır?",
+        "3": "Hollanda manzarasının temel özellikleri nelerdir?",
+        "placeholder": "Mesajınızı yazın"
+    },
+    "askTitle": "Verilerinize sorun",
+    "multimodalExamples": {
+        "1": "Faiz oranlarÄ± ve GSYÄ°H'nin finansal piyasalar Ã¼zerindeki etkisini karÅŸÄ±laÅŸtÄ±rÄ±n.",
+        "2": "Ã–nÃ¼mÃ¼zdeki beÅŸ yÄ±l iÃ§in S&P 500 endeksinin beklenen trendi nedir? GeÃ§miÅŸ S&P 500 performansÄ± ile karÅŸÄ±laÅŸtÄ±rÄ±n",
+        "3": "Petrol fiyatlarÄ± ile borsa trendleri arasÄ±nda herhangi bir korelasyon bulabilir misiniz?",
+        "placeholder": "Mesajınızı yazın"
+    },
+    "generatingAnswer": "Cevap oluÅŸturuluyor",
+    "citationWithColon": "AlÄ±ntÄ±:",
+    "followupQuestions": "Takip sorularÄ±:",
+    "tooltips": {
+        "submitQuestion": "Soruyu gÃ¶nder",
+        "askWithVoice": "Sesle soru sor",
+        "stopRecording": "KaydÄ± durdur",
+        "showThoughtProcess": "DÃ¼ÅŸÃ¼nce sÃ¼recini gÃ¶ster",
+        "showSupportingContent": "Destekleyici iÃ§eriÄŸi gÃ¶ster",
+        "speakAnswer": "CevabÄ± seslendir",
+        "info": "Bilgi",
+        "save": "Kaydet",
+        "copy": "Kopyala",
+        "copied": "KopyalandÄ±!"
+    },
+    "headerTexts": {
+        "thoughtProcess": "DÃ¼ÅŸÃ¼nce SÃ¼reci",
+        "supportingContent": "Destekleyici Ä°Ã§erik",
+        "citation": "AlÄ±ntÄ±"
+    },
+    "labels": {
+        "toggleMenu": "MenÃ¼yÃ¼ deÄŸiÅŸtir",
+        "languagePicker": "Dilini seÃ§",
+        "headerText": "Cevap oluÅŸturmayÄ± yapÄ±landÄ±r",
+        "closeButton": "Kapat",
+        "promptTemplate": "Prompt ÅŸablonunu geÃ§ersiz kÄ±l",
+        "temperature": "SÄ±caklÄ±k",
+        "seed": "Seed",
+        "minimumSearchScore": "Minimum arama skoru",
+        "minimumRerankerScore": "Minimum yeniden sÄ±ralayÄ±cÄ± skoru",
+        "retrieveCount": "Bu kadar arama sonucu getir:",
+        "agenticReasoningEffort": "Getirme akÄ±l yÃ¼rÃ¼tme Ã§abasÄ±",
+        "agenticReasoningEffortOptions": {
+            "minimal": "En az",
+            "low": "DÃ¼ÅŸÃ¼k",
+            "medium": "Orta"
+        },
+        "includeCategory": "Kategori dahil et",
+        "includeCategoryOptions": {
+            "all": "Hepsi"
+        },
+        "excludeCategory": "Kategori hariÃ§ tut",
+        "useSemanticRanker": "Anlamsal sÄ±ralayÄ±cÄ± kullan",
+        "useSemanticCaptions": "Anlamsal altyazÄ±lar kullan",
+        "useQueryRewriting": "Bilgi eriÅŸimi iÃ§in sorgu yeniden yazÄ±mÄ±nÄ± kullanÄ±n",
+        "reasoningEffort": "AkÄ±l yÃ¼rÃ¼tme Ã§abasÄ±",
+        "reasoningEffortOptions": {
+            "minimal": "En az (yalnÄ±zca GPT-5)",
+            "low": "DÃ¼ÅŸÃ¼k",
+            "medium": "Orta",
+            "high": "YÃ¼ksek"
+        },
+        "useSuggestFollowupQuestions": "Takip sorularÄ± Ã¶ner",
+        "useAgenticKnowledgeBase": "Ajan temelli getirim kullan",
+        "useWebSource": "Web aramasÄ±nÄ± dahil et",
+        "useSharePointSource": "SharePoint kaynaÄŸÄ±nÄ± dahil et",
+        "llmInputs": "LLM iÃ§in Girdiler",
+        "llmInputsOptions": {
+            "texts": "Metinler",
+            "images": "GÃ¶rseller",
+            "textAndImages": "Metinler ve GÃ¶rseller"
+        },
+        "retrievalMode": {
+            "label": "Getirme modu",
+            "options": {
+                "hybrid": "VektÃ¶rler + Metin (Hibrit)",
+                "vectors": "VektÃ¶rler",
+                "texts": "Metin"
+            }
+        },
+        "vector": {
+            "label": "Dahil edilen vektÃ¶r alanlarÄ±",
+            "options": {
+                "embedding": "Metin GÃ¶mÃ¼leri",
+                "imageEmbedding": "GÃ¶rsel GÃ¶mÃ¼leri"
+            }
+        },
+        "useOidSecurityFilter": "OID gÃ¼venlik filtresini kullan",
+        "useGroupsSecurityFilter": "Grup gÃ¼venlik filtresini kullan",
+        "shouldStream": "Sohbet yanÄ±tlarÄ±nÄ± akÄ±ÅŸ olarak gÃ¶nder"
+    },
+    "helpTexts": {
+        "promptTemplate": "Soru ve arama sonuÃ§larÄ±na dayalÄ± olarak cevabÄ± oluÅŸturmak iÃ§in kullanÄ±lan prompt'u geÃ§ersiz kÄ±lar. Mevcut prompt'u geniÅŸletmek yerine tamamÄ±nÄ± deÄŸiÅŸtirmek iÃ§in prompt'unuza '>>>' ile baÅŸlayÄ±n.",
+        "temperature": "CevabÄ± oluÅŸturan dil modeline yapÄ±lan isteÄŸin sÄ±caklÄ±ÄŸÄ±nÄ± ayarlar. Daha yÃ¼ksek sÄ±caklÄ±klar daha yaratÄ±cÄ± cevaplar verir, ancak daha az gerÃ§ekÃ§i olabilirler.",
+        "seed": "Modelin yanÄ±tlarÄ±nÄ±n tekrarlanabilirliÄŸini artÄ±rmak iÃ§in bir seed ayarlar. Seed herhangi bir tam sayÄ± olabilir.",
+        "searchScore": "Azure AI arama sonuÃ§larÄ± iÃ§in minimum skoru ayarlar. Skor aralÄ±ÄŸÄ±, yalnÄ±zca vektÃ¶rler, yalnÄ±zca metin veya hibrit (varsayÄ±lan) arama moduna baÄŸlÄ± olarak deÄŸiÅŸir.",
+        "rerankerScore": "Anlamsal sÄ±ralayÄ±cÄ±dan gelen arama sonuÃ§larÄ± iÃ§in minimum skoru ayarlar. Skor her zaman 0-4 arasÄ±nda deÄŸiÅŸir. Daha yÃ¼ksek skor, sonucun soruya daha anlamsal olarak uygun olduÄŸunu gÃ¶sterir.",
+        "retrieveNumber": "Azure AI arama sonuÃ§larÄ±ndan getirilecek sonuÃ§ sayÄ±sÄ±nÄ± ayarlar. Daha fazla sonuÃ§ doÄŸru cevabÄ± bulma olasÄ±lÄ±ÄŸÄ±nÄ± artÄ±rabilir, ancak modelin 'ortada kaybolmasÄ±na' da neden olabilir.",
+        "agenticReasoningEffort": "Ajans, Ã§oklu sorgu planlarÄ± oluÅŸtururken ne kadar akÄ±l yÃ¼rÃ¼tme uygulayacaÄŸÄ±nÄ± kontrol eder. Daha yÃ¼ksek ayarlar hatÄ±rlamayÄ± artÄ±rabilir ancak belirteÃ§leri ve gecikmeyi yÃ¼kseltir.",
+        "includeCategory": "Arama sonuÃ§larÄ±na dahil edilecek bir kategoriyi belirtir. VarsayÄ±lan veri setinde kategori yoktur.",
+        "excludeCategory": "Arama sonuÃ§larÄ±ndan hariÃ§ tutulacak bir kategoriyi belirtir. VarsayÄ±lan veri setinde kategori yoktur.",
+        "useSemanticReranker": "Azure AI Arama anlamsal sÄ±ralayÄ±cÄ±sÄ±nÄ± etkinleÅŸtirir, bu model arama sonuÃ§larÄ±nÄ± kullanÄ±cÄ±nÄ±n sorgusuna anlamsal benzerliÄŸe gÃ¶re sÄ±ralar.",
+        "useQueryRewriting": "Azure AI arama sonuÃ§larÄ±nÄ± iyileÅŸtirmek iÃ§in kullanÄ±cÄ± sorgusunu deÄŸiÅŸtiren bir iÅŸlem. Anlamsal sÄ±ralayÄ±cÄ±nÄ±n etkin olmasÄ±nÄ± gerektirir.",
+        "reasoningEffort": "Dil modeli iÃ§in akÄ±l yÃ¼rÃ¼tme Ã§abasÄ±nÄ± ayarlar. Daha yÃ¼ksek deÄŸerler daha fazla akÄ±l yÃ¼rÃ¼tme ile sonuÃ§lanÄ±r, ancak yanÄ±t oluÅŸturmak daha uzun sÃ¼rebilir. VarsayÄ±lan orta seviyedir.",
+        "useSemanticCaptions": "Tam arama sonucu yerine anlamsal altyazÄ±larÄ± dil modeline gÃ¶nderir. Anlamsal sÄ±ralama sÄ±rasÄ±nda her arama sonucu iÃ§in bir anlamsal altyazÄ± Ã§Ä±karÄ±lÄ±r.",
+        "suggestFollowupQuestions": "KullanÄ±cÄ±nÄ±n sorusuna dayalÄ± olarak dil modelinden takip sorularÄ± Ã¶nermesini ister.",
+        "textEmbeddings": "SeÃ§ildiÄŸinde, arama Ã§Ä±karÄ±lan metin parÃ§alarÄ±nÄ±n yalnÄ±zca metin gÃ¶mme modelinden gÃ¶mmeleri kullanacaktÄ±r.",
+        "imageEmbeddings": "SeÃ§ildiÄŸinde, arama Ã§Ä±karÄ±lan gÃ¶rsellerin Ã§oklu ortam gÃ¶mme modelinden gÃ¶mmeleri kullanacaktÄ±r.",
+        "llmTextInputs": "SeÃ§ildiÄŸinde, arama sonuÃ§larÄ±ndaki metin iÃ§eriÄŸi baÄŸlam olarak LLM'e gÃ¶nderilir.",
+        "llmImageInputs": "SeÃ§ildiÄŸinde, arama sonuÃ§larÄ±ndaki gÃ¶rseller baÄŸlam olarak LLM'e gÃ¶nderilir.",
+        "retrievalMode": "Azure AI arama sorgusu iÃ§in getirme modunu ayarlar. `VektÃ¶rler + Metin (Hibrit)` vektÃ¶r aramasÄ± ve tam metin aramasÄ±nÄ± kullanÄ±r, `VektÃ¶rler` yalnÄ±zca vektÃ¶r aramasÄ±nÄ±, `Metin` yalnÄ±zca tam metin aramasÄ±nÄ± kullanÄ±r. Hibrit genellikle en iyisidir.",
+        "streamChat": "YanÄ±t oluÅŸturulurken sohbet arayÃ¼zÃ¼ne gerÃ§ek zamanlÄ± olarak yanÄ±tÄ± sÃ¼rekli olarak gÃ¶nderir.",
+        "useOidSecurityFilter": "KimliÄŸi doÄŸrulanmÄ±ÅŸ kullanÄ±cÄ±nÄ±n OID'sine gÃ¶re arama sonuÃ§larÄ±nÄ± filtreler.",
+        "useGroupsSecurityFilter": "KimliÄŸi doÄŸrulanmÄ±ÅŸ kullanÄ±cÄ±nÄ±n gruplarÄ±na gÃ¶re arama sonuÃ§larÄ±nÄ± filtreler.",
+        "useAgenticKnowledgeBase": "Ã‡oklu sorgu planlamasÄ± iÃ§in Azure AI Search'ten agent temelli getirimi kullanÄ±n. Her zaman semantik sÄ±ralayÄ±cÄ± kullanÄ±r.",
+        "useWebSource": "Ä°ndekslenmiÅŸ veri setinizin yanÄ± sÄ±ra web arama sonuÃ§larÄ±yla getirimi geniÅŸletin.",
+        "useSharePointSource": "Ä°ndekslenmiÅŸ veri setinizin yanÄ± sÄ±ra SharePoint iÃ§eriÄŸiyle getirimi geniÅŸletin."
+    },
+    "overallSettings": "Genel ayarlar",
+    "searchSettings": "Arama ayarlarÄ±",
+    "llmSettings": "LLM ayarlarÄ±"
+}

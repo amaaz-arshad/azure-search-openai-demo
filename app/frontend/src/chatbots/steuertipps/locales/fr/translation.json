@@ -1,0 +1,164 @@
+{
+    "pageTitle": "Steuertipps Chatbot",
+    "headerTitle": "Steuertipps Chatbot",
+    "initialUserMsg": "Bonjour",
+    "initialAssistantMsg": "Bienvenue ! Ravi de vous voir ici. Souhaitez-vous tester vos connaissances sur un sujet ou avez-vous des questions que vous aimeriez clarifier ?",
+    "chat": "Chat",
+    "qa": "Posez une question",
+    "login": "Connexion",
+    "logout": "DÃ©connexion",
+    "clearChat": "Effacer le chat",
+    "history": {
+        "chatHistory": "Historique du chat",
+        "openChatHistory": "Ouvrir l'historique du chat",
+        "noHistory": "Pas d'historique dans ce chat",
+        "deleteModalTitle": "Supprimer l'historique du chat",
+        "deleteModalDescription": "Cette action est irrÃ©versible. Supprimer l'historique de ce chatÂ ?",
+        "deleteLabel": "Supprimer",
+        "cancelLabel": "Annuler",
+        "today": "Aujourd'hui",
+        "yesterday": "Hier",
+        "last7days": "7 derniers jours",
+        "last30days": "30 derniers jours"
+    },
+    "upload": {
+        "fileLabel": "TÃ©lÃ©charger le fichier:",
+        "uploadedFilesLabel": "Fichiers prÃ©cÃ©demment tÃ©lÃ©chargÃ©s:",
+        "noFilesUploaded": "Aucun fichier tÃ©lÃ©chargÃ© pour le moment",
+        "loading": "Chargement...",
+        "manageFileUploads": "GÃ©rer les tÃ©lÃ©chargements de fichiers",
+        "uploadingFiles": "TÃ©lÃ©chargement de fichiers...",
+        "uploadedFileError": "Erreur lors du tÃ©lÃ©chargement du fichier - veuillez rÃ©essayer ou contacter l'administrateur.",
+        "deleteFile": "Supprimer le fichier",
+        "deletingFile": "Suppression du fichier...",
+        "errorDeleting": "Erreur lors de la suppression.",
+        "fileDeleted": "Fichier supprimÃ©"
+    },
+    "developerSettings": "ParamÃ¨tres dÃ©veloppeur",
+    "chatEmptyStateTitle": "Discutez avec vos donnÃ©es",
+    "chatEmptyStateSubtitle": "Demandez n'importe quoi ou essayez un exemple",
+    "defaultExamples": {
+        "1": "Quels sont les principaux chapitres du cours LearningNL ?",
+        "2": "Quelle est la structure politique des Pays-Bas ?",
+        "3": "Quelles sont les caractéristiques clés du paysage néerlandais ?",
+        "placeholder": "Saisissez votre message"
+    },
+    "askTitle": "Demandez Ã  vos donnÃ©es",
+    "multimodalExamples": {
+        "1": "Comparez l'impact des taux d'intÃ©rÃªt et du PIB sur les marchÃ©s financiers.",
+        "2": "Quelle est la tendance prÃ©vue pour l'indice S&P 500 au cours des cinq prochaines annÃ©es? Comparez-le aux performances passÃ©es de l'S&P 500",
+        "3": "Pouvez-vous identifier une corrÃ©lation entre les prix du pÃ©trole et les tendances du marchÃ© boursier?",
+        "placeholder": "Saisissez votre message"
+    },
+    "generatingAnswer": "GÃ©nÃ©ration de la rÃ©ponse",
+    "citationWithColon": "Citation:",
+    "followupQuestions": "Questions de suivi:",
+    "tooltips": {
+        "submitQuestion": "Soumettre une question",
+        "askWithVoice": "Poser une question Ã  l'aide de la voix",
+        "stopRecording": "ArrÃªter l'enregistrement de la question",
+        "showThoughtProcess": "Montrer le processus de rÃ©flexion",
+        "showSupportingContent": "Montrer le contenu de soutien",
+        "speakAnswer": "Parler rÃ©ponse",
+        "info": "Info",
+        "save": "Sauvegarder",
+        "copy": "Copier",
+        "copied": "CopiÃ©!"
+    },
+    "headerTexts": {
+        "thoughtProcess": "Processus de RÃ©flexion",
+        "supportingContent": "Contenu d'Appui",
+        "citation": "Citation"
+    },
+    "labels": {
+        "toggleMenu": "Basculer le menu",
+        "languagePicker": "SÃ©lectionnez votre langue",
+        "headerText": "Configurer la gÃ©nÃ©ration de rÃ©ponses",
+        "closeButton": "Fermer",
+        "promptTemplate": "ModÃ¨le de l'invitation",
+        "temperature": "TempÃ©rature",
+        "seed": "Seed",
+        "minimumSearchScore": "Score de recherche minimum",
+        "minimumRerankerScore": "Score minimum du reclasseur sÃ©mantique",
+        "retrieveCount": "RÃ©cupÃ©rer ce nombre de rÃ©sultats de recherche :",
+        "agenticReasoningEffort": "Effort de raisonnement pour la rÃ©cupÃ©ration",
+        "agenticReasoningEffortOptions": {
+            "minimal": "Minimal",
+            "low": "Faible",
+            "medium": "Moyen"
+        },
+        "includeCategory": "Inclure la catÃ©gorie",
+        "includeCategoryOptions": {
+            "all": "Toutes"
+        },
+        "excludeCategory": "Exclure la catÃ©gorie",
+        "useSemanticRanker": "Utiliser le reclasseur sÃ©mantique",
+        "useSemanticCaptions": "Utiliser les titres sÃ©mantiques",
+        "useQueryRewriting": "Utilisez la rÃ©Ã©criture des requÃªtes pour la rÃ©cupÃ©ration",
+        "reasoningEffort": "Effort de raisonnement",
+        "reasoningEffortOptions": {
+            "minimal": "Minimal (GPT-5 uniquement)",
+            "low": "Faible",
+            "medium": "Moyen",
+            "high": "Ã‰levÃ©"
+        },
+        "useSuggestFollowupQuestions": "SuggÃ©rer des questions de suivi",
+        "useAgenticKnowledgeBase": "Utilisez la rÃ©cupÃ©ration agentique",
+        "useWebSource": "Inclure la recherche web",
+        "useSharePointSource": "Inclure la source SharePoint",
+        "llmInputs": "EntrÃ©es pour LLM",
+        "llmInputsOptions": {
+            "texts": "Textes",
+            "images": "Images",
+            "textAndImages": "Textes et images"
+        },
+        "retrievalMode": {
+            "label": "Mode de rÃ©cupÃ©ration",
+            "options": {
+                "hybrid": "Vecteurs + Texte (Hybride)",
+                "vectors": "Vecteurs",
+                "texts": "Texte"
+            }
+        },
+        "vector": {
+            "label": "Champs de vecteur inclus",
+            "options": {
+                "embedding": "Incorporations de texte",
+                "imageEmbedding": "Incorporations d'images"
+            }
+        },
+        "useOidSecurityFilter": "Utiliser le filtre de sÃ©curitÃ© oid",
+        "useGroupsSecurityFilter": "Utiliser le filtre de sÃ©curitÃ© de groupe",
+        "shouldStream": "Diffuser en continu les rÃ©ponses"
+    },
+    "helpTexts": {
+        "promptTemplate": "Remplace le prompt utilisÃ© pour gÃ©nÃ©rer la rÃ©ponse en fonction de la question et des rÃ©sultats de la recherche. Pour ajouter Ã  l'invite existante au lieu de remplacer l'invite entiÃ¨re, commencez votre invite par '>>>'.",
+        "temperature": "DÃ©finit la tempÃ©rature de la requÃªte Ã  le Grand modÃ¨le de langage (LLM) qui gÃ©nÃ¨re la rÃ©ponse. Des tempÃ©ratures plus Ã©levÃ©es donnent lieu Ã  des rÃ©ponses plus crÃ©atives, mais elles peuvent Ãªtre moins ancrÃ©es.",
+        "seed": "DÃ©termine un numÃ©ro premier qui servira Ã  amÃ©liorer la rÃ©pÃ©tabilitÃ© des rÃ©ponses du modÃ¨le. Le numÃ©ro premier doit Ãªtre un entier quelconque.",
+        "searchScore": "DÃ©finit un score minimum pour les rÃ©sultats de recherche provenant d'Azure AI Search. La plage de scores dÃ©pend si vous utilisez l'hybride (par dÃ©faut), uniquement les vecteurs, ou uniquement le texte.",
+        "rerankerScore": "DÃ©finit un score minimum pour les rÃ©sultats de recherche provenant du reranker sÃ©mantique. Le score varie toujours entre 0 et 4. Plus le score est Ã©levÃ©, plus le rÃ©sultat est sÃ©mantiquement pertinent par rapport Ã  la question.",
+        "retrieveNumber": "DÃ©finit le nombre de rÃ©sultats de recherche Ã  rÃ©cupÃ©rer d'Azure AI Search. Plus de rÃ©sultats peuvent augmenter la probabilitÃ© de trouver la bonne rÃ©ponse, mais peuvent amener le modÃ¨le Ã  se 'perdre au milieu'.",
+        "agenticReasoningEffort": "ContrÃ´le la quantitÃ© de raisonnement appliquÃ©e par l'agent lors de la crÃ©ation de plans multi-requÃªtes. Un effort plus Ã©levÃ© peut amÃ©liorer le rappel, mais augmente les jetons et la latence.",
+        "includeCategory": "SpÃ©cifie une catÃ©gorie Ã  inclure dans les rÃ©sultats de recherche. Il n'y a aucune catÃ©gorie utilisÃ©e dans l'ensemble de donnÃ©es par dÃ©faut.",
+        "excludeCategory": "SpÃ©cifie une catÃ©gorie Ã  exclure des rÃ©sultats de recherche. Il n'y a aucune catÃ©gorie utilisÃ©e dans l'ensemble de donnÃ©es par dÃ©faut.",
+        "useSemanticReranker": "Active le classement sÃ©mantique d'Azure AI Search, un modÃ¨le qui rÃ©organise les rÃ©sultats de recherche en fonction de la similaritÃ© sÃ©mantique avec la requÃªte de l'utilisateur.",
+        "useQueryRewriting": "Active la rÃ©Ã©criture de requÃªtes d'Azure AI Search, un processus qui modifie la requÃªte de l'utilisateur pour amÃ©liorer les rÃ©sultats de recherche. NÃ©cessite que le reclasseur sÃ©mantique soit activÃ©.",
+        "reasoningEffort": "DÃ©finit l'effort de raisonnement pour le LLM. Des valeurs plus Ã©levÃ©es entraÃ®nent plus de raisonnement, mais peuvent prendre plus de temps pour gÃ©nÃ©rer une rÃ©ponse. La valeur par dÃ©faut est moyenne.",
+        "useSemanticCaptions": "Envoie des lÃ©gendes sÃ©mantiques Ã  l'LLM au lieu du rÃ©sultat de recherche complet. Une lÃ©gende sÃ©mantique est extraite d'un rÃ©sultat de recherche lors du processus de classement sÃ©mantique.",
+        "suggestFollowupQuestions": "Demande Ã  l'LLM de suggÃ©rer des questions de suivi en fonction de la requÃªte de l'utilisateur.",
+        "textEmbeddings": "Lorsque sÃ©lectionnÃ©, la recherche utilisera les incorporations du modÃ¨le d'incorporations de texte uniquement pour les fragments de texte extraits.",
+        "imageEmbeddings": "Lorsque sÃ©lectionnÃ©, la recherche utilisera les incorporations du modÃ¨le d'incorporations multimodal pour les images extraites.",
+        "llmTextInputs": "Lorsque sÃ©lectionnÃ©, le contenu textuel des rÃ©sultats de recherche est envoyÃ© au LLM comme contexte.",
+        "llmImageInputs": "Lorsque sÃ©lectionnÃ©, les images des rÃ©sultats de recherche sont envoyÃ©es au LLM comme contexte.",
+        "retrievalMode": "DÃ©finit le mode de rÃ©cupÃ©ration pour la requÃªte Azure AI Search. Vecteurs + Texte (Hybride) utilise une combinaison de recherche vectorielle et de recherche en texte intÃ©gral, Vecteurs utilise uniquement la recherche vectorielle, et Texte utilise uniquement la recherche en texte intÃ©gral. Hybride est gÃ©nÃ©ralement optimal.",
+        "streamChat": "Diffuse en continu la rÃ©ponse Ã  l'interface utilisateur du chat au fur et Ã  mesure de sa gÃ©nÃ©ration.",
+        "useOidSecurityFilter": "Filtrez les rÃ©sultats de recherche en fonction de l'OID de l'utilisateur authentifiÃ©.",
+        "useGroupsSecurityFilter": "Filtrez les rÃ©sultats de recherche en fonction des groupes de l'utilisateur authentifiÃ©.",
+        "useAgenticKnowledgeBase": "Utilisez la rÃ©cupÃ©ration agentique d'Azure AI Search pour la planification multi-requÃªtes. Utilise toujours le classement sÃ©mantique.",
+        "useWebSource": "Augmentez la rÃ©cupÃ©ration avec des rÃ©sultats de recherche web parallÃ¨lement Ã  votre ensemble de donnÃ©es indexÃ©.",
+        "useSharePointSource": "Augmentez la rÃ©cupÃ©ration avec du contenu SharePoint parallÃ¨lement Ã  votre ensemble de donnÃ©es indexÃ©."
+    },
+    "overallSettings": "ParamÃ¨tres gÃ©nÃ©raux",
+    "searchSettings": "ParamÃ¨tres de recherche",
+    "llmSettings": "ParamÃ¨tres LLM"
+}

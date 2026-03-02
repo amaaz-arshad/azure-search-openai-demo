@@ -1,0 +1,164 @@
+{
+    "pageTitle": "Steuertipps Chatbot",
+    "headerTitle": "Steuertipps Chatbot",
+    "initialUserMsg": "Hej",
+    "initialAssistantMsg": "Velkommen! Dejligt at du er her. Vil du teste din viden om et emne, eller har du spørgsmål, du gerne vil have afklaret?",
+    "chat": "Chat",
+    "qa": "Stil et spÃ¸rgsmÃ¥l",
+    "login": "Log ind",
+    "logout": "Log ud",
+    "clearChat": "Ryd chat",
+    "history": {
+        "chatHistory": "Chathistorik",
+        "openChatHistory": "Ã…bn chathistorik",
+        "noHistory": "Ingen chathistorik",
+        "deleteModalTitle": "Slet chathistorik",
+        "deleteModalDescription": "Denne handling kan ikke fortrydes. Slet denne chathistorik?",
+        "deleteLabel": "Slet",
+        "cancelLabel": "AnnullÃ©r",
+        "today": "I dag",
+        "yesterday": "I gÃ¥r",
+        "last7days": "Sidste 7 dage",
+        "last30days": "Sidste 30 dage"
+    },
+    "upload": {
+        "fileLabel": "Upload fil:",
+        "uploadedFilesLabel": "Tidligere uploadede filer:",
+        "noFilesUploaded": "Ingen filer uploadet endnu",
+        "loading": "IndlÃ¦ser...",
+        "manageFileUploads": "Administrer filuploads",
+        "uploadingFiles": "Uploader filer...",
+        "uploadedFileError": "Fejl ved upload af fil - prÃ¸v igen eller kontakt administrator.",
+        "deleteFile": "Slet fil",
+        "deletingFile": "Sletter fil...",
+        "errorDeleting": "Fejl ved sletning.",
+        "fileDeleted": "Fil slettet"
+    },
+    "developerSettings": "Udviklerindstillinger",
+    "chatEmptyStateTitle": "Chat med dine data",
+    "chatEmptyStateSubtitle": "SpÃ¸rg om hvad som helst eller prÃ¸v et eksempel",
+    "defaultExamples": {
+        "1": "Hvad er hovedkapitlerne i LearningNL-kurset?",
+        "2": "Hvad er den politiske struktur i Nederlandene?",
+        "3": "Hvad er de vigtigste kendetegn ved det hollandske landskab?",
+        "placeholder": "Skriv din besked"
+    },
+    "askTitle": "SpÃ¸rg til dine data",
+    "multimodalExamples": {
+        "1": "Sammenlign effekten af renter og BNP pÃ¥ finansmarkederne.",
+        "2": "Hvad er den forventede tendens for S&P 500 indekset over de nÃ¦ste fem Ã¥r? Sammenlign det med tidligere S&P 500 prÃ¦station.",
+        "3": "Kan du identificere nogen korrelation mellem oliepriser og aktiemarkedets tendenser?",
+        "placeholder": "Skriv din besked"
+    },
+    "generatingAnswer": "Genererer svar",
+    "citationWithColon": "Kilder:",
+    "followupQuestions": "OpfÃ¸lgende spÃ¸rgsmÃ¥l:",
+    "tooltips": {
+        "submitQuestion": "Send spÃ¸rgsmÃ¥l",
+        "askWithVoice": "Indtal spÃ¸rgsmÃ¥l",
+        "stopRecording": "Stop optagelse af spÃ¸rgsmÃ¥l",
+        "showThoughtProcess": "Vis tankeproces",
+        "showSupportingContent": "Vis understÃ¸ttende indhold",
+        "speakAnswer": "Afspil svar",
+        "info": "Info",
+        "save": "Gem",
+        "copy": "Kopier",
+        "copied": "Kopieret!"
+    },
+    "headerTexts": {
+        "thoughtProcess": "Tankeproces",
+        "supportingContent": "UnderstÃ¸ttende indhold",
+        "citation": "Kilde"
+    },
+    "labels": {
+        "toggleMenu": "Skift menu",
+        "languagePicker": "VÃ¦lg sprog",
+        "headerText": "KonfigurÃ©r svargenerering",
+        "closeButton": "Luk",
+        "promptTemplate": "Overskriv promptskabelon",
+        "temperature": "Temperatur",
+        "seed": "Seed",
+        "minimumSearchScore": "Minimum sÃ¸gescore",
+        "minimumRerankerScore": "Minimum reranker score",
+        "retrieveCount": "Hent dette antal sÃ¸geresultater:",
+        "agenticReasoningEffort": "Retrieval reasoning effort",
+        "agenticReasoningEffortOptions": {
+            "minimal": "Minimal",
+            "low": "Lav",
+            "medium": "Medium"
+        },
+        "includeCategory": "InkludÃ©r kategori",
+        "includeCategoryOptions": {
+            "all": "Alle"
+        },
+        "excludeCategory": "EkskludÃ©r kategori",
+        "useSemanticRanker": "Brug semantisk ranking til sÃ¸gning",
+        "useSemanticCaptions": "Brug semantiske billedtekster",
+        "useQueryRewriting": "Brug forespÃ¸rgselsomskrivning til informationsgenfinding",
+        "reasoningEffort": "RÃ¦sonnementsindsats",
+        "reasoningEffortOptions": {
+            "minimal": "Minimal (kun GPT-5)",
+            "low": "Lav",
+            "medium": "Medium",
+            "high": "HÃ¸j"
+        },
+        "useSuggestFollowupQuestions": "ForeslÃ¥ opfÃ¸lgende spÃ¸rgsmÃ¥l",
+        "useAgenticKnowledgeBase": "Brug agentisk hentning",
+        "useWebSource": "InkludÃ©r websÃ¸gning",
+        "useSharePointSource": "InkludÃ©r SharePoint-kilde",
+        "llmInputs": "Input til LLM",
+        "llmInputsOptions": {
+            "texts": "Tekster",
+            "images": "Billeder",
+            "textAndImages": "Tekster og billeder"
+        },
+        "retrievalMode": {
+            "label": "SÃ¸gemodus",
+            "options": {
+                "hybrid": "Vektorer og tekst (Hybrid)",
+                "vectors": "Vektorer",
+                "texts": "Tekst"
+            }
+        },
+        "vector": {
+            "label": "Inkluderede vektorfelter",
+            "options": {
+                "embedding": "Tekstindlejringer",
+                "imageEmbedding": "Billedindlejringer"
+            }
+        },
+        "useOidSecurityFilter": "Brug oid sikkerhedsfilter",
+        "useGroupsSecurityFilter": "Brug gruppe sikkerhedsfilter",
+        "shouldStream": "Stream chat svar"
+    },
+    "helpTexts": {
+        "promptTemplate": "Overskriver prompten brugt til at generere svaret baseret pÃ¥ spÃ¸rgsmÃ¥let og sÃ¸geresultaterne. For at tilfÃ¸je til eksisterende prompt i stedet for at erstatte hele prompten, start din prompt med '>>>'.",
+        "temperature": "Indstiller temperaturen pÃ¥ forespÃ¸rgslen til LLM'en, der genererer svaret. HÃ¸jere temperaturer resulterer i mere kreative svar, men de kan vÃ¦re mindre jordnÃ¦re.",
+        "seed": "Indstiller et seed for at forbedre reproducerbarheden af modellens svar. Seedet kan vÃ¦re et hvilket som helst heltal.",
+        "searchScore": "Indstiller en minimumscore for sÃ¸geresultater fra Azure AI Search. ScoreomrÃ¥det afhÃ¦nger af, om du bruger hybrid (standard), kun vektorer eller kun tekst.",
+        "rerankerScore": "Indstiller en minimumscore for sÃ¸geresultater fra den semantiske omrangÃ¸r. Scoren ligger altid mellem 0-4. Jo hÃ¸jere score, jo mere semantisk relevant er resultatet for spÃ¸rgsmÃ¥let.",
+        "retrieveNumber": "Indstiller antallet af sÃ¸geresultater, der skal hentes fra Azure AI Search. Flere resultater kan Ã¸ge sandsynligheden for at finde det korrekte svar, men kan fÃ¥ modellen til at 'fare vild i midten' (eng: lost in the middle).",
+        "agenticReasoningEffort": "Controls how much reasoning the agent applies while building multi-query plans. Higher effort may improve recall but can increase tokens and latency.",
+        "includeCategory": "Angiver en kategori, der skal inkluderes i sÃ¸geresultaterne. Der er ingen kategorier i det standard datasÃ¦t.",
+        "excludeCategory": "Angiver en kategori, der skal ekskluderes fra sÃ¸geresultaterne. Der er ingen kategorier i det standard datasÃ¦t.",
+        "useSemanticReranker": "Aktiverer Azure AI Search semantisk omrangÃ¸r, en model der rangerer sÃ¸geresultater baseret pÃ¥ semantisk lighed til brugerens forespÃ¸rgsel.",
+        "useQueryRewriting": "Aktiverer Azure AI Search forespÃ¸rgselsomskrivning, en proces der Ã¦ndrer brugerens forespÃ¸rgsel for at forbedre sÃ¸geresultaterne. KrÃ¦ver at semantisk ranking er aktiveret.",
+        "reasoningEffort": "Indstiller rÃ¦sonnementsindsatsen for sprogmodellen. HÃ¸jere vÃ¦rdier resulterer i mere rÃ¦sonnement, men kan tage lÃ¦ngere tid om at generere et svar. StandardvÃ¦rdien er medium.",
+        "useSemanticCaptions": "Sender semantiske billedtekster til LLM'en i stedet for hele sÃ¸geresultatet. En semantisk billedtekst udtrÃ¦kkes fra et sÃ¸geresultat under processen med semantisk rangering.",
+        "suggestFollowupQuestions": "Beder LLM'en om at foreslÃ¥ opfÃ¸lgende spÃ¸rgsmÃ¥l baseret pÃ¥ brugerens forespÃ¸rgsel.",
+        "textEmbeddings": "NÃ¥r valgt, vil sÃ¸gningen bruge indlejringer fra tekst-kun indlejringsmodellen af udtrukne tekstbidder.",
+        "imageEmbeddings": "NÃ¥r valgt, vil sÃ¸gningen bruge indlejringer fra den multimodale indlejringsmodel af udtrukne billeder.",
+        "llmTextInputs": "NÃ¥r valgt, sendes tekstindhold fra sÃ¸geresultaterne til LLM'en som kontekst.",
+        "llmImageInputs": "NÃ¥r valgt, sendes billeder fra sÃ¸geresultaterne til LLM'en som kontekst.",
+        "retrievalMode": "Indstiller sÃ¸gemodus for forespÃ¸rgslen i Azure AI Search. `Vektorer + Tekst (Hybrid)` bruger en kombination af vektorsÃ¸gning og fuldtekstsÃ¸gning, `Vektorer` bruger kun vektorsÃ¸gning, og `Tekst` bruger kun fuldtekstsÃ¸gning. Hybrid er generelt optimalt.",
+        "streamChat": "Streamer kontinuerligt svaret til brugergrÃ¦nsefladen, imens det genereres.",
+        "useOidSecurityFilter": "FiltrÃ©r sÃ¸geresultater baseret pÃ¥ den godkendte brugers OID.",
+        "useGroupsSecurityFilter": "FiltrÃ©r sÃ¸geresultater baseret pÃ¥ den godkendte brugers adgangsgrupper.",
+        "useAgenticKnowledgeBase": "Brug agentisk hentning fra Azure AI Search til planlÃ¦gning af flere forespÃ¸rgsler. Bruger altid semantisk rangering.",
+        "useWebSource": "Udvid hentning med websÃ¸geresultater sammen med dit indekserede datasÃ¦t.",
+        "useSharePointSource": "Udvid hentning med SharePoint-indhold sammen med dit indekserede datasÃ¦t."
+    },
+    "overallSettings": "Overordnede indstillinger",
+    "searchSettings": "SÃ¸geindstillinger",
+    "llmSettings": "LLM-indstillinger"
+}

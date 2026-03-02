@@ -130,6 +130,7 @@ NON_CHATBOT_FRONTEND_PREFIXES = {
 # Keep in sync with frontend chatbot routes in app/frontend/src/chatbots/registry.ts.
 KNOWN_CHATBOT_NAMES = {
     "nerilio",
+    "steuertipps",
 }
 
 

@@ -1,19 +1,19 @@
 {
     "pageTitle": "nerilio",
     "headerTitle": "nerilio",
-    "initialUserMsg": "Hello",
-    "initialAssistantMsg": "Hello, I'm nerilio. How can I assist you today?",
+    "initialUserMsg": "Cześć",
+    "initialAssistantMsg": "Cześć, jestem nerilio. Jak mogę Ci dziś pomóc?",
     "chat": "Chat",
     "login": "Login",
     "logout": "Logout",
     "clearChat": "Clear chat",
-    "close": "Close",
+    "close": "Zamknij",
     "rootLanding": {
-        "pageTitle": "Page not found | nerilio",
-        "topbarAriaLabel": "Topbar",
-        "homeAriaLabel": "Go to homepage",
-        "title": "Please use your specific chat URL.",
-        "backToHome": "→ Or click here to return to the homepage."
+        "pageTitle": "Nie znaleziono strony | nerilio",
+        "topbarAriaLabel": "Górny pasek",
+        "homeAriaLabel": "Przejdź do strony głównej",
+        "title": "Użyj właściwego adresu URL czatu.",
+        "backToHome": "→ Lub kliknij tutaj, aby wrócić do strony głównej."
     },
     "history": {
         "chatHistory": "Chat history",
@@ -42,29 +42,27 @@
         "fileDeleted": "File deleted"
     },
     "developerSettings": "Developer settings",
-
     "chatEmptyStateTitle": "Chat with your data",
     "chatEmptyStateSubtitle": "Ask anything or try an example",
     "defaultExamples": {
-        "1": "Who founded HYROX?",
-        "2": "What are the key physical qualities required for strong HYROX performance?",
-        "3": "What should coaches focus on when planning HYROX training?",
-        "placeholder": "Type your message"
+        "1": "Kto założył HYROX?",
+        "2": "Jakie kluczowe cechy fizyczne są potrzebne do osiągania wysokich wyników w HYROX?",
+        "3": "Na czym trenerzy powinni się skupić podczas planowania treningu HYROX?",
+        "placeholder": "Wpisz wiadomość"
     },
     "askTitle": "Ask your data",
     "multimodalExamples": {
         "1": "Compare the impact of interest rates and GDP in financial markets.",
         "2": "What is the expected trend for the S&P 500 index over the next five years? Compare it to the past S&P 500 performance",
         "3": "Can you identify any correlation between oil prices and stock market trends?",
-        "placeholder": "Type your message"
+        "placeholder": "Wpisz wiadomość"
     },
     "generatingAnswer": "Generating answer",
     "citationWithColon": "Citation:",
     "followupQuestions": "Follow-up questions:",
-
     "tooltips": {
         "submitQuestion": "Submit question",
-        "stopStreaming": "Stop streaming",
+        "stopStreaming": "Zatrzymaj strumieniowanie",
         "askWithVoice": "Ask question with voice",
         "stopRecording": "Stop recording question",
         "showThoughtProcess": "Show thought process",
@@ -75,13 +73,11 @@
         "copy": "Copy",
         "copied": "Copied!"
     },
-
     "headerTexts": {
         "thoughtProcess": "Thought Process",
         "supportingContent": "Supporting Content",
         "citation": "Citation"
     },
-
     "labels": {
         "toggleMenu": "Toggle menu",
         "languagePicker": "Select your language",
@@ -143,7 +139,6 @@
         "useGroupsSecurityFilter": "Use groups security filter",
         "shouldStream": "Stream chat completion responses"
     },
-
     "helpTexts": {
         "promptTemplate": "Overrides the prompt used to generate the answer based on the question and search results. To append to existing prompt instead of replace whole prompt, start your prompt with '>>>'.",
         "temperature": "Sets the temperature of the request to the LLM that generates the answer. Higher temperatures result in more creative responses, but they may be less grounded.",
@@ -171,7 +166,6 @@
         "useWebSource": "Augment retrieval with web search results alongside your indexed data set.",
         "useSharePointSource": "Augment retrieval with SharePoint content alongside your indexed data set."
     },
-
     "overallSettings": "Overall settings",
     "searchSettings": "Search settings",
     "llmSettings": "LLM settings"
