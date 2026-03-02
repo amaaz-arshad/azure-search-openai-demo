@@ -116,6 +116,7 @@ NON_CHATBOT_FRONTEND_PREFIXES = {
     "assets",
     "auth_setup",
     "chat",
+    "chatbots",
     "chat_history",
     "config",
     "content",
@@ -164,6 +165,13 @@ async def favicon():
 @bp.route("/assets/<path:path>")
 async def assets(path):
     return await send_from_directory(STATIC_ROOT / "assets", path)
+
+
+@bp.route("/chatbots")
+@bp.route("/chatbots/")
+@bp.route("/chatbots/<path:subpath>")
+async def chatbot_directory(subpath: str | None = None):
+    return await serve_spa_index()
 
 
 @bp.route("/<chatbot_name>")

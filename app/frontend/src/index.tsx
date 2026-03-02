@@ -11,6 +11,7 @@ import "./index.css";
 
 import { chatbotDefinitions } from "./chatbots/registry";
 import i18n from "./chatbots/nerilio/i18n/config";
+import ChatbotDirectory from "./pages/ChatbotDirectory";
 import RootLanding from "./pages/RootLanding";
 import { msalConfig, useLogin } from "./authConfig";
 
@@ -43,6 +44,10 @@ const router = createBrowserRouter([
                 <RootLanding />
             </I18nextProvider>
         )
+    },
+    {
+        path: "/chatbots",
+        element: <ChatbotDirectory />
     },
     ...chatbotRoutes,
     {

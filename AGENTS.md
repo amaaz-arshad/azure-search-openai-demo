@@ -41,10 +41,11 @@ If necessary, edit this file to ensure it accurately reflects the current state 
       * app/backend/prepdocslib/textparser.py: Parses plain text and markdown files
       * app/backend/prepdocslib/textprocessor.py: Processes text chunks for cloud ingestion (merges figures, generates embeddings)
       * app/backend/prepdocslib/textsplitter.py: Splits text into chunks using different strategies
-    * app/backend/app.py: The main entry point for the backend application, including SPA fallback routes for chatbot URLs like `/<chatbot_name>`, server-side redirect of unknown chatbot names back to `/`, and no-store caching headers for `index.html` responses to avoid stale frontend routing behavior.
+    * app/backend/app.py: The main entry point for the backend application, including SPA fallback routes for chatbot URLs like `/<chatbot_name>`, server-side redirect of unknown chatbot names back to `/`, SPA fallback for `/chatbots`, and no-store caching headers for `index.html` responses to avoid stale frontend routing behavior.
   * app/functions: Azure Functions used for cloud ingestion custom skills (document extraction, figure processing, text processing). Each function bundles a synchronized copy of `prepdocslib`; run `python scripts/copy_prepdocslib.py` to refresh the local copies if you modify the library.
   * app/frontend: Contains the React frontend code, built with TypeScript, built with vite.
-    * app/frontend/src/index.tsx: Frontend entry point and router setup. It resolves chatbot UI by URL path (`/<chatbot_name>`), serves a landing/error page on `/`, and routes unknown frontend paths back to `/`.
+    * app/frontend/src/index.tsx: Frontend entry point and router setup. It resolves chatbot UI by URL path (`/<chatbot_name>`), serves a landing/error page on `/`, provides a password-gated chatbot directory at `/chatbots`, and routes unknown frontend paths back to `/`.
+    * app/frontend/src/pages/ChatbotDirectory.tsx: Password-gated page listing all currently registered chatbot links.
     * app/frontend/src/chatbots/registry.ts: Registry of available chatbot UIs, including the chatbot-specific i18n instance.
     * app/frontend/src/chatbots/<chatbot_name>: Chatbot-specific frontend implementation (pages, components, layout wrapper, i18n, locales, assets, and chatbot wiring).
       * app/frontend/src/chatbots/nerilio: Chatbot implementation.
