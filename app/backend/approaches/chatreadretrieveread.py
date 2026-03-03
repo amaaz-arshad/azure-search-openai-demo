@@ -295,9 +295,13 @@ class ChatReadRetrieveReadApproach(Approach):
 
             return (extra_info, return_answer())
 
+        chatbot_name_override = overrides.get("include_category")
         messages = self.prompt_manager.build_conversation(
             system_template_path="chat_answer.system.jinja2",
-            system_template_variables=self.get_system_prompt_variables(overrides.get("prompt_template"))
+            system_template_variables=self.get_system_prompt_variables(
+                overrides.get("prompt_template"),
+                chatbot_name_override if isinstance(chatbot_name_override, str) else None,
+            )
             | {
                 "include_follow_up_questions": bool(overrides.get("suggest_followup_questions")),
                 "image_sources": extra_info.data_points.images,

@@ -908,18 +908,20 @@ class Approach(ABC):
         multimodal_query_vector = await self.image_embeddings_client.create_embedding_for_text(q)
         return VectorizedQuery(vector=multimodal_query_vector, k=50, fields="images/embedding")
 
-    def get_system_prompt_variables(self, override_prompt: Optional[str]) -> dict[str, str]:
+    def get_system_prompt_variables(
+        self, override_prompt: Optional[str], chatbot_name: Optional[str] = None
+    ) -> dict[str, str]:
         # Allows client to replace the entire prompt, or to inject into the existing prompt using >>>
         if override_prompt is None:
-            chatbot_name = None
-            if has_request_context():
-                chatbot_name = normalize_chatbot_name(request.headers.get("X-Chatbot-Name"))
-                if chatbot_name is None:
+            normalized_chatbot_name = normalize_chatbot_name(chatbot_name)
+            if has_request_context() and normalized_chatbot_name is None:
+                normalized_chatbot_name = normalize_chatbot_name(request.headers.get("X-Chatbot-Name"))
+                if normalized_chatbot_name is None:
                     referer = request.headers.get("Referer")
                     if referer:
                         referer_first_segment = urlparse(referer).path.strip("/").split("/", 1)[0]
-                        chatbot_name = normalize_chatbot_name(referer_first_segment)
-            chatbot_prompt = get_chatbot_prompt(chatbot_name)
+                        normalized_chatbot_name = normalize_chatbot_name(referer_first_segment)
+            chatbot_prompt = get_chatbot_prompt(normalized_chatbot_name)
             if chatbot_prompt:
                 return {"override_prompt": chatbot_prompt}
             return {}
