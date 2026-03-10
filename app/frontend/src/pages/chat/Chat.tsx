@@ -519,7 +519,17 @@ const Chat = () => {
         makeApiRequest(example);
     };
 
+    const isPdfCitation = (citation: string) => {
+        const citationWithoutHash = citation.split("#")[0].toLowerCase();
+        return citationWithoutHash.endsWith(".pdf") || citationWithoutHash.includes(".pdf?");
+    };
+
     const onShowCitation = (citation: string, index: number) => {
+        if (isPdfCitation(citation)) {
+            window.open(citation, "_blank", "noopener,noreferrer");
+            return;
+        }
+
         if (activeCitation === citation && activeAnalysisPanelTab === AnalysisPanelTabs.CitationTab && selectedAnswer === index) {
             setActiveAnalysisPanelTab(undefined);
         } else {
