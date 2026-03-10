@@ -26,6 +26,10 @@ export const supportedLngs: { [key: string]: { name: string; locale: string } } 
         name: "Deutsch",
         locale: "de-DE"
     },
+    "de-DE": {
+        name: "Deutsch",
+        locale: "de-DE"
+    },
     en: {
         name: "English",
         locale: "en-US"
@@ -33,6 +37,14 @@ export const supportedLngs: { [key: string]: { name: string; locale: string } } 
     nl: {
         name: "Nederlands",
         locale: "nl-NL"
+    },
+    "nl-NL": {
+        name: "Nederlands",
+        locale: "nl-NL"
+    },
+    "nl-BE": {
+        name: "Nederlands (België)",
+        locale: "nl-BE"
     }
     // da: {
     //     name: "Dansk",
@@ -98,8 +110,25 @@ i18next
             caches: [] // NO cookies / localStorage
         },
         interpolation: {
-            escapeValue: false // not needed for react as it escapes by default
+            escapeValue: false
         }
     });
+
+/* =======================
+   🔍 I18NEXT RESOLUTION LOGS
+   ======================= */
+i18next.on("initialized", () => {
+    console.log("i18next resolved language:", i18next.language);
+    console.log("i18next language chain:", i18next.languages);
+
+    const detector = i18next.services.languageDetector;
+    if (detector) {
+        console.log("languageDetector.detect():", detector.detect());
+    }
+});
+
+i18next.on("languageChanged", lng => {
+    console.log("languageChanged →", lng);
+});
 
 export default i18next;

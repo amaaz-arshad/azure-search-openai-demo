@@ -9,156 +9,175 @@
     "logout": "Logout",
     "clearChat": "Clear chat",
     "history": {
-        "chatHistory": "Chat history",
-        "openChatHistory": "Open chat history",
-        "noHistory": "No chat history",
-        "deleteModalTitle": "Delete chat history",
-        "deleteModalDescription": "This action cannot be undone. Delete this chat history?",
-        "deleteLabel": "Delete",
-        "cancelLabel": "Cancel",
-        "today": "Today",
-        "yesterday": "Yesterday",
-        "last7days": "Last 7 days",
-        "last30days": "Last 30 days"
+        "chatHistory": "チャット履歴",
+        "openChatHistory": "チャット履歴を開く",
+        "noHistory": "チャット履歴がありません",
+        "deleteModalTitle": "チャット履歴の削除",
+        "deleteModalDescription": "この操作は取り消せません。このチャット履歴を削除しますか？",
+        "deleteLabel": "削除",
+        "cancelLabel": "キャンセル",
+        "today": "今日",
+        "yesterday": "昨日",
+        "last7days": "過去7日間",
+        "last30days": "過去30日間"
     },
     "upload": {
-        "fileLabel": "Upload file:",
-        "uploadedFilesLabel": "Previously uploaded files:",
-        "noFilesUploaded": "No files uploaded yet",
-        "loading": "Loading...",
-        "manageFileUploads": "Manage file uploads",
-        "uploadingFiles": "Uploading files...",
-        "uploadedFileError": "Error uploading file - please try again or contact admin.",
-        "deleteFile": "Delete file",
-        "deletingFile": "Deleting file...",
-        "errorDeleting": "Error deleting.",
-        "fileDeleted": "File deleted"
+        "fileLabel": "ファイルをアップロード：",
+        "uploadedFilesLabel": "アップロード済みのファイル：",
+        "noFilesUploaded": "まだファイルがアップロードされていません",
+        "loading": "読み込み中...",
+        "manageFileUploads": "ファイルのアップロードを管理",
+        "uploadingFiles": "ファイルをアップロード中...",
+        "uploadedFileError": "ファイルのアップロードエラー - 再試行、もしくは管理者にお問い合わせください。",
+        "deleteFile": "ファイルを削除",
+        "deletingFile": "ファイルを削除中...",
+        "errorDeleting": "削除エラー。",
+        "fileDeleted": "ファイル削除済み"
     },
-    "developerSettings": "Developer settings",
-    "chatEmptyStateTitle": "Chat with your data",
-    "chatEmptyStateSubtitle": "Ask anything or try an example",
+    "developerSettings": "高度な設定",
+
+    "chatEmptyStateTitle": "データを用いてチャットを行います",
+    "chatEmptyStateSubtitle": "ご自由にお問い合わせいただくか、もしくは下記のサンプルをお試しください",
     "defaultExamples": {
-        "1": "LearningNLコースの主な章は何ですか？",
-        "2": "オランダの政治体制はどのようになっていますか？",
-        "3": "オランダの景観の主な特徴は何ですか？",
-        "placeholder": "メッセージを入力してください"
+        "1": "私が契約中の Northwind Health Plus の標準プランには何が含まれ、何が含まれないのですか？",
+        "2": "パフォーマンス・レビューで何を行いますか？",
+        "3": "プロダクトマネージャーの職務内容について教えてください。",
+        "placeholder": "新しい質問を入力してください (例：私の契約プランは年1回の眼科検診もカバーしていますか？)"
     },
-    "askTitle": "Ask your data",
+    "askTitle": "データを利用した問い合わせ",
     "multimodalExamples": {
-        "1": "Compare the impact of interest rates and GDP in financial markets.",
-        "2": "What is the expected trend for the S&P 500 index over the next five years? Compare it to the past S&P 500 performance",
-        "3": "Can you identify any correlation between oil prices and stock market trends?",
-        "placeholder": "メッセージを入力してください"
+        "1": "金融市場における金利とGDPの影響を比較してください。",
+        "2": "S&P 500指数の今後5年間のトレンドを予想してください、そして過去のS&P 500のパフォーマンスと比較してください。",
+        "3": "原油価格と株式市場の動向の間には相関関係があると思いますか？",
+        "placeholder": "例：私の契約プランは年1回の眼科検診もカバーしていますか？"
     },
-    "generatingAnswer": "Generating answer",
-    "citationWithColon": "Citation:",
-    "followupQuestions": "Follow-up questions:",
-    "tooltips": {
-        "submitQuestion": "Submit question",
-        "askWithVoice": "Ask question with voice",
-        "stopRecording": "Stop recording question",
-        "showThoughtProcess": "Show thought process",
-        "showSupportingContent": "Show supporting content",
-        "speakAnswer": "Speak answer",
-        "info": "Info",
-        "save": "Save",
-        "copy": "Copy",
-        "copied": "Copied!"
+    "generatingAnswer": "回答を生成中",
+    "citationWithColon": "引用：",
+    "followupQuestions": "フォローアップの質問：",
+
+    "tooltips":{
+        "submitQuestion": "質問を送信",
+        "stopStreaming": "ストリーミングを停止",
+        "askWithVoice": "音声で質問",
+        "stopRecording": "質問の記録を停止",
+        "showThoughtProcess": "思考プロセスの表示",
+        "showSupportingContent": "サポート内容の表示",
+        "speakAnswer": "音声による回答",
+        "info": "情報",
+        "save": "保存",
+        "copy": "コピー",
+        "copied": "コピーしました！"
     },
-    "headerTexts": {
-        "thoughtProcess": "Thought Process",
-        "supportingContent": "Supporting Content",
-        "citation": "Citation"
+
+    "headerTexts":{
+        "thoughtProcess": "思考プロセス",
+        "supportingContent": "サポート内容",
+        "citation": "引用"
     },
+
     "labels": {
-        "toggleMenu": "Toggle menu",
-        "languagePicker": "Select your language",
-        "headerText": "Configure answer generation",
-        "closeButton": "Close",
-        "promptTemplate": "Override prompt template",
-        "temperature": "Temperature",
-        "seed": "Seed",
-        "minimumSearchScore": "Minimum search score",
-        "minimumRerankerScore": "Minimum reranker score",
-        "retrieveCount": "Retrieve this many search results:",
-        "agenticReasoningEffort": "Retrieval reasoning effort",
+        "toggleMenu": "メニューを切り替える",
+        "languagePicker": "言語の選択",
+        "headerText": "回答生成の設定",
+        "closeButton": "閉じる",
+        "promptTemplate": "プロンプト・テンプレートを上書き",
+        "temperature": "温度",
+        "seed": "シード",
+        "minimumSearchScore": "最小検索スコア",
+        "minimumRerankerScore": "最小リランキング・スコア",
+        "retrieveCount": "ここで指定する検索結果数を取得：",
+        "agenticReasoningEffort": "検索推論の負荷",
         "agenticReasoningEffortOptions": {
-            "minimal": "Minimal",
-            "low": "Low",
-            "medium": "Medium"
+            "minimal": "最小",
+            "low": "低",
+            "medium": "中"
         },
-        "includeCategory": "Include category",
+        "includeCategory": "カテゴリを指定",
         "includeCategoryOptions": {
-            "all": "All"
+            "all": "全て"
         },
-        "excludeCategory": "Exclude category",
-        "useSemanticRanker": "Use semantic ranker for retrieval",
-        "useSemanticCaptions": "Use semantic captions",
-        "useQueryRewriting": "Use query rewriting for retrieval",
-        "reasoningEffort": "Reasoning effort",
+        "excludeCategory": "カテゴリを除外",
+        "useSemanticRanker": "取得にセマンティック・ランカーを使用",
+        "useSemanticCaptions": "セマンティック・キャプションを使用",
+        "useQueryRewriting": "検索のためにクエリの書き換えを使用する",
+        "reasoningEffort": "推論の労力",
         "reasoningEffortOptions": {
-            "minimal": "Minimal (GPT-5 only)",
-            "low": "Low",
-            "medium": "Medium",
-            "high": "High"
+            "minimal": "最小（GPT-5 のみ）",
+            "low": "低",
+            "medium": "中",
+            "high": "高"
         },
-        "useSuggestFollowupQuestions": "Suggest follow-up questions",
-        "useAgenticKnowledgeBase": "Use agentic retrieval",
-        "useWebSource": "Include web source",
-        "useSharePointSource": "Include Sharepoint source",
-        "llmInputs": "LLM input sources",
+        "useSuggestFollowupQuestions": "フォローアップの質問を提案",
+        "useAgenticKnowledgeBase": "エージェント型リトリーバルを使用",
+        "useWebSource": "Web検索を含める",
+        "useSharePointSource": "SharePointソースを含める",
+        "llmInputs": "LLMの入力",
         "llmInputsOptions": {
-            "texts": "Text sources",
-            "images": "Image sources",
-            "textAndImages": "Text and image sources"
+            "texts": "テキスト",
+            "images": "画像",
+            "textAndImages": "テキストと画像"
         },
         "retrievalMode": {
-            "label": "Retrieval mode",
+            "label": "検索モード",
             "options": {
-                "hybrid": "Vectors + Text (Hybrid)",
-                "vectors": "Vectors",
-                "texts": "Text"
+                "hybrid": "ベクトル + テキスト (ハイブリッド)",
+                "vectors": "ベクトル",
+                "texts": "テキスト"
             }
         },
         "vector": {
-            "label": "Included vector fields",
+            "label": "含まれるベクトルフィールド",
             "options": {
-                "embedding": "Text embeddings",
-                "imageEmbedding": "Image embeddings"
+                "embedding": "テキスト埋め込み",
+                "imageEmbedding": "画像埋め込み"
             }
         },
-        "useOidSecurityFilter": "Use oid security filter",
-        "useGroupsSecurityFilter": "Use groups security filter",
-        "shouldStream": "Stream chat completion responses"
+        "useOidSecurityFilter": "OIDセキュリティフィルターの使用",
+        "useGroupsSecurityFilter": "グループセキュリティフィルターの使用",
+        "shouldStream": "ストリームでチャット応答を取得"
     },
+
     "helpTexts": {
-        "promptTemplate": "Overrides the prompt used to generate the answer based on the question and search results. To append to existing prompt instead of replace whole prompt, start your prompt with '>>>'.",
-        "temperature": "Sets the temperature of the request to the LLM that generates the answer. Higher temperatures result in more creative responses, but they may be less grounded.",
-        "seed": "Sets a seed to improve the reproducibility of the model's responses. The seed can be any integer.",
-        "searchScore": "Sets a minimum score for search results coming back from Azure AI search. The score range depends on whether you're using hybrid (default), vectors only, or text only.",
-        "rerankerScore": "Sets a minimum score for search results coming back from the semantic reranker. The score always ranges between 0-4. The higher the score, the more semantically relevant the result is to the question.",
-        "retrieveNumber": "Sets the number of search results to retrieve from Azure AI search. More results may increase the likelihood of finding the correct answer, but may lead to the model getting 'lost in the middle'.",
-        "agenticReasoningEffort": "Controls the amount of reasoning the agent uses while planning retrieval subqueries. Higher effort can improve recall at the cost of additional latency and tokens.",
-        "includeCategory": "Specifies a category to include in the search results. There are no categories used in the default data set.",
-        "excludeCategory": "Specifies a category to exclude from the search results. There are no categories used in the default data set.",
-        "useSemanticReranker": "Enables the Azure AI Search semantic ranker, a model that re-ranks search results based on semantic similarity to the user's query.",
-        "useQueryRewriting": "Enables Azure AI Search query rewriting, a process that modifies the user's query to improve search results. Requires semantic ranker to be enabled.",
-        "reasoningEffort": "Sets the reasoning effort for the LLM. Higher values result in more reasoning, but may take longer to generate a response. The default is medium.",
-        "useSemanticCaptions": "Sends semantic captions to the LLM instead of the full search result. A semantic caption is extracted from a search result during the process of semantic ranking.",
-        "suggestFollowupQuestions": "Asks the LLM to suggest follow-up questions based on the user's query.",
-        "textEmbeddings": "When selected, search will use embeddings from the text-only embeddings model of extracted text chunks.",
-        "imageEmbeddings": "When selected, search will use embeddings from the multimodal embeddings model of extracted images.",
-        "llmTextInputs": "When selected, text content from the search results will be sent to the LLM as context.",
-        "llmImageInputs": "When selected, images from the search results will be sent to the LLM as context.",
-        "retrievalMode": "Sets the retrieval mode for the Azure AI Search query. `Vectors + Text (Hybrid)` uses a combination of vector search and full text search, `Vectors` uses only vector search, and `Text` uses only full text search. Hybrid is generally optimal.",
-        "streamChat": "Continuously streams the response to the chat UI as it is generated.",
-        "useOidSecurityFilter": "Filter search results based on the authenticated user's OID.",
-        "useGroupsSecurityFilter": "Filter search results based on the authenticated user's groups.",
-        "useAgenticKnowledgeBase": "Use agentic retrieval from Azure AI Search for multi-query planning. Always uses semantic ranker.",
-        "useWebSource": "Augment retrieval with web search results alongside your indexed data set.",
-        "useSharePointSource": "Augment retrieval with SharePoint content alongside your indexed data set."
+        "promptTemplate":
+            "質問や検索結果に基づいて回答を生成するためプロンプトを上書きします。既存のプロンプトに追加する場合、全てを置き換えるのではなく、プロンプトを'>>>'で始めてください。",
+        "temperature":
+            "LLMで回答を生成する際、リクエストに対して温度を設定します。温度が高いほど、より創造的な回答が得られますが、不安定になる可能性があります。",
+        "seed": "モデルによる回答の再現性を向上させるためシードを設定します。シードは任意の整数に設定できます。",
+        "searchScore":
+            "Azure AI Searchから返される検索結果の最小スコアを設定します。スコアの範囲は、ハイブリッド(デフォルト)、ベクトルのみ、またはテキストのみを使用しているかどうかによって異なります。",
+        "rerankerScore":
+            "セマンティック・リランカーから返される検索結果の最小スコアを設定します。スコアの値は0から4の範囲で変更できます。スコアの値が大きいほど、質問に対する結果の意味的な関連性が高まります。",
+        "retrieveNumber":
+            "Azure AI Searchの検索結果から取得する数を設定します。結果が多ければ多いほど、正しい答えを見つける可能性は高まるかもしれませんが、モデルが「途中で迷子になる」可能性もあります。",
+        "agenticReasoningEffort":
+            "エージェントがマルチクエリ計画を構築する際にどの程度推論を行うかを制御します。高い設定では再現率の向上が見込めますが、トークンと待機時間が増加します。",
+        "includeCategory": "検索結果に含めるカテゴリを指定します。デフォルトのデータセットはカテゴリを使用していません。",
+        "excludeCategory": "検索結果から除外するカテゴリを指定します。デフォルトのデータセットはカテゴリを使用していません。",
+        "useSemanticReranker":
+            "Azure AI Searchのセマンティック・ランカーを有効にします(ユーザーのクエリに対するセマンティック類似性に基づいて検索結果をリランク付けするモデル)。",
+        "useSemanticCaptions":
+            "完全な検索結果ではなく、LLMにセマンティック・キャプションを送信します。セマンティック・キャプションは、セマンティック・ランキングの処理中に検索結果から抽出されます。",
+        "useQueryRewriting":
+            "Azure AI Searchのクエリの書き換えを有効にします。これは、ユーザーのクエリを変更して検索結果を改善するプロセスです。セマンティック・ランカーが有効になっている必要があります。",
+        "reasoningEffort":
+            "LLMの推論労力を設定します。値が高いほど推論が増加しますが、応答の生成に時間がかかる場合があります。デフォルトは中です。",
+        "suggestFollowupQuestions": "ユーザーのクエリに基づいて、LLMにフォローアップの質問を提案するように問い合わせます。",
+        "textEmbeddings": "選択すると、抽出されたテキストチャンクのテキストのみの埋め込みモデルからの埋め込みを検索に使用します。",
+        "imageEmbeddings": "選択すると、抽出された画像のマルチモーダル埋め込みモデルからの埋め込みを検索に使用します。",
+        "llmTextInputs": "選択すると、検索結果のテキスト内容がコンテキストとしてLLMに送信されます。",
+        "llmImageInputs": "選択すると、検索結果の画像がコンテキストとしてLLMに送信されます。",
+        "llmInputs":
+            "ビジョンモデルに送信する内容を設定します。「画像とテキスト」は画像とテキストの両方をモデルに送信し、「画像」は画像のみを送信し、「テキスト」はテキストのみを送信します。",
+        "retrievalMode":
+            "Azure AI Searchクエリの取得モードを設定します。「ベクトル + テキスト (ハイブリッド)」はベクトル検索と全文検索の組み合わせを使用し、「ベクトル」はベクトル検索のみを使用し、「テキスト」は全文検索のみを使用します。一般的にはハイブリッド検索がお勧めです。",
+        "streamChat": "生成された回答をチャットUIに対して継続的にストリームで送信します。",
+        "useOidSecurityFilter": "認証ユーザーのOIDに基づいて検索結果をフィルタリングします。",
+        "useGroupsSecurityFilter": "認証ユーザーのグループに基づいて検索結果をフィルタリングします。",
+        "useAgenticKnowledgeBase": "Azure AI Search のエージェント型リトリーバルを使用してマルチクエリの計画を行います。常にセマンティック ランカーを使用します。",
+        "useWebSource": "インデックス化されたデータセットと並行してWeb検索結果で検索を拡張します。",
+        "useSharePointSource": "インデックス化されたデータセットと並行してSharePointコンテンツで検索を拡張します。"
     },
-    "overallSettings": "Overall settings",
-    "searchSettings": "Search settings",
-    "llmSettings": "LLM settings"
+    "overallSettings": "全体設定",
+    "searchSettings": "検索設定",
+    "llmSettings": "LLM設定"
 }

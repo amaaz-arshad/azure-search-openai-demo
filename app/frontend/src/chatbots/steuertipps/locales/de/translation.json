@@ -8,6 +8,13 @@
     "login": "Anmelden",
     "logout": "Abmelden",
     "clearChat": "Chat löschen",
+    "loginPage": {
+        "title": "Willkommen",
+        "username": "Benutzername",
+        "password": "Passwort",
+        "login": "Anmelden",
+        "invalidCredentials": "Ungültiger Benutzername oder Passwort"
+    },
     "history": {
         "chatHistory": "Chatverlauf",
         "openChatHistory": "Chatverlauf öffnen",
@@ -38,9 +45,9 @@
     "chatEmptyStateTitle": "Chatten Sie mit Ihren Daten",
     "chatEmptyStateSubtitle": "Stellen Sie eine Frage oder probieren Sie ein Beispiel",
     "defaultExamples": {
-        "1": "Was sind die Hauptkapitel des LearningNL-Kurses?",
-        "2": "Wie ist die politische Struktur der Niederlande?",
-        "3": "Was sind die wichtigsten Merkmale der niederländischen Landschaft?",
+        "1": "Wer hat HYROX gegründet?",
+        "2": "Welche körperlichen Eigenschaften sind für eine starke HYROX-Leistung erforderlich?",
+        "3": "Worauf sollten Trainer bei der Planung des HYROX-Trainings achten?",
         "placeholder": "Geben Sie Ihre Nachricht ein"
     },
     "askTitle": "Fragen Sie Ihre Daten",
@@ -55,10 +62,11 @@
     "followupQuestions": "Folgefragen:",
     "tooltips": {
         "submitQuestion": "Frage einreichen",
+        "stopStreaming": "Stopp",
         "askWithVoice": "Frage per Stimme stellen",
         "stopRecording": "Aufnahme stoppen",
         "showThoughtProcess": "Denkprozess anzeigen",
-        "showSupportingContent": "UnterstÃ¼tzende Inhalte anzeigen",
+        "showSupportingContent": "Unterstützende Inhalte anzeigen",
         "speakAnswer": "Antwort sprechen",
         "info": "Info",
         "save": "Speichern",
@@ -67,15 +75,15 @@
     },
     "headerTexts": {
         "thoughtProcess": "Denkprozess",
-        "supportingContent": "UnterstÃ¼tzende Inhalte",
+        "supportingContent": "Unterstützende Inhalte",
         "citation": "Quelle"
     },
     "labels": {
         "toggleMenu": "Menü umschalten",
         "languagePicker": "Sprache auswählen",
         "headerText": "Antwortgenerierung konfigurieren",
-        "closeButton": "SchlieÃŸen",
-        "promptTemplate": "Prompt-Vorlage Ã¼berschreiben",
+        "closeButton": "Schließen",
+        "promptTemplate": "Prompt-Vorlage überschreiben",
         "temperature": "Temperatur",
         "seed": "Seed",
         "minimumSearchScore": "Minimale Suchpunktzahl",
@@ -87,11 +95,11 @@
             "low": "Gering",
             "medium": "Mittel"
         },
-        "includeCategory": "Kategorie einschlieÃŸen",
+        "includeCategory": "Kategorie einschließen",
         "includeCategoryOptions": {
             "all": "Alle"
         },
-        "excludeCategory": "Kategorie ausschlieÃŸen",
+        "excludeCategory": "Kategorie ausschließen",
         "useSemanticRanker": "Semantischen Ranker verwenden",
         "useSemanticCaptions": "Semantische Beschriftungen verwenden",
         "useQueryRewriting": "Abfrageumschreibung verwenden",
@@ -142,14 +150,15 @@
         "includeCategory": "Kategorie für Suchergebnisse einschließen. Standard-Dataset hat keine Kategorien.",
         "excludeCategory": "Kategorie von Suchergebnissen ausschließen. Standard-Dataset hat keine Kategorien.",
         "useSemanticReranker": "Aktiviert semantisches Ranking der Suchergebnisse basierend auf Ähnlichkeit zur Nutzeranfrage.",
+        "useSemanticCaptions": "Semantische Beschriftungen anstelle kompletter Ergebnisse an LLM senden.",
         "useQueryRewriting": "Abfrageumschreibung aktivieren, um Suchergebnisse zu verbessern. Semantischer Ranker erforderlich.",
         "reasoningEffort": "Legt den Begründungsaufwand des LLM fest. Höhere Werte = mehr reasoning, dauert länger.",
-        "useSemanticCaptions": "Semantische Beschriftungen anstelle kompletter Ergebnisse an LLM senden.",
         "suggestFollowupQuestions": "Lässt das LLM Folgefragen vorschlagen.",
         "textEmbeddings": "Verwendet Text-Embeddings für Suchergebnisse.",
         "imageEmbeddings": "Verwendet Bild-Embeddings für Suchergebnisse.",
         "llmTextInputs": "Textinhalte aus Suchergebnissen werden an LLM geschickt.",
         "llmImageInputs": "Bildinhalte aus Suchergebnissen werden an LLM geschickt.",
+        "llmInputs": "'Text und Bilder', 'Text', oder 'Bilder' an LLM senden.",
         "retrievalMode": "Suchmodus für Azure AI Search: Hybrid (Vektoren + Text) optimal.",
         "streamChat": "Antworten während der Generierung in Chat streamen.",
         "useOidSecurityFilter": "Suchergebnisse nach OID des angemeldeten Nutzers filtern.",

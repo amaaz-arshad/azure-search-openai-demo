@@ -12,6 +12,32 @@ import { parseAnswerToHtml } from "./AnswerParser";
 import { AnswerIcon } from "./AnswerIcon";
 import { SpeechOutputBrowser } from "./SpeechOutputBrowser";
 import { SpeechOutputAzure } from "./SpeechOutputAzure";
+import steuertippsLogo from "../../assets/steuertipps.jpeg";
+import supersub from "remark-supersub";
+
+const cleanSpeechText = (rawText: string): string => {
+    let cleaned = rawText;
+
+    cleaned = cleaned.replace(/```[\s\S]*?```/g, " ");
+    cleaned = cleaned.replace(/`([^`]+)`/g, "$1");
+    cleaned = cleaned.replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1");
+    cleaned = cleaned.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+    cleaned = cleaned.replace(/<((?:https?:\/\/|mailto:)[^>]+)>/g, "$1");
+    cleaned = cleaned.replace(/^\s{0,3}#{1,6}\s+/gm, "");
+    cleaned = cleaned.replace(/^\s{0,3}>\s?/gm, "");
+    cleaned = cleaned.replace(/^\s*[-*+]\s+/gm, "");
+    cleaned = cleaned.replace(/^\s*\d+\.\s+/gm, "");
+    cleaned = cleaned.replace(/(\*\*|__)(.*?)\1/g, "$2");
+    cleaned = cleaned.replace(/(\*|_)(.*?)\1/g, "$2");
+    cleaned = cleaned.replace(/~~(.*?)~~/g, "$1");
+    cleaned = cleaned.replace(/^\s*\|?[-:\s|]+\|?\s*$/gm, " ");
+    cleaned = cleaned.replace(/\|/g, " ");
+    cleaned = cleaned.replace(/\[\^?\d+\]/g, " ");
+    cleaned = cleaned.replace(/\s*\n+\s*/g, ". ");
+    cleaned = cleaned.replace(/\s{2,}/g, " ");
+
+    return cleaned.trim();
+};
 
 interface Props {
     answer: ChatAppResponse;
@@ -64,11 +90,23 @@ export const Answer = ({
             .catch(err => console.error("Failed to copy text: ", err));
     };
 
+    const answerForSpeech = useMemo(() => {
+        const temp = document.createElement("div");
+        temp.innerHTML = sanitizedAnswerHtml;
+        temp.querySelectorAll("sup, .citationStepBadge, .citationBadgeContainer").forEach(node => node.remove());
+        const plainText = temp.textContent ?? "";
+        return cleanSpeechText(plainText);
+    }, [sanitizedAnswerHtml]);
+
     return (
         <Stack className={`${styles.answerContainer} ${isSelected && styles.selected}`} verticalAlign="space-between">
             <Stack.Item>
                 <Stack horizontal horizontalAlign="space-between">
-                    <AnswerIcon />
+                    {/* <AnswerIcon /> */}
+                    <div className={styles.assistantHeader}>
+                        <img src={steuertippsLogo} alt="STEUERTIPPS logo" className={styles.assistantAvatar} />
+                        <div className={styles.assistantName}>{t("headerTitle")}</div>
+                    </div>
                     <div>
                         <IconButton
                             style={{ color: "black" }}
@@ -77,7 +115,7 @@ export const Answer = ({
                             ariaLabel={copied ? t("tooltips.copied") : t("tooltips.copy")}
                             onClick={handleCopy}
                         />
-                        <IconButton
+                        {/* <IconButton
                             style={{ color: "black" }}
                             iconProps={{ iconName: "Lightbulb" }}
                             title={t("tooltips.showThoughtProcess")}
@@ -92,22 +130,18 @@ export const Answer = ({
                             ariaLabel={t("tooltips.showSupportingContent")}
                             onClick={() => onSupportingContentClicked()}
                             disabled={!answer.context?.data_points || isStreaming}
-                        />
-                        {showSpeechOutputAzure && (
-                            <SpeechOutputAzure answer={sanitizedAnswerHtml} index={index} speechConfig={speechConfig} isStreaming={isStreaming} />
-                        )}
+                        /> */}
+                        {showSpeechOutputAzure && <SpeechOutputAzure answer={answerForSpeech} isStreaming={isStreaming} />}
                         {showSpeechOutputBrowser && <SpeechOutputBrowser answer={sanitizedAnswerHtml} />}
                     </div>
                 </Stack>
             </Stack.Item>
 
             <Stack.Item grow>
-                <div className={styles.answerText}>
-                    <ReactMarkdown children={sanitizedAnswerHtml} rehypePlugins={[rehypeRaw]} remarkPlugins={[remarkGfm]} />
-                </div>
+                <ReactMarkdown children={sanitizedAnswerHtml} rehypePlugins={[rehypeRaw]} remarkPlugins={[remarkGfm, supersub]} />
             </Stack.Item>
 
-            {!!parsedAnswer.citations.length && (
+            {!!parsedAnswer.citations.length && !isStreaming && (
                 <Stack.Item>
                     <Stack horizontal wrap tokens={{ childrenGap: 5 }}>
                         <span className={styles.citationLearnMore}>{t("citationWithColon")}</span>

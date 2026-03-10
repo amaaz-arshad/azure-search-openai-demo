@@ -25,11 +25,11 @@ import { TokenClaimsDisplay } from "../../components/TokenClaimsDisplay";
 import { LoginContext } from "../../loginContext";
 import { LanguagePicker } from "../../i18n/LanguagePicker";
 import { Settings } from "../../components/Settings/Settings";
+import { setGlobalClearChat } from "../layout/Layout";
 
 const Chat = () => {
     const { t, i18n } = useTranslation();
     const chatbotCategory = "steuertipps";
-
     const initialUserMessage: string = t("initialUserMsg");
     const initialAssistantMessageContent: string = t("initialAssistantMsg");
     const initialAssistantResponse: ChatAppResponse = {
@@ -74,6 +74,8 @@ const Chat = () => {
 
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [isStreaming, setIsStreaming] = useState<boolean>(false);
+    const [abortController, setAbortController] = useState<AbortController | null>(null);
+    const [restoredQuestion, setRestoredQuestion] = useState<string>("");
     const [error, setError] = useState<unknown>();
 
     const [activeCitation, setActiveCitation] = useState<string>();
@@ -161,9 +163,14 @@ const Chat = () => {
         });
     };
 
-    const handleAsyncRequest = async (question: string, answers: [string, ChatAppResponse][], responseBody: ReadableStream<any>) => {
+    const handleAsyncRequest = async (question: string, answers: [string, ChatAppResponse][], responseBody: ReadableStream<any>, signal: AbortSignal) => {
         let answer: string = "";
-        let askResponse: ChatAppResponse = {} as ChatAppResponse;
+        let askResponse: ChatAppResponse = {
+            message: { content: "", role: "assistant" },
+            delta: { content: "", role: "assistant" },
+            context: { data_points: { text: [], images: [], citations: [] }, thoughts: [], followup_questions: null },
+            session_state: null
+        };
 
         const updateState = (newContent: string) => {
             return new Promise(resolve => {
@@ -181,6 +188,9 @@ const Chat = () => {
         try {
             setIsStreaming(true);
             for await (const event of readNDJSONStream(responseBody)) {
+                if (signal.aborted) {
+                    break;
+                }
                 if (event["context"] && event["context"]["data_points"]) {
                     event["message"] = event["delta"];
                     askResponse = event as ChatAppResponse;
@@ -193,6 +203,13 @@ const Chat = () => {
                 } else if (event["error"]) {
                     throw Error(event["error"]);
                 }
+            }
+        } catch (e) {
+            if (e instanceof DOMException && e.name === "AbortError") {
+                // User clicked stop - don't treat as error
+                console.log("Stream aborted by user");
+            } else {
+                throw e; // Re-throw other errors to be caught by makeApiRequest
             }
         } finally {
             setIsStreaming(false);
@@ -245,9 +262,12 @@ const Chat = () => {
     };
 
     const makeApiRequest = async (question: string) => {
+        const controller = new AbortController();
+        setAbortController(controller);
         lastQuestionRef.current = question;
 
         error && setError(undefined);
+        setRestoredQuestion("");
         setIsLoading(true);
         setActiveCitation(undefined);
         setActiveAnalysisPanelTab(undefined);
@@ -293,7 +313,7 @@ const Chat = () => {
                 session_state: answers.length ? answers[answers.length - 1][1].session_state : null
             };
 
-            const response = await chatApi(request, shouldStream, token);
+            const response = await chatApi(request, shouldStream, token, controller.signal);
             if (!response.body) {
                 throw Error("No response body");
             }
@@ -301,11 +321,18 @@ const Chat = () => {
                 throw Error(`Request failed with status ${response.status}`);
             }
             if (shouldStream) {
-                const parsedResponse: ChatAppResponse = await handleAsyncRequest(question, answers, response.body);
-                setAnswers([...answers, [question, parsedResponse]]);
-                if (typeof parsedResponse.session_state === "string" && parsedResponse.session_state !== "") {
-                    const token = client ? await getToken(client) : undefined;
-                    historyManager.addItem(parsedResponse.session_state, [...answers, [question, parsedResponse]], token);
+                const parsedResponse: ChatAppResponse = await handleAsyncRequest(question, answers, response.body, controller.signal);
+                // Only add to answers if we got content, otherwise restore question to input
+                if (parsedResponse.message.content) {
+                    setAnswers([...answers, [question, parsedResponse]]);
+                    if (typeof parsedResponse.session_state === "string" && parsedResponse.session_state !== "") {
+                        const token = client ? await getToken(client) : undefined;
+                        historyManager.addItem(parsedResponse.session_state, [...answers, [question, parsedResponse]], token);
+                    }
+                } else {
+                    // Stopped before any content arrived - restore question to input
+                    lastQuestionRef.current = answers.length > 0 ? answers[answers.length - 1][0] : "";
+                    setRestoredQuestion(question);
                 }
             } else {
                 const parsedResponse: ChatAppResponseOrError = await response.json();
@@ -320,9 +347,16 @@ const Chat = () => {
             }
             setSpeechUrls([...speechUrls, null]);
         } catch (e) {
-            setError(e);
+            if (e instanceof DOMException && e.name === "AbortError") {
+                // Stopped during loading - restore question to input
+                lastQuestionRef.current = answers.length > 0 ? answers[answers.length - 1][0] : "";
+                setRestoredQuestion(question);
+            } else {
+                setError(e);
+            }
         } finally {
             setIsLoading(false);
+            setAbortController(null);
         }
     };
 
@@ -336,17 +370,25 @@ const Chat = () => {
         setSpeechUrls([null]);
         setIsLoading(false);
         setIsStreaming(false);
+        setRestoredQuestion("");
     };
 
+    useEffect(() => {
+        setGlobalClearChat(clearChat);
+        return () => {
+            setGlobalClearChat(() => {});
+        };
+    }, [clearChat]);
+
     // Also add an effect to set initial state on component mount
-    // useEffect(() => {
-    //     // Ensure welcome message is shown on initial load
-    //     if (answers.length === 0) {
-    //         setAnswers([[initialUserMessage, initialAssistantResponse]]);
-    //         setStreamedAnswers([[initialUserMessage, initialAssistantResponse]]);
-    //         setSpeechUrls([null]);
-    //     }
-    // }, []);
+    useEffect(() => {
+        // Ensure welcome message is shown on initial load
+        if (answers.length === 0) {
+            setAnswers([[initialUserMessage, initialAssistantResponse]]);
+            setStreamedAnswers([[initialUserMessage, initialAssistantResponse]]);
+            setSpeechUrls([null]);
+        }
+    }, []);
 
     useEffect(() => chatMessageStreamEnd.current?.scrollIntoView({ behavior: "smooth" }), [isLoading]);
     useEffect(() => chatMessageStreamEnd.current?.scrollIntoView({ behavior: "auto" }), [streamedAnswers]);
@@ -499,24 +541,34 @@ const Chat = () => {
         setSelectedAnswer(index);
     };
 
+    const onStopClick = async () => {
+        try {
+            if (abortController) {
+                abortController.abort();
+            }
+        } catch (e) {
+            console.log("An error occurred trying to stop the stream: ", e);
+        }
+    };
+
     return (
         <div className={styles.container}>
             {/* Setting the page title using react-helmet-async */}
             <Helmet>
                 <title>{t("pageTitle")}</title>
             </Helmet>
-            <div className={styles.commandsSplitContainer}>
+            {/* <div className={styles.commandsSplitContainer}>
                 <div className={styles.commandsContainer}>
-                    {/* {((useLogin && showChatHistoryCosmos) || showChatHistoryBrowser) && (
+                    {((useLogin && showChatHistoryCosmos) || showChatHistoryBrowser) && (
                         <HistoryButton className={styles.commandButton} onClick={() => setIsHistoryPanelOpen(!isHistoryPanelOpen)} />
-                    )} */}
+                    )}
                 </div>
                 <div className={styles.commandsContainer}>
                     <ClearChatButton className={styles.commandButton} onClick={clearChat} disabled={!lastQuestionRef.current || isLoading} />
                     {showUserUpload && <UploadFile className={styles.commandButton} disabled={!loggedIn} />}
-                    {/* <SettingsButton className={styles.commandButton} onClick={() => setIsConfigPanelOpen(!isConfigPanelOpen)} /> */}
+                    <SettingsButton className={styles.commandButton} onClick={() => setIsConfigPanelOpen(!isConfigPanelOpen)} />
                 </div>
-            </div>
+            </div> */}
             <div className={styles.chatRoot} style={{ marginLeft: isHistoryPanelOpen ? "300px" : "0" }}>
                 <div className={styles.chatContainer}>
                     {/* {!lastQuestionRef.current && answers.length === 1 && answers[0][0] === "" ? (
@@ -602,6 +654,10 @@ const Chat = () => {
                             disabled={isLoading}
                             onSend={question => makeApiRequest(question)}
                             showSpeechInput={showSpeechInput}
+                            isStreaming={isStreaming}
+                            isLoading={isLoading}
+                            onStop={onStopClick}
+                            initQuestion={restoredQuestion}
                         />
                     </div>
                 </div>
