@@ -286,6 +286,19 @@ async def test_chat_handle_exception_contentsafety_streaming(client, monkeypatch
 
 
 @pytest.mark.asyncio
+async def test_speech_token(client):
+    response = await client.get("/speech/token")
+    assert response.status_code == 200
+    result = await response.get_json()
+    assert result == {
+        "authorizationToken": "aad#test-id#mock-token",
+        "expiresAt": 9999999999,
+        "region": "eastus",
+        "voice": "en-US-AndrewMultilingualNeural",
+    }
+
+
+@pytest.mark.asyncio
 async def test_speech(client, mock_speech_success):
     response = await client.post(
         "/speech",

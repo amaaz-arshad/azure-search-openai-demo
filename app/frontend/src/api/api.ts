@@ -1,6 +1,15 @@
 const BACKEND_URI = "";
 
-import { ChatAppResponse, ChatAppResponseOrError, ChatAppRequest, Config, SimpleAPIResponse, HistoryListApiResponse, HistoryApiResponse } from "./models";
+import {
+    ChatAppResponse,
+    ChatAppResponseOrError,
+    ChatAppRequest,
+    Config,
+    SimpleAPIResponse,
+    HistoryListApiResponse,
+    HistoryApiResponse,
+    SpeechTokenResponse
+} from "./models";
 import { useLogin, getToken, isUsingAppServicesLogin } from "../authConfig";
 
 export async function getHeaders(idToken: string | undefined): Promise<Record<string, string>> {
@@ -58,6 +67,19 @@ export async function getSpeechApi(text: string): Promise<string | null> {
             }
         })
         .then(blob => (blob ? URL.createObjectURL(blob) : null));
+}
+
+export async function getSpeechTokenApi(): Promise<SpeechTokenResponse> {
+    const response = await fetch(`${BACKEND_URI}/speech/token`, {
+        method: "GET"
+    });
+
+    if (!response.ok) {
+        const errorBody = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(errorBody?.error || `Unable to get speech token: ${response.status}`);
+    }
+
+    return (await response.json()) as SpeechTokenResponse;
 }
 
 export function getCitationFilePath(citation: string): string {

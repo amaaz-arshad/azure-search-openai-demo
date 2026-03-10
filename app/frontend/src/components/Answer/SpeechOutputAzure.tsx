@@ -2,14 +2,58 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IconButton } from "@fluentui/react";
 import * as SpeechSDK from "microsoft-cognitiveservices-speech-sdk";
+import { getSpeechTokenApi, SpeechTokenResponse } from "../../api";
 
 let activePlaybackOwner: symbol | null = null;
 let activePlaybackStop: (() => void) | null = null;
+let cachedSpeechToken: SpeechTokenResponse | null = null;
+let pendingSpeechTokenRequest: Promise<SpeechTokenResponse> | null = null;
+
+const SPEECH_TOKEN_REFRESH_BUFFER_MS = 2 * 60 * 1000;
 
 interface Props {
     answer: string;
     isStreaming: boolean;
 }
+
+const shouldRefreshSpeechToken = (speechToken: SpeechTokenResponse) => {
+    return speechToken.expiresAt * 1000 <= Date.now() + SPEECH_TOKEN_REFRESH_BUFFER_MS;
+};
+
+const getSpeechToken = async (forceRefresh: boolean = false): Promise<SpeechTokenResponse> => {
+    if (!forceRefresh && cachedSpeechToken && !shouldRefreshSpeechToken(cachedSpeechToken)) {
+        return cachedSpeechToken;
+    }
+
+    if (!forceRefresh && pendingSpeechTokenRequest) {
+        return pendingSpeechTokenRequest;
+    }
+
+    pendingSpeechTokenRequest = getSpeechTokenApi()
+        .then(speechToken => {
+            cachedSpeechToken = speechToken;
+            return speechToken;
+        })
+        .finally(() => {
+            pendingSpeechTokenRequest = null;
+        });
+
+    return pendingSpeechTokenRequest;
+};
+
+const invalidateSpeechToken = () => {
+    cachedSpeechToken = null;
+};
+
+const isSpeechAuthFailure = (error: string) => {
+    const normalizedError = error.toLowerCase();
+    return (
+        normalizedError.includes("authentication failed") ||
+        normalizedError.includes("no valid credentials") ||
+        normalizedError.includes("unable to contact server") ||
+        normalizedError.includes("statuscode: 1006")
+    );
+};
 
 export const SpeechOutputAzure = ({ answer, isStreaming }: Props) => {
     const [isLoading, setIsLoading] = useState(false);
@@ -18,6 +62,7 @@ export const SpeechOutputAzure = ({ answer, isStreaming }: Props) => {
     const synthesizerRef = useRef<SpeechSDK.SpeechSynthesizer | null>(null);
     const playerRef = useRef<SpeechSDK.SpeakerAudioDestination | null>(null);
     const playbackFallbackTimerRef = useRef<number | null>(null);
+    const playbackRequestIdRef = useRef(0);
     const { t } = useTranslation();
 
     const clearPlaybackFallbackTimer = () => {
@@ -81,19 +126,11 @@ export const SpeechOutputAzure = ({ answer, isStreaming }: Props) => {
     };
 
     const handleStop = () => {
-        if (!synthesizerRef.current && !playerRef.current) return;
+        playbackRequestIdRef.current += 1;
         finishPlayback(true);
     };
 
-    const handlePlay = () => {
-        if (!answer) return alert("Enter text to speak");
-        setIsLoading(true);
-        setIsPlaying(true);
-
-        // Configure speech
-        const sdkSpeechConfig = SpeechSDK.SpeechConfig.fromSubscription("8ca3a8c2671046c9849d763655670358", "swedencentral");
-        sdkSpeechConfig.speechSynthesisVoiceName = "de-DE-Florian:DragonHDLatestNeural";
-
+    const preparePlayback = () => {
         if (activePlaybackOwner !== instanceIdRef.current && activePlaybackStop) {
             activePlaybackStop();
         }
@@ -101,6 +138,19 @@ export const SpeechOutputAzure = ({ answer, isStreaming }: Props) => {
         closeSynthesizer();
         closePlayer();
         releaseActivePlaybackIfOwned();
+    };
+
+    const synthesizeAnswer = async (forceTokenRefresh: boolean, requestId: number) => {
+        const speechToken = await getSpeechToken(forceTokenRefresh);
+        if (requestId !== playbackRequestIdRef.current) {
+            return;
+        }
+
+        const sdkSpeechConfig = SpeechSDK.SpeechConfig.fromAuthorizationToken(
+            speechToken.authorizationToken,
+            speechToken.region
+        );
+        sdkSpeechConfig.speechSynthesisVoiceName = speechToken.voice;
 
         const player = new SpeechSDK.SpeakerAudioDestination();
         player.onAudioStart = () => {
@@ -112,9 +162,7 @@ export const SpeechOutputAzure = ({ answer, isStreaming }: Props) => {
         };
         playerRef.current = player;
 
-        // Use browser audio with explicit player hooks so we can track real playback end.
         const audioConfig = SpeechSDK.AudioConfig.fromSpeakerOutput(player);
-
         const synthesizer = new SpeechSDK.SpeechSynthesizer(sdkSpeechConfig, audioConfig);
         synthesizerRef.current = synthesizer;
         activePlaybackOwner = instanceIdRef.current;
@@ -139,19 +187,50 @@ export const SpeechOutputAzure = ({ answer, isStreaming }: Props) => {
                     }, remainingMs);
                 } else if (result.reason === SpeechSDK.ResultReason.Canceled) {
                     const cancel = SpeechSDK.CancellationDetails.fromResult(result);
-                    console.error("Canceled:", cancel.errorDetails);
+                    const errorDetails = cancel.errorDetails || "";
+                    if (isSpeechAuthFailure(errorDetails) && requestId === playbackRequestIdRef.current && !forceTokenRefresh) {
+                        invalidateSpeechToken();
+                        preparePlayback();
+                        void synthesizeAnswer(true, requestId);
+                        return;
+                    }
+                    console.error("Canceled:", errorDetails);
                     finishPlayback();
                 }
             },
             (err: string) => {
+                if (isSpeechAuthFailure(err) && requestId === playbackRequestIdRef.current && !forceTokenRefresh) {
+                    invalidateSpeechToken();
+                    preparePlayback();
+                    void synthesizeAnswer(true, requestId);
+                    return;
+                }
                 console.error(err);
                 finishPlayback();
             }
         );
     };
 
+    const handlePlay = async () => {
+        if (!answer) return alert("Enter text to speak");
+
+        const requestId = playbackRequestIdRef.current + 1;
+        playbackRequestIdRef.current = requestId;
+        setIsLoading(true);
+        setIsPlaying(true);
+        preparePlayback();
+
+        try {
+            await synthesizeAnswer(false, requestId);
+        } catch (error) {
+            console.error(error);
+            finishPlayback();
+        }
+    };
+
     useEffect(() => {
         return () => {
+            playbackRequestIdRef.current += 1;
             clearPlaybackFallbackTimer();
             closeSynthesizer();
             closePlayer();

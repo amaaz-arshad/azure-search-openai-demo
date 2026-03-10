@@ -39,10 +39,10 @@ If necessary, edit this file to ensure it accurately reflects the current state 
       * app/backend/prepdocslib/textparser.py: Parses plain text and markdown files
       * app/backend/prepdocslib/textprocessor.py: Processes text chunks for cloud ingestion (merges figures, generates embeddings)
       * app/backend/prepdocslib/textsplitter.py: Splits text into chunks using different strategies
-    * app/backend/app.py: The main entry point for the backend application.
+    * app/backend/app.py: The main entry point for the backend application, including `/config`, `/speech`, and `/speech/token` routes used by the frontend.
   * app/functions: Azure Functions used for cloud ingestion custom skills (document extraction, figure processing, text processing). Each function bundles a synchronized copy of `prepdocslib`; run `python scripts/copy_prepdocslib.py` to refresh the local copies if you modify the library.
   * app/frontend: Contains the React frontend code, built with TypeScript, built with vite.
-    * app/frontend/src/api: Contains the API client code for communicating with the backend.
+    * app/frontend/src/api: Contains the API client code for communicating with the backend, including speech token retrieval for Azure Speech browser playback.
     * app/frontend/src/components: Contains the React components for the frontend.
     * app/frontend/src/locales: Contains the translation files for internationalization.
       * app/frontend/src/locales/da/translation.json: Danish translations

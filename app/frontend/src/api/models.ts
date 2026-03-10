@@ -145,6 +145,13 @@ export interface SpeechConfig {
     setIsPlaying: (isPlaying: boolean) => void;
 }
 
+export type SpeechTokenResponse = {
+    authorizationToken: string;
+    expiresAt: number;
+    region: string;
+    voice: string;
+};
+
 export type HistoryListApiResponse = {
     sessions: {
         id: string;

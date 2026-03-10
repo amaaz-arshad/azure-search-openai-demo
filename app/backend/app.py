@@ -301,31 +301,64 @@ def config():
     )
 
 
-@bp.route("/speech", methods=["POST"])
-async def speech():
-    if not request.is_json:
-        return jsonify({"error": "request must be json"}), 415
-
+async def get_speech_service_token():
     speech_token = current_app.config.get(CONFIG_SPEECH_SERVICE_TOKEN)
     if speech_token is None or speech_token.expires_on < time.time() + 60:
         speech_token = await current_app.config[CONFIG_CREDENTIAL].get_token(
             "https://cognitiveservices.azure.com/.default"
         )
         current_app.config[CONFIG_SPEECH_SERVICE_TOKEN] = speech_token
+    return speech_token
+
+
+def get_speech_service_auth_details() -> tuple[str, str, str]:
+    speech_resource_id = current_app.config.get(CONFIG_SPEECH_SERVICE_ID)
+    speech_region = current_app.config.get(CONFIG_SPEECH_SERVICE_LOCATION)
+    speech_voice = current_app.config.get(CONFIG_SPEECH_SERVICE_VOICE)
+
+    if not speech_resource_id or not speech_region or not speech_voice:
+        raise ValueError("Speech synthesis is not enabled.")
+
+    return speech_resource_id, speech_region, speech_voice
+
+
+async def build_speech_service_authorization_token() -> tuple[str, int, str, str]:
+    speech_resource_id, speech_region, speech_voice = get_speech_service_auth_details()
+    speech_token = await get_speech_service_token()
+    authorization_token = f"aad#{speech_resource_id}#{speech_token.token}"
+    return authorization_token, speech_token.expires_on, speech_region, speech_voice
+
+
+@bp.route("/speech/token", methods=["GET"])
+async def speech_token():
+    try:
+        authorization_token, expires_on, region, voice = await build_speech_service_authorization_token()
+        return jsonify(
+            {
+                "authorizationToken": authorization_token,
+                "expiresAt": expires_on,
+                "region": region,
+                "voice": voice,
+            }
+        )
+    except ValueError as error:
+        return jsonify({"error": str(error)}), 400
+    except Exception:
+        current_app.logger.exception("Exception in /speech/token")
+        return jsonify({"error": "Unable to get speech token. Check logs for details."}), 500
+
+
+@bp.route("/speech", methods=["POST"])
+async def speech():
+    if not request.is_json:
+        return jsonify({"error": "request must be json"}), 415
 
     request_json = await request.get_json()
     text = request_json["text"]
     try:
-        # Construct a token as described in documentation:
-        # https://learn.microsoft.com/azure/ai-services/speech-service/how-to-configure-azure-ad-auth?pivots=programming-language-python
-        auth_token = (
-            "aad#"
-            + current_app.config[CONFIG_SPEECH_SERVICE_ID]
-            + "#"
-            + current_app.config[CONFIG_SPEECH_SERVICE_TOKEN].token
-        )
-        speech_config = SpeechConfig(auth_token=auth_token, region=current_app.config[CONFIG_SPEECH_SERVICE_LOCATION])
-        speech_config.speech_synthesis_voice_name = current_app.config[CONFIG_SPEECH_SERVICE_VOICE]
+        authorization_token, _, speech_region, speech_voice = await build_speech_service_authorization_token()
+        speech_config = SpeechConfig(auth_token=authorization_token, region=speech_region)
+        speech_config.speech_synthesis_voice_name = speech_voice
         speech_config.set_speech_synthesis_output_format(SpeechSynthesisOutputFormat.Audio16Khz32KBitRateMonoMp3)
         synthesizer = SpeechSynthesizer(speech_config=speech_config, audio_config=None)
         result: SpeechSynthesisResult = synthesizer.speak_text_async(text).get()
@@ -340,6 +373,8 @@ async def speech():
         else:
             current_app.logger.error("Unexpected result reason: %s", result.reason)
             raise Exception("Speech synthesis failed. Check logs for details.")
+    except ValueError as error:
+        return jsonify({"error": str(error)}), 400
     except Exception as e:
         current_app.logger.exception("Exception in /speech")
         return jsonify({"error": str(e)}), 500
