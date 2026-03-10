@@ -53,6 +53,7 @@ If necessary, edit this file to ensure it accurately reflects the current state 
       * app/frontend/src/chatbots/knoll: Chatbot implementation with an additional basic username/password login gate shown before chat.
       * app/frontend/src/chatbots/lemon: Chatbot implementation.
       * app/frontend/src/chatbots/publishone: Chatbot implementation.
+      * app/frontend/src/chatbots/fbn: Chatbot implementation.
     * app/frontend/src/api: Contains the API client code for communicating with the backend.
     * app/frontend/src/chatbots/<chatbot_name>/locales: Chatbot-specific translation files.
       * app/frontend/src/chatbots/nerilio/locales/da/translation.json: Danish translations

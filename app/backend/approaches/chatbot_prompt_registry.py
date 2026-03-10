@@ -13,6 +13,7 @@ CHATBOT_PROMPT_MODULES = {
     "knoll": "approaches.chatbots.knoll.sampleprompt",
     "lemon": "approaches.chatbots.lemon.sampleprompt",
     "publishone": "approaches.chatbots.publishone.sampleprompt",
+    "fbn": "approaches.chatbots.fbn.sampleprompt",
 }
 
 
