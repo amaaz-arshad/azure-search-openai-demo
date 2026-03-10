@@ -172,36 +172,65 @@ const Chat = () => {
         };
 
         const updateState = (newContent: string) => {
-            return new Promise(resolve => {
-                setTimeout(() => {
-                    answer += newContent;
-                    const latestResponse: ChatAppResponse = {
-                        ...askResponse,
-                        message: { content: answer, role: askResponse.message.role }
-                    };
-                    setStreamedAnswers([...answers, [question, latestResponse]]);
-                    resolve(null);
-                }, 33);
-            });
+            answer += newContent;
+            const latestResponse: ChatAppResponse = {
+                ...askResponse,
+                message: { content: answer, role: askResponse.message.role }
+            };
+            setStreamedAnswers([...answers, [question, latestResponse]]);
         };
+
+        const processStreamEvent = (event: Record<string, any>) => {
+            if (event["context"] && event["context"]["data_points"]) {
+                event["message"] = event["delta"];
+                askResponse = event as ChatAppResponse;
+            } else if (event["delta"] && event["delta"]["content"]) {
+                setIsLoading(false);
+                updateState(event["delta"]["content"]);
+            } else if (event["context"]) {
+                // Update context with new keys from latest event
+                askResponse.context = { ...askResponse.context, ...event["context"] };
+            } else if (event["error"]) {
+                throw Error(event["error"]);
+            }
+        };
+
         try {
             setIsStreaming(true);
-            for await (const event of readNDJSONStream(responseBody)) {
+            const reader = responseBody.getReader();
+            const decoder = new TextDecoder("utf-8");
+            let runningText = "";
+
+            while (true) {
                 if (signal.aborted) {
                     break;
                 }
-                if (event["context"] && event["context"]["data_points"]) {
-                    event["message"] = event["delta"];
-                    askResponse = event as ChatAppResponse;
-                } else if (event["delta"] && event["delta"]["content"]) {
-                    setIsLoading(false);
-                    await updateState(event["delta"]["content"]);
-                } else if (event["context"]) {
-                    // Update context with new keys from latest event
-                    askResponse.context = { ...askResponse.context, ...event["context"] };
-                } else if (event["error"]) {
-                    throw Error(event["error"]);
+
+                const { done, value } = await reader.read();
+                if (done) {
+                    break;
                 }
+
+                const text = decoder.decode(value);
+                const objects = text.split("\n");
+
+                for (const obj of objects) {
+                    try {
+                        if (obj !== "" && obj !== "{}") {
+                            runningText += obj;
+                            processStreamEvent(JSON.parse(runningText) as Record<string, any>);
+                            runningText = "";
+                        }
+                    } catch (e) {
+                        if (!(e instanceof SyntaxError)) {
+                            throw e;
+                        }
+                    }
+                }
+            }
+
+            if (runningText !== "") {
+                processStreamEvent(JSON.parse(runningText) as Record<string, any>);
             }
         } catch (e) {
             if (e instanceof DOMException && e.name === "AbortError") {
