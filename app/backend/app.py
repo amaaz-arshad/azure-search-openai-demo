@@ -133,6 +133,7 @@ KNOWN_CHATBOT_NAMES = {
     "nerilio",
     "steuertipps",
     "knoll",
+    "lemon",
 }
 
 

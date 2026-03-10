@@ -11,6 +11,7 @@ CHATBOT_PROMPT_MODULES = {
     "nerilio": "approaches.chatbots.nerilio.sampleprompt",
     "steuertipps": "approaches.chatbots.steuertipps.sampleprompt",
     "knoll": "approaches.chatbots.knoll.sampleprompt",
+    "lemon": "approaches.chatbots.lemon.sampleprompt",
 }
 
 
