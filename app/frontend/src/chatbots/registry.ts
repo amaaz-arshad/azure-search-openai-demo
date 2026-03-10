@@ -4,6 +4,7 @@ import type { i18n as I18nInstance } from "i18next";
 import { knollChatbot } from "./knoll";
 import { lemonChatbot } from "./lemon";
 import { nerilioChatbot } from "./nerilio";
+import { publishoneChatbot } from "./publishone";
 import { steuertippsChatbot } from "./steuertipps";
 
 export interface ChatbotDefinition {
@@ -14,4 +15,4 @@ export interface ChatbotDefinition {
     i18n: I18nInstance;
 }
 
-export const chatbotDefinitions: ChatbotDefinition[] = [nerilioChatbot, steuertippsChatbot, knollChatbot, lemonChatbot];
+export const chatbotDefinitions: ChatbotDefinition[] = [nerilioChatbot, steuertippsChatbot, knollChatbot, lemonChatbot, publishoneChatbot];
