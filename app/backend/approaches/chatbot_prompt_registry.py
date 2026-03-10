@@ -14,6 +14,7 @@ CHATBOT_PROMPT_MODULES = {
     "lemon": "approaches.chatbots.lemon.sampleprompt",
     "publishone": "approaches.chatbots.publishone.sampleprompt",
     "fbn": "approaches.chatbots.fbn.sampleprompt",
+    "demo": "approaches.chatbots.demo.sampleprompt",
 }
 
 
