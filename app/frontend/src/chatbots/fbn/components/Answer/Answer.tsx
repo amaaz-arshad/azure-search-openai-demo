@@ -98,9 +98,7 @@ export const Answer = ({
                             onClick={() => onSupportingContentClicked()}
                             disabled={!answer.context?.data_points || isStreaming}
                         /> */}
-                        {showSpeechOutputAzure && (
-                            <SpeechOutputAzure answer={sanitizedAnswerHtml} index={index} speechConfig={speechConfig} isStreaming={isStreaming} />
-                        )}
+                        {showSpeechOutputAzure && <SpeechOutputAzure answer={sanitizedAnswerHtml} isStreaming={isStreaming} />}
                         {showSpeechOutputBrowser && <SpeechOutputBrowser answer={sanitizedAnswerHtml} />}
                     </div>
                 </Stack>

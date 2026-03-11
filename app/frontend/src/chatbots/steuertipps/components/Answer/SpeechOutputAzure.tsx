@@ -6,6 +6,12 @@ import * as SpeechSDK from "microsoft-cognitiveservices-speech-sdk";
 let activePlaybackOwner: symbol | null = null;
 let activePlaybackStop: (() => void) | null = null;
 
+const speechLocation = import.meta.env.VITE_AZURE_SPEECH_SERVICE_LOCATION as string | undefined;
+const speechVoice = import.meta.env.VITE_AZURE_SPEECH_SERVICE_VOICE as string | undefined;
+const speechApiKey = import.meta.env.VITE_AZURE_SPEECH_SERVICE_API_KEY as string | undefined;
+
+console.log("Azure Speech Config:", { speechLocation, speechVoice, hasApiKey: !!speechApiKey });
+
 interface Props {
     answer: string;
     isStreaming: boolean;
@@ -87,12 +93,16 @@ export const SpeechOutputAzure = ({ answer, isStreaming }: Props) => {
 
     const handlePlay = () => {
         if (!answer) return alert("Enter text to speak");
+        if (!speechApiKey || !speechLocation || !speechVoice) {
+            alert("Azure speech environment variables are missing.");
+            return;
+        }
+
         setIsLoading(true);
         setIsPlaying(true);
 
-        // Configure speech
-        const sdkSpeechConfig = SpeechSDK.SpeechConfig.fromSubscription("8ca3a8c2671046c9849d763655670358", "swedencentral");
-        sdkSpeechConfig.speechSynthesisVoiceName = "de-DE-Florian:DragonHDLatestNeural";
+        const sdkSpeechConfig = SpeechSDK.SpeechConfig.fromSubscription(speechApiKey, speechLocation);
+        sdkSpeechConfig.speechSynthesisVoiceName = speechVoice;
 
         if (activePlaybackOwner !== instanceIdRef.current && activePlaybackStop) {
             activePlaybackStop();
@@ -112,7 +122,6 @@ export const SpeechOutputAzure = ({ answer, isStreaming }: Props) => {
         };
         playerRef.current = player;
 
-        // Use browser audio with explicit player hooks so we can track real playback end.
         const audioConfig = SpeechSDK.AudioConfig.fromSpeakerOutput(player);
 
         const synthesizer = new SpeechSDK.SpeechSynthesizer(sdkSpeechConfig, audioConfig);
@@ -130,7 +139,6 @@ export const SpeechOutputAzure = ({ answer, isStreaming }: Props) => {
                     const estimatedDurationMs = Math.max(1500, answer.length * 70);
                     const totalDurationMs = sdkDurationMs > 0 ? sdkDurationMs : estimatedDurationMs;
                     const currentTimeMs = playerRef.current ? Math.max(0, playerRef.current.currentTime * 1000) : 0;
-                    // This timer is only a fallback when onAudioEnd doesn't fire.
                     const remainingMs = Math.max(0, totalDurationMs - currentTimeMs + 100);
 
                     clearPlaybackFallbackTimer();
