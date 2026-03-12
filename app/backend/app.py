@@ -137,6 +137,7 @@ KNOWN_CHATBOT_NAMES = {
     "publishone",
     "fbn",
     "demo",
+    "fhg",
 }
 
 

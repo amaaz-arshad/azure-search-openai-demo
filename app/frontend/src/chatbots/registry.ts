@@ -3,6 +3,7 @@ import type { i18n as I18nInstance } from "i18next";
 
 import { demoChatbot } from "./demo";
 import { fbnChatbot } from "./fbn";
+import { fhgChatbot } from "./fhg";
 import { knollChatbot } from "./knoll";
 import { lemonChatbot } from "./lemon";
 import { nerilioChatbot } from "./nerilio";
@@ -17,4 +18,4 @@ export interface ChatbotDefinition {
     i18n: I18nInstance;
 }
 
-export const chatbotDefinitions: ChatbotDefinition[] = [nerilioChatbot, steuertippsChatbot, knollChatbot, lemonChatbot, publishoneChatbot, fbnChatbot, demoChatbot];
+export const chatbotDefinitions: ChatbotDefinition[] = [nerilioChatbot, steuertippsChatbot, knollChatbot, lemonChatbot, publishoneChatbot, fbnChatbot, demoChatbot, fhgChatbot];

@@ -41,6 +41,8 @@ If necessary, edit this file to ensure it accurately reflects the current state 
       * app/backend/prepdocslib/textparser.py: Parses plain text and markdown files
       * app/backend/prepdocslib/textprocessor.py: Processes text chunks for cloud ingestion (merges figures, generates embeddings)
       * app/backend/prepdocslib/textsplitter.py: Splits text into chunks using different strategies
+      * app/backend/prepdocslib/fhgjson.py: FHG-specific JSON ingestion helpers that validate the wrapped dataset structure, preserve all study fields in chunk text, generate source blobs for citations, and build search-ready documents with stable IDs.
+    * app/backend/prep_fhg_json.py: Dedicated ingestion script for `data/fhg_alle_studien_*.json` files. It chunks each FHG study entry logically, uploads per-study source blobs for citations, generates embeddings for every indexed chunk, stores them in Azure AI Search with category `fhg`, and by default replaces existing `fhg` documents before re-indexing.
     * app/backend/app.py: The main entry point for the backend application, including SPA fallback routes for chatbot URLs like `/<chatbot_name>`, server-side redirect of unknown chatbot names back to `/`, SPA fallback for `/chatbots`, and no-store caching headers for `index.html` responses to avoid stale frontend routing behavior.
   * app/functions: Azure Functions used for cloud ingestion custom skills (document extraction, figure processing, text processing). Each function bundles a synchronized copy of `prepdocslib`; run `python scripts/copy_prepdocslib.py` to refresh the local copies if you modify the library.
   * app/frontend: Contains the React frontend code, built with TypeScript, built with vite.
@@ -56,6 +58,7 @@ If necessary, edit this file to ensure it accurately reflects the current state 
       * app/frontend/src/chatbots/publishone: Chatbot implementation.
       * app/frontend/src/chatbots/fbn: Chatbot implementation.
       * app/frontend/src/chatbots/demo: Chatbot implementation.
+      * app/frontend/src/chatbots/fhg: Chatbot implementation.
     * app/frontend/src/api: Contains the API client code for communicating with the backend.
     * app/frontend/src/chatbots/<chatbot_name>/locales: Chatbot-specific translation files.
       * app/frontend/src/chatbots/nerilio/locales/da/translation.json: Danish translations
@@ -75,6 +78,7 @@ If necessary, edit this file to ensure it accurately reflects the current state 
 ## Adding new data
 
 New files should be added to the `data` folder, and then either run scripts/prepdocs.sh or scripts/prepdocs.ps1 to ingest the data.
+For the wrapped FHG studies export (`data/fhg_alle_studien_*.json`), use `python app/backend/prep_fhg_json.py data/fhg_alle_studien_YYYYMMDD.json` instead of the generic `prepdocs` flow so that each `documents[]` entry is chunked as a study record, all metadata fields are preserved in the indexed content, source blobs are generated for citations, and embeddings are created for every chunk.
 
 ## Adding a new chatbot UI
 
