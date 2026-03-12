@@ -1,104 +1,49 @@
-import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
+
 import fbnLogo from "../../assets/fbn.png";
+import BasicLoginPage from "../../../shared/basicauth/BasicLoginPage";
 import { login } from "./basicAuth";
 
 const BasicLogin = ({ onSuccess }: { onSuccess: () => void }) => {
     const { t } = useTranslation();
 
-    const [username, setUsername] = useState("");
-    const [password, setPassword] = useState("");
-    const [error, setError] = useState("");
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        const ok = login(username, password);
-        if (ok) {
-            onSuccess();
-        } else {
-            setError(t("loginPage.invalidCredentials"));
-        }
-    };
-
     return (
-        <div style={styles.container}>
-            <form onSubmit={handleSubmit} style={styles.form}>
-                <img src={fbnLogo} alt="Logo" style={styles.logo} />
-                <h2 style={styles.title}>{t("loginPage.title")}</h2>
-
-                <input placeholder={t("loginPage.username")} value={username} onChange={e => setUsername(e.target.value)} style={styles.input} />
-
-                <input
-                    type="password"
-                    placeholder={t("loginPage.password")}
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    style={styles.input}
-                />
-
-                {error && <div style={styles.error}>{error}</div>}
-
-                <button type="submit" style={styles.button}>
-                    {t("loginPage.login")}
-                </button>
-            </form>
-        </div>
+        <BasicLoginPage
+            logoSrc={fbnLogo}
+            logoAlt="Logo"
+            title={t("loginPage.title")}
+            usernamePlaceholder={t("loginPage.username")}
+            passwordPlaceholder={t("loginPage.password")}
+            loginLabel={t("loginPage.login")}
+            invalidCredentials={t("loginPage.invalidCredentials")}
+            onLogin={login}
+            onSuccess={onSuccess}
+            theme={{
+                chatbotName: "FBN",
+                accent: "#00cc96",
+                accentDark: "#008e69",
+                accentSoft: "rgba(0, 204, 150, 0.16)",
+                highlightSoft: "rgba(144, 251, 186, 0.18)",
+                pageStart: "#f2fff9",
+                pageMid: "#e0fff3",
+                pageEnd: "#cbf8e7",
+                panelBorder: "rgba(0, 204, 150, 0.14)",
+                inputBorder: "rgba(0, 204, 150, 0.18)",
+                inputFocus: "rgba(0, 158, 116, 0.4)",
+                focusRing: "rgba(0, 204, 150, 0.14)",
+                focusRingStrong: "rgba(0, 158, 116, 0.28)",
+                textStrong: "#10352b",
+                textMuted: "#3c6b60",
+                textPlaceholder: "#709387",
+                logoSurface: "rgba(255, 255, 255, 0.78)",
+                cardBackground: "rgba(255, 255, 255, 0.78)",
+                cardShadow: "rgba(0, 142, 105, 0.14)",
+                buttonText: "#ffffff",
+                buttonShadow: "rgba(0, 204, 150, 0.24)",
+                buttonShadowStrong: "rgba(0, 142, 105, 0.28)"
+            }}
+        />
     );
-};
-
-const styles: { [key: string]: React.CSSProperties } = {
-    container: {
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        height: "100vh",
-        backgroundColor: "#00cc96"
-    },
-    form: {
-        backgroundColor: "#ffffff",
-        padding: "40px 30px",
-        borderRadius: 12,
-        boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        minWidth: 300
-    },
-    logo: {
-        width: 60,
-        height: 60,
-        marginBottom: 20
-    },
-    title: {
-        marginBottom: 20,
-        color: "#333",
-        fontFamily: "Segoe UI, sans-serif"
-    },
-    input: {
-        width: "100%",
-        padding: "10px 12px",
-        marginBottom: 15,
-        borderRadius: 6,
-        border: "1px solid #ccc",
-        fontSize: 14
-    },
-    button: {
-        width: "100%",
-        padding: "10px 12px",
-        borderRadius: 6,
-        border: "none",
-        backgroundColor: "#0078d4",
-        color: "#fff",
-        fontSize: 16,
-        cursor: "pointer",
-        transition: "background-color 0.2s"
-    },
-    error: {
-        color: "#d13438",
-        marginBottom: 10,
-        fontSize: 13,
-        textAlign: "center"
-    }
 };
 
 export default BasicLogin;

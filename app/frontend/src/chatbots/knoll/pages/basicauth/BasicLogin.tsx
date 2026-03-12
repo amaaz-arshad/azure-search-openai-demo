@@ -1,104 +1,49 @@
-import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
+
 import knollLogo from "../../assets/knoll.png";
+import BasicLoginPage from "../../../shared/basicauth/BasicLoginPage";
 import { login } from "./basicAuth";
 
 const BasicLogin = ({ onSuccess }: { onSuccess: () => void }) => {
     const { t } = useTranslation();
 
-    const [username, setUsername] = useState("");
-    const [password, setPassword] = useState("");
-    const [error, setError] = useState("");
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        const ok = login(username, password);
-        if (ok) {
-            onSuccess();
-        } else {
-            setError(t("loginPage.invalidCredentials"));
-        }
-    };
-
     return (
-        <div style={styles.container}>
-            <form onSubmit={handleSubmit} style={styles.form}>
-                <img src={knollLogo} alt="Logo" style={styles.logo} />
-                <h2 style={styles.title}>{t("loginPage.title")}</h2>
-
-                <input placeholder={t("loginPage.username")} value={username} onChange={e => setUsername(e.target.value)} style={styles.input} />
-
-                <input
-                    type="password"
-                    placeholder={t("loginPage.password")}
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    style={styles.input}
-                />
-
-                {error && <div style={styles.error}>{error}</div>}
-
-                <button type="submit" style={styles.button}>
-                    {t("loginPage.login")}
-                </button>
-            </form>
-        </div>
+        <BasicLoginPage
+            logoSrc={knollLogo}
+            logoAlt="Logo"
+            title={t("loginPage.title")}
+            usernamePlaceholder={t("loginPage.username")}
+            passwordPlaceholder={t("loginPage.password")}
+            loginLabel={t("loginPage.login")}
+            invalidCredentials={t("loginPage.invalidCredentials")}
+            onLogin={login}
+            onSuccess={onSuccess}
+            theme={{
+                chatbotName: "Knoll",
+                accent: "#0199fe",
+                accentDark: "#005ecf",
+                accentSoft: "rgba(1, 153, 254, 0.18)",
+                highlightSoft: "rgba(125, 211, 252, 0.18)",
+                pageStart: "#f3faff",
+                pageMid: "#e0f1ff",
+                pageEnd: "#c7e6ff",
+                panelBorder: "rgba(1, 153, 254, 0.14)",
+                inputBorder: "rgba(1, 153, 254, 0.18)",
+                inputFocus: "rgba(1, 153, 254, 0.4)",
+                focusRing: "rgba(1, 153, 254, 0.14)",
+                focusRingStrong: "rgba(1, 153, 254, 0.3)",
+                textStrong: "#102a43",
+                textMuted: "#486581",
+                textPlaceholder: "#7a8ea5",
+                logoSurface: "rgba(255, 255, 255, 0.76)",
+                cardBackground: "rgba(255, 255, 255, 0.76)",
+                cardShadow: "rgba(1, 94, 207, 0.14)",
+                buttonText: "#ffffff",
+                buttonShadow: "rgba(1, 153, 254, 0.24)",
+                buttonShadowStrong: "rgba(1, 153, 254, 0.3)"
+            }}
+        />
     );
-};
-
-const styles: { [key: string]: React.CSSProperties } = {
-    container: {
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        height: "100vh",
-        backgroundColor: "#0199fe"
-    },
-    form: {
-        backgroundColor: "#ffffff",
-        padding: "40px 30px",
-        borderRadius: 12,
-        boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        minWidth: 300
-    },
-    logo: {
-        width: 60,
-        height: 60,
-        marginBottom: 20
-    },
-    title: {
-        marginBottom: 20,
-        color: "#333",
-        fontFamily: "Segoe UI, sans-serif"
-    },
-    input: {
-        width: "100%",
-        padding: "10px 12px",
-        marginBottom: 15,
-        borderRadius: 6,
-        border: "1px solid #ccc",
-        fontSize: 14
-    },
-    button: {
-        width: "100%",
-        padding: "10px 12px",
-        borderRadius: 6,
-        border: "none",
-        backgroundColor: "#0199fe",
-        color: "#fff",
-        fontSize: 16,
-        cursor: "pointer",
-        transition: "background-color 0.2s"
-    },
-    error: {
-        color: "#d13438",
-        marginBottom: 10,
-        fontSize: 13,
-        textAlign: "center"
-    }
 };
 
 export default BasicLogin;

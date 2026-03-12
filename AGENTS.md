@@ -47,6 +47,7 @@ If necessary, edit this file to ensure it accurately reflects the current state 
     * app/frontend/src/index.tsx: Frontend entry point and router setup. It resolves chatbot UI by URL path (`/<chatbot_name>`), serves a landing/error page on `/`, provides a password-gated chatbot directory at `/chatbots`, and routes unknown frontend paths back to `/`.
     * app/frontend/src/pages/ChatbotDirectory.tsx: Password-gated page listing all currently registered chatbot links.
     * app/frontend/src/chatbots/registry.ts: Registry of available chatbot UIs, including the chatbot-specific i18n instance.
+    * app/frontend/src/chatbots/shared/basicauth/BasicLoginPage.tsx: Shared themed basic-auth login page used by chatbot-specific basic auth routes.
     * app/frontend/src/chatbots/<chatbot_name>: Chatbot-specific frontend implementation (pages, components, layout wrapper, i18n, locales, assets, and chatbot wiring).
       * app/frontend/src/chatbots/nerilio: Chatbot implementation.
       * app/frontend/src/chatbots/steuertipps: Chatbot implementation.

@@ -1,6 +1,7 @@
 import { FormEvent, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
+import { Icon } from "@fluentui/react";
 
 import { chatbotDefinitions } from "../chatbots/registry";
 import styles from "./ChatbotDirectory.module.css";
@@ -22,6 +23,7 @@ const ChatbotDirectory = () => {
     const [isAuthenticated, setIsAuthenticated] = useState<boolean>(getInitialAuthenticationState);
     const [password, setPassword] = useState("");
     const [errorMessage, setErrorMessage] = useState("");
+    const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
     const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -31,6 +33,7 @@ const ChatbotDirectory = () => {
             setIsAuthenticated(true);
             setPassword("");
             setErrorMessage("");
+            setIsPasswordVisible(false);
             return;
         }
 
@@ -42,6 +45,7 @@ const ChatbotDirectory = () => {
         setIsAuthenticated(false);
         setPassword("");
         setErrorMessage("");
+        setIsPasswordVisible(false);
     };
 
     return (
@@ -86,19 +90,33 @@ const ChatbotDirectory = () => {
                             <label className={styles.label} htmlFor="directory-password">
                                 Access code
                             </label>
-                            <input
-                                id="directory-password"
-                                className={styles.input}
-                                type="password"
-                                name="directory-access-code"
-                                value={password}
-                                onChange={event => setPassword(event.target.value)}
-                                placeholder="Enter access code"
-                                autoComplete="new-password"
-                                data-lpignore="true"
-                                data-1p-ignore="true"
-                                data-form-type="other"
-                            />
+                            <div className={styles.inputWrap}>
+                                <input
+                                    id="directory-password"
+                                    className={`${styles.input} ${!isPasswordVisible ? styles.maskedInput : ""}`}
+                                    type="text"
+                                    name="directory-access-code"
+                                    value={password}
+                                    onChange={event => setPassword(event.target.value)}
+                                    placeholder="Enter access code"
+                                    autoComplete="off"
+                                    spellCheck={false}
+                                    autoCapitalize="none"
+                                    autoCorrect="off"
+                                    data-lpignore="true"
+                                    data-1p-ignore="true"
+                                    data-form-type="other"
+                                />
+                                <button
+                                    className={styles.visibilityToggle}
+                                    type="button"
+                                    aria-label={isPasswordVisible ? "Hide access code" : "Show access code"}
+                                    aria-pressed={isPasswordVisible}
+                                    onClick={() => setIsPasswordVisible(current => !current)}
+                                >
+                                    <Icon iconName={isPasswordVisible ? "Hide3" : "RedEye"} />
+                                </button>
+                            </div>
 
                             <button className={styles.primaryButton} type="submit">
                                 Unlock directory

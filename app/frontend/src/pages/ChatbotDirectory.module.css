@@ -168,11 +168,15 @@
     color: var(--text-strong);
 }
 
+.inputWrap {
+    position: relative;
+}
+
 .input {
     width: 100%;
     border: 1px solid rgba(172, 68, 198, 0.16);
     border-radius: 16px;
-    padding: 16px 18px;
+    padding: 16px 54px 16px 18px;
     background: rgba(255, 255, 255, 0.88);
     color: var(--text-strong);
     font: inherit;
@@ -186,11 +190,46 @@
     color: #998baa;
 }
 
+.maskedInput {
+    -webkit-text-security: disc;
+}
+
 .input:focus {
     outline: none;
     border-color: rgba(172, 68, 198, 0.42);
     box-shadow: 0 0 0 4px rgba(172, 68, 198, 0.12);
     transform: translateY(-1px);
+}
+
+.visibilityToggle {
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transform: translateY(-50%);
+    transition:
+        background-color 160ms ease,
+        color 160ms ease;
+}
+
+.visibilityToggle:hover {
+    background: rgba(172, 68, 198, 0.08);
+    color: var(--accent-dark);
+}
+
+.visibilityToggle:focus-visible {
+    outline: 2px solid rgba(172, 68, 198, 0.28);
+    outline-offset: 2px;
 }
 
 .primaryButton,
