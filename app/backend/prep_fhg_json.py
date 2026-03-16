@@ -13,6 +13,8 @@ from azure.identity.aio import AzureDeveloperCliCredential
 from azure.storage.blob import ContentSettings
 from openai import AsyncOpenAI
 
+from delete_documents_by_category import delete_documents_by_category
+
 try:
     from rich.logging import RichHandler
 except ImportError:  # pragma: no cover - optional dependency for nicer local logs
@@ -54,20 +56,6 @@ async def remove_blobs_with_prefix(blob_manager: BlobManager, prefix: str) -> No
     async for blob_name in container_client.list_blob_names(name_starts_with=prefix):
         logger.info("Removing existing FHG source blob '%s'", blob_name)
         await container_client.delete_blob(blob_name)
-
-
-async def remove_existing_category(search_info: SearchInfo, category: str) -> None:
-    escaped_category = category.replace("'", "''")
-    async with search_info.create_search_client() as search_client:
-        while True:
-            results = await search_client.search(search_text="", filter=f"category eq '{escaped_category}'", top=1000)
-            documents_to_remove = [{"id": document["id"]} async for document in results]
-            if not documents_to_remove:
-                break
-
-            logger.info("Removing %d existing documents for category '%s'", len(documents_to_remove), category)
-            await search_client.delete_documents(documents_to_remove)
-            await asyncio.sleep(2)
 
 
 async def upload_dataset_documents(
@@ -210,7 +198,7 @@ async def run(args: argparse.Namespace) -> None:
         )
 
         if not args.preserveexisting:
-            await remove_existing_category(search_info, args.category)
+            await delete_documents_by_category(search_info, args.category)
             await remove_blobs_with_prefix(blob_manager, f"{args.sourceprefix}/")
 
         await upload_source_blobs(blob_manager, prepared_dataset)
