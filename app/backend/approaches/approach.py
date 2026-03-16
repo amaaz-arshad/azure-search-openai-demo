@@ -68,6 +68,7 @@ class Document:
     category: Optional[str] = None
     sourcepage: Optional[str] = None
     sourcefile: Optional[str] = None
+    storage_url: Optional[str] = None
     oids: Optional[list[str]] = None
     groups: Optional[list[str]] = None
     captions: Optional[list[QueryCaptionResult]] = None
@@ -344,6 +345,7 @@ class Approach(ABC):
                         category=document.get("category"),
                         sourcepage=document.get("sourcepage"),
                         sourcefile=document.get("sourcefile"),
+                        storage_url=document.get("storageUrl"),
                         oids=document.get("oids"),
                         groups=document.get("groups"),
                         captions=cast(list[QueryCaptionResult], document.get("@search.captions")),
@@ -448,6 +450,7 @@ class Approach(ABC):
         use_sharepoint_source: bool = False,
         retrieval_reasoning_effort: Optional[str] = None,
         should_rewrite_query: bool = True,
+        use_document_storage_url_for_citations: bool = False,
     ) -> AgenticRetrievalResults:
         # STEP 1: Invoke agentic retrieval
         thoughts = []
@@ -606,6 +609,7 @@ class Approach(ABC):
                         category=ref.source_data.get("category"),
                         sourcepage=ref.source_data.get("sourcepage"),
                         sourcefile=ref.source_data.get("sourcefile"),
+                        storage_url=ref.source_data.get("storageUrl"),
                         oids=ref.source_data.get("oids"),
                         groups=ref.source_data.get("groups"),
                         reranker_score=getattr(ref, "reranker_score", None),
@@ -659,9 +663,15 @@ class Approach(ABC):
             message_content = response.response[0].content[0]
             if isinstance(message_content, KnowledgeBaseMessageTextContent):
                 raw_answer: Optional[str] = message_content.text
-                # Replace all ref_id tokens (web -> URL, documents -> sourcepage, SharePoint -> web_url)
+                # Replace all ref_id tokens (web -> URL, SharePoint -> web_url, documents -> configured citation)
                 if raw_answer:
-                    answer = self.replace_all_ref_ids(raw_answer, document_results, web_results, sharepoint_results)
+                    answer = self.replace_all_ref_ids(
+                        raw_answer,
+                        document_results,
+                        web_results,
+                        sharepoint_results,
+                        use_document_storage_url_for_citations=use_document_storage_url_for_citations,
+                    )
 
         thoughts.append(
             ThoughtStep(
@@ -696,13 +706,20 @@ class Approach(ABC):
         documents: list[Document],
         web_results: list[WebResult],
         sharepoint_results: Optional[list[SharePointResult]] = None,
+        use_document_storage_url_for_citations: bool = False,
     ) -> str:
-        """Replace [ref_id:<id>] tokens with document sourcepage, web URL, or SharePoint web_url.
+        """Replace [ref_id:<id>] tokens with document citation, web URL, or SharePoint web_url.
 
         Priority: web result -> SharePoint result -> document.
         Unknown ids left untouched.
         """
-        doc_map = {d.ref_id: d.sourcepage for d in documents if d.ref_id and d.sourcepage}
+        doc_map: dict[str, str] = {}
+        for document in documents:
+            citation = self.get_document_citation(
+                document, use_storage_url=use_document_storage_url_for_citations
+            )
+            if document.ref_id and citation:
+                doc_map[document.ref_id] = citation
         web_map = {str(w.id): w.url for w in web_results if w.id and w.url}
         sharepoint_entries = sharepoint_results or []
         sharepoint_map = {str(sp.id): sp.web_url.split("/")[-1] for sp in sharepoint_entries if sp.id and sp.web_url}
@@ -728,6 +745,7 @@ class Approach(ABC):
         user_oid: Optional[str] = None,
         web_results: Optional[list[WebResult]] = None,
         sharepoint_results: Optional[list[SharePointResult]] = None,
+        use_document_storage_url_for_citations: bool = False,
     ) -> DataPoints:
         """Extract text/image sources & citations from documents.
 
@@ -756,8 +774,7 @@ class Approach(ABC):
         citation_activity_details: dict[str, dict[str, Any]] = {}
 
         for doc in results:
-            # Get the citation for the source page
-            citation = self.get_citation(doc.sourcepage)
+            citation = self.get_document_citation(doc, use_storage_url=use_document_storage_url_for_citations)
             if citation not in citations:
                 citations.append(citation)
                 # Add activity details if available
@@ -781,7 +798,7 @@ class Approach(ABC):
                     url = await self.download_blob_as_base64(img["url"], user_oid=user_oid)
                     if url:
                         image_sources.append(url)
-                    image_citation = self.get_image_citation(doc.sourcepage or "", img["url"])
+                    image_citation = self.get_image_citation(citation, img["url"])
                     citations.append(image_citation)
         if web_results:
             for web in web_results:
@@ -832,10 +849,15 @@ class Approach(ABC):
     def get_citation(self, sourcepage: Optional[str]):
         return sourcepage or ""
 
-    def get_image_citation(self, sourcepage: Optional[str], image_url: str):
-        sourcepage_citation = self.get_citation(sourcepage)
+    def get_document_citation(self, document: Document, use_storage_url: bool = False) -> str:
+        if use_storage_url and document.storage_url:
+            return document.storage_url
+        return self.get_citation(document.sourcepage)
+
+    def get_image_citation(self, citation: Optional[str], image_url: str):
+        base_citation = citation or ""
         image_filename = image_url.split("/")[-1]
-        return f"{sourcepage_citation}({image_filename})"
+        return f"{base_citation}({image_filename})"
 
     async def download_blob_as_base64(self, blob_url: str, user_oid: Optional[str] = None) -> Optional[str]:
         """

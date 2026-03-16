@@ -505,6 +505,53 @@ async def test_get_sources_content_includes_sharepoint(chat_approach):
     )
 
 
+@pytest.mark.asyncio
+async def test_get_sources_content_uses_storage_url_for_fhg_citations(chat_approach):
+    documents = [
+        Document(
+            id="doc1",
+            sourcepage="fhg/radiologietechnologie-page-812.txt",
+            sourcefile="fhg_alle_studien_20260310.json",
+            storage_url="https://www.fhg-tirol.ac.at/page.cfm?vpath=studium/bachelor/radiologietechnologie",
+            content="Study content",
+        )
+    ]
+
+    data_points = await chat_approach.get_sources_content(
+        documents,
+        use_semantic_captions=False,
+        include_text_sources=True,
+        download_image_sources=False,
+        use_document_storage_url_for_citations=True,
+    )
+
+    assert data_points.citations == ["https://www.fhg-tirol.ac.at/page.cfm?vpath=studium/bachelor/radiologietechnologie"]
+    assert data_points.text == [
+        "https://www.fhg-tirol.ac.at/page.cfm?vpath=studium/bachelor/radiologietechnologie: Study content"
+    ]
+
+
+def test_replace_all_ref_ids_uses_storage_url_for_fhg_citations(chat_approach):
+    answer = "See [ref_id:1] for the source."
+    documents = [
+        Document(
+            id="doc1",
+            ref_id="1",
+            sourcepage="fhg/radiologietechnologie-page-812.txt",
+            storage_url="https://www.fhg-tirol.ac.at/page.cfm?vpath=studium/bachelor/radiologietechnologie",
+        )
+    ]
+
+    result = chat_approach.replace_all_ref_ids(
+        answer,
+        documents,
+        [],
+        use_document_storage_url_for_citations=True,
+    )
+
+    assert result == "See [https://www.fhg-tirol.ac.at/page.cfm?vpath=studium/bachelor/radiologietechnologie] for the source."
+
+
 def test_select_knowledgebase_client_priorities(chat_approach):
     primary = object()
     web = object()

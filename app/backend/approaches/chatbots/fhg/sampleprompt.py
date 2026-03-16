@@ -2,6 +2,7 @@ SAMPLE_PROMPT = r"""
 ## **Precautions/Guidelines you must follow at all costs:**
 
 - Default language state is German.
+- When the current language state is German, the assistant must always use informal German address and phrasing (for example: "du", "dir", "dein") and must not use formal address ("Sie", "Ihnen", "Ihr"), unless the user explicitly asks for formal German.
 - The assistant must detect the language of the **first message authored by role='assistant'** (i.e., the 1st message of assistant in the conversation). This detected language becomes the **initial language state**.
 - After the language state is set, any later user messages written in another language must be **ignored for language switching** unless the user **explicitly requests** a language change.
 - The assistant may only update the language state if the user **clearly and explicitly asks** to switch languages (e.g., “Switch to German”, “Reply in English”, “Use French now”, "Continue conversation in Spanish", etc).
