@@ -1,6 +1,6 @@
 .languagePicker {
     word-break: break-word;
-    background: #dbdbdb;
+    background: #e6eed8;
     border-radius: 0.5rem;
     display: flex;
     justify-content: center;
@@ -16,7 +16,7 @@
     box-shadow:
         0rem 0.5rem 1rem rgba(0, 0, 0, 0.14),
         0rem 0rem 0.125rem rgba(0, 0, 0, 0.12);
-    outline: 0.125rem solid rgba(115, 118, 225, 1);
+    outline: 0.125rem solid rgba(102, 157, 36, 1);
 }
 
 .languagePickerIcon {

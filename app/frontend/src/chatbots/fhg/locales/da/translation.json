@@ -2,7 +2,7 @@
     "pageTitle": "FHG chatbot",
     "headerTitle": "FHG chatbot",
     "initialUserMsg": "Hej",
-    "initialAssistantMsg": "Velkommen! Dejligt at du er her. Vil du teste din viden om et emne, eller har du spørgsmål, du gerne vil have afklaret?",
+    "initialAssistantMsg": "Hej! Skriv bare dit spørgsmål i chatten.",
     "chat": "Chat",
     "login": "Log ind",
     "logout": "Log ud",
@@ -163,3 +163,4 @@
     "searchSettings": "Søgeindstillinger",
     "llmSettings": "LLM-indstillinger"
 }
+

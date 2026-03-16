@@ -2,10 +2,17 @@ import { useEffect, useRef, useState } from "react";
 import { useMsal } from "@azure/msal-react";
 import { useLogin, checkLoggedIn } from "./authConfig";
 import { LoginContext } from "./loginContext";
+import BasicLogin from "./pages/basicauth/BasicLogin";
+import { isAuthenticated } from "./pages/basicauth/basicAuth";
 import Layout from "./pages/layout/Layout";
 
 const LayoutWrapper = () => {
     const [loggedIn, setLoggedIn] = useState(false);
+    const [basicAuthenticated, setBasicAuthenticated] = useState<boolean>(isAuthenticated());
+
+    if (!basicAuthenticated) {
+        return <BasicLogin onSuccess={() => setBasicAuthenticated(true)} />;
+    }
 
     if (useLogin) {
         const { instance } = useMsal();

@@ -12,7 +12,7 @@ import { parseAnswerToHtml } from "./AnswerParser";
 import { AnswerIcon } from "./AnswerIcon";
 import { SpeechOutputBrowser } from "./SpeechOutputBrowser";
 import { SpeechOutputAzure } from "./SpeechOutputAzure";
-import fhgLogo from "../../../../assets/applogo.svg";
+import fhgLogo from "../../assets/grafik.png";
 import supersub from "remark-supersub";
 
 const cleanSpeechText = (rawText: string): string => {
@@ -107,7 +107,7 @@ export const Answer = ({
                         <img src={fhgLogo} alt="FHG chatbot logo" className={styles.assistantAvatar} />
                         <div className={styles.assistantName}>{t("headerTitle")}</div>
                     </div>
-                    <div>
+                    {/* <div>
                         <IconButton
                             style={{ color: "black" }}
                             iconProps={{ iconName: copied ? "CheckMark" : "Copy" }}
@@ -115,7 +115,7 @@ export const Answer = ({
                             ariaLabel={copied ? t("tooltips.copied") : t("tooltips.copy")}
                             onClick={handleCopy}
                         />
-                        {/* <IconButton
+                        <IconButton
                             style={{ color: "black" }}
                             iconProps={{ iconName: "Lightbulb" }}
                             title={t("tooltips.showThoughtProcess")}
@@ -130,10 +130,10 @@ export const Answer = ({
                             ariaLabel={t("tooltips.showSupportingContent")}
                             onClick={() => onSupportingContentClicked()}
                             disabled={!answer.context?.data_points || isStreaming}
-                        /> */}
+                        />
                         {showSpeechOutputAzure && <SpeechOutputAzure answer={answerForSpeech} isStreaming={isStreaming} />}
                         {showSpeechOutputBrowser && <SpeechOutputBrowser answer={sanitizedAnswerHtml} />}
-                    </div>
+                    </div> */}
                 </Stack>
             </Stack.Item>
 
@@ -141,7 +141,7 @@ export const Answer = ({
                 <ReactMarkdown children={sanitizedAnswerHtml} rehypePlugins={[rehypeRaw]} remarkPlugins={[remarkGfm, supersub]} />
             </Stack.Item>
 
-            {!!parsedAnswer.citations.length && !isStreaming && (
+            {!!parsedAnswer.citations.length && (
                 <Stack.Item>
                     <Stack horizontal wrap tokens={{ childrenGap: 5 }}>
                         <span className={styles.citationLearnMore}>{t("citationWithColon")}</span>
@@ -167,10 +167,10 @@ export const Answer = ({
                                         <a
                                             className={styles.citation}
                                             title={reference}
-                                            onClick={e => {
-                                                e.preventDefault();
-                                                onCitationClicked(path);
-                                            }}
+                                            // onClick={e => {
+                                            //     e.preventDefault();
+                                            //     onCitationClicked(path);
+                                            // }}
                                         >
                                             {`${displayIndex}. ${reference}`}
                                         </a>

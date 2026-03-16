@@ -2,7 +2,7 @@
     "pageTitle": "FHG chatbot",
     "headerTitle": "FHG chatbot",
     "initialUserMsg": "Merhaba",
-    "initialAssistantMsg": "Hoş geldiniz! Burada olmanıza sevindik. Bir konuda bilginizi test etmek ister misiniz, yoksa açıklığa kavuşturmak istediğiniz sorularınız mı var?",
+    "initialAssistantMsg": "Merhaba! Sorunuzu sohbet alanına yazmanız yeterli.",
     "chat": "Sohbet",
     "login": "Giriş yap",
     "logout": "Çıkış yap",
@@ -183,3 +183,4 @@
     "searchSettings": "Arama ayarları",
     "llmSettings": "LLM ayarları"
 }
+

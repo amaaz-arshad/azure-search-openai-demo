@@ -7,8 +7,9 @@ import { useLogin } from "../../authConfig";
 
 import { LoginButton } from "../../components/LoginButton";
 import { IconButton } from "@fluentui/react";
-import { MoreHorizontal24Regular, ChatAdd24Regular, ChatDismiss24Regular, History24Regular } from "@fluentui/react-icons";
-import fhgLogo from "../../../../assets/applogo.svg";
+import { ChatDismiss24Regular, SignOut24Regular } from "@fluentui/react-icons";
+import fhgLogo from "../../assets/grafik.png";
+import { logout } from "../basicauth/basicAuth";
 
 // At the top of the file, outside the component
 let globalClearChat: () => void = () => {};
@@ -71,6 +72,12 @@ const Layout = () => {
         console.log("View recent chats");
     };
 
+    const handleBasicLogout = () => {
+        setDropdownOpen(false);
+        logout();
+        window.location.reload();
+    };
+
     return (
         <div className={styles.layout}>
             <header className={styles.header} role={"banner"}>
@@ -115,6 +122,12 @@ const Layout = () => {
                                             <span>View recent chats</span>
                                         </button>
                                     </li> */}
+                                    <li>
+                                        <button className={styles.dropdownItem} onClick={handleBasicLogout}>
+                                            <SignOut24Regular />
+                                            <span>{t("logout")}</span>
+                                        </button>
+                                    </li>
                                 </ul>
                             )}
                         </div>

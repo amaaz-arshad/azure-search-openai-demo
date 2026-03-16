@@ -2,7 +2,7 @@
     "pageTitle": "FHG chatbot",
     "headerTitle": "FHG chatbot",
     "initialUserMsg": "Hola",
-    "initialAssistantMsg": "¡Bienvenido/a! Me alegra que estés aquí. ¿Te gustaría poner a prueba tus conocimientos sobre un tema o tienes preguntas que te gustaría aclarar?",
+    "initialAssistantMsg": "¡Hola! Solo escribe tu pregunta en el chat.",
     "chat": "Chat",
     "login": "Iniciar sesión",
     "logout": "Cerrar sesión",
@@ -184,3 +184,4 @@
     "searchSettings": "Configuración de búsqueda",
     "llmSettings": "Configuración de LLM"
 }
+

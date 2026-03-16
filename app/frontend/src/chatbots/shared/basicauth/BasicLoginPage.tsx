@@ -116,7 +116,7 @@ const BasicLoginPage = ({
             <section className={styles.shell}>
                 <section className={styles.card}>
                     <div className={styles.header}>
-                        <span className={styles.eyebrow}>{theme.chatbotName}</span>
+                        {/* <span className={styles.eyebrow}>{theme.chatbotName}</span> */}
                         <div className={styles.logoFrame}>
                             <img className={styles.logo} src={logoSrc} alt={logoAlt} />
                         </div>

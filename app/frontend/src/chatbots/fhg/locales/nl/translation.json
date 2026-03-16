@@ -2,7 +2,7 @@
     "pageTitle": "FHG chatbot",
     "headerTitle": "FHG chatbot",
     "initialUserMsg": "Hallo",
-    "initialAssistantMsg": "Welkom! Fijn dat je er bent. Wil je je kennis over een onderwerp testen of heb je vragen die je wilt verduidelijken?",
+    "initialAssistantMsg": "Hallo! Schrijf gewoon je vraag in de chat.",
     "chat": "Chat",
     "login": "Inloggen",
     "logout": "Uitloggen",
@@ -176,3 +176,4 @@
     "searchSettings": "Zoekinstellingen",
     "llmSettings": "LLM-instellingen"
 }
+

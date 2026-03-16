@@ -2,7 +2,7 @@
     "pageTitle": "FHG chatbot",
     "headerTitle": "FHG chatbot",
     "initialUserMsg": "こんにちは",
-    "initialAssistantMsg": "ようこそ！お越しいただきありがとうございます。あるテーマについて知識を試したいですか？それとも確認したい質問がありますか？",
+    "initialAssistantMsg": "こんにちは！ チャットに質問を入力してください。",
     "chat": "Chat",
     "qa": "Ask a question",
     "login": "Login",
@@ -181,3 +181,4 @@
     "searchSettings": "検索設定",
     "llmSettings": "LLM設定"
 }
+

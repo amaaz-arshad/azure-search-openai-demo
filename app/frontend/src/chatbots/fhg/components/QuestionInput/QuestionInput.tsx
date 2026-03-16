@@ -114,7 +114,7 @@ export const QuestionInput = ({ onSend, onStop, disabled, placeholder, clearOnSe
                     </Tooltip>
                 )}
             </div>
-            {showSpeechInput && <SpeechInput updateQuestion={setQuestion} />}
+            {/* {showSpeechInput && <SpeechInput updateQuestion={setQuestion} />} */}
         </Stack>
     );
 };

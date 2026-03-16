@@ -19,7 +19,7 @@
     margin: auto;
     margin-left: 1.25em;
     min-height: 3.125em;
-    border-left: 0.0625em solid #123bb6;
+    border-left: 0.0625em solid #527e1d;
     padding: 0 0 1.875em 1.875em;
     position: relative;
 }
@@ -33,15 +33,15 @@
     left: -18px;
     top: -5px;
     content: " ";
-    border: 8px solid #d1dbfa;
+    border: 8px solid #dbe8c4;
     border-radius: 500%;
-    background: #123bb6;
+    background: #527e1d;
     height: 20px;
     width: 20px;
 }
 
 .tStep {
-    color: #123bb6;
+    color: #527e1d;
     position: relative;
     font-size: 0.875em;
     margin-bottom: 0.5em;
@@ -83,7 +83,7 @@
 }
 
 .header {
-    color: #123bb6;
+    color: #527e1d;
     position: relative;
     font-size: 0.875em;
     margin-bottom: 0.5em;
@@ -150,7 +150,7 @@
 }
 
 .outputBar {
-    background-color: #12579b;
+    background-color: #669d24;
     color: #ffffff;
     min-width: 120px;
 }
@@ -206,7 +206,7 @@
 
 .stepNumberText {
     font-weight: 600;
-    color: #123bb6;
+    color: #527e1d;
 }
 
 .stepLabel {
@@ -248,8 +248,8 @@
     text-align: center;
     border-radius: 0.25em;
     padding: 0em 0.5em;
-    background: #d1dbfa;
-    color: #123bb6;
+    background: #dbe8c4;
+    color: #527e1d;
     text-decoration: none;
     cursor: pointer;
     display: inline-block;
