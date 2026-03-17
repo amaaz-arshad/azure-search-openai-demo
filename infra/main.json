@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.40.2.10011",
-      "templateHash": "16537123009963399967"
+      "templateHash": "13193174673341854646"
     }
   },
   "parameters": {
@@ -252,6 +252,10 @@
     },
     "speechServiceSkuName": {
       "type": "string"
+    },
+    "speechServiceDisableLocalAuth": {
+      "type": "bool",
+      "defaultValue": false
     },
     "speechServiceVoice": {
       "type": "string",
@@ -728,6 +732,20 @@
         "containerapps"
       ]
     },
+    "containerAppCustomDomainName": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Optional hostname to bind to the backend Azure Container App ingress."
+      }
+    },
+    "containerAppCustomDomainCertificateId": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Optional managed environment certificate resource ID used to bind the backend Container App custom domain."
+      }
+    },
     "ragSearchTextEmbeddings": {
       "type": "bool",
       "defaultValue": true,
@@ -973,6 +991,7 @@
     "loginEndpointFixed": "[if(equals(lastIndexOf(variables('loginEndpoint'), '/'), sub(length(variables('loginEndpoint')), 1)), substring(variables('loginEndpoint'), 0, max(sub(length(variables('loginEndpoint')), 1), 0)), variables('loginEndpoint'))]",
     "allMsftAllowedOrigins": "[if(not(empty(parameters('clientAppId'))), union(variables('msftAllowedOrigins'), createArray(variables('loginEndpointFixed'))), variables('msftAllowedOrigins'))]",
     "allowedOrigins": "[reduce(filter(union(split(parameters('allowedOrigin'), ';'), variables('allMsftAllowedOrigins')), lambda('o', greater(length(trim(lambdaVariables('o'))), 0))), createArray(), lambda('cur', 'next', union(lambdaVariables('cur'), createArray(lambdaVariables('next')))))]",
+    "containerAppCustomDomains": "[if(and(not(empty(parameters('containerAppCustomDomainName'))), not(empty(parameters('containerAppCustomDomainCertificateId')))), createArray(createObject('name', parameters('containerAppCustomDomainName'), 'bindingType', 'SniEnabled', 'certificateId', parameters('containerAppCustomDomainCertificateId'))), createArray())]",
     "defaultOpenAiDeployments": [
       {
         "name": "[variables('chatGpt').deploymentName]",
@@ -5257,6 +5276,9 @@
           "allowedOrigins": {
             "value": "[variables('allowedOrigins')]"
           },
+          "customDomains": {
+            "value": "[variables('containerAppCustomDomains')]"
+          },
           "env": {
             "value": "[union(createObject('AZURE_STORAGE_ACCOUNT', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('storageResourceGroupName'))), parameters('storageResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'storage'), '2025-04-01').outputs.name.value, 'AZURE_STORAGE_CONTAINER', parameters('storageContainerName'), 'AZURE_STORAGE_RESOURCE_GROUP', if(not(empty(parameters('storageResourceGroupName'))), parameters('storageResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName')))), 'AZURE_CLOUD_INGESTION_STORAGE_ACCOUNT', if(parameters('useCloudIngestionAcls'), if(parameters('useExistingAdlsStorage'), parameters('adlsStorageAccountName'), if(parameters('useCloudIngestionAcls'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('storageResourceGroupName'))), parameters('storageResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'adls-storage'), '2025-04-01').outputs.name.value, '')), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('storageResourceGroupName'))), parameters('storageResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'storage'), '2025-04-01').outputs.name.value), 'USE_CLOUD_INGESTION_ACLS', string(parameters('useCloudIngestionAcls')), 'AZURE_SUBSCRIPTION_ID', subscription().subscriptionId, 'AZURE_SEARCH_INDEX', parameters('searchIndexName'), 'AZURE_SEARCH_KNOWLEDGEBASE_NAME', parameters('knowledgeBaseName'), 'AZURE_SEARCH_SERVICE', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('searchServiceResourceGroupName'))), parameters('searchServiceResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'search-service'), '2025-04-01').outputs.name.value, 'AZURE_SEARCH_SEMANTIC_RANKER', variables('actualSearchServiceSemanticRankerLevel'), 'AZURE_SEARCH_QUERY_REWRITING', parameters('searchServiceQueryRewriting'), 'AZURE_VISION_ENDPOINT', if(parameters('useMultimodal'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('visionResourceGroupName'))), parameters('visionResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'vision'), '2025-04-01').outputs.endpoint.value, ''), 'AZURE_SEARCH_QUERY_LANGUAGE', parameters('searchQueryLanguage'), 'AZURE_SEARCH_QUERY_SPELLER', parameters('searchQuerySpeller'), 'AZURE_SEARCH_FIELD_NAME_EMBEDDING', parameters('searchFieldNameEmbedding'), 'APPLICATIONINSIGHTS_CONNECTION_STRING', if(parameters('useApplicationInsights'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName')))), 'Microsoft.Resources/deployments', 'monitoring'), '2025-04-01').outputs.applicationInsightsConnectionString.value, ''), 'AZURE_SPEECH_SERVICE_ID', if(parameters('useSpeechOutputAzure'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('speechServiceResourceGroupName'))), parameters('speechServiceResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'speech-service'), '2025-04-01').outputs.resourceId.value, ''), 'AZURE_SPEECH_SERVICE_LOCATION', if(parameters('useSpeechOutputAzure'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('speechServiceResourceGroupName'))), parameters('speechServiceResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'speech-service'), '2025-04-01').outputs.location.value, ''), 'AZURE_SPEECH_SERVICE_VOICE', if(parameters('useSpeechOutputAzure'), parameters('speechServiceVoice'), ''), 'ENABLE_LANGUAGE_PICKER', parameters('enableLanguagePicker'), 'USE_SPEECH_INPUT_BROWSER', parameters('useSpeechInputBrowser'), 'USE_SPEECH_OUTPUT_BROWSER', parameters('useSpeechOutputBrowser'), 'USE_SPEECH_OUTPUT_AZURE', parameters('useSpeechOutputAzure'), 'USE_AGENTIC_KNOWLEDGEBASE', parameters('useAgenticKnowledgeBase'), 'USE_CHAT_HISTORY_BROWSER', parameters('useChatHistoryBrowser'), 'USE_CHAT_HISTORY_COSMOS', parameters('useChatHistoryCosmos'), 'AZURE_COSMOSDB_ACCOUNT', if(and(parameters('useAuthentication'), parameters('useChatHistoryCosmos')), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('cosmodDbResourceGroupName'))), parameters('cosmodDbResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'cosmosdb'), '2025-04-01').outputs.name.value, ''), 'AZURE_CHAT_HISTORY_DATABASE', parameters('chatHistoryDatabaseName'), 'AZURE_CHAT_HISTORY_CONTAINER', parameters('chatHistoryContainerName'), 'AZURE_CHAT_HISTORY_VERSION', parameters('chatHistoryVersion'), 'OPENAI_HOST', parameters('openAiHost'), 'AZURE_OPENAI_EMB_MODEL_NAME', variables('embedding').modelName, 'AZURE_OPENAI_EMB_DIMENSIONS', variables('embedding').dimensions, 'AZURE_OPENAI_CHATGPT_MODEL', variables('chatGpt').modelName, 'AZURE_OPENAI_REASONING_EFFORT', parameters('defaultReasoningEffort'), 'AGENTIC_KNOWLEDGEBASE_REASONING_EFFORT', parameters('defaultRetrievalReasoningEffort'), 'AZURE_OPENAI_SERVICE', if(and(parameters('isAzureOpenAiHost'), parameters('deployAzureOpenAi')), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('openAiResourceGroupName'))), parameters('openAiResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'openai'), '2025-04-01').outputs.name.value, ''), 'AZURE_OPENAI_CHATGPT_DEPLOYMENT', variables('chatGpt').deploymentName, 'AZURE_OPENAI_EMB_DEPLOYMENT', variables('embedding').deploymentName, 'AZURE_OPENAI_knowledgeBase_MODEL', variables('knowledgeBase').modelName, 'AZURE_OPENAI_knowledgeBase_DEPLOYMENT', variables('knowledgeBase').deploymentName, 'AZURE_OPENAI_API_KEY_OVERRIDE', parameters('azureOpenAiApiKey'), 'AZURE_OPENAI_CUSTOM_URL', parameters('azureOpenAiCustomUrl'), 'OPENAI_API_KEY', parameters('openAiApiKey'), 'OPENAI_ORGANIZATION', parameters('openAiApiOrganization'), 'AZURE_USE_AUTHENTICATION', parameters('useAuthentication'), 'AZURE_ENFORCE_ACCESS_CONTROL', parameters('enforceAccessControl'), 'AZURE_ENABLE_GLOBAL_DOCUMENT_ACCESS', parameters('enableGlobalDocuments'), 'AZURE_ENABLE_UNAUTHENTICATED_ACCESS', parameters('enableUnauthenticatedAccess'), 'AZURE_SERVER_APP_ID', parameters('serverAppId'), 'AZURE_CLIENT_APP_ID', parameters('clientAppId'), 'AZURE_TENANT_ID', parameters('tenantId'), 'AZURE_AUTH_TENANT_ID', variables('tenantIdForAuth'), 'AZURE_AUTHENTICATION_ISSUER_URI', variables('authenticationIssuerUri'), 'ALLOWED_ORIGIN', join(variables('allowedOrigins'), ';'), 'USE_VECTORS', parameters('useVectors'), 'USE_MULTIMODAL', parameters('useMultimodal'), 'USE_USER_UPLOAD', parameters('useUserUpload'), 'AZURE_USERSTORAGE_ACCOUNT', if(parameters('useUserUpload'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('storageResourceGroupName'))), parameters('storageResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'user-storage'), '2025-04-01').outputs.name.value, ''), 'AZURE_USERSTORAGE_CONTAINER', if(parameters('useUserUpload'), parameters('userStorageContainerName'), ''), 'AZURE_IMAGESTORAGE_CONTAINER', if(parameters('useMultimodal'), parameters('imageStorageContainerName'), ''), 'AZURE_DOCUMENTINTELLIGENCE_SERVICE', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('documentIntelligenceResourceGroupName'))), parameters('documentIntelligenceResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'documentintelligence'), '2025-04-01').outputs.name.value, 'USE_LOCAL_PDF_PARSER', parameters('useLocalPdfParser'), 'USE_LOCAL_HTML_PARSER', parameters('useLocalHtmlParser'), 'USE_MEDIA_DESCRIBER_AZURE_CU', parameters('useMediaDescriberAzureCU'), 'AZURE_CONTENTUNDERSTANDING_ENDPOINT', if(parameters('useMediaDescriberAzureCU'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('contentUnderstandingResourceGroupName'))), parameters('contentUnderstandingResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'content-understanding'), '2025-04-01').outputs.endpoint.value, ''), 'RUNNING_IN_PRODUCTION', 'true', 'RAG_SEARCH_TEXT_EMBEDDINGS', parameters('ragSearchTextEmbeddings'), 'RAG_SEARCH_IMAGE_EMBEDDINGS', parameters('ragSearchImageEmbeddings'), 'RAG_SEND_TEXT_SOURCES', parameters('ragSendTextSources'), 'RAG_SEND_IMAGE_SOURCES', parameters('ragSendImageSources'), 'USE_WEB_SOURCE', parameters('useWebSource'), 'USE_SHAREPOINT_SOURCE', parameters('useSharePointSource')), createObject('AZURE_CLIENT_ID', if(equals(parameters('deploymentTarget'), 'containerapps'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName')))), 'Microsoft.Resources/deployments', 'aca-identity'), '2025-04-01').outputs.clientId.value, '')))]"
           },
@@ -5270,7 +5292,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.40.2.10011",
-              "templateHash": "7304755980208699413"
+              "templateHash": "5786795025910215008"
             },
             "description": "Creates or updates an existing Azure Container App."
           },
@@ -5435,6 +5457,13 @@
                 "description": "The environment variables with secret references"
               }
             },
+            "customDomains": {
+              "type": "array",
+              "defaultValue": [],
+              "metadata": {
+                "description": "Optional custom domains to attach to ingress. Existing custom domains are preserved when updating an existing app and this parameter is empty."
+              }
+            },
             "external": {
               "type": "bool",
               "defaultValue": true,
@@ -5544,6 +5573,7 @@
                   "allowedOrigins": {
                     "value": "[parameters('allowedOrigins')]"
                   },
+                  "customDomains": "[if(not(empty(parameters('customDomains'))), createObject('value', parameters('customDomains')), if(parameters('exists'), createObject('value', coalesce(tryGet(tryGet(tryGet(reference(resourceId('Microsoft.App/containerApps', parameters('name')), '2023-05-02-preview'), 'configuration'), 'ingress'), 'customDomains'), createArray())), createObject('value', createArray())))]",
                   "external": {
                     "value": "[parameters('external')]"
                   },
@@ -5565,7 +5595,7 @@
                     "_generator": {
                       "name": "bicep",
                       "version": "0.40.2.10011",
-                      "templateHash": "4399870351477552054"
+                      "templateHash": "11532166369333905846"
                     },
                     "description": "Creates a container app in an Azure Container App environment."
                   },
@@ -5586,6 +5616,13 @@
                       "defaultValue": [],
                       "metadata": {
                         "description": "Allowed origins"
+                      }
+                    },
+                    "customDomains": {
+                      "type": "array",
+                      "defaultValue": [],
+                      "metadata": {
+                        "description": "Optional custom domains for ingress."
                       }
                     },
                     "containerAppsEnvironmentName": {
@@ -5794,7 +5831,7 @@
                         "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', parameters('containerAppsEnvironmentName'))]",
                         "configuration": {
                           "activeRevisionsMode": "[parameters('revisionMode')]",
-                          "ingress": "[if(parameters('ingressEnabled'), createObject('external', parameters('external'), 'targetPort', parameters('targetPort'), 'transport', 'auto', 'corsPolicy', createObject('allowedOrigins', union(createArray('https://portal.azure.com', 'https://ms.portal.azure.com'), parameters('allowedOrigins')))), null())]",
+                          "ingress": "[if(parameters('ingressEnabled'), createObject('external', parameters('external'), 'targetPort', parameters('targetPort'), 'transport', 'auto', 'customDomains', parameters('customDomains'), 'corsPolicy', createObject('allowedOrigins', union(createArray('https://portal.azure.com', 'https://ms.portal.azure.com'), parameters('allowedOrigins')))), null())]",
                           "dapr": "[if(parameters('daprEnabled'), createObject('enabled', true(), 'appId', parameters('daprAppId'), 'appProtocol', parameters('daprAppProtocol'), 'appPort', if(parameters('ingressEnabled'), parameters('targetPort'), 0)), createObject('enabled', false()))]",
                           "secrets": "[concat(variables('keyvalueSecrets'), variables('keyvaultIdentitySecrets'))]",
                           "service": "[if(not(empty(parameters('serviceType'))), createObject('type', parameters('serviceType')), null())]",
@@ -35884,6 +35921,9 @@
           },
           "sku": {
             "value": "[parameters('speechServiceSkuName')]"
+          },
+          "disableLocalAuth": {
+            "value": "[parameters('speechServiceDisableLocalAuth')]"
           }
         },
         "template": {

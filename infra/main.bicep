@@ -128,6 +128,7 @@ param speechServiceResourceGroupName string = ''
 param speechServiceLocation string = ''
 param speechServiceName string = ''
 param speechServiceSkuName string // Set in main.parameters.json
+param speechServiceDisableLocalAuth bool = false
 param speechServiceVoice string = ''
 param useMultimodal bool = false
 param useEval bool = false
@@ -359,6 +360,12 @@ param azureContainerAppsWorkloadProfile string
 @allowed(['appservice', 'containerapps'])
 param deploymentTarget string = 'appservice'
 
+@description('Optional hostname to bind to the backend Azure Container App ingress.')
+param containerAppCustomDomainName string = ''
+
+@description('Optional managed environment certificate resource ID used to bind the backend Container App custom domain.')
+param containerAppCustomDomainCertificateId string = ''
+
 // RAG Configuration Parameters
 @description('Whether to use text embeddings for RAG search')
 param ragSearchTextEmbeddings bool = true
@@ -387,6 +394,15 @@ var loginEndpointFixed = lastIndexOf(loginEndpoint, '/') == length(loginEndpoint
 var allMsftAllowedOrigins = !(empty(clientAppId)) ? union(msftAllowedOrigins, [ loginEndpointFixed ]) : msftAllowedOrigins
 // Combine custom origins with Microsoft origins, remove any empty origin strings and remove any duplicate origins
 var allowedOrigins = reduce(filter(union(split(allowedOrigin, ';'), allMsftAllowedOrigins), o => length(trim(o)) > 0), [], (cur, next) => union(cur, [next]))
+var containerAppCustomDomains = (!empty(containerAppCustomDomainName) && !empty(containerAppCustomDomainCertificateId))
+  ? [
+      {
+        name: containerAppCustomDomainName
+        bindingType: 'SniEnabled'
+        certificateId: containerAppCustomDomainCertificateId
+      }
+    ]
+  : []
 
 // Organize resources in a resource group
 resource resourceGroup 'Microsoft.Resources/resourceGroups@2024-11-01' = {
@@ -647,6 +663,7 @@ module acaBackend 'core/host/container-app-upsert.bicep' = if (deploymentTarget 
     containerMemory: '2Gi'
     containerMinReplicas: usePrivateEndpoint ? 1 : 0
     allowedOrigins: allowedOrigins
+    customDomains: containerAppCustomDomains
     env: union(appEnvVariables, {
       // For using managed identity to access Azure resources. See https://github.com/microsoft/azure-container-apps/issues/442
       AZURE_CLIENT_ID: (deploymentTarget == 'containerapps') ? acaIdentity!.outputs.clientId : ''
@@ -873,6 +890,7 @@ module speech 'br/public:avm/res/cognitive-services/account:0.7.2' = if (useSpee
     location: !empty(speechServiceLocation) ? speechServiceLocation : location
     tags: tags
     sku: speechServiceSkuName
+    disableLocalAuth: speechServiceDisableLocalAuth
   }
 }
 module searchService 'core/search/search-services.bicep' = {

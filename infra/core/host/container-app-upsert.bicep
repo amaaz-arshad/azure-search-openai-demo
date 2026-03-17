@@ -69,6 +69,9 @@ param env object = {}
 @description('The environment variables with secret references')
 param envSecrets array = []
 
+@description('Optional custom domains to attach to ingress. Existing custom domains are preserved when updating an existing app and this parameter is empty.')
+param customDomains array = []
+
 @description('Specifies if the resource ingress is exposed externally')
 param external bool = true
 
@@ -90,6 +93,8 @@ var envAsArray = [
     value: '${env[key]}'
   }
 ]
+var existingCustomDomains = exists ? (existingApp!.properties.?configuration.?ingress.?customDomains ?? []) : []
+var effectiveCustomDomains = !empty(customDomains) ? customDomains : existingCustomDomains
 
 module app 'container-app.bicep' = {
   name: '${deployment().name}-update'
@@ -114,6 +119,7 @@ module app 'container-app.bicep' = {
     secrets: secrets
     keyvaultIdentities: keyvaultIdentities
     allowedOrigins: allowedOrigins
+    customDomains: effectiveCustomDomains
     external: external
     env: concat(envAsArray, envSecrets)
     imageName: !empty(imageName) ? imageName : exists ? existingApp!.properties.template.containers[0].image : ''

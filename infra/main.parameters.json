@@ -242,6 +242,9 @@
     "speechServiceSkuName": {
       "value": "${AZURE_SPEECH_SERVICE_SKU=S0}"
     },
+    "speechServiceDisableLocalAuth": {
+      "value": "${AZURE_SPEECH_DISABLE_LOCAL_AUTH=false}"
+    },
     "speechServiceResourceGroupName": {
       "value": "${AZURE_SPEECH_SERVICE_RESOURCE_GROUP}"
     },
@@ -339,10 +342,16 @@
       "value": "${DEPLOYMENT_TARGET=containerapps}"
     },
     "webAppExists": {
-      "value": "${SERVICE_WEB_RESOURCE_EXISTS=false}"
+      "value": "${SERVICE_BACKEND_RESOURCE_EXISTS=false}"
     },
     "azureContainerAppsWorkloadProfile": {
       "value": "${AZURE_CONTAINER_APPS_WORKLOAD_PROFILE=Consumption}"
+    },
+    "containerAppCustomDomainName": {
+      "value": "${AZURE_CONTAINER_APP_CUSTOM_DOMAIN}"
+    },
+    "containerAppCustomDomainCertificateId": {
+      "value": "${AZURE_CONTAINER_APP_CUSTOM_DOMAIN_CERTIFICATE_ID}"
     },
     "useMediaDescriberAzureCU": {
       "value": "${USE_MEDIA_DESCRIBER_AZURE_CU=false}"

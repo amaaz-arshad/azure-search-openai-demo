@@ -6,6 +6,9 @@ param tags object = {}
 @description('Allowed origins')
 param allowedOrigins array = []
 
+@description('Optional custom domains for ingress.')
+param customDomains array = []
+
 @description('Name of the environment for container apps')
 param containerAppsEnvironmentName string
 
@@ -129,6 +132,7 @@ resource app 'Microsoft.App/containerApps@2023-05-02-preview' = {
         external: external
         targetPort: targetPort
         transport: 'auto'
+        customDomains: customDomains
         corsPolicy: {
           allowedOrigins: union([ 'https://portal.azure.com', 'https://ms.portal.azure.com' ], allowedOrigins)
         }
