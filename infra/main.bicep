@@ -1321,12 +1321,15 @@ module adlsStorageRoleFunctions 'core/security/storage-role.bicep' = if (useClou
   }
 }
 
-// Necessary for the Container Apps backend to store authentication tokens in the blob storage container
-module storageRoleContributorBackend 'core/security/role.bicep' = if (deploymentTarget == 'containerapps' && !empty(clientAppId)) {
+// Required for shared chatbot uploads (for example the demo bot's public upload flow) to write/delete blobs
+// in the main storage container. This also covers Container Apps auth token storage when authentication is enabled.
+module storageRoleContributorBackend 'core/security/role.bicep' = {
   scope: storageResourceGroup
-  name: 'storage-role-contributor-aca-backend'
+  name: 'storage-role-contributor-backend'
   params: {
-    principalId: acaBackend!.outputs.identityPrincipalId
+    principalId: (deploymentTarget == 'appservice')
+      ? backend!.outputs.identityPrincipalId
+      : acaBackend!.outputs.identityPrincipalId
     roleDefinitionId: 'ba92f5b4-2d11-453d-a403-e96b0029c9fe' // Storage Blob Data Contributor
     principalType: 'ServicePrincipal'
   }
@@ -1487,8 +1490,8 @@ module searchReaderRoleBackend 'core/security/role.bicep' = if (useAuthenticatio
   }
 }
 
-// Used to add/remove documents from index (required for user upload feature)
-module searchContribRoleBackend 'core/security/role.bicep' = if (useUserUpload) {
+// Used to add/remove documents from index for authenticated user uploads and shared chatbot uploads.
+module searchContribRoleBackend 'core/security/role.bicep' = {
   scope: searchServiceResourceGroup
   name: 'search-contrib-role-backend'
   params: {

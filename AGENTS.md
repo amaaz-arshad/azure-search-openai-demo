@@ -26,7 +26,7 @@ If necessary, edit this file to ensure it accurately reflects the current state 
       * app/backend/prepdocslib/embeddings.py: Generates embeddings for text and images using Azure OpenAI
       * app/backend/prepdocslib/figureprocessor.py: Generates figure descriptions for both local ingestion and the cloud figure-processor skill
       * app/backend/prepdocslib/fileprocessor.py: Orchestrates parsing and chunking of individual files
-      * app/backend/prepdocslib/filestrategy.py: Strategy helpers for local ingestion, authenticated user uploads in ADLS, and shared chatbot uploads in blob storage. `ChatbotUploadStrategy` powers the demo bot's public upload flow using local parsers only, stores files under the `chatbot-uploads/<chatbot_name>/` prefix, indexes them into the chatbot's normal category (for demo: `demo`), and rejects filename collisions with built-in chatbot content.
+      * app/backend/prepdocslib/filestrategy.py: Strategy helpers for local ingestion, authenticated user uploads in ADLS, and shared chatbot uploads in blob storage. `ChatbotUploadStrategy` powers the demo bot's public upload flow using local parsers only, indexes uploads into the chatbot's normal category (for demo: `demo`), rejects filename collisions with built-in chatbot content, stores physical demo upload blobs under versioned `chatbot-uploads/<chatbot_name>/files/...` paths with manifest files in `.manifests/`, and supports cooperative cancellation through blob-backed cancel markers in `.cancel/`.
       * app/backend/prepdocslib/xmlparser.py: Local XML parser that preserves hierarchy, carries forward lightweight document context, and splits repeated sibling records (for example `<item>` or `<product>`) into separate retrieval-friendly sections before chunking.
       * app/backend/prepdocslib/htmlparser.py: Parses HTML files
       * app/backend/prepdocslib/integratedvectorizerstrategy.py: Strategy using Azure AI Search integrated vectorization
@@ -45,7 +45,7 @@ If necessary, edit this file to ensure it accurately reflects the current state 
       * app/backend/prepdocslib/fhgjson.py: FHG-specific JSON ingestion helpers that validate the wrapped dataset structure, preserve all study fields in chunk text, generate source blobs for citations, and build search-ready documents with stable IDs. In the FHG chatbot, answer citations use the indexed `storageUrl` so citation clicks open the original study URL in a new tab.
     * app/backend/delete_documents_by_category.py: Utility script that deletes all Azure AI Search documents whose `category` field matches a provided value.
     * app/backend/prep_fhg_json.py: Dedicated ingestion script for `data/fhg_alle_studien_*.json` files. It chunks each FHG study entry logically, uploads per-study source blobs for citations, generates embeddings for every indexed chunk, stores them in Azure AI Search with category `fhg`, and by default replaces existing `fhg` documents before re-indexing.
-    * app/backend/app.py: The main entry point for the backend application, including SPA fallback routes for chatbot URLs like `/<chatbot_name>`, server-side redirect of unknown chatbot names back to `/`, SPA fallback for `/chatbots`, public chatbot upload routes at `/chatbot_uploads/<chatbot_name>` (currently used by the demo bot), chatbot-upload content fallback in `/content/<path>`, and no-store caching headers for `index.html` responses to avoid stale frontend routing behavior.
+    * app/backend/app.py: The main entry point for the backend application, including SPA fallback routes for chatbot URLs like `/<chatbot_name>`, server-side redirect of unknown chatbot names back to `/`, SPA fallback for `/chatbots`, public chatbot upload routes at `/chatbot_uploads/<chatbot_name>` (currently used by the demo bot), upload cancellation at `/chatbot_uploads/<chatbot_name>/cancel/<upload_id>`, chatbot-upload content fallback in `/content/<path>`, and no-store caching headers for `index.html` responses to avoid stale frontend routing behavior.
   * app/functions: Azure Functions used for cloud ingestion custom skills (document extraction, figure processing, text processing). Each function bundles a synchronized copy of `prepdocslib`; run `python scripts/copy_prepdocslib.py` to refresh the local copies if you modify the library.
   * app/frontend: Contains the React frontend code, built with TypeScript, built with vite.
     * app/frontend/src/index.tsx: Frontend entry point and router setup. It resolves chatbot UI by URL path (`/<chatbot_name>`), serves a landing/error page on `/`, provides a password-gated chatbot directory at `/chatbots`, and routes unknown frontend paths back to `/`.
@@ -59,7 +59,7 @@ If necessary, edit this file to ensure it accurately reflects the current state 
       * app/frontend/src/chatbots/lemon: Chatbot implementation.
       * app/frontend/src/chatbots/publishone: Chatbot implementation.
       * app/frontend/src/chatbots/fbn: Chatbot implementation.
-      * app/frontend/src/chatbots/demo: Chatbot implementation with a public upload manager modal opened from the header dropdown. Demo uploads use the backend `/chatbot_uploads/demo` endpoints, support local XML parsing in addition to the existing local formats, and become searchable inside the normal `demo` category.
+      * app/frontend/src/chatbots/demo: Chatbot implementation with a public upload manager modal opened from the header dropdown. Demo uploads use the backend `/chatbot_uploads/demo` endpoints, support local XML parsing in addition to the existing local formats, run as a per-file queue so users can select multiple files at once, and expose a stop action that cancels the active upload and skips the remaining queue while keeping the searchable `demo` index/storage state consistent.
       * app/frontend/src/chatbots/fhg: Chatbot implementation with an additional basic username/password login gate shown before chat.
       * app/frontend/src/chatbots/vjoonk4: Chatbot implementation with an additional basic username/password login gate shown before chat.
     * app/frontend/src/api: Contains the API client code for communicating with the backend.
@@ -75,7 +75,7 @@ If necessary, edit this file to ensure it accurately reflects the current state 
       * app/frontend/src/chatbots/nerilio/locales/pl/translation.json: Polish translations
       * app/frontend/src/chatbots/nerilio/locales/ptBR/translation.json: Portuguese translations
       * app/frontend/src/chatbots/nerilio/locales/tr/translation.json: Turkish translations
-* infra: Contains the Bicep templates for provisioning Azure resources.
+* infra: Contains the Bicep templates for provisioning Azure resources. `infra/main.bicep` grants the backend managed identity `Storage Blob Data Contributor` on the main storage account and `Search Index Data Contributor` on Azure AI Search because shared chatbot uploads (currently the demo bot's public upload flow) write to blob storage and the search index even when `USE_USER_UPLOAD=false`.
 * tests: Contains the test code, including e2e tests, app integration tests, and unit tests.
 
 ## Adding new data

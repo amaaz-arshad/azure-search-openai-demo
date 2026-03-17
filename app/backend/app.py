@@ -104,7 +104,7 @@ from prepdocs import (
 )
 from prepdocslib.blobmanager import AdlsBlobManager, BlobManager
 from prepdocslib.embeddings import ImageEmbeddings
-from prepdocslib.filestrategy import ChatbotUploadStrategy, UploadUserFileStrategy
+from prepdocslib.filestrategy import ChatbotUploadCancelled, ChatbotUploadStrategy, UploadUserFileStrategy
 from prepdocslib.listfilestrategy import File
 
 bp = Blueprint("routes", __name__, static_folder="static")
@@ -484,22 +484,38 @@ async def upload_chatbot_files(chatbot_name: str):
     chatbot_upload_manager = get_chatbot_upload_manager(chatbot_name)
     succeeded: list[str] = []
     failed: list[dict[str, str]] = []
+    upload_id = (request.headers.get("X-Upload-Id") or "").strip() or None
 
-    for uploaded_file in uploaded_files:
-        try:
-            await chatbot_upload_manager.add_file(File(content=uploaded_file))
-            succeeded.append(uploaded_file.filename)
-        except ValueError as error:
-            failed.append({"filename": uploaded_file.filename, "message": str(error)})
-        except Exception as error:
-            current_app.logger.error("Error uploading chatbot file '%s': %s", uploaded_file.filename, error)
-            failed.append({"filename": uploaded_file.filename, "message": "Unexpected upload failure"})
+    try:
+        for file_index, uploaded_file in enumerate(uploaded_files):
+            if upload_id and await chatbot_upload_manager.is_cancel_requested(upload_id):
+                failed.append({"filename": uploaded_file.filename, "message": "Upload canceled"})
+                for skipped_file in uploaded_files[file_index + 1 :]:
+                    failed.append({"filename": skipped_file.filename, "message": "Upload canceled"})
+                break
+            try:
+                await chatbot_upload_manager.add_file(File(content=uploaded_file), upload_id=upload_id)
+                succeeded.append(uploaded_file.filename)
+            except ChatbotUploadCancelled:
+                failed.append({"filename": uploaded_file.filename, "message": "Upload canceled"})
+                for skipped_file in uploaded_files[file_index + 1 :]:
+                    failed.append({"filename": skipped_file.filename, "message": "Upload canceled"})
+                break
+            except ValueError as error:
+                failed.append({"filename": uploaded_file.filename, "message": str(error)})
+            except Exception as error:
+                current_app.logger.error("Error uploading chatbot file '%s': %s", uploaded_file.filename, error)
+                failed.append({"filename": uploaded_file.filename, "message": "Unexpected upload failure"})
+    finally:
+        if upload_id:
+            await chatbot_upload_manager.clear_cancel_request(upload_id)
 
     if succeeded and failed:
         message = f"Uploaded {len(succeeded)} file(s); {len(failed)} file(s) failed."
         return jsonify({"message": message, "uploadedFiles": succeeded, "failedFiles": failed}), 207
     if failed:
-        return jsonify({"message": failed[0]['message'], "uploadedFiles": [], "failedFiles": failed}), 400
+        status_code = 409 if all(file["message"] == "Upload canceled" for file in failed) else 400
+        return jsonify({"message": failed[0]["message"], "uploadedFiles": [], "failedFiles": failed}), status_code
 
     message = (
         f"{len(succeeded)} file uploaded successfully."
@@ -507,6 +523,17 @@ async def upload_chatbot_files(chatbot_name: str):
         else f"{len(succeeded)} files uploaded successfully."
     )
     return jsonify({"message": message, "uploadedFiles": succeeded, "failedFiles": []}), 200
+
+
+@bp.post("/chatbot_uploads/<chatbot_name>/cancel/<upload_id>")
+async def cancel_chatbot_upload(chatbot_name: str, upload_id: str):
+    upload_id = upload_id.strip()
+    if not upload_id:
+        return jsonify({"message": "Upload id is required"}), 400
+
+    chatbot_upload_manager = get_chatbot_upload_manager(chatbot_name)
+    await chatbot_upload_manager.request_cancel(upload_id)
+    return jsonify({"message": "Upload cancellation requested"}), 202
 
 
 @bp.delete("/chatbot_uploads/<chatbot_name>/<path:filename>")

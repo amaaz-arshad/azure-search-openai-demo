@@ -464,13 +464,23 @@ class BlobManager(BaseBlobManager):
             blob_names.append(blob.name)
         return blob_names
 
+    async def blob_exists(self, blob_name: str) -> bool:
+        container_client = self.blob_service_client.get_container_client(self.container)
+        if not await container_client.exists():
+            return False
+        blob_client = container_client.get_blob_client(blob_name)
+        return await blob_client.exists()
+
     async def remove_blob_name(self, blob_name: str) -> None:
         container_client = self.blob_service_client.get_container_client(self.container)
         if not await container_client.exists():
             return
 
         logger.info("Removing blob %s", blob_name)
-        await container_client.delete_blob(blob_name, delete_snapshots="include")
+        try:
+            await container_client.delete_blob(blob_name, delete_snapshots="include")
+        except ResourceNotFoundError:
+            logger.debug("Blob already removed: %s", blob_name)
 
     async def upload_document_image(
         self,

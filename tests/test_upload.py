@@ -1,3 +1,4 @@
+import base64
 from io import BytesIO
 from types import SimpleNamespace
 
@@ -12,6 +13,29 @@ from azure.storage.filedatalake.aio import DataLakeDirectoryClient, DataLakeFile
 from quart.datastructures import FileStorage
 
 from prepdocslib.embeddings import OpenAIEmbeddings
+
+
+class BlobListIterator:
+    def __init__(self, names):
+        self.names = [SimpleNamespace(name=name) for name in names]
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        if not self.names:
+            raise StopAsyncIteration
+        return self.names.pop(0)
+
+
+class MockBlobClient:
+    def __init__(self, name: str, existing_blobs: set[str]):
+        self.name = name
+        self.url = f"https://test.blob.core.windows.net/test-storage-container/{name}"
+        self.existing_blobs = existing_blobs
+
+    async def exists(self):
+        return self.name in self.existing_blobs
 
 
 @pytest.mark.asyncio
@@ -258,6 +282,7 @@ async def test_delete_uploaded(auth_client, monkeypatch, mock_data_lake_service_
 
 @pytest.mark.asyncio
 async def test_chatbot_upload_file(client, monkeypatch):
+    existing_blobs = set()
     uploaded_blob_names = []
 
     async def mock_exists(*args, **kwargs):
@@ -265,15 +290,23 @@ async def test_chatbot_upload_file(client, monkeypatch):
 
     async def mock_upload_blob(self, name, *args, **kwargs):
         uploaded_blob_names.append(name)
+        existing_blobs.add(name)
         return None
-
-    class MockBlobClient:
-        def __init__(self, name: str):
-            self.url = f"https://test.blob.core.windows.net/test-storage-container/{name}"
 
     monkeypatch.setattr(ContainerClient, "exists", mock_exists)
     monkeypatch.setattr(ContainerClient, "upload_blob", mock_upload_blob)
-    monkeypatch.setattr(ContainerClient, "get_blob_client", lambda *args, **kwargs: MockBlobClient(args[1]))
+    monkeypatch.setattr(
+        ContainerClient,
+        "get_blob_client",
+        lambda *args, **kwargs: MockBlobClient(args[1], existing_blobs),
+    )
+    monkeypatch.setattr(
+        ContainerClient,
+        "list_blobs",
+        lambda *args, **kwargs: BlobListIterator(
+            [name for name in existing_blobs if name.startswith(kwargs.get("name_starts_with", ""))]
+        ),
+    )
 
     async def mock_create_embeddings(self, texts):
         return [[0.0023064255, -0.009327292, -0.0028842222] for _ in texts]
@@ -303,16 +336,24 @@ async def test_chatbot_upload_file(client, monkeypatch):
 
     response = await client.post(
         "/chatbot_uploads/demo",
+        headers={"X-Upload-Id": "upload-123"},
         files={"files": FileStorage(BytesIO(b"demo upload content"), filename="demo-notes.txt")},
     )
 
     payload = await response.get_json()
+    filename_token = base64.urlsafe_b64encode(b"demo-notes.txt").decode("ascii").rstrip("=")
+    upload_token = base64.urlsafe_b64encode(b"upload-123").decode("ascii").rstrip("=")
+    version_blob_name = f"chatbot-uploads/demo/files/{filename_token}/{upload_token}/demo-notes.txt"
+    manifest_blob_name = f"chatbot-uploads/demo/.manifests/{filename_token}.json"
     assert response.status_code == 200
     assert payload["uploadedFiles"] == ["demo-notes.txt"]
-    assert uploaded_blob_names == ["chatbot-uploads/demo/demo-notes.txt"]
+    assert version_blob_name in uploaded_blob_names
+    assert manifest_blob_name in uploaded_blob_names
     assert len(documents_uploaded) == 1
+    assert documents_uploaded[0]["id"].endswith(f"-upload-{upload_token}")
     assert documents_uploaded[0]["sourcefile"] == "demo-notes.txt"
     assert documents_uploaded[0]["category"] == "demo"
+    assert documents_uploaded[0]["storageUrl"].endswith(version_blob_name)
 
 
 @pytest.mark.asyncio
@@ -320,26 +361,17 @@ async def test_list_chatbot_uploaded_files(client, monkeypatch):
     async def mock_exists(*args, **kwargs):
         return True
 
-    class BlobListIterator:
-        def __init__(self, names):
-            self.names = [SimpleNamespace(name=name) for name in names]
-
-        def __aiter__(self):
-            return self
-
-        async def __anext__(self):
-            if not self.names:
-                raise StopAsyncIteration
-            return self.names.pop(0)
-
     monkeypatch.setattr(ContainerClient, "exists", mock_exists)
+    alpha_token = base64.urlsafe_b64encode(b"alpha.txt").decode("ascii").rstrip("=")
+    upload_token = base64.urlsafe_b64encode(b"upload-1").decode("ascii").rstrip("=")
     monkeypatch.setattr(
         ContainerClient,
         "list_blobs",
         lambda *args, **kwargs: BlobListIterator(
             [
+                f"chatbot-uploads/demo/.manifests/{alpha_token}.json",
+                f"chatbot-uploads/demo/files/{alpha_token}/{upload_token}/alpha.txt",
                 "chatbot-uploads/demo/zeta.pdf",
-                "chatbot-uploads/demo/alpha.txt",
             ]
         ),
     )
@@ -351,6 +383,11 @@ async def test_list_chatbot_uploaded_files(client, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_delete_chatbot_uploaded_file(client, monkeypatch):
+    existing_blobs = {
+        "chatbot-uploads/demo/files/ZGVtby1ub3Rlcy50eHQ/dXBsb2FkLTE/demo-notes.txt",
+        "chatbot-uploads/demo/.manifests/ZGVtby1ub3Rlcy50eHQ.json",
+    }
+
     async def mock_exists(*args, **kwargs):
         return True
 
@@ -358,6 +395,7 @@ async def test_delete_chatbot_uploaded_file(client, monkeypatch):
 
     async def mock_delete_blob(self, blob_name, *args, **kwargs):
         deleted_blob_names.append(blob_name)
+        existing_blobs.discard(blob_name)
         return None
 
     class SearchResultsIterator:
@@ -408,13 +446,28 @@ async def test_delete_chatbot_uploaded_file(client, monkeypatch):
 
     monkeypatch.setattr(ContainerClient, "exists", mock_exists)
     monkeypatch.setattr(ContainerClient, "delete_blob", mock_delete_blob)
+    monkeypatch.setattr(
+        ContainerClient,
+        "get_blob_client",
+        lambda *args, **kwargs: MockBlobClient(args[1], existing_blobs),
+    )
+    monkeypatch.setattr(
+        ContainerClient,
+        "list_blobs",
+        lambda *args, **kwargs: BlobListIterator(
+            [name for name in existing_blobs if name.startswith(kwargs.get("name_starts_with", ""))]
+        ),
+    )
     monkeypatch.setattr(SearchClient, "search", mock_search)
     monkeypatch.setattr(SearchClient, "delete_documents", mock_delete_documents)
 
     response = await client.delete("/chatbot_uploads/demo/demo-notes.txt")
 
     assert response.status_code == 200
-    assert deleted_blob_names == ["chatbot-uploads/demo/demo-notes.txt"]
+    assert deleted_blob_names == [
+        "chatbot-uploads/demo/files/ZGVtby1ub3Rlcy50eHQ/dXBsb2FkLTE/demo-notes.txt",
+        "chatbot-uploads/demo/.manifests/ZGVtby1ub3Rlcy50eHQ.json",
+    ]
     assert searched_filters[0] == "sourcefile eq 'demo-notes.txt' and category eq 'demo'"
     assert deleted_documents == [{"id": "file-demo_notes_txt-page-0"}]
 
@@ -457,3 +510,77 @@ async def test_chatbot_upload_rejects_filename_conflict_with_builtin_demo_conten
     payload = await response.get_json()
     assert response.status_code == 400
     assert "conflicts with existing demo content" in payload["message"]
+
+
+@pytest.mark.asyncio
+async def test_cancel_chatbot_upload_prevents_indexing(client, monkeypatch):
+    existing_blobs = set()
+    uploaded_blob_names = []
+    deleted_blob_names = []
+
+    async def mock_exists(*args, **kwargs):
+        return True
+
+    async def mock_upload_blob(self, name, *args, **kwargs):
+        uploaded_blob_names.append(name)
+        existing_blobs.add(name)
+        return None
+
+    async def mock_delete_blob(self, blob_name, *args, **kwargs):
+        deleted_blob_names.append(blob_name)
+        existing_blobs.discard(blob_name)
+        return None
+
+    monkeypatch.setattr(ContainerClient, "exists", mock_exists)
+    monkeypatch.setattr(ContainerClient, "upload_blob", mock_upload_blob)
+    monkeypatch.setattr(ContainerClient, "delete_blob", mock_delete_blob)
+    monkeypatch.setattr(
+        ContainerClient,
+        "get_blob_client",
+        lambda *args, **kwargs: MockBlobClient(args[1], existing_blobs),
+    )
+    monkeypatch.setattr(
+        ContainerClient,
+        "list_blobs",
+        lambda *args, **kwargs: BlobListIterator(
+            [name for name in existing_blobs if name.startswith(kwargs.get("name_starts_with", ""))]
+        ),
+    )
+
+    class EmptyAsyncSearchResultsIterator:
+        def __aiter__(self):
+            return self
+
+        async def __anext__(self):
+            raise StopAsyncIteration
+
+        async def get_count(self):
+            return 0
+
+    async def mock_search(self, *args, **kwargs):
+        return EmptyAsyncSearchResultsIterator()
+
+    documents_uploaded = []
+
+    async def mock_upload_documents(self, documents):
+        documents_uploaded.extend(documents)
+
+    monkeypatch.setattr(SearchClient, "search", mock_search)
+    monkeypatch.setattr(SearchClient, "upload_documents", mock_upload_documents)
+
+    cancel_response = await client.post("/chatbot_uploads/demo/cancel/upload-123")
+    assert cancel_response.status_code == 202
+
+    response = await client.post(
+        "/chatbot_uploads/demo",
+        headers={"X-Upload-Id": "upload-123"},
+        files={"files": FileStorage(BytesIO(b"demo upload content"), filename="demo-notes.txt")},
+    )
+
+    payload = await response.get_json()
+    cancel_marker_name = f"chatbot-uploads/demo/.cancel/{base64.urlsafe_b64encode(b'upload-123').decode('ascii').rstrip('=')}.cancel"
+    assert response.status_code == 409
+    assert payload["failedFiles"] == [{"filename": "demo-notes.txt", "message": "Upload canceled"}]
+    assert uploaded_blob_names == [cancel_marker_name]
+    assert deleted_blob_names == [cancel_marker_name]
+    assert documents_uploaded == []

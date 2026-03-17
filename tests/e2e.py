@@ -675,6 +675,8 @@ def test_demo_upload_manager_modal(page: Page, live_server_url: str):
 
     expect(page.get_by_role("dialog")).to_be_visible()
     expect(page.get_by_text("Upload files to the demo bot")).to_be_visible()
+    expect(page.get_by_text("Current upload queue")).to_be_visible()
+    expect(page.get_by_text("No files in the queue")).to_be_visible()
     expect(page.get_by_text("demo-manual.pdf")).to_be_visible()
     expect(page.get_by_text("faq.txt")).to_be_visible()
 

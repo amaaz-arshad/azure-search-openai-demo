@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import os
-from typing import Optional
+from typing import Any, Awaitable, Callable, Optional
 
 from azure.search.documents.indexes.models import (
     AIServicesVisionParameters,
@@ -592,12 +592,64 @@ class SearchManager:
                     ", ".join(created_kb_names),
                 )
 
-    async def update_content(self, sections: list[Section], url: Optional[str] = None):
+    def build_filter(self, path: Optional[str] = None, category: Optional[str] = None) -> Optional[str]:
+        filters = []
+        if path is not None:
+            path_for_filter = os.path.basename(path).replace("'", "''")
+            filters.append(f"sourcefile eq '{path_for_filter}'")
+        if category is not None:
+            category_for_filter = category.replace("'", "''")
+            filters.append(f"category eq '{category_for_filter}'")
+        return None if not filters else " and ".join(filters)
+
+    async def list_documents(self, path: Optional[str] = None, category: Optional[str] = None) -> list[dict[str, Any]]:
+        documents: list[dict[str, Any]] = []
+        filter_expression = self.build_filter(path=path, category=category)
+        max_results = 1000
+        skip = 0
+
+        async with self.search_info.create_search_client() as search_client:
+            while True:
+                result = await search_client.search(
+                    search_text="",
+                    filter=filter_expression,
+                    top=max_results,
+                    skip=skip,
+                    include_total_count=True,
+                )
+                page_documents = [document async for document in result]
+                if not page_documents:
+                    break
+                documents.extend(page_documents)
+                if len(page_documents) < max_results:
+                    break
+                skip += max_results
+        return documents
+
+    async def delete_documents_by_ids(self, document_ids: list[str]) -> None:
+        if not document_ids:
+            return
+
+        max_batch_size = 1000
+        async with self.search_info.create_search_client() as search_client:
+            for start in range(0, len(document_ids), max_batch_size):
+                batch_ids = document_ids[start : start + max_batch_size]
+                await search_client.delete_documents([{"id": document_id} for document_id in batch_ids])
+
+    async def update_content(
+        self,
+        sections: list[Section],
+        url: Optional[str] = None,
+        document_id_suffix: str = "",
+        check_cancel: Optional[Callable[[], Awaitable[None]]] = None,
+    ):
         MAX_BATCH_SIZE = 1000
         section_batches = [sections[i : i + MAX_BATCH_SIZE] for i in range(0, len(sections), MAX_BATCH_SIZE)]
 
         async with self.search_info.create_search_client() as search_client:
             for batch_index, batch in enumerate(section_batches):
+                if check_cancel is not None:
+                    await check_cancel()
                 documents = []
                 for section_index, section in enumerate(batch):
                     image_fields = {}
@@ -614,7 +666,10 @@ class SearchManager:
                             ]
                         }
                     document = {
-                        "id": f"{section.content.filename_to_id()}-page-{section_index + batch_index * MAX_BATCH_SIZE}",
+                        "id": (
+                            f"{section.content.filename_to_id()}-page-{section_index + batch_index * MAX_BATCH_SIZE}"
+                            f"{document_id_suffix}"
+                        ),
                         "content": section.chunk.text,
                         "category": section.category,
                         "sourcepage": BlobManager.sourcepage_from_file_page(
@@ -636,6 +691,8 @@ class SearchManager:
                     )
                     for i, document in enumerate(documents):
                         document[self.field_name_embedding] = embeddings[i]
+                if check_cancel is not None:
+                    await check_cancel()
                 logger.info(
                     "Uploading batch %d with %d sections to search index '%s'",
                     batch_index + 1,
@@ -643,6 +700,8 @@ class SearchManager:
                     self.search_info.index_name,
                 )
                 await search_client.upload_documents(documents)
+                if check_cancel is not None:
+                    await check_cancel()
 
     async def remove_content(
         self,
@@ -656,16 +715,7 @@ class SearchManager:
         )
         async with self.search_info.create_search_client() as search_client:
             while True:
-                filters = []
-                if path is not None:
-                    # Replace ' with '' to escape the single quote for the filter
-                    # https://learn.microsoft.com/azure/search/query-odata-filter-orderby-syntax#escaping-special-characters-in-string-constants
-                    path_for_filter = os.path.basename(path).replace("'", "''")
-                    filters.append(f"sourcefile eq '{path_for_filter}'")
-                if category is not None:
-                    category_for_filter = category.replace("'", "''")
-                    filters.append(f"category eq '{category_for_filter}'")
-                filter = None if not filters else " and ".join(filters)
+                filter = self.build_filter(path=path, category=category)
                 max_results = 1000
                 result = await search_client.search(
                     search_text="", filter=filter, top=max_results, include_total_count=True

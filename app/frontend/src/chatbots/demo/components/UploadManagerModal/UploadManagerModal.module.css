@@ -115,6 +115,13 @@
     transform: translateY(-1px);
 }
 
+.dropzoneDisabled {
+    cursor: not-allowed;
+    opacity: 0.68;
+    box-shadow: none;
+    transform: none;
+}
+
 .dropzoneIcon {
     display: inline-flex;
     align-items: center;
@@ -295,6 +302,59 @@
     flex-shrink: 0;
 }
 
+.queueActions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-shrink: 0;
+}
+
+.queueStatus {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 7.5rem;
+    padding: 0.45rem 0.85rem;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-align: center;
+}
+
+.queueStatusQueued {
+    background: #edf2f8;
+    color: #33415c;
+}
+
+.queueStatusUploading {
+    background: #e6f0ff;
+    color: #234382;
+}
+
+.queueStatusCanceling {
+    background: #fff4dc;
+    color: #8d5a00;
+}
+
+.queueStatusCompleted {
+    background: #e7f8ee;
+    color: #17653a;
+}
+
+.queueStatusFailed {
+    background: #fde8ea;
+    color: #a32939;
+}
+
+.queueStatusCanceled {
+    background: #f3edf9;
+    color: #6f3fa4;
+}
+
+.dismissButton {
+    flex-shrink: 0;
+}
+
 @media (max-width: 720px) {
     .backdrop {
         padding: 0.75rem;
@@ -314,7 +374,17 @@
         align-items: flex-start;
     }
 
+    .queueActions,
     .deleteButton {
+        width: 100%;
+    }
+
+    .queueActions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .queueStatus {
         width: 100%;
     }
 }

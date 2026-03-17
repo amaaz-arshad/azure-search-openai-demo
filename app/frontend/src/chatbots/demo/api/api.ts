@@ -111,10 +111,21 @@ export async function listUploadedFilesApi(idToken: string): Promise<string[]> {
     return dataResponse;
 }
 
-export async function uploadChatbotFilesApi(chatbotName: string, request: FormData): Promise<ChatbotUploadResponse> {
+export async function uploadChatbotFilesApi(
+    chatbotName: string,
+    request: FormData,
+    options?: { signal?: AbortSignal; uploadId?: string }
+): Promise<ChatbotUploadResponse> {
+    const headers: Record<string, string> = {};
+    if (options?.uploadId) {
+        headers["X-Upload-Id"] = options.uploadId;
+    }
+
     const response = await fetch(`/chatbot_uploads/${chatbotName}`, {
         method: "POST",
-        body: request
+        body: request,
+        headers,
+        signal: options?.signal
     });
 
     if (!response.ok) {
@@ -135,6 +146,19 @@ export async function listChatbotUploadedFilesApi(chatbotName: string): Promise<
     }
 
     return (await response.json()) as string[];
+}
+
+export async function cancelChatbotUploadApi(chatbotName: string, uploadId: string): Promise<SimpleAPIResponse> {
+    const response = await fetch(`/chatbot_uploads/${chatbotName}/cancel/${encodeURIComponent(uploadId)}`, {
+        method: "POST"
+    });
+
+    if (!response.ok) {
+        const errorBody = (await response.json().catch(() => null)) as SimpleAPIResponse | null;
+        throw new Error(errorBody?.message || `Stopping upload failed: ${response.statusText}`);
+    }
+
+    return (await response.json()) as SimpleAPIResponse;
 }
 
 export async function deleteChatbotUploadedFileApi(chatbotName: string, filename: string): Promise<SimpleAPIResponse> {
