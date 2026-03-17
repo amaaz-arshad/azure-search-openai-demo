@@ -624,6 +624,61 @@ def test_upload_disabled(page: Page, live_server_url: str):
     # We can't test actual file upload as we don't currently have isLoggedIn(client) mocked out
 
 
+def test_demo_upload_manager_modal(page: Page, live_server_url: str):
+
+    def handle_config(route: Route):
+        route.fulfill(
+            body=json.dumps(
+                {
+                    "defaultReasoningEffort": "",
+                    "defaultRetrievalReasoningEffort": "minimal",
+                    "showMultimodalOptions": False,
+                    "showSemanticRankerOption": True,
+                    "showQueryRewritingOption": False,
+                    "showReasoningEffortOption": False,
+                    "streamingEnabled": True,
+                    "showVectorOption": True,
+                    "showUserUpload": False,
+                    "showLanguagePicker": False,
+                    "showSpeechInput": False,
+                    "showSpeechOutputBrowser": False,
+                    "showSpeechOutputAzure": False,
+                    "showChatHistoryBrowser": False,
+                    "showChatHistoryCosmos": False,
+                    "showAgenticRetrievalOption": False,
+                    "ragSearchImageEmbeddings": False,
+                    "ragSearchTextEmbeddings": True,
+                    "ragSendImageSources": False,
+                    "ragSendTextSources": True,
+                    "webSourceEnabled": False,
+                    "sharepointSourceEnabled": False,
+                }
+            ),
+            status=200,
+        )
+
+    page.route("*/**/config", handle_config)
+
+    def handle_uploads(route: Route):
+        route.fulfill(body=json.dumps(["demo-manual.pdf", "faq.txt"]), status=200)
+
+    page.route("*/**/chatbot_uploads/demo", handle_uploads)
+
+    page.goto(f"{live_server_url}demo")
+
+    page.get_by_label("Username").fill("demouser")
+    page.get_by_label("Password").fill("demo@123")
+    page.get_by_role("button", name="Login").click()
+
+    page.get_by_role("button", name="Toggle menu").click()
+    page.get_by_role("button", name="Upload files").click()
+
+    expect(page.get_by_role("dialog")).to_be_visible()
+    expect(page.get_by_text("Upload files to the demo bot")).to_be_visible()
+    expect(page.get_by_text("demo-manual.pdf")).to_be_visible()
+    expect(page.get_by_text("faq.txt")).to_be_visible()
+
+
 def test_agentic_retrieval_effort_minimal_disables_web(page: Page, live_server_url: str):
     """Test that selecting 'Minimal' effort deselects and disables the web source checkbox."""
 

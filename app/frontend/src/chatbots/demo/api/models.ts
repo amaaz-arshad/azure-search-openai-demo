@@ -137,6 +137,16 @@ export type SimpleAPIResponse = {
     message?: string;
 };
 
+export type ChatbotUploadFailure = {
+    filename: string;
+    message: string;
+};
+
+export type ChatbotUploadResponse = SimpleAPIResponse & {
+    uploadedFiles: string[];
+    failedFiles: ChatbotUploadFailure[];
+};
+
 export interface SpeechConfig {
     speechUrls: (string | null)[];
     setSpeechUrls: (urls: (string | null)[]) => void;

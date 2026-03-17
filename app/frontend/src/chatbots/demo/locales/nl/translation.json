@@ -7,6 +7,7 @@
     "login": "Inloggen",
     "logout": "Uitloggen",
     "clearChat": "Chat wissen",
+    "newChat": "Nieuwe chat",
     "loginPage": {
         "title": "Welkom",
         "username": "Gebruikersnaam",
@@ -38,7 +39,21 @@
         "deleteFile": "Bestand verwijderen",
         "deletingFile": "Bestand verwijderen...",
         "errorDeleting": "Fout bij verwijderen.",
-        "fileDeleted": "Bestand verwijderd"
+        "fileDeleted": "Bestand verwijderd",
+        "menuLabel": "Bestanden uploaden",
+        "modalTitle": "Bestanden uploaden naar de demo-bot",
+        "modalDescription": "Ondersteunde indelingen: TXT, MD, CSV, JSON, PDF, HTML, XML.",
+        "chooseFiles": "Bestanden kiezen",
+        "refreshList": "Lijst vernieuwen",
+        "close": "Sluiten",
+        "dropzoneTitle": "Sleep bestanden hierheen",
+        "dropzoneHint": "of klik om bestanden te kiezen",
+        "supportedFormats": "Ondersteunde indelingen: TXT, MD, CSV, JSON, PDF, HTML, XML",
+        "sectionTitle": "Bibliotheek",
+        "emptyStateTitle": "Nog geen bestanden geüpload",
+        "emptyStateDescription": "Geüploade bestanden verschijnen hier en worden doorzoekbaar in de demochat.",
+        "fileReady": "Klaar voor chat",
+        "listError": "Geüploade bestanden konden niet worden geladen."
     },
     "developerSettings": "Ontwikkelaarinstellingen",
 

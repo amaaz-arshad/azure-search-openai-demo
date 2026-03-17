@@ -52,6 +52,7 @@ from chat_history.cosmosdb import chat_history_cosmosdb_bp
 from config import (
     CONFIG_AGENTIC_KNOWLEDGEBASE_ENABLED,
     CONFIG_AUTH_CLIENT,
+    CONFIG_CHATBOT_UPLOAD_MANAGERS,
     CONFIG_CHAT_APPROACH,
     CONFIG_CHAT_HISTORY_BROWSER_ENABLED,
     CONFIG_CHAT_HISTORY_COSMOS_ENABLED,
@@ -103,7 +104,7 @@ from prepdocs import (
 )
 from prepdocslib.blobmanager import AdlsBlobManager, BlobManager
 from prepdocslib.embeddings import ImageEmbeddings
-from prepdocslib.filestrategy import UploadUserFileStrategy
+from prepdocslib.filestrategy import ChatbotUploadStrategy, UploadUserFileStrategy
 from prepdocslib.listfilestrategy import File
 
 bp = Blueprint("routes", __name__, static_folder="static")
@@ -116,6 +117,7 @@ NON_CHATBOT_FRONTEND_PREFIXES = {
     "assets",
     "auth_setup",
     "chat",
+    "chatbot_uploads",
     "chatbots",
     "chat_history",
     "config",
@@ -140,6 +142,14 @@ KNOWN_CHATBOT_NAMES = {
     "fhg",
     "vjoonk4",
 }
+
+
+def get_chatbot_upload_manager(chatbot_name: str) -> ChatbotUploadStrategy:
+    managers: dict[str, ChatbotUploadStrategy] = current_app.config.get(CONFIG_CHATBOT_UPLOAD_MANAGERS, {})
+    manager = managers.get(chatbot_name)
+    if manager is None:
+        abort(404)
+    return manager
 
 
 async def serve_spa_index():
@@ -207,10 +217,18 @@ async def content_file(path: str, auth_claims: dict[str, Any]):
         path_parts = path.rsplit("#page=", 1)
         path = path_parts[0]
     current_app.logger.info("Opening file %s", path)
-    blob_manager: BlobManager = current_app.config[CONFIG_GLOBAL_BLOB_MANAGER]
+    result = None
+    chatbot_upload_managers: dict[str, ChatbotUploadStrategy] = current_app.config.get(CONFIG_CHATBOT_UPLOAD_MANAGERS, {})
+    for chatbot_upload_manager in chatbot_upload_managers.values():
+        result = await chatbot_upload_manager.download_file(path)
+        if result is not None:
+            break
 
-    # Get bytes and properties from the blob manager
-    result = await blob_manager.download_blob(path)
+    if result is None:
+        blob_manager: BlobManager = current_app.config[CONFIG_GLOBAL_BLOB_MANAGER]
+
+        # Get bytes and properties from the blob manager
+        result = await blob_manager.download_blob(path)
 
     if result is None:
         current_app.logger.info("Path not found in general Blob container: %s", path)
@@ -448,6 +466,57 @@ async def list_uploaded(auth_claims: dict[str, Any]):
     return jsonify(files), 200
 
 
+@bp.get("/chatbot_uploads/<chatbot_name>")
+async def list_chatbot_uploaded(chatbot_name: str):
+    chatbot_upload_manager = get_chatbot_upload_manager(chatbot_name)
+    files = await chatbot_upload_manager.list_files()
+    return jsonify(files), 200
+
+
+@bp.post("/chatbot_uploads/<chatbot_name>")
+async def upload_chatbot_files(chatbot_name: str):
+    request_files = await request.files
+    uploaded_files = request_files.getlist("files") or request_files.getlist("file")
+    uploaded_files = [file for file in uploaded_files if file and file.filename]
+    if not uploaded_files:
+        return jsonify({"message": "No file part in the request", "status": "failed"}), 400
+
+    chatbot_upload_manager = get_chatbot_upload_manager(chatbot_name)
+    succeeded: list[str] = []
+    failed: list[dict[str, str]] = []
+
+    for uploaded_file in uploaded_files:
+        try:
+            await chatbot_upload_manager.add_file(File(content=uploaded_file))
+            succeeded.append(uploaded_file.filename)
+        except ValueError as error:
+            failed.append({"filename": uploaded_file.filename, "message": str(error)})
+        except Exception as error:
+            current_app.logger.error("Error uploading chatbot file '%s': %s", uploaded_file.filename, error)
+            failed.append({"filename": uploaded_file.filename, "message": "Unexpected upload failure"})
+
+    if succeeded and failed:
+        message = f"Uploaded {len(succeeded)} file(s); {len(failed)} file(s) failed."
+        return jsonify({"message": message, "uploadedFiles": succeeded, "failedFiles": failed}), 207
+    if failed:
+        return jsonify({"message": failed[0]['message'], "uploadedFiles": [], "failedFiles": failed}), 400
+
+    message = (
+        f"{len(succeeded)} file uploaded successfully."
+        if len(succeeded) == 1
+        else f"{len(succeeded)} files uploaded successfully."
+    )
+    return jsonify({"message": message, "uploadedFiles": succeeded, "failedFiles": []}), 200
+
+
+@bp.delete("/chatbot_uploads/<chatbot_name>/<path:filename>")
+async def delete_chatbot_uploaded(chatbot_name: str, filename: str):
+    chatbot_upload_manager = get_chatbot_upload_manager(chatbot_name)
+    filename = os.path.basename(filename)
+    await chatbot_upload_manager.remove_file(filename)
+    return jsonify({"message": f"File {filename} deleted successfully"}), 200
+
+
 @bp.before_app_serving
 async def setup_clients():
     # Replace these with your own values, either in environment variables or directly here
@@ -560,6 +629,7 @@ async def setup_clients():
 
     # Set the Azure credential in the app config for use in other parts of the app
     current_app.config[CONFIG_CREDENTIAL] = azure_credential
+    current_app.config[CONFIG_CHATBOT_UPLOAD_MANAGERS] = {}
 
     # Set up clients for AI Search and Storage
     search_client = SearchClient(
@@ -646,6 +716,50 @@ async def setup_clients():
         openai_api_key=OPENAI_API_KEY,
         openai_organization=OPENAI_ORGANIZATION,
     )
+
+    chatbot_upload_file_processors, _ = setup_file_processors(
+        azure_credential=azure_credential,
+        document_intelligence_service=None,
+        local_pdf_parser=True,
+        local_html_parser=True,
+        use_content_understanding=False,
+        content_understanding_endpoint=None,
+        use_multimodal=False,
+        openai_client=openai_client,
+        openai_model=OPENAI_CHATGPT_MODEL,
+        openai_deployment=AZURE_OPENAI_CHATGPT_DEPLOYMENT if OPENAI_HOST == OpenAIHost.AZURE else None,
+    )
+    chatbot_upload_search_info = setup_search_info(
+        search_service=AZURE_SEARCH_SERVICE,
+        index_name=AZURE_SEARCH_INDEX,
+        azure_credential=azure_credential,
+        use_agentic_knowledgebase=USE_AGENTIC_KNOWLEDGEBASE,
+        azure_openai_endpoint=azure_openai_endpoint,
+        knowledgebase_name=AZURE_SEARCH_KNOWLEDGEBASE_NAME,
+        azure_openai_knowledgebase_deployment=AZURE_OPENAI_KNOWLEDGEBASE_DEPLOYMENT,
+        azure_openai_knowledgebase_model=AZURE_OPENAI_KNOWLEDGEBASE_MODEL,
+    )
+    chatbot_upload_embeddings = None
+    if USE_VECTORS:
+        chatbot_upload_embeddings = setup_embeddings_service(
+            open_ai_client=openai_client,
+            openai_host=OPENAI_HOST,
+            emb_model_name=OPENAI_EMB_MODEL,
+            emb_model_dimensions=OPENAI_EMB_DIMENSIONS,
+            azure_openai_deployment=AZURE_OPENAI_EMB_DEPLOYMENT,
+            azure_openai_endpoint=azure_openai_endpoint,
+        )
+
+    current_app.config[CONFIG_CHATBOT_UPLOAD_MANAGERS] = {
+        "demo": ChatbotUploadStrategy(
+            chatbot_name="demo",
+            search_info=chatbot_upload_search_info,
+            file_processors=chatbot_upload_file_processors,
+            embeddings=chatbot_upload_embeddings,
+            search_field_name_embedding=AZURE_SEARCH_FIELD_NAME_EMBEDDING,
+            blob_manager=global_blob_manager,
+        )
+    }
 
     user_blob_manager = None
     if USE_USER_UPLOAD:

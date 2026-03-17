@@ -5,6 +5,7 @@
     "login": "Accedi",
     "logout": "Disconnetti",
     "clearChat": "Cancella chat",
+    "newChat": "Nuova chat",
     "history": {
         "chatHistory": "Cronologia chat",
         "openChatHistory": "Apri cronologia chat",
@@ -29,7 +30,21 @@
         "deleteFile": "Elimina file",
         "deletingFile": "Eliminazione file...",
         "errorDeleting": "Errore durante l'eliminazione.",
-        "fileDeleted": "File eliminato"
+        "fileDeleted": "File eliminato",
+        "menuLabel": "Carica file",
+        "modalTitle": "Carica file nel bot demo",
+        "modalDescription": "Formati supportati: TXT, MD, CSV, JSON, PDF, HTML, XML.",
+        "chooseFiles": "Scegli file",
+        "refreshList": "Aggiorna elenco",
+        "close": "Chiudi",
+        "dropzoneTitle": "Trascina qui i file",
+        "dropzoneHint": "oppure fai clic per selezionarli dal dispositivo",
+        "supportedFormats": "Formati supportati: TXT, MD, CSV, JSON, PDF, HTML, XML",
+        "sectionTitle": "Libreria",
+        "emptyStateTitle": "Nessun file caricato",
+        "emptyStateDescription": "I file caricati appariranno qui e saranno ricercabili nella chat demo.",
+        "fileReady": "Pronto per la chat",
+        "listError": "Impossibile caricare l'elenco dei file."
     },
     "developerSettings": "Impostazioni sviluppatore",
 

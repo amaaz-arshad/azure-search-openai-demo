@@ -70,6 +70,7 @@ export default defineConfig(({ mode }) => {
                 "/chat": "http://localhost:50505",
                 "/speech": "http://localhost:50505",
                 "/config": "http://localhost:50505",
+                "/chatbot_uploads": "http://localhost:50505",
                 "/upload": "http://localhost:50505",
                 "/delete_uploaded": "http://localhost:50505",
                 "/list_uploaded": "http://localhost:50505",

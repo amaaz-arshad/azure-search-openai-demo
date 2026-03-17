@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import Optional
 
 from .blobmanager import AdlsBlobManager, BaseBlobManager, BlobManager
@@ -198,3 +199,109 @@ class UploadUserFileStrategy:
             logging.warning("Filename is required to remove a file")
             return
         await self.search_manager.remove_content(filename, oid)
+
+
+class ChatbotUploadStrategy:
+    """
+    Strategy for chatbot-specific shared uploads stored in blob storage without per-user ACLs.
+    """
+
+    def __init__(
+        self,
+        chatbot_name: str,
+        search_info: SearchInfo,
+        file_processors: dict[str, FileProcessor],
+        blob_manager: BlobManager,
+        search_field_name_embedding: Optional[str] = None,
+        embeddings: Optional[OpenAIEmbeddings] = None,
+    ):
+        self.chatbot_name = chatbot_name
+        self.file_processors = file_processors
+        self.embeddings = embeddings
+        self.search_info = search_info
+        self.blob_manager = blob_manager
+        self.storage_prefix = f"chatbot-uploads/{self.chatbot_name}"
+        self.category = self.chatbot_name
+        self.search_manager = SearchManager(
+            search_info=self.search_info,
+            search_analyzer_name=None,
+            use_acls=False,
+            use_parent_index_projection=False,
+            embeddings=self.embeddings,
+            field_name_embedding=search_field_name_embedding,
+            search_images=False,
+            enforce_access_control=False,
+        )
+
+    def blob_name(self, filename: str) -> str:
+        return f"{self.storage_prefix}/{os.path.basename(filename)}"
+
+    def storage_url_suffix(self, filename: str) -> str:
+        return self.blob_name(filename)
+
+    def is_supported(self, filename: str) -> bool:
+        return os.path.splitext(filename)[1].lower() in self.file_processors
+
+    def is_own_storage_url(self, storage_url: Optional[str], filename: str) -> bool:
+        if not storage_url:
+            return False
+        return storage_url.endswith(self.storage_url_suffix(filename))
+
+    async def has_conflicting_non_upload_document(self, filename: str) -> bool:
+        path_for_filter = os.path.basename(filename).replace("'", "''")
+        category_for_filter = self.category.replace("'", "''")
+        filter_expression = f"sourcefile eq '{path_for_filter}' and category eq '{category_for_filter}'"
+
+        async with self.search_info.create_search_client() as search_client:
+            result = await search_client.search(search_text="", filter=filter_expression, top=1000)
+            async for document in result:
+                if not self.is_own_storage_url(document.get("storageUrl"), filename):
+                    return True
+        return False
+
+    async def add_file(self, file: File) -> str:
+        filename = file.filename()
+        if not self.is_supported(filename):
+            raise ValueError(f"Unsupported file type: {filename}")
+        if await self.has_conflicting_non_upload_document(filename):
+            raise ValueError(
+                f"Filename '{filename}' conflicts with existing {self.chatbot_name} content. Rename the file and upload it again."
+            )
+
+        sections = await parse_file(file, self.file_processors, self.category)
+        if not sections:
+            raise ValueError(f"Unable to extract searchable content from {filename}")
+
+        blob_name = self.blob_name(filename)
+        await self.search_manager.remove_content(
+            filename,
+            category=self.category,
+            storage_url_suffix=self.storage_url_suffix(filename),
+        )
+
+        file_url = await self.blob_manager.upload_blob_data(
+            file.content,
+            blob_name,
+            content_type=getattr(file.content, "content_type", None),
+        )
+        await self.search_manager.update_content(sections, url=file_url)
+        return file_url
+
+    async def remove_file(self, filename: str) -> None:
+        if filename is None or filename == "":
+            logging.warning("Filename is required to remove a file")
+            return
+
+        await self.blob_manager.remove_blob_name(self.blob_name(filename))
+        await self.search_manager.remove_content(
+            filename,
+            category=self.category,
+            storage_url_suffix=self.storage_url_suffix(filename),
+        )
+
+    async def list_files(self) -> list[str]:
+        blob_names = await self.blob_manager.list_blob_names(f"{self.storage_prefix}/")
+        return sorted(os.path.basename(blob_name) for blob_name in blob_names if blob_name)
+
+    async def download_file(self, filename: str):
+        return await self.blob_manager.download_blob(self.blob_name(filename))

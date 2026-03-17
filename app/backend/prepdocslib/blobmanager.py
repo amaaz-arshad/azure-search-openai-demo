@@ -8,6 +8,7 @@ from urllib.parse import unquote
 
 from azure.core.credentials_async import AsyncTokenCredential
 from azure.core.exceptions import ResourceNotFoundError
+from azure.storage.blob import ContentSettings
 from azure.storage.blob.aio import BlobServiceClient
 from azure.storage.filedatalake.aio import (
     DataLakeDirectoryClient,
@@ -437,6 +438,39 @@ class BlobManager(BaseBlobManager):
         if file.url is None:
             raise ValueError("file.url must be set after upload")
         return unquote(file.url)
+
+    async def upload_blob_data(self, file: IO[bytes], blob_name: str, content_type: Optional[str] = None) -> str:
+        container_client = self.blob_service_client.get_container_client(self.container)
+        if not await container_client.exists():
+            await container_client.create_container()
+
+        logger.info("Uploading blob '%s'", blob_name)
+        file.seek(0)
+        upload_kwargs: dict[str, Any] = {"overwrite": True}
+        if content_type:
+            upload_kwargs["content_settings"] = ContentSettings(content_type=content_type)
+        await container_client.upload_blob(blob_name, file, **upload_kwargs)
+        file.seek(0)
+        blob_client = container_client.get_blob_client(blob_name)
+        return unquote(blob_client.url)
+
+    async def list_blob_names(self, prefix: str) -> list[str]:
+        container_client = self.blob_service_client.get_container_client(self.container)
+        if not await container_client.exists():
+            return []
+
+        blob_names: list[str] = []
+        async for blob in container_client.list_blobs(name_starts_with=prefix):
+            blob_names.append(blob.name)
+        return blob_names
+
+    async def remove_blob_name(self, blob_name: str) -> None:
+        container_client = self.blob_service_client.get_container_client(self.container)
+        if not await container_client.exists():
+            return
+
+        logger.info("Removing blob %s", blob_name)
+        await container_client.delete_blob(blob_name, delete_snapshots="include")
 
     async def upload_document_image(
         self,

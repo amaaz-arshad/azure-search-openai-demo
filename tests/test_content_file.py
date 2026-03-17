@@ -174,3 +174,28 @@ async def test_content_file_useruploaded_notfound(
 
     response = await auth_client.get("/content/userdoc.pdf", headers={"Authorization": "Bearer test"})
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_content_file_chatbot_uploaded_found(monkeypatch, client):
+    quart_app = client.app
+
+    class MockChatbotUploadManager:
+        async def download_file(self, filename: str):
+            if filename != "demo-upload.txt":
+                return None
+            return (
+                b"demo upload content",
+                {
+                    "content_settings": {
+                        "content_type": "text/plain"
+                    }
+                },
+            )
+
+    quart_app.config[app.CONFIG_CHATBOT_UPLOAD_MANAGERS] = {"demo": MockChatbotUploadManager()}
+
+    response = await client.get("/content/demo-upload.txt")
+    assert response.status_code == 200
+    assert response.headers["Content-Type"].startswith("text/plain")
+    assert await response.get_data() == b"demo upload content"

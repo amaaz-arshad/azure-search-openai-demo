@@ -296,6 +296,8 @@ class ChatReadRetrieveReadApproach(Approach):
             return (extra_info, return_answer())
 
         chatbot_name_override = overrides.get("include_category")
+        if isinstance(chatbot_name_override, str) and "," in chatbot_name_override:
+            chatbot_name_override = chatbot_name_override.split(",", 1)[0].strip()
         messages = self.prompt_manager.build_conversation(
             system_template_path="chat_answer.system.jinja2",
             system_template_variables=self.get_system_prompt_variables(

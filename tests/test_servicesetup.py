@@ -19,6 +19,7 @@ from prepdocslib.servicesetup import (
     setup_search_info,
 )
 from prepdocslib.textparser import TextParser
+from prepdocslib.xmlparser import XmlParser
 
 from .mocks import (
     MOCK_EMBEDDING_DIMENSIONS,
@@ -295,6 +296,8 @@ def test_build_file_processors_text_files():
     assert isinstance(file_processors[".txt"].parser, TextParser)
     assert ".md" in file_processors
     assert isinstance(file_processors[".md"].parser, TextParser)
+    assert ".xml" in file_processors
+    assert isinstance(file_processors[".xml"].parser, XmlParser)
 
 
 def test_build_file_processors_with_di_enables_office_formats():

@@ -1,6 +1,6 @@
 const BACKEND_URI = "";
 
-import { ChatAppResponse, ChatAppResponseOrError, ChatAppRequest, Config, SimpleAPIResponse, HistoryListApiResponse, HistoryApiResponse } from "./models";
+import { ChatAppResponse, ChatAppResponseOrError, ChatAppRequest, Config, SimpleAPIResponse, HistoryListApiResponse, HistoryApiResponse, ChatbotUploadResponse } from "./models";
 import { useLogin, getToken, isUsingAppServicesLogin } from "../authConfig";
 
 export async function getHeaders(idToken: string | undefined): Promise<Record<string, string>> {
@@ -109,6 +109,45 @@ export async function listUploadedFilesApi(idToken: string): Promise<string[]> {
 
     const dataResponse: string[] = await response.json();
     return dataResponse;
+}
+
+export async function uploadChatbotFilesApi(chatbotName: string, request: FormData): Promise<ChatbotUploadResponse> {
+    const response = await fetch(`/chatbot_uploads/${chatbotName}`, {
+        method: "POST",
+        body: request
+    });
+
+    if (!response.ok) {
+        const errorBody = (await response.json().catch(() => null)) as SimpleAPIResponse | null;
+        throw new Error(errorBody?.message || `Uploading files failed: ${response.statusText}`);
+    }
+
+    return (await response.json()) as ChatbotUploadResponse;
+}
+
+export async function listChatbotUploadedFilesApi(chatbotName: string): Promise<string[]> {
+    const response = await fetch(`/chatbot_uploads/${chatbotName}`, {
+        method: "GET"
+    });
+
+    if (!response.ok) {
+        throw new Error(`Listing files failed: ${response.statusText}`);
+    }
+
+    return (await response.json()) as string[];
+}
+
+export async function deleteChatbotUploadedFileApi(chatbotName: string, filename: string): Promise<SimpleAPIResponse> {
+    const response = await fetch(`/chatbot_uploads/${chatbotName}/${encodeURIComponent(filename)}`, {
+        method: "DELETE"
+    });
+
+    if (!response.ok) {
+        const errorBody = (await response.json().catch(() => null)) as SimpleAPIResponse | null;
+        throw new Error(errorBody?.message || `Deleting file failed: ${response.statusText}`);
+    }
+
+    return (await response.json()) as SimpleAPIResponse;
 }
 
 export async function postChatHistoryApi(item: any, idToken: string): Promise<any> {

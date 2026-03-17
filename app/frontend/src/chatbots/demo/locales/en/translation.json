@@ -7,6 +7,7 @@
     "login": "Login",
     "logout": "Logout",
     "clearChat": "Clear chat",
+    "newChat": "New chat",
     "loginPage": {
         "title": "Welcome",
         "username": "Username",
@@ -38,7 +39,21 @@
         "deleteFile": "Delete file",
         "deletingFile": "Deleting file...",
         "errorDeleting": "Error deleting.",
-        "fileDeleted": "File deleted"
+        "fileDeleted": "File deleted",
+        "menuLabel": "Upload files",
+        "modalTitle": "Upload files to the demo bot",
+        "modalDescription": "Supported formats: TXT, MD, CSV, JSON, PDF, HTML, XML.",
+        "chooseFiles": "Choose files",
+        "refreshList": "Refresh list",
+        "close": "Close",
+        "dropzoneTitle": "Drop files here",
+        "dropzoneHint": "or click to browse your device",
+        "supportedFormats": "Supported formats: TXT, MD, CSV, JSON, PDF, HTML, XML",
+        "sectionTitle": "Library",
+        "emptyStateTitle": "No uploaded files yet",
+        "emptyStateDescription": "Uploaded files will appear here and become searchable in the demo chat.",
+        "fileReady": "Ready for chat",
+        "listError": "Could not load uploaded files."
     },
     "developerSettings": "Developer settings",
 

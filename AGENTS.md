@@ -26,7 +26,8 @@ If necessary, edit this file to ensure it accurately reflects the current state 
       * app/backend/prepdocslib/embeddings.py: Generates embeddings for text and images using Azure OpenAI
       * app/backend/prepdocslib/figureprocessor.py: Generates figure descriptions for both local ingestion and the cloud figure-processor skill
       * app/backend/prepdocslib/fileprocessor.py: Orchestrates parsing and chunking of individual files
-      * app/backend/prepdocslib/filestrategy.py: Strategy for uploading and indexing files (local ingestion)
+      * app/backend/prepdocslib/filestrategy.py: Strategy helpers for local ingestion, authenticated user uploads in ADLS, and shared chatbot uploads in blob storage. `ChatbotUploadStrategy` powers the demo bot's public upload flow using local parsers only, stores files under the `chatbot-uploads/<chatbot_name>/` prefix, indexes them into the chatbot's normal category (for demo: `demo`), and rejects filename collisions with built-in chatbot content.
+      * app/backend/prepdocslib/xmlparser.py: Local XML parser that preserves hierarchy, carries forward lightweight document context, and splits repeated sibling records (for example `<item>` or `<product>`) into separate retrieval-friendly sections before chunking.
       * app/backend/prepdocslib/htmlparser.py: Parses HTML files
       * app/backend/prepdocslib/integratedvectorizerstrategy.py: Strategy using Azure AI Search integrated vectorization
       * app/backend/prepdocslib/jsonparser.py: Parses JSON files
@@ -44,7 +45,7 @@ If necessary, edit this file to ensure it accurately reflects the current state 
       * app/backend/prepdocslib/fhgjson.py: FHG-specific JSON ingestion helpers that validate the wrapped dataset structure, preserve all study fields in chunk text, generate source blobs for citations, and build search-ready documents with stable IDs. In the FHG chatbot, answer citations use the indexed `storageUrl` so citation clicks open the original study URL in a new tab.
     * app/backend/delete_documents_by_category.py: Utility script that deletes all Azure AI Search documents whose `category` field matches a provided value.
     * app/backend/prep_fhg_json.py: Dedicated ingestion script for `data/fhg_alle_studien_*.json` files. It chunks each FHG study entry logically, uploads per-study source blobs for citations, generates embeddings for every indexed chunk, stores them in Azure AI Search with category `fhg`, and by default replaces existing `fhg` documents before re-indexing.
-    * app/backend/app.py: The main entry point for the backend application, including SPA fallback routes for chatbot URLs like `/<chatbot_name>`, server-side redirect of unknown chatbot names back to `/`, SPA fallback for `/chatbots`, and no-store caching headers for `index.html` responses to avoid stale frontend routing behavior.
+    * app/backend/app.py: The main entry point for the backend application, including SPA fallback routes for chatbot URLs like `/<chatbot_name>`, server-side redirect of unknown chatbot names back to `/`, SPA fallback for `/chatbots`, public chatbot upload routes at `/chatbot_uploads/<chatbot_name>` (currently used by the demo bot), chatbot-upload content fallback in `/content/<path>`, and no-store caching headers for `index.html` responses to avoid stale frontend routing behavior.
   * app/functions: Azure Functions used for cloud ingestion custom skills (document extraction, figure processing, text processing). Each function bundles a synchronized copy of `prepdocslib`; run `python scripts/copy_prepdocslib.py` to refresh the local copies if you modify the library.
   * app/frontend: Contains the React frontend code, built with TypeScript, built with vite.
     * app/frontend/src/index.tsx: Frontend entry point and router setup. It resolves chatbot UI by URL path (`/<chatbot_name>`), serves a landing/error page on `/`, provides a password-gated chatbot directory at `/chatbots`, and routes unknown frontend paths back to `/`.
@@ -58,7 +59,7 @@ If necessary, edit this file to ensure it accurately reflects the current state 
       * app/frontend/src/chatbots/lemon: Chatbot implementation.
       * app/frontend/src/chatbots/publishone: Chatbot implementation.
       * app/frontend/src/chatbots/fbn: Chatbot implementation.
-      * app/frontend/src/chatbots/demo: Chatbot implementation.
+      * app/frontend/src/chatbots/demo: Chatbot implementation with a public upload manager modal opened from the header dropdown. Demo uploads use the backend `/chatbot_uploads/demo` endpoints, support local XML parsing in addition to the existing local formats, and become searchable inside the normal `demo` category.
       * app/frontend/src/chatbots/fhg: Chatbot implementation with an additional basic username/password login gate shown before chat.
       * app/frontend/src/chatbots/vjoonk4: Chatbot implementation with an additional basic username/password login gate shown before chat.
     * app/frontend/src/api: Contains the API client code for communicating with the backend.

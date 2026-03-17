@@ -289,7 +289,14 @@ class Approach(ABC):
         exclude_category = overrides.get("exclude_category")
         filters = []
         if include_category:
-            filters.append("category eq '{}'".format(include_category.replace("'", "''")))
+            include_categories = [category.strip() for category in include_category.split(",") if category.strip()]
+            if len(include_categories) == 1:
+                filters.append("category eq '{}'".format(include_categories[0].replace("'", "''")))
+            elif include_categories:
+                category_filters = [
+                    "category eq '{}'".format(category.replace("'", "''")) for category in include_categories
+                ]
+                filters.append(f"({' or '.join(category_filters)})")
         if exclude_category:
             filters.append("category ne '{}'".format(exclude_category.replace("'", "''")))
         return None if not filters else " and ".join(filters)

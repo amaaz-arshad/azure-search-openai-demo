@@ -644,18 +644,28 @@ class SearchManager:
                 )
                 await search_client.upload_documents(documents)
 
-    async def remove_content(self, path: Optional[str] = None, only_oid: Optional[str] = None):
+    async def remove_content(
+        self,
+        path: Optional[str] = None,
+        only_oid: Optional[str] = None,
+        category: Optional[str] = None,
+        storage_url_suffix: Optional[str] = None,
+    ):
         logger.info(
             "Removing sections from '{%s or '<all>'}' from search index '%s'", path, self.search_info.index_name
         )
         async with self.search_info.create_search_client() as search_client:
             while True:
-                filter = None
+                filters = []
                 if path is not None:
                     # Replace ' with '' to escape the single quote for the filter
                     # https://learn.microsoft.com/azure/search/query-odata-filter-orderby-syntax#escaping-special-characters-in-string-constants
                     path_for_filter = os.path.basename(path).replace("'", "''")
-                    filter = f"sourcefile eq '{path_for_filter}'"
+                    filters.append(f"sourcefile eq '{path_for_filter}'")
+                if category is not None:
+                    category_for_filter = category.replace("'", "''")
+                    filters.append(f"category eq '{category_for_filter}'")
+                filter = None if not filters else " and ".join(filters)
                 max_results = 1000
                 result = await search_client.search(
                     search_text="", filter=filter, top=max_results, include_total_count=True
@@ -665,6 +675,10 @@ class SearchManager:
                     break
                 documents_to_remove = []
                 async for document in result:
+                    if storage_url_suffix is not None and not str(document.get("storageUrl") or "").endswith(
+                        storage_url_suffix
+                    ):
+                        continue
                     # If only_oid is set, only remove documents that have only this oid
                     if not only_oid or document.get("oids") == [only_oid]:
                         documents_to_remove.append({"id": document["id"]})

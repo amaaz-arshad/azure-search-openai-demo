@@ -1,127 +1,94 @@
-import React, { useState, useEffect, useRef, RefObject } from "react";
-import { Outlet, Link } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { Link, Outlet } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import styles from "./Layout.module.css";
+import { IconButton } from "@fluentui/react";
+import { ArrowUpload24Regular, ChatAdd24Regular, SignOut24Regular } from "@fluentui/react-icons";
 
 import { useLogin } from "../../authConfig";
-
+import { UploadManagerModal } from "../../components/UploadManagerModal/UploadManagerModal";
 import { LoginButton } from "../../components/LoginButton";
-import { IconButton } from "@fluentui/react";
-import { MoreHorizontal24Regular, ChatAdd24Regular, ChatDismiss24Regular, History24Regular, SignOut24Regular } from "@fluentui/react-icons";
 import demoLogo from "../../assets/fbn.png";
 import { logout } from "../basicauth/basicAuth";
+import styles from "./Layout.module.css";
 
-// At the top of the file, outside the component
 let globalClearChat: () => void = () => {};
 
-// Function to set the clear chat callback
 export const setGlobalClearChat = (fn: () => void) => {
     globalClearChat = fn;
 };
 
 const Layout = () => {
     const { t } = useTranslation();
-    const [menuOpen, setMenuOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement | null>(null);
     const [dropdownOpen, setDropdownOpen] = useState(false);
-    const menuRef: RefObject<HTMLDivElement> = useRef(null);
-    const dropdownRef: RefObject<HTMLDivElement> = useRef(null);
-
-    const toggleMenu = () => {
-        setMenuOpen(!menuOpen);
-    };
-
-    const toggleDropdown = () => {
-        setDropdownOpen(!dropdownOpen);
-    };
-
-    const handleClickOutside = (event: MouseEvent) => {
-        if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-            setMenuOpen(false);
-        }
-        if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-            setDropdownOpen(false);
-        }
-    };
+    const [isUploadManagerOpen, setIsUploadManagerOpen] = useState(false);
 
     useEffect(() => {
-        if (menuOpen || dropdownOpen) {
-            document.addEventListener("mousedown", handleClickOutside);
-        } else {
-            document.removeEventListener("mousedown", handleClickOutside);
+        if (!dropdownOpen) {
+            return;
         }
-        return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
+
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setDropdownOpen(false);
+            }
         };
-    }, [menuOpen, dropdownOpen]);
+
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [dropdownOpen]);
 
     const handleStartNewChat = () => {
-        setDropdownOpen(false);
-        // Add your start new chat logic here
-        console.log("Start new chat");
-    };
-
-    // Inside the Layout component:
-    const handleEndChat = () => {
         setDropdownOpen(false);
         globalClearChat();
     };
 
-    const handleViewRecentChats = () => {
+    const handleOpenUploadManager = () => {
         setDropdownOpen(false);
-        // Add your view recent chats logic here
-        console.log("View recent chats");
+        setIsUploadManagerOpen(true);
     };
 
     const handleBasicLogout = () => {
         setDropdownOpen(false);
         logout();
-        window.location.reload(); // Forces AppGate to re-check auth
+        window.location.reload();
     };
 
     return (
         <div className={styles.layout}>
-            <header className={styles.header} role={"banner"}>
+            <header className={styles.header} role="banner">
                 <div className={styles.headerContainer}>
-                    {/* Left: Logo */}
-                    <Link to="/" className={styles.logoContainer}>
+                    <Link className={styles.logoContainer} to="/">
                         <div className={styles.logoCircle}>
-                            <img src={demoLogo} alt="Demo Chatbot logo" />
+                            <img alt="Demo Chatbot logo" src={demoLogo} />
                         </div>
                     </Link>
 
-                    {/* Center: Title */}
                     <div className={styles.navbarTitle}>{t("headerTitle")}</div>
 
-                    {/* Right: Menu and Login */}
                     <div className={styles.rightSection}>
                         {useLogin && <LoginButton />}
                         <div className={styles.dropdown} ref={dropdownRef}>
                             <IconButton
-                                iconProps={{ iconName: "More", styles: { root: { fontSize: "25px", color: "white" } } }} // Increase from default 16px
+                                ariaLabel={t("labels.toggleMenu")}
                                 className={styles.menuButton}
-                                onClick={toggleDropdown}
-                                ariaLabel={t("labels.openMenu")}
+                                iconProps={{ iconName: "More", styles: { root: { fontSize: "25px", color: "white" } } }}
+                                onClick={() => setDropdownOpen(open => !open)}
                             />
                             {dropdownOpen && (
                                 <ul className={styles.dropdownMenu}>
-                                    {/* <li>
-                                        <button className={styles.dropdownItem} style={{ opacity: 0.5, cursor: "not-allowed" }} onClick={() => {}} disabled>
-                                            <ChatAdd24Regular />
-                                            <span>Start a new chat</span>
-                                        </button>
-                                    </li> */}
                                     <li>
-                                        <button className={styles.dropdownItem} onClick={handleEndChat}>
-                                            <ChatDismiss24Regular />
-                                            <span>{t("clearChat")}</span>
+                                        <button className={styles.dropdownItem} onClick={handleStartNewChat}>
+                                            <ChatAdd24Regular />
+                                            <span>{t("newChat")}</span>
                                         </button>
                                     </li>
-                                    {/* <li>
-                                        <button className={styles.dropdownItem} style={{ opacity: 0.5, cursor: "not-allowed" }} onClick={() => {}} disabled>
-                                            <History24Regular />
-                                            <span>View recent chats</span>
+                                    <li>
+                                        <button className={styles.dropdownItem} onClick={handleOpenUploadManager}>
+                                            <ArrowUpload24Regular />
+                                            <span>{t("upload.menuLabel")}</span>
                                         </button>
-                                    </li> */}
+                                    </li>
                                     <li>
                                         <button className={styles.dropdownItem} onClick={handleBasicLogout}>
                                             <SignOut24Regular />
@@ -138,6 +105,8 @@ const Layout = () => {
             <main className={styles.main} id="main-content">
                 <Outlet />
             </main>
+
+            <UploadManagerModal chatbotName="demo" isOpen={isUploadManagerOpen} onClose={() => setIsUploadManagerOpen(false)} />
         </div>
     );
 };

@@ -71,7 +71,27 @@ async def test_app_user_upload_processors(monkeypatch, minimal_env):
     async with quart_app.test_app():
         ingester = quart_app.config[app.CONFIG_INGESTER]
         assert ingester is not None
-        assert len(ingester.file_processors.keys()) == 6
+        assert len(ingester.file_processors.keys()) == 7
+
+
+@pytest.mark.asyncio
+async def test_app_demo_upload_processors_are_local(monkeypatch, minimal_env):
+    monkeypatch.setenv("AZURE_DOCUMENTINTELLIGENCE_SERVICE", "test-docint-service")
+
+    quart_app = app.create_app()
+    async with quart_app.test_app():
+        chatbot_upload_managers = quart_app.config[app.CONFIG_CHATBOT_UPLOAD_MANAGERS]
+        demo_upload_manager = chatbot_upload_managers["demo"]
+        assert demo_upload_manager is not None
+        assert sorted(demo_upload_manager.file_processors.keys()) == [
+            ".csv",
+            ".html",
+            ".json",
+            ".md",
+            ".pdf",
+            ".txt",
+            ".xml",
+        ]
 
 
 @pytest.mark.asyncio
@@ -114,7 +134,7 @@ async def test_app_user_upload_processors_docint(monkeypatch, minimal_env):
     async with quart_app.test_app():
         ingester = quart_app.config[app.CONFIG_INGESTER]
         assert ingester is not None
-        assert len(ingester.file_processors.keys()) == 15
+        assert len(ingester.file_processors.keys()) == 16
 
 
 @pytest.mark.asyncio
@@ -130,7 +150,7 @@ async def test_app_user_upload_processors_docint_localpdf(monkeypatch, minimal_e
     async with quart_app.test_app():
         ingester = quart_app.config[app.CONFIG_INGESTER]
         assert ingester is not None
-        assert len(ingester.file_processors.keys()) == 15
+        assert len(ingester.file_processors.keys()) == 16
         assert ingester.file_processors[".pdf"] is not ingester.file_processors[".pptx"]
 
 
@@ -147,7 +167,7 @@ async def test_app_user_upload_processors_docint_localhtml(monkeypatch, minimal_
     async with quart_app.test_app():
         ingester = quart_app.config[app.CONFIG_INGESTER]
         assert ingester is not None
-        assert len(ingester.file_processors.keys()) == 15
+        assert len(ingester.file_processors.keys()) == 16
         assert ingester.file_processors[".html"] is not ingester.file_processors[".pptx"]
 
 

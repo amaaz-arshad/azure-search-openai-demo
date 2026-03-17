@@ -23,6 +23,7 @@ from .pdfparser import DocumentAnalysisParser, LocalPdfParser
 from .strategy import SearchInfo
 from .textparser import TextParser
 from .textsplitter import SentenceTextSplitter, SimpleTextSplitter
+from .xmlparser import XmlParser
 
 logger = logging.getLogger("scripts")
 
@@ -290,6 +291,7 @@ def build_file_processors(
         ".md": FileProcessor(TextParser(), sentence_text_splitter),
         ".txt": FileProcessor(TextParser(), sentence_text_splitter),
         ".csv": FileProcessor(CsvParser(), sentence_text_splitter),
+        ".xml": FileProcessor(XmlParser(), sentence_text_splitter),
     }
     # These require either a Python package or Document Intelligence
     if pdf_parser is not None:
