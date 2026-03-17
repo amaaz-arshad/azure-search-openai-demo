@@ -138,6 +138,7 @@ KNOWN_CHATBOT_NAMES = {
     "fbn",
     "demo",
     "fhg",
+    "vjoonk4",
 }
 
 

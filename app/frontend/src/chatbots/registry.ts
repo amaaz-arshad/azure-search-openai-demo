@@ -9,6 +9,7 @@ import { lemonChatbot } from "./lemon";
 import { nerilioChatbot } from "./nerilio";
 import { publishoneChatbot } from "./publishone";
 import { steuertippsChatbot } from "./steuertipps";
+import { vjoonk4Chatbot } from "./vjoonk4";
 
 export interface ChatbotDefinition {
     name: string;
@@ -18,4 +19,14 @@ export interface ChatbotDefinition {
     i18n: I18nInstance;
 }
 
-export const chatbotDefinitions: ChatbotDefinition[] = [nerilioChatbot, steuertippsChatbot, knollChatbot, lemonChatbot, publishoneChatbot, fbnChatbot, demoChatbot, fhgChatbot];
+export const chatbotDefinitions: ChatbotDefinition[] = [
+    nerilioChatbot,
+    steuertippsChatbot,
+    knollChatbot,
+    lemonChatbot,
+    publishoneChatbot,
+    fbnChatbot,
+    demoChatbot,
+    fhgChatbot,
+    vjoonk4Chatbot
+];

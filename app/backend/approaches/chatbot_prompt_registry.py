@@ -16,6 +16,7 @@ CHATBOT_PROMPT_MODULES = {
     "fbn": "approaches.chatbots.fbn.sampleprompt",
     "demo": "approaches.chatbots.demo.sampleprompt",
     "fhg": "approaches.chatbots.fhg.sampleprompt",
+    "vjoonk4": "approaches.chatbots.vjoonk4.sampleprompt",
 }
 
 
