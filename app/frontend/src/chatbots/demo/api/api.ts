@@ -1,6 +1,16 @@
 const BACKEND_URI = "";
 
-import { ChatAppResponse, ChatAppResponseOrError, ChatAppRequest, Config, SimpleAPIResponse, HistoryListApiResponse, HistoryApiResponse, ChatbotUploadResponse } from "./models";
+import {
+    ChatAppResponse,
+    ChatAppResponseOrError,
+    ChatAppRequest,
+    Config,
+    SimpleAPIResponse,
+    HistoryListApiResponse,
+    HistoryApiResponse,
+    ChatbotUploadResponse,
+    ChatbotBulkDeleteResponse
+} from "./models";
 import { useLogin, getToken, isUsingAppServicesLogin } from "../authConfig";
 
 export async function getHeaders(idToken: string | undefined): Promise<Record<string, string>> {
@@ -172,6 +182,19 @@ export async function deleteChatbotUploadedFileApi(chatbotName: string, filename
     }
 
     return (await response.json()) as SimpleAPIResponse;
+}
+
+export async function deleteAllChatbotUploadedFilesApi(chatbotName: string): Promise<ChatbotBulkDeleteResponse> {
+    const response = await fetch(`/chatbot_uploads/${chatbotName}`, {
+        method: "DELETE"
+    });
+
+    if (!response.ok) {
+        const errorBody = (await response.json().catch(() => null)) as ChatbotBulkDeleteResponse | null;
+        throw new Error(errorBody?.message || `Deleting files failed: ${response.statusText}`);
+    }
+
+    return (await response.json()) as ChatbotBulkDeleteResponse;
 }
 
 export async function postChatHistoryApi(item: any, idToken: string): Promise<any> {

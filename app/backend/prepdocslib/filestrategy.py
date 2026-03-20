@@ -483,6 +483,20 @@ class ChatbotUploadStrategy:
         await self.remove_stale_blobs(filename, keep_blob_name=None)
         await self.remove_manifest(filename)
 
+    async def remove_all_files(self) -> tuple[list[str], list[dict[str, str]]]:
+        deleted: list[str] = []
+        failed: list[dict[str, str]] = []
+
+        for filename in await self.list_files():
+            try:
+                await self.remove_file(filename)
+                deleted.append(filename)
+            except Exception as error:
+                logger.error("Failed to remove chatbot upload '%s': %s", filename, error)
+                failed.append({"filename": filename, "message": "Unexpected delete failure"})
+
+        return deleted, failed
+
     async def list_files(self) -> list[str]:
         filenames = set()
 

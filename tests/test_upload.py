@@ -473,6 +473,105 @@ async def test_delete_chatbot_uploaded_file(client, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_delete_all_chatbot_uploaded_files(client, monkeypatch):
+    existing_blobs = {
+        "chatbot-uploads/demo/files/YWxwaGEudHh0/dXBsb2FkLTE/alpha.txt",
+        "chatbot-uploads/demo/.manifests/YWxwaGEudHh0.json",
+        "chatbot-uploads/demo/files/YmV0YS5wZGY/dXBsb2FkLTI/beta.pdf",
+        "chatbot-uploads/demo/.manifests/YmV0YS5wZGY.json",
+    }
+
+    async def mock_exists(*args, **kwargs):
+        return True
+
+    deleted_blob_names = []
+
+    async def mock_delete_blob(self, blob_name, *args, **kwargs):
+        deleted_blob_names.append(blob_name)
+        existing_blobs.discard(blob_name)
+        return None
+
+    class SearchResultsIterator:
+        def __init__(self, documents):
+            self.documents = documents
+
+        def __aiter__(self):
+            return self
+
+        async def __anext__(self):
+            if not self.documents:
+                raise StopAsyncIteration
+            return self.documents.pop(0)
+
+        async def get_count(self):
+            return len(self.documents)
+
+    search_results = {
+        "alpha.txt": [
+            {
+                "id": "file-alpha_txt-page-0",
+                "sourcefile": "alpha.txt",
+                "category": "demo",
+                "storageUrl": "https://test.blob.core.windows.net/test-storage-container/chatbot-uploads/demo/files/YWxwaGEudHh0/dXBsb2FkLTE/alpha.txt",
+            }
+        ],
+        "beta.pdf": [
+            {
+                "id": "file-beta_pdf-page-0",
+                "sourcefile": "beta.pdf",
+                "category": "demo",
+                "storageUrl": "https://test.blob.core.windows.net/test-storage-container/chatbot-uploads/demo/files/YmV0YS5wZGY/dXBsb2FkLTI/beta.pdf",
+            }
+        ],
+    }
+
+    async def mock_search(self, *args, **kwargs):
+        filter_value = kwargs.get("filter") or ""
+        if "sourcefile eq 'alpha.txt'" in filter_value:
+            return SearchResultsIterator(search_results["alpha.txt"][:])
+        if "sourcefile eq 'beta.pdf'" in filter_value:
+            return SearchResultsIterator(search_results["beta.pdf"][:])
+        return SearchResultsIterator([])
+
+    deleted_documents = []
+
+    async def mock_delete_documents(self, documents):
+        deleted_documents.extend(documents)
+        return documents
+
+    monkeypatch.setattr(ContainerClient, "exists", mock_exists)
+    monkeypatch.setattr(ContainerClient, "delete_blob", mock_delete_blob)
+    monkeypatch.setattr(
+        ContainerClient,
+        "get_blob_client",
+        lambda *args, **kwargs: MockBlobClient(args[1], existing_blobs),
+    )
+    monkeypatch.setattr(
+        ContainerClient,
+        "list_blobs",
+        lambda *args, **kwargs: BlobListIterator(
+            [name for name in existing_blobs if name.startswith(kwargs.get("name_starts_with", ""))]
+        ),
+    )
+    monkeypatch.setattr(SearchClient, "search", mock_search)
+    monkeypatch.setattr(SearchClient, "delete_documents", mock_delete_documents)
+
+    response = await client.delete("/chatbot_uploads/demo")
+
+    payload = await response.get_json()
+    assert response.status_code == 200
+    assert payload["deletedFiles"] == ["alpha.txt", "beta.pdf"]
+    assert payload["failedFiles"] == []
+    assert deleted_documents == [{"id": "file-alpha_txt-page-0"}, {"id": "file-beta_pdf-page-0"}]
+    assert deleted_blob_names == [
+        "chatbot-uploads/demo/files/YWxwaGEudHh0/dXBsb2FkLTE/alpha.txt",
+        "chatbot-uploads/demo/.manifests/YWxwaGEudHh0.json",
+        "chatbot-uploads/demo/files/YmV0YS5wZGY/dXBsb2FkLTI/beta.pdf",
+        "chatbot-uploads/demo/.manifests/YmV0YS5wZGY.json",
+    ]
+
+
+@pytest.mark.asyncio
 async def test_chatbot_upload_rejects_filename_conflict_with_builtin_demo_content(client, monkeypatch):
     async def mock_exists(*args, **kwargs):
         return True

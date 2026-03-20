@@ -13,6 +13,7 @@ import { useTranslation } from "react-i18next";
 
 import {
     cancelChatbotUploadApi,
+    deleteAllChatbotUploadedFilesApi,
     deleteChatbotUploadedFileApi,
     listChatbotUploadedFilesApi,
     uploadChatbotFilesApi
@@ -81,16 +82,16 @@ export const UploadManagerModal = ({ chatbotName, isOpen, onClose }: Props) => {
     const [isStopping, setIsStopping] = useState(false);
     const [isDragActive, setIsDragActive] = useState(false);
     const [deletingFiles, setDeletingFiles] = useState<Record<string, boolean>>({});
+    const [isDeletingAll, setIsDeletingAll] = useState(false);
     const [status, setStatus] = useState<StatusState>();
 
     const hasActiveQueue = queueItems.some(item => activeStatuses.includes(item.status));
+    const hasPendingDelete = isDeletingAll || Object.keys(deletingFiles).length > 0;
 
     const setQueueState = (updater: (current: UploadQueueItem[]) => UploadQueueItem[]) => {
-        setQueueItems(current => {
-            const nextState = updater(current);
-            queueRef.current = nextState;
-            return nextState;
-        });
+        const nextState = updater(queueRef.current);
+        queueRef.current = nextState;
+        setQueueItems(nextState);
     };
 
     const updateQueueItem = (itemId: string, changes: Partial<UploadQueueItem>) => {
@@ -391,6 +392,38 @@ export const UploadManagerModal = ({ chatbotName, isOpen, onClose }: Props) => {
         }
     };
 
+    const handleDeleteAll = async () => {
+        if (uploadedFiles.length === 0 || isDeletingAll) {
+            return;
+        }
+
+        if (!window.confirm(t("upload.deleteAllConfirm", { count: uploadedFiles.length }))) {
+            return;
+        }
+
+        setIsDeletingAll(true);
+        setStatus(undefined);
+        try {
+            const response = await deleteAllChatbotUploadedFilesApi(chatbotName);
+            setStatus({
+                tone: response.failedFiles.length > 0 ? "warning" : "success",
+                message:
+                    response.message ??
+                    (response.failedFiles.length > 0
+                        ? t("upload.deleteAllPartial")
+                        : t("upload.allFilesDeleted", { count: response.deletedFiles.length }))
+            });
+            await loadFiles({ suppressErrors: true });
+        } catch (error) {
+            setStatus({
+                tone: "error",
+                message: error instanceof Error ? error.message : t("upload.errorDeleting")
+            });
+        } finally {
+            setIsDeletingAll(false);
+        }
+    };
+
     useEffect(() => {
         queueRef.current = queueItems;
     }, [queueItems]);
@@ -649,7 +682,20 @@ export const UploadManagerModal = ({ chatbotName, isOpen, onClose }: Props) => {
                         <p className={styles.sectionLabel}>{t("upload.sectionTitle")}</p>
                         <h3 className={styles.sectionTitle}>{t("upload.uploadedFilesLabel")}</h3>
                     </div>
-                    <span className={styles.fileCount}>{uploadedFiles.length}</span>
+                    <div className={styles.sectionHeaderActions}>
+                        <span className={styles.fileCount}>{uploadedFiles.length}</span>
+                        {uploadedFiles.length > 0 && (
+                            <Button
+                                appearance="secondary"
+                                className={styles.deleteAllButton}
+                                disabled={hasActiveQueue || isStopping || isLoading || hasPendingDelete}
+                                icon={<Delete24Regular />}
+                                onClick={() => void handleDeleteAll()}
+                            >
+                                {isDeletingAll ? t("upload.deletingAllFiles") : t("upload.deleteAllFiles")}
+                            </Button>
+                        )}
+                    </div>
                 </div>
 
                 <div className={styles.fileList}>
@@ -675,10 +721,12 @@ export const UploadManagerModal = ({ chatbotName, isOpen, onClose }: Props) => {
                                 </div>
                                 <Button
                                     appearance="subtle"
+                                    aria-label={deletingFiles[filename] ? t("upload.deletingFile") : t("upload.deleteFile")}
                                     className={styles.deleteButton}
-                                    disabled={Boolean(deletingFiles[filename]) || hasActiveQueue || isStopping}
-                                    icon={<Delete24Regular />}
+                                    disabled={Boolean(deletingFiles[filename]) || hasActiveQueue || isStopping || isDeletingAll}
+                                    icon={deletingFiles[filename] ? <ArrowClockwise24Regular /> : <Delete24Regular />}
                                     onClick={() => void handleDelete(filename)}
+                                    title={deletingFiles[filename] ? t("upload.deletingFile") : t("upload.deleteFile")}
                                 >
                                     {deletingFiles[filename] ? t("upload.deletingFile") : t("upload.deleteFile")}
                                 </Button>

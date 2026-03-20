@@ -544,6 +544,26 @@ async def delete_chatbot_uploaded(chatbot_name: str, filename: str):
     return jsonify({"message": f"File {filename} deleted successfully"}), 200
 
 
+@bp.delete("/chatbot_uploads/<chatbot_name>")
+async def delete_all_chatbot_uploaded(chatbot_name: str):
+    chatbot_upload_manager = get_chatbot_upload_manager(chatbot_name)
+    deleted, failed = await chatbot_upload_manager.remove_all_files()
+
+    if deleted and failed:
+        message = f"Deleted {len(deleted)} file(s); {len(failed)} file(s) failed."
+        return jsonify({"message": message, "deletedFiles": deleted, "failedFiles": failed}), 207
+    if failed:
+        return (
+            jsonify({"message": "Unable to delete uploaded files.", "deletedFiles": [], "failedFiles": failed}),
+            500,
+        )
+    if not deleted:
+        return jsonify({"message": "No uploaded files to delete.", "deletedFiles": [], "failedFiles": []}), 200
+
+    message = f"{len(deleted)} file deleted successfully." if len(deleted) == 1 else f"{len(deleted)} files deleted successfully."
+    return jsonify({"message": message, "deletedFiles": deleted, "failedFiles": []}), 200
+
+
 @bp.before_app_serving
 async def setup_clients():
     # Replace these with your own values, either in environment variables or directly here
