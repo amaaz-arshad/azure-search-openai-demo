@@ -44,6 +44,7 @@ If necessary, edit this file to ensure it accurately reflects the current state 
   * app/frontend: Contains the React frontend code, built with TypeScript, built with vite.
     * app/frontend/src/api: Contains the API client code for communicating with the backend, including speech token retrieval for Azure Speech browser playback.
     * app/frontend/src/components: Contains the React components for the frontend.
+    * app/frontend/src/speech: Contains shared Azure Speech browser helpers for token reuse and browser-specific streaming format selection.
     * app/frontend/src/locales: Contains the translation files for internationalization.
       * app/frontend/src/locales/da/translation.json: Danish translations
       * app/frontend/src/locales/en/translation.json: English translations

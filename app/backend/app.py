@@ -602,8 +602,8 @@ async def setup_clients():
         enable_unauthenticated_access=AZURE_ENABLE_UNAUTHENTICATED_ACCESS,
     )
 
-    if USE_SPEECH_OUTPUT_AZURE:
-        current_app.logger.info("USE_SPEECH_OUTPUT_AZURE is true, setting up Azure speech service")
+    if USE_SPEECH_OUTPUT_AZURE or USE_SPEECH_INPUT_BROWSER:
+        current_app.logger.info("Speech input or Azure speech output is enabled, setting up Azure speech service")
         if not AZURE_SPEECH_SERVICE_ID or AZURE_SPEECH_SERVICE_ID == "":
             raise ValueError("Azure speech resource not configured correctly, missing AZURE_SPEECH_SERVICE_ID")
         if not AZURE_SPEECH_SERVICE_LOCATION or AZURE_SPEECH_SERVICE_LOCATION == "":

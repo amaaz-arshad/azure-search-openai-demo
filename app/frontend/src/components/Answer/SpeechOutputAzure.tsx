@@ -2,58 +2,20 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IconButton } from "@fluentui/react";
 import * as SpeechSDK from "microsoft-cognitiveservices-speech-sdk";
-import { getSpeechTokenApi, SpeechTokenResponse } from "../../api";
+import {
+    getPreferredSpeechSynthesisOutputFormat,
+    getSpeechToken,
+    invalidateSpeechToken,
+    isSpeechAuthFailure
+} from "../../speech/azureSpeech";
 
 let activePlaybackOwner: symbol | null = null;
 let activePlaybackStop: (() => void) | null = null;
-let cachedSpeechToken: SpeechTokenResponse | null = null;
-let pendingSpeechTokenRequest: Promise<SpeechTokenResponse> | null = null;
-
-const SPEECH_TOKEN_REFRESH_BUFFER_MS = 2 * 60 * 1000;
 
 interface Props {
     answer: string;
     isStreaming: boolean;
 }
-
-const shouldRefreshSpeechToken = (speechToken: SpeechTokenResponse) => {
-    return speechToken.expiresAt * 1000 <= Date.now() + SPEECH_TOKEN_REFRESH_BUFFER_MS;
-};
-
-const getSpeechToken = async (forceRefresh: boolean = false): Promise<SpeechTokenResponse> => {
-    if (!forceRefresh && cachedSpeechToken && !shouldRefreshSpeechToken(cachedSpeechToken)) {
-        return cachedSpeechToken;
-    }
-
-    if (!forceRefresh && pendingSpeechTokenRequest) {
-        return pendingSpeechTokenRequest;
-    }
-
-    pendingSpeechTokenRequest = getSpeechTokenApi()
-        .then(speechToken => {
-            cachedSpeechToken = speechToken;
-            return speechToken;
-        })
-        .finally(() => {
-            pendingSpeechTokenRequest = null;
-        });
-
-    return pendingSpeechTokenRequest;
-};
-
-const invalidateSpeechToken = () => {
-    cachedSpeechToken = null;
-};
-
-const isSpeechAuthFailure = (error: string) => {
-    const normalizedError = error.toLowerCase();
-    return (
-        normalizedError.includes("authentication failed") ||
-        normalizedError.includes("no valid credentials") ||
-        normalizedError.includes("unable to contact server") ||
-        normalizedError.includes("statuscode: 1006")
-    );
-};
 
 export const SpeechOutputAzure = ({ answer, isStreaming }: Props) => {
     const [isLoading, setIsLoading] = useState(false);
@@ -151,6 +113,7 @@ export const SpeechOutputAzure = ({ answer, isStreaming }: Props) => {
             speechToken.region
         );
         sdkSpeechConfig.speechSynthesisVoiceName = speechToken.voice;
+        sdkSpeechConfig.speechSynthesisOutputFormat = getPreferredSpeechSynthesisOutputFormat();
 
         const player = new SpeechSDK.SpeakerAudioDestination();
         player.onAudioStart = () => {
