@@ -53,6 +53,7 @@ If necessary, edit this file to ensure it accurately reflects the current state 
     * app/frontend/src/chatbots/registry.ts: Registry of available chatbot UIs, including the chatbot-specific i18n instance.
     * app/frontend/src/chatbots/shared/basicauth/BasicLoginPage.tsx: Shared themed basic-auth login page used by chatbot-specific basic auth routes.
     * app/frontend/src/chatbots/shared/speech: Shared Azure Speech browser helpers/components for chatbot mic input and low-latency TTS playback. It fetches short-lived auth tokens from `/speech/token`, uses Azure Speech SDK microphone recognition instead of the browser `SpeechRecognition` API, chooses a Firefox-safe streamed synthesis format at runtime, and includes `chatbotSpeechFeatureFlags.ts` as the single frontend switchboard for enabling/disabling speech input/browser output/Azure output per chatbot UI without editing component JSX.
+    * app/frontend/src/chatbots/shared/theme: Shared chatbot theme registry and route wrapper. `chatbotThemes.ts` is the single frontend switchboard for navbar colors, header login button colors, basic-login page background/button colors, and user chat bubble colors across chatbot UIs. Most chatbots only need a single `primary` color there because the rest of the theme is auto-derived, with optional overrides for exceptions.
     * app/frontend/src/chatbots/<chatbot_name>: Chatbot-specific frontend implementation (pages, components, layout wrapper, i18n, locales, assets, and chatbot wiring).
       * app/frontend/src/chatbots/nerilio: Chatbot implementation.
       * app/frontend/src/chatbots/steuertipps: Chatbot implementation.
@@ -92,6 +93,7 @@ Frontend chatbot UIs are routed by path segment (`/<chatbot_name>`). To add a ne
 1. Create `app/frontend/src/chatbots/<chatbot_name>/` with that chatbot's pages/components/layout.
 1. Export its definition (`name`, `LayoutWrapper`, `Chat`, `NoPage`, `i18n`) from `app/frontend/src/chatbots/<chatbot_name>/index.ts`.
 1. Register it in `app/frontend/src/chatbots/registry.ts`.
+1. Add that chatbot's theme entry in `app/frontend/src/chatbots/shared/theme/chatbotThemes.ts`. Usually a single `primary` color is enough; only add overrides if the auto-derived theme needs adjustment.
 1. Add chatbot-specific i18n setup in `app/frontend/src/chatbots/<chatbot_name>/i18n/` and chatbot-specific translations in `app/frontend/src/chatbots/<chatbot_name>/locales/`.
 1. If chatbot-specific auth is needed (for example, a basic username/password page), implement the gate in that chatbot's `layoutWrapper.tsx` so it applies only to that chatbot route.
 

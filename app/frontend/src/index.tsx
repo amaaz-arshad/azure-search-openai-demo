@@ -10,6 +10,7 @@ import { I18nextProvider } from "react-i18next";
 import "./index.css";
 
 import { chatbotDefinitions } from "./chatbots/registry";
+import { ChatbotThemeRoot } from "./chatbots/shared/theme/ChatbotThemeRoot";
 import i18n from "./chatbots/nerilio/i18n/config";
 import ChatbotDirectory from "./pages/ChatbotDirectory";
 import RootLanding from "./pages/RootLanding";
@@ -20,9 +21,11 @@ initializeIcons();
 const chatbotRoutes = chatbotDefinitions.map(chatbot => ({
     path: chatbot.name,
     element: (
-        <I18nextProvider i18n={chatbot.i18n}>
-            <chatbot.LayoutWrapper />
-        </I18nextProvider>
+        <ChatbotThemeRoot chatbotName={chatbot.name}>
+            <I18nextProvider i18n={chatbot.i18n}>
+                <chatbot.LayoutWrapper />
+            </I18nextProvider>
+        </ChatbotThemeRoot>
     ),
     children: [
         {

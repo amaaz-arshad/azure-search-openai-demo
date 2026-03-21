@@ -72,7 +72,7 @@ const Layout = () => {
                             <IconButton
                                 ariaLabel={t("labels.toggleMenu")}
                                 className={styles.menuButton}
-                                iconProps={{ iconName: "More", styles: { root: { fontSize: "25px", color: "white" } } }}
+                                iconProps={{ iconName: "More", styles: { root: { fontSize: "25px", color: "var(--chatbot-navbar-text)" } } }}
                                 onClick={() => setDropdownOpen(open => !open)}
                             />
                             {dropdownOpen && (

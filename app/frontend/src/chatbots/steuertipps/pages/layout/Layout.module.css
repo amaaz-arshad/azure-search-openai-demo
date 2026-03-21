@@ -12,8 +12,8 @@
 
 /* Navbar background and text color */
 .header {
-    background-color: #ffe016 !important;
-    color: #000000;
+    background-color: var(--chatbot-navbar-background) !important;
+    color: var(--chatbot-navbar-text);
     position: sticky;
     top: 0;
     z-index: 1000;
@@ -26,6 +26,7 @@
     padding: 0 1rem;
     height: 56px; /* fixed height for navbar */
     position: relative;
+    color: var(--chatbot-navbar-text);
 }
 
 /* Circular logo */
@@ -39,7 +40,7 @@
     width: 35px;
     height: 35px;
     border-radius: 50%;
-    background: #ffffff;
+    background: var(--chatbot-navbar-logo-background);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -57,7 +58,7 @@
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
-    color: #000000;
+    color: var(--chatbot-navbar-text);
     font-weight: 600;
     font-size: 1.4rem;
     pointer-events: none;
@@ -80,27 +81,27 @@
 }
 
 .menuButton {
-    color: #000000 !important;
+    color: var(--chatbot-navbar-text) !important;
     background: none;
     border: none;
     padding: 8px;
 }
 
 .menuButton:hover {
-    background-color: rgba(0, 0, 0, 0.1);
+    background-color: var(--chatbot-navbar-menu-hover-background);
 }
 
 .dropdownMenu {
     position: absolute;
     top: 100%;
     right: 0;
-    background-color: #ffffff;
-    border: 1px solid #ddd;
+    background-color: var(--chatbot-dropdown-background);
+    border: 1px solid var(--chatbot-dropdown-border);
     border-radius: 4px;
     list-style: none;
     padding: 0.5rem 0;
     min-width: 200px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--chatbot-dropdown-shadow);
     z-index: 1001;
 }
 
@@ -113,13 +114,13 @@
     background: none;
     border: none;
     text-align: left;
-    color: #000000;
+    color: var(--chatbot-dropdown-item-text);
     cursor: pointer;
     font-size: 0.875rem;
 }
 
 .dropdownItem:hover {
-    background-color: #f2f2f2;
+    background-color: var(--chatbot-dropdown-item-hover-background);
 }
 
 /* Remove old navbar styles */

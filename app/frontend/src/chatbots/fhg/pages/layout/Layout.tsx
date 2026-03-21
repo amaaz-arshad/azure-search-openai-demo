@@ -97,7 +97,7 @@ const Layout = () => {
                         {useLogin && <LoginButton />}
                         <div className={styles.dropdown} ref={dropdownRef}>
                             <IconButton
-                                iconProps={{ iconName: "More", styles: { root: { fontSize: "25px", color: "white" } } }} // Increase from default 16px
+                                iconProps={{ iconName: "More", styles: { root: { fontSize: "25px", color: "var(--chatbot-navbar-text)" } } }} // Increase from default 16px
                                 className={styles.menuButton}
                                 onClick={toggleDropdown}
                                 ariaLabel={t("labels.openMenu")}
