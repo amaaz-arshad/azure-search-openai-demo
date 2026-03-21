@@ -683,7 +683,6 @@ export const UploadManagerModal = ({ chatbotName, isOpen, onClose }: Props) => {
                         <h3 className={styles.sectionTitle}>{t("upload.uploadedFilesLabel")}</h3>
                     </div>
                     <div className={styles.sectionHeaderActions}>
-                        <span className={styles.fileCount}>{uploadedFiles.length}</span>
                         {uploadedFiles.length > 0 && (
                             <Button
                                 appearance="secondary"
@@ -695,6 +694,7 @@ export const UploadManagerModal = ({ chatbotName, isOpen, onClose }: Props) => {
                                 {isDeletingAll ? t("upload.deletingAllFiles") : t("upload.deleteAllFiles")}
                             </Button>
                         )}
+                        <span className={styles.fileCount}>{uploadedFiles.length}</span>
                     </div>
                 </div>
 
