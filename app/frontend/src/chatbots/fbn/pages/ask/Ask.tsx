@@ -18,6 +18,7 @@ import { useMsal } from "@azure/msal-react";
 import { TokenClaimsDisplay } from "../../components/TokenClaimsDisplay";
 import { LoginContext } from "../../loginContext";
 import { LanguagePicker } from "../../i18n/LanguagePicker";
+import { applyChatbotSpeechFeatureFlags } from "../../../shared/speech/chatbotSpeechFeatureFlags";
 
 export function Component(): JSX.Element {
     const [isConfigPanelOpen, setIsConfigPanelOpen] = useState(false);
@@ -87,6 +88,7 @@ export function Component(): JSX.Element {
 
     const getConfig = async () => {
         configApi().then(config => {
+            const effectiveConfig = applyChatbotSpeechFeatureFlags("fbn", config);
             setShowMultimodalOptions(config.showMultimodalOptions);
             if (config.showMultimodalOptions) {
                 // Initialize from server config so defaults follow deployment settings
@@ -109,9 +111,9 @@ export function Component(): JSX.Element {
             }
             setShowUserUpload(config.showUserUpload);
             setshowLanguagePicker(config.showLanguagePicker);
-            setShowSpeechInput(config.showSpeechInput);
-            setShowSpeechOutputBrowser(config.showSpeechOutputBrowser);
-            setShowSpeechOutputAzure(config.showSpeechOutputAzure);
+            setShowSpeechInput(effectiveConfig.showSpeechInput);
+            setShowSpeechOutputBrowser(effectiveConfig.showSpeechOutputBrowser);
+            setShowSpeechOutputAzure(effectiveConfig.showSpeechOutputAzure);
             setShowAgenticRetrievalOption(config.showAgenticRetrievalOption);
             setUseAgenticRetrieval(config.showAgenticRetrievalOption);
             setWebSourceSupported(config.webSourceEnabled);

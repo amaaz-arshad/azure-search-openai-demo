@@ -279,6 +279,25 @@ async def format_as_ndjson(r: AsyncGenerator[dict, None]) -> AsyncGenerator[str,
         yield json.dumps(error_dict(error))
 
 
+async def get_speech_service_token():
+    speech_token = current_app.config.get(CONFIG_SPEECH_SERVICE_TOKEN)
+    if speech_token is None or speech_token.expires_on < time.time() + 60:
+        speech_token = await current_app.config[CONFIG_CREDENTIAL].get_token(
+            "https://cognitiveservices.azure.com/.default"
+        )
+        current_app.config[CONFIG_SPEECH_SERVICE_TOKEN] = speech_token
+    return speech_token
+
+
+def get_speech_service_auth_token() -> str:
+    return (
+        "aad#"
+        + current_app.config[CONFIG_SPEECH_SERVICE_ID]
+        + "#"
+        + current_app.config[CONFIG_SPEECH_SERVICE_TOKEN].token
+    )
+
+
 @bp.route("/chat", methods=["POST"])
 @authenticated
 async def chat(auth_claims: dict[str, Any]):
@@ -382,25 +401,16 @@ async def speech():
     if not request.is_json:
         return jsonify({"error": "request must be json"}), 415
 
-    speech_token = current_app.config.get(CONFIG_SPEECH_SERVICE_TOKEN)
-    if speech_token is None or speech_token.expires_on < time.time() + 60:
-        speech_token = await current_app.config[CONFIG_CREDENTIAL].get_token(
-            "https://cognitiveservices.azure.com/.default"
-        )
-        current_app.config[CONFIG_SPEECH_SERVICE_TOKEN] = speech_token
-
     request_json = await request.get_json()
     text = request_json["text"]
     try:
+        await get_speech_service_token()
         # Construct a token as described in documentation:
         # https://learn.microsoft.com/azure/ai-services/speech-service/how-to-configure-azure-ad-auth?pivots=programming-language-python
-        auth_token = (
-            "aad#"
-            + current_app.config[CONFIG_SPEECH_SERVICE_ID]
-            + "#"
-            + current_app.config[CONFIG_SPEECH_SERVICE_TOKEN].token
+        speech_config = SpeechConfig(
+            auth_token=get_speech_service_auth_token(),
+            region=current_app.config[CONFIG_SPEECH_SERVICE_LOCATION],
         )
-        speech_config = SpeechConfig(auth_token=auth_token, region=current_app.config[CONFIG_SPEECH_SERVICE_LOCATION])
         speech_config.speech_synthesis_voice_name = current_app.config[CONFIG_SPEECH_SERVICE_VOICE]
         speech_config.set_speech_synthesis_output_format(SpeechSynthesisOutputFormat.Audio16Khz32KBitRateMonoMp3)
         synthesizer = SpeechSynthesizer(speech_config=speech_config, audio_config=None)
@@ -419,6 +429,26 @@ async def speech():
     except Exception as e:
         current_app.logger.exception("Exception in /speech")
         return jsonify({"error": str(e)}), 500
+
+
+@bp.route("/speech/token", methods=["GET"])
+async def speech_token():
+    if CONFIG_SPEECH_SERVICE_ID not in current_app.config or CONFIG_SPEECH_SERVICE_LOCATION not in current_app.config:
+        return jsonify({"error": "Speech service is not enabled."}), 400
+
+    try:
+        speech_token = await get_speech_service_token()
+        return jsonify(
+            {
+                "token": get_speech_service_auth_token(),
+                "region": current_app.config[CONFIG_SPEECH_SERVICE_LOCATION],
+                "voice": current_app.config[CONFIG_SPEECH_SERVICE_VOICE],
+                "expiresAt": speech_token.expires_on,
+            }
+        )
+    except Exception as error:
+        current_app.logger.exception("Exception in /speech/token")
+        return jsonify({"error": str(error)}), 500
 
 
 @bp.post("/upload")
@@ -742,8 +772,8 @@ async def setup_clients():
         enable_unauthenticated_access=AZURE_ENABLE_UNAUTHENTICATED_ACCESS,
     )
 
-    if USE_SPEECH_OUTPUT_AZURE:
-        current_app.logger.info("USE_SPEECH_OUTPUT_AZURE is true, setting up Azure speech service")
+    if USE_SPEECH_OUTPUT_AZURE or USE_SPEECH_INPUT_BROWSER:
+        current_app.logger.info("Browser speech is enabled, setting up Azure speech service")
         if not AZURE_SPEECH_SERVICE_ID or AZURE_SPEECH_SERVICE_ID == "":
             raise ValueError("Azure speech resource not configured correctly, missing AZURE_SPEECH_SERVICE_ID")
         if not AZURE_SPEECH_SERVICE_LOCATION or AZURE_SPEECH_SERVICE_LOCATION == "":

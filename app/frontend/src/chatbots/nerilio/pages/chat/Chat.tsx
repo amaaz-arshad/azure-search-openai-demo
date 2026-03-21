@@ -26,6 +26,7 @@ import { LoginContext } from "../../loginContext";
 import { LanguagePicker } from "../../i18n/LanguagePicker";
 import { Settings } from "../../components/Settings/Settings";
 import { setGlobalClearChat } from "../layout/Layout";
+import { applyChatbotSpeechFeatureFlags } from "../../../shared/speech/chatbotSpeechFeatureFlags";
 
 const Chat = () => {
     const { t, i18n } = useTranslation();
@@ -120,6 +121,7 @@ const Chat = () => {
 
     const getConfig = async () => {
         configApi().then(config => {
+            const effectiveConfig = applyChatbotSpeechFeatureFlags("nerilio", config);
             setShowMultimodalOptions(config.showMultimodalOptions);
             if (config.showMultimodalOptions) {
                 // Initialize from server config so defaults match deployment settings
@@ -143,9 +145,9 @@ const Chat = () => {
             }
             setShowUserUpload(config.showUserUpload);
             setshowLanguagePicker(config.showLanguagePicker);
-            setShowSpeechInput(config.showSpeechInput);
-            setShowSpeechOutputBrowser(config.showSpeechOutputBrowser);
-            setShowSpeechOutputAzure(config.showSpeechOutputAzure);
+            setShowSpeechInput(effectiveConfig.showSpeechInput);
+            setShowSpeechOutputBrowser(effectiveConfig.showSpeechOutputBrowser);
+            setShowSpeechOutputAzure(effectiveConfig.showSpeechOutputAzure);
             setShowChatHistoryBrowser(config.showChatHistoryBrowser);
             setShowChatHistoryCosmos(config.showChatHistoryCosmos);
             setShowAgenticRetrievalOption(config.showAgenticRetrievalOption);

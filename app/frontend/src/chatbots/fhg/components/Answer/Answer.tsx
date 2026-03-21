@@ -134,6 +134,10 @@ export const Answer = ({
                         {showSpeechOutputAzure && <SpeechOutputAzure answer={answerForSpeech} isStreaming={isStreaming} />}
                         {showSpeechOutputBrowser && <SpeechOutputBrowser answer={sanitizedAnswerHtml} />}
                     </div> */}
+                    <div>
+                        {showSpeechOutputAzure && <SpeechOutputAzure answer={answerForSpeech} isStreaming={isStreaming} />}
+                        {showSpeechOutputBrowser && <SpeechOutputBrowser answer={sanitizedAnswerHtml} />}
+                    </div>
                 </Stack>
             </Stack.Item>
 
