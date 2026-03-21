@@ -265,6 +265,9 @@ export function getChatbotThemeCssVariables(chatbotName: string): CSSProperties 
     const theme = getChatbotTheme(chatbotName);
     const loginPageButton = theme.loginPage.button;
     const loginPageBackground = theme.loginPage.background;
+    const disclaimerBackground = lighten(theme.navbar.background, isDark(theme.navbar.background) ? 0.9 : 0.95);
+    const disclaimerText = getReadableText(disclaimerBackground);
+    const disclaimerAccent = isDark(theme.navbar.background) ? theme.navbar.background : darken(theme.navbar.background, 0.38);
 
     return {
         "--chatbot-navbar-background": theme.navbar.background,
@@ -285,6 +288,14 @@ export function getChatbotThemeCssVariables(chatbotName: string): CSSProperties 
         "--chatbot-login-button-focus-ring": withAlpha(theme.loginButton.background, 0.24),
         "--chatbot-user-bubble-background": theme.userBubble.background,
         "--chatbot-user-bubble-text": theme.userBubble.text,
+        "--chatbot-disclaimer-background": disclaimerBackground,
+        "--chatbot-disclaimer-border": withAlpha(theme.navbar.background, 0.18),
+        "--chatbot-disclaimer-shadow": `0 16px 36px ${withAlpha(theme.navbar.background, 0.12)}`,
+        "--chatbot-disclaimer-text": disclaimerText,
+        "--chatbot-disclaimer-accent": disclaimerAccent,
+        "--chatbot-disclaimer-dismiss-background": withAlpha(theme.navbar.background, 0.08),
+        "--chatbot-disclaimer-dismiss-hover-background": withAlpha(theme.navbar.background, 0.16),
+        "--chatbot-disclaimer-dismiss-text": disclaimerText,
         "--login-accent": loginPageButton.background,
         "--login-accent-dark": darken(loginPageButton.background, 0.22),
         "--login-accent-soft": withAlpha(loginPageButton.background, 0.18),

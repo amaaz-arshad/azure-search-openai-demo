@@ -42,6 +42,11 @@
         "fileDeleted": "File deleted"
     },
     "developerSettings": "Developer settings",
+    "disclaimer": {
+        "label": "重要なお知らせ",
+        "message": "AI支援アシスタントです。回答は提供されたコンテンツに基づいて自動生成されます。正式な情報源が優先されます。",
+        "dismiss": "注意事項を閉じる"
+    },
     "chatEmptyStateTitle": "Chat with your data",
     "chatEmptyStateSubtitle": "Ask anything or try an example",
     "defaultExamples": {

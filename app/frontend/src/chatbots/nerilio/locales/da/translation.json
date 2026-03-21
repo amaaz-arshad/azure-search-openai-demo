@@ -42,6 +42,11 @@
         "fileDeleted": "Fil slettet"
     },
     "developerSettings": "Udviklerindstillinger",
+    "disclaimer": {
+        "label": "Vigtig meddelelse",
+        "message": "KI-understøttet assistent. Svar genereres automatisk ud fra det tilgængelige indhold; officielle kilder er bindende.",
+        "dismiss": "Luk ansvarsfraskrivelse"
+    },
     "chatEmptyStateTitle": "Chat med dine data",
     "chatEmptyStateSubtitle": "SpÃ¸rg om hvad som helst eller prÃ¸v et eksempel",
     "defaultExamples": {

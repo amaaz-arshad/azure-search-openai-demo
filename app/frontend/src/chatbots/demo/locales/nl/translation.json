@@ -80,7 +80,11 @@
         "duplicateQueuedFile": "{{filename}} staat al in de actieve wachtrij."
     },
     "developerSettings": "Ontwikkelaarinstellingen",
-
+    "disclaimer": {
+        "label": "Belangrijke melding",
+        "message": "AI-ondersteunde assistent. Antwoorden worden automatisch gegenereerd op basis van de aangeleverde inhoud; officiële bronnen zijn bindend.",
+        "dismiss": "Melding sluiten"
+    },
     "chatEmptyStateTitle": "Chat met je gegevens",
     "chatEmptyStateSubtitle": "Stel een vraag of probeer een voorbeeld",
     "defaultExamples": {
@@ -99,7 +103,6 @@
     "generatingAnswer": "Antwoord genereren",
     "citationWithColon": "Citaat:",
     "followupQuestions": "Vervolgvragen:",
-
     "tooltips": {
         "submitQuestion": "Vraag indienen",
         "stopStreaming": "Stop",
@@ -113,13 +116,11 @@
         "copy": "Kopieer",
         "copied": "Gekopieerd!"
     },
-
     "headerTexts": {
         "thoughtProcess": "Denkproces",
         "supportingContent": "Ondersteunende Inhoud",
         "citation": "Citaat"
     },
-
     "labels": {
         "toggleMenu": "Menu wisselen",
         "languagePicker": "Selecteer je taal",
@@ -181,7 +182,6 @@
         "useGroupsSecurityFilter": "Groepsbeveiligingsfilter gebruiken",
         "shouldStream": "Chat-antwoorden streamen"
     },
-
     "helpTexts": {
         "promptTemplate": "Overschrijft de prompt die wordt gebruikt om het antwoord te genereren op basis van de vraag en zoekresultaten. Om de bestaande prompt uit te breiden in plaats van te overschrijven, start je prompt met '>>>'",
         "temperature": "Stelt de temperatuur in van het verzoek aan het taalmodel dat het antwoord genereert. Hogere temperaturen leiden tot creatievere antwoorden, maar kunnen minder feitelijk zijn.",
@@ -210,7 +210,6 @@
         "useWebSource": "Breid retrieval uit met websearch resultaten naast je geïndexeerde dataset.",
         "useSharePointSource": "Breid retrieval uit met SharePoint-inhoud naast je geïndexeerde dataset."
     },
-
     "overallSettings": "Algemene instellingen",
     "searchSettings": "Zoekinstellingen",
     "llmSettings": "LLM-instellingen"

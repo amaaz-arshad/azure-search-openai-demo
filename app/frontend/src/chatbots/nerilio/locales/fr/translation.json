@@ -42,6 +42,11 @@
         "fileDeleted": "Fichier supprimÃ©"
     },
     "developerSettings": "ParamÃ¨tres dÃ©veloppeur",
+    "disclaimer": {
+        "label": "Avis important",
+        "message": "Assistant basé sur l'IA. Les réponses sont générées automatiquement à partir du contenu fourni ; seules les sources officielles font foi.",
+        "dismiss": "Fermer l'avis"
+    },
     "chatEmptyStateTitle": "Discutez avec vos donnÃ©es",
     "chatEmptyStateSubtitle": "Demandez n'importe quoi ou essayez un exemple",
     "defaultExamples": {

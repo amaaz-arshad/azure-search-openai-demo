@@ -42,6 +42,11 @@
         "fileDeleted": "Datei gelöscht"
     },
     "developerSettings": "Entwicklereinstellungen",
+    "disclaimer": {
+        "label": "Wichtiger Hinweis",
+        "message": "KI-gestützter Assistent. Antworten werden automatisiert aus den bereitgestellten Inhalten generiert, verbindlich sind offizielle Quellen.",
+        "dismiss": "Hinweis schließen"
+    },
     "chatEmptyStateTitle": "Chatten Sie mit Ihren Daten",
     "chatEmptyStateSubtitle": "Stellen Sie eine Frage oder probieren Sie ein Beispiel",
     "defaultExamples": {

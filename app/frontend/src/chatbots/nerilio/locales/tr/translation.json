@@ -42,6 +42,11 @@
         "fileDeleted": "Dosya silindi"
     },
     "developerSettings": "GeliÅŸtirici ayarlarÄ±",
+    "disclaimer": {
+        "label": "Önemli bilgi",
+        "message": "Yapay zeka destekli asistan. Yanıtlar sağlanan içeriklerden otomatik olarak üretilir; bağlayıcı olan resmi kaynaklardır.",
+        "dismiss": "Uyarıyı kapat"
+    },
     "chatEmptyStateTitle": "Verilerinizle sohbet edin",
     "chatEmptyStateSubtitle": "Bir soru sorun veya bir Ã¶rnek deneyin",
     "defaultExamples": {

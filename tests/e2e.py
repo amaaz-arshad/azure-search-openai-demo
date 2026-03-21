@@ -88,6 +88,38 @@ def test_home(page: Page, live_server_url: str):
     expect(page).to_have_title("Azure OpenAI + AI Search")
 
 
+def test_chatbot_disclaimer_visible_and_closable(page: Page, live_server_url: str):
+    page.goto(f"{live_server_url}nerilio")
+
+    disclaimer = page.get_by_test_id("chatbot-disclaimer")
+    expect(disclaimer).to_be_visible()
+    expect(disclaimer).to_contain_text(
+        "AI-supported assistant. Answers are automatically generated from the content provided; official sources are binding."
+    )
+    expect(disclaimer).not_to_contain_text("KI-gestützter Assistent.")
+
+    page.get_by_test_id("chatbot-disclaimer-close").click()
+    expect(page.get_by_test_id("chatbot-disclaimer")).to_have_count(0)
+
+
+def test_demo_disclaimer_visible_after_login(page: Page, live_server_url: str):
+    page.goto(f"{live_server_url}demo")
+
+    page.get_by_label("Username").fill("demouser")
+    page.get_by_label("Password").fill("demo@123")
+    page.get_by_role("button", name="Login").click()
+
+    disclaimer = page.get_by_test_id("chatbot-disclaimer")
+    expect(disclaimer).to_be_visible()
+    expect(disclaimer).to_contain_text(
+        "AI-supported assistant. Answers are automatically generated from the content provided; official sources are binding."
+    )
+    expect(disclaimer).not_to_contain_text("KI-gestützter Assistent.")
+
+    page.get_by_test_id("chatbot-disclaimer-close").click()
+    expect(page.get_by_test_id("chatbot-disclaimer")).to_have_count(0)
+
+
 def test_chat(sized_page: Page, live_server_url: str):
     page = sized_page
 

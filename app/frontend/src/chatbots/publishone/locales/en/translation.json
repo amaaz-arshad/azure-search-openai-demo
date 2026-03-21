@@ -41,7 +41,11 @@
         "fileDeleted": "File deleted"
     },
     "developerSettings": "Developer settings",
-
+    "disclaimer": {
+        "label": "Important notice",
+        "message": "AI-supported assistant. Answers are automatically generated from the content provided; official sources are binding.",
+        "dismiss": "Close disclaimer"
+    },
     "chatEmptyStateTitle": "Chat with your data",
     "chatEmptyStateSubtitle": "Ask anything or try an example",
     "defaultExamples": {
@@ -60,7 +64,6 @@
     "generatingAnswer": "Generating answer",
     "citationWithColon": "Citation:",
     "followupQuestions": "Follow-up questions:",
-
     "tooltips": {
         "submitQuestion": "Submit question",
         "stopStreaming": "Stop",
@@ -74,13 +77,11 @@
         "copy": "Copy",
         "copied": "Copied!"
     },
-
     "headerTexts": {
         "thoughtProcess": "Thought Process",
         "supportingContent": "Supporting Content",
         "citation": "Citation"
     },
-
     "labels": {
         "toggleMenu": "Toggle menu",
         "languagePicker": "Select your language",
@@ -142,7 +143,6 @@
         "useGroupsSecurityFilter": "Use groups security filter",
         "shouldStream": "Stream chat completion responses"
     },
-
     "helpTexts": {
         "promptTemplate": "Overrides the prompt used to generate the answer based on the question and search results. To append to existing prompt instead of replace whole prompt, start your prompt with '>>>'.",
         "temperature": "Sets the temperature of the request to the LLM that generates the answer. Higher temperatures result in more creative responses, but they may be less grounded.",
@@ -170,7 +170,6 @@
         "useWebSource": "Augment retrieval with web search results alongside your indexed data set.",
         "useSharePointSource": "Augment retrieval with SharePoint content alongside your indexed data set."
     },
-
     "overallSettings": "Overall settings",
     "searchSettings": "Search settings",
     "llmSettings": "LLM settings"

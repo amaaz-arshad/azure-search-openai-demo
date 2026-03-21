@@ -42,6 +42,11 @@
         "fileDeleted": "Arquivo excluÃ­do"
     },
     "developerSettings": "ConfiguraÃ§Ãµes do desenvolvedor",
+    "disclaimer": {
+        "label": "Aviso importante",
+        "message": "Assistente com suporte de IA. As respostas são geradas automaticamente com base no conteúdo fornecido; fontes oficiais prevalecem.",
+        "dismiss": "Fechar aviso"
+    },
     "chatEmptyStateTitle": "Converse com seus dados",
     "chatEmptyStateSubtitle": "Pergunte qualquer coisa ou tente um exemplo",
     "defaultExamples": {

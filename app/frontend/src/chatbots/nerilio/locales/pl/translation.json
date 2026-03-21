@@ -42,6 +42,11 @@
         "fileDeleted": "File deleted"
     },
     "developerSettings": "Developer settings",
+    "disclaimer": {
+        "label": "Ważna informacja",
+        "message": "Asystent wspierany przez AI. Odpowiedzi są generowane automatycznie na podstawie udostępnionych treści; wiążące są oficjalne źródła.",
+        "dismiss": "Zamknij komunikat"
+    },
     "chatEmptyStateTitle": "Chat with your data",
     "chatEmptyStateSubtitle": "Ask anything or try an example",
     "defaultExamples": {
