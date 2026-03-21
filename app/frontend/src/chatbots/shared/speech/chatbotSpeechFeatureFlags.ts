@@ -39,6 +39,11 @@ export const chatbotSpeechFeatureFlags: Record<string, ChatbotSpeechVisibility> 
         showSpeechOutputBrowser: true,
         showSpeechOutputAzure: true
     },
+    moodle: {
+        showSpeechInput: true,
+        showSpeechOutputBrowser: true,
+        showSpeechOutputAzure: true
+    },
     nerilio: {
         showSpeechInput: false,
         showSpeechOutputBrowser: false,

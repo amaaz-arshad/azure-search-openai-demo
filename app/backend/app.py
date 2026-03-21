@@ -136,6 +136,7 @@ KNOWN_CHATBOT_NAMES = {
     "steuertipps",
     "knoll",
     "lemon",
+    "moodle",
     "publishone",
     "fbn",
     "demo",

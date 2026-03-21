@@ -60,6 +60,7 @@ If necessary, edit this file to ensure it accurately reflects the current state 
       * app/frontend/src/chatbots/steuertipps: Chatbot implementation.
       * app/frontend/src/chatbots/knoll: Chatbot implementation with an additional basic username/password login gate shown before chat.
       * app/frontend/src/chatbots/lemon: Chatbot implementation.
+      * app/frontend/src/chatbots/moodle: Chatbot implementation with an additional basic username/password login gate shown before chat.
       * app/frontend/src/chatbots/publishone: Chatbot implementation.
       * app/frontend/src/chatbots/fbn: Chatbot implementation.
       * app/frontend/src/chatbots/demo: Chatbot implementation with a public upload manager modal opened from the header dropdown. Demo uploads use the backend `/chatbot_uploads/demo` endpoints, support local XML parsing in addition to the existing local formats, run as a per-file queue so users can select multiple files at once, expose a stop action that cancels the active upload and skips the remaining queue while keeping the searchable `demo` index/storage state consistent, and include both per-file delete controls and a bulk delete action for the uploaded-file library.

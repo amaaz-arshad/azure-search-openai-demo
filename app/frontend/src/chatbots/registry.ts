@@ -6,6 +6,7 @@ import { fbnChatbot } from "./fbn";
 import { fhgChatbot } from "./fhg";
 import { knollChatbot } from "./knoll";
 import { lemonChatbot } from "./lemon";
+import { moodleChatbot } from "./moodle";
 import { nerilioChatbot } from "./nerilio";
 import { publishoneChatbot } from "./publishone";
 import { steuertippsChatbot } from "./steuertipps";
@@ -24,6 +25,7 @@ export const chatbotDefinitions: ChatbotDefinition[] = [
     steuertippsChatbot,
     knollChatbot,
     lemonChatbot,
+    moodleChatbot,
     publishoneChatbot,
     fbnChatbot,
     demoChatbot,

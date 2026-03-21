@@ -55,6 +55,9 @@ export const chatbotThemes: Record<string, ChatbotThemeSeed> = {
     lemon: {
         primary: "#fec701"
     },
+    moodle: {
+        primary: "#f98012"
+    },
     nerilio: {
         primary: "#ac44c6"
     },
