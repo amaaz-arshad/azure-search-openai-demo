@@ -60,7 +60,7 @@
     background: rgba(255, 255, 255, 0.52);
     color: var(--login-accent-dark);
     font-size: 0.82rem;
-    font-weight: 800;
+    font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
 }
@@ -98,6 +98,7 @@
     line-height: 1.14;
     text-align: center;
     color: var(--login-text-strong);
+    font-weight: 600;
 }
 
 .form {
@@ -175,7 +176,7 @@
     border-radius: 16px;
     padding: 14px 18px;
     font: inherit;
-    font-weight: 800;
+    font-weight: 600;
     cursor: pointer;
     color: var(--login-button-text);
     background: linear-gradient(135deg, var(--login-accent) 0%, var(--login-accent-dark) 100%);

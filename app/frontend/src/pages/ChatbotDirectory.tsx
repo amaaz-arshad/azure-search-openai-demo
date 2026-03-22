@@ -11,6 +11,8 @@ const DIRECTORY_SESSION_KEY = "chatbotDirectoryAuthenticated";
 
 const sortedChatbots = [...chatbotDefinitions].sort((a, b) => a.name.localeCompare(b.name));
 
+const formatChatbotLabel = (name: string) => name.replace(/[-_]+/g, " ");
+
 const getInitialAuthenticationState = () => {
     if (typeof window === "undefined") {
         return false;
@@ -24,6 +26,10 @@ const ChatbotDirectory = () => {
     const [password, setPassword] = useState("");
     const [errorMessage, setErrorMessage] = useState("");
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+    const [query, setQuery] = useState("");
+
+    const normalizedQuery = query.trim().toLowerCase();
+    const filteredChatbots = sortedChatbots.filter(chatbot => chatbot.name.toLowerCase().includes(normalizedQuery));
 
     const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -44,6 +50,7 @@ const ChatbotDirectory = () => {
         window.sessionStorage.removeItem(DIRECTORY_SESSION_KEY);
         setIsAuthenticated(false);
         setPassword("");
+        setQuery("");
         setErrorMessage("");
         setIsPasswordVisible(false);
     };
@@ -58,101 +65,122 @@ const ChatbotDirectory = () => {
             <div className={styles.glowTwo} aria-hidden="true" />
 
             <section className={styles.shell}>
-                <div className={styles.hero}>
-                    <span className={styles.eyebrow}>Internal directory</span>
-                    <h1 className={styles.title}>Choose the right chatbot workspace.</h1>
-                    <p className={styles.subtitle}>
-                        This directory collects every registered chatbot route in one place so internal users can move between
-                        experiences quickly.
-                    </p>
-
-                    <div className={styles.metrics}>
-                        <div className={styles.metricCard}>
-                            <span className={styles.metricLabel}>Available</span>
-                            <strong className={styles.metricValue}>{sortedChatbots.length}</strong>
-                        </div>
-                        <div className={styles.metricCard}>
-                            <span className={styles.metricLabel}>Access</span>
-                            <strong className={styles.metricValue}>{isAuthenticated ? "Unlocked" : "Protected"}</strong>
-                        </div>
+                <header className={styles.header}>
+                    <div>
+                        <span className={styles.badge}>Internal directory</span>
+                        <h1 className={styles.title}>Chatbot Directory</h1>
                     </div>
-                </div>
 
-                {!isAuthenticated ? (
-                    <section className={styles.accessPanel}>
-                        <div className={styles.panelHeader}>
-                            <span className={styles.panelTag}>Step 1</span>
-                            <h2 className={styles.panelTitle}>Enter directory password</h2>
-                            <p className={styles.panelText}>Authentication is scoped to this browser tab and resets when you lock it again.</p>
-                        </div>
+                    <div className={styles.headerActions}>
+                        <span className={styles.countPill}>
+                            {isAuthenticated && normalizedQuery
+                                ? `${filteredChatbots.length} of ${sortedChatbots.length}`
+                                : `${sortedChatbots.length} routes`}
+                        </span>
 
-                        <form className={styles.form} onSubmit={handleSubmit} autoComplete="off">
-                            <label className={styles.label} htmlFor="directory-password">
-                                Access code
-                            </label>
-                            <div className={styles.inputWrap}>
-                                <input
-                                    id="directory-password"
-                                    className={`${styles.input} ${!isPasswordVisible ? styles.maskedInput : ""}`}
-                                    type="text"
-                                    name="directory-access-code"
-                                    value={password}
-                                    onChange={event => setPassword(event.target.value)}
-                                    placeholder="Enter access code"
-                                    autoComplete="off"
-                                    spellCheck={false}
-                                    autoCapitalize="none"
-                                    autoCorrect="off"
-                                    data-lpignore="true"
-                                    data-1p-ignore="true"
-                                    data-form-type="other"
-                                />
-                                <button
-                                    className={styles.visibilityToggle}
-                                    type="button"
-                                    aria-label={isPasswordVisible ? "Hide access code" : "Show access code"}
-                                    aria-pressed={isPasswordVisible}
-                                    onClick={() => setIsPasswordVisible(current => !current)}
-                                >
-                                    <Icon iconName={isPasswordVisible ? "Hide3" : "RedEye"} />
-                                </button>
-                            </div>
-
-                            <button className={styles.primaryButton} type="submit">
-                                Unlock directory
+                        {isAuthenticated ? (
+                            <button className={styles.secondaryButton} type="button" onClick={handleLockDirectory}>
+                                Lock directory
                             </button>
+                        ) : null}
+                    </div>
+                </header>
 
-                            <p className={styles.errorMessage} role="alert" aria-live="polite">
-                                {errorMessage}
-                            </p>
-                        </form>
-                    </section>
-                ) : (
-                    <section className={styles.directoryPanel}>
-                        <div className={styles.panelHeader}>
-                            <span className={styles.panelTag}>Step 2</span>
-                            <div className={styles.directoryHeaderRow}>
-                                <div>
-                                    <h2 className={styles.panelTitle}>Available chatbots</h2>
-                                    <p className={styles.panelText}>Open any chatbot below. Each card links directly to its route.</p>
-                                </div>
-                                <button className={styles.secondaryButton} type="button" onClick={handleLockDirectory}>
-                                    Lock directory
-                                </button>
+                <section className={`${styles.panel} ${!isAuthenticated ? styles.panelLocked : ""}`}>
+                    {!isAuthenticated ? (
+                        <div className={styles.accessState}>
+                            <div className={styles.accessHeader}>
+                                <span className={styles.badge}>Protected</span>
+                                <h2 className={styles.sectionTitle}>Unlock directory</h2>
                             </div>
-                        </div>
 
-                        <div className={styles.directoryGrid}>
-                            {sortedChatbots.map((chatbot, index) => (
-                                <Link key={chatbot.name} className={styles.chatbotCard} to={`/${chatbot.name}`}>
-                                    <span className={styles.cardIndex}>{String(index + 1).padStart(2, "0")}</span>
-                                    <strong className={styles.cardTitle}>{chatbot.name}</strong>
-                                    <span className={styles.cardAction}>Open workspace</span>
-                                </Link>
-                            ))}
+                            <form className={styles.form} onSubmit={handleSubmit} autoComplete="off">
+                                <label className={styles.label} htmlFor="directory-password">
+                                    Password
+                                </label>
+                                <div className={styles.inputWrap}>
+                                    <input
+                                        id="directory-password"
+                                        className={`${styles.input} ${!isPasswordVisible ? styles.maskedInput : ""}`}
+                                        type="text"
+                                        name="directory-access-code"
+                                        value={password}
+                                        onChange={event => {
+                                            setPassword(event.target.value);
+                                            setErrorMessage("");
+                                        }}
+                                        placeholder="Enter password"
+                                        autoComplete="off"
+                                        spellCheck={false}
+                                        autoCapitalize="none"
+                                        autoCorrect="off"
+                                        data-lpignore="true"
+                                        data-1p-ignore="true"
+                                        data-form-type="other"
+                                    />
+                                    <button
+                                        className={styles.visibilityToggle}
+                                        type="button"
+                                        aria-label={isPasswordVisible ? "Hide password" : "Show password"}
+                                        aria-pressed={isPasswordVisible}
+                                        onClick={() => setIsPasswordVisible(current => !current)}
+                                    >
+                                        <Icon iconName={isPasswordVisible ? "Hide3" : "RedEye"} />
+                                    </button>
+                                </div>
+
+                                <button className={styles.primaryButton} type="submit">
+                                    Unlock directory
+                                </button>
+
+                                <p className={styles.errorMessage} role="alert" aria-live="polite">
+                                    {errorMessage}
+                                </p>
+                            </form>
                         </div>
-                    </section>
-                )}
+                    ) : (
+                        <>
+                            <div className={styles.controls}>
+                                <input
+                                    className={styles.searchInput}
+                                    type="search"
+                                    value={query}
+                                    onChange={event => setQuery(event.target.value)}
+                                    placeholder="Search chatbots"
+                                    aria-label="Search chatbots"
+                                />
+
+                                {query ? (
+                                    <button className={styles.tertiaryButton} type="button" onClick={() => setQuery("")}>
+                                        Clear
+                                    </button>
+                                ) : null}
+                            </div>
+
+                            <div className={styles.directoryViewport}>
+                                {filteredChatbots.length > 0 ? (
+                                    <div className={styles.directoryGrid}>
+                                        {filteredChatbots.map((chatbot, index) => (
+                                            <Link key={chatbot.name} className={styles.chatbotCard} to={`/${chatbot.name}`}>
+                                                <div className={styles.cardHeader}>
+                                                    <span className={styles.cardIndex}>{String(index + 1).padStart(2, "0")}</span>
+                                                    <span className={styles.cardAction}>Open</span>
+                                                </div>
+                                                <strong className={styles.cardTitle}>{formatChatbotLabel(chatbot.name)}</strong>
+                                                <span className={styles.cardRoute}>/{chatbot.name}</span>
+                                            </Link>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className={styles.emptyState}>
+                                        <strong className={styles.emptyTitle}>No matching chatbots</strong>
+                                        <span className={styles.emptyText}>Try a different search term.</span>
+                                    </div>
+                                )}
+                            </div>
+                        </>
+                    )}
+                </section>
             </section>
         </main>
     );

@@ -50,7 +50,24 @@ export const chatbotThemes: Record<string, ChatbotThemeSeed> = {
         primary: "#669d24"
     },
     knoll: {
-        primary: "#0199fe"
+        primary: "#0199fe",
+        loginButtonStyle: "solid",
+        overrides: {
+            navbar: {
+                text: "#ffffff"
+            },
+            loginButton: {
+                text: "#ffffff"
+            },
+            loginPage: {
+                button: {
+                    text: "#ffffff"
+                }
+            },
+            userBubble: {
+                text: "#ffffff"
+            }
+        }
     },
     lemon: {
         primary: "#fec701"
