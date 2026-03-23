@@ -13,7 +13,7 @@ If necessary, edit this file to ensure it accurately reflects the current state 
       * app/backend/approaches/approach.py: Base class for all approaches
       * app/backend/approaches/chatreadretrieveread.py: Chat approach, includes query rewriting step first
       * app/backend/approaches/chatbot_prompt_registry.py: Maps chatbot names to chatbot-specific prompt modules
-      * app/backend/approaches/chatbots/<chatbot_name>/sampleprompt.py: Chatbot-specific `SAMPLE_PROMPT` definitions used by `get_system_prompt_variables`
+      * app/backend/approaches/chatbots/<chatbot_name>/sampleprompt.py: Chatbot-specific `SAMPLE_PROMPT` definitions used by `get_system_prompt_variables`. The FHG prompt assumes the frontend's initial assistant message has already been shown, so it answers the user's next message directly instead of sending a second welcome.
       * app/backend/approaches/promptmanager.py: Manages loading and rendering of Jinja2 prompt templates
       * app/backend/approaches/prompts/query_rewrite.system.jinja2: Jinja2 template used to rewrite the query based off search history into a better search query
       * app/backend/approaches/prompts/chat_query_rewrite_tools.json: Tools used by the query rewriting prompt
@@ -64,7 +64,7 @@ If necessary, edit this file to ensure it accurately reflects the current state 
       * app/frontend/src/chatbots/publishone: Chatbot implementation.
       * app/frontend/src/chatbots/fbn: Chatbot implementation.
       * app/frontend/src/chatbots/demo: Chatbot implementation with a public upload manager modal opened from the header dropdown. Demo uploads use the backend `/chatbot_uploads/demo` endpoints, support local XML parsing in addition to the existing local formats, run as a per-file queue so users can select multiple files at once, expose a stop action that cancels the active upload and skips the remaining queue while keeping the searchable `demo` index/storage state consistent, and include both per-file delete controls and a bulk delete action for the uploaded-file library.
-      * app/frontend/src/chatbots/fhg: Chatbot implementation with an additional basic username/password login gate shown before chat.
+      * app/frontend/src/chatbots/fhg: Chatbot implementation with an additional basic username/password login gate shown before chat. Its frontend shows the initial assistant message "Hello! Just type your question in the chat." on load, and the backend FHG prompt continues from that message without sending an extra welcome.
       * app/frontend/src/chatbots/vjoonk4: Chatbot implementation with an additional basic username/password login gate shown before chat.
     * app/frontend/src/api: Contains the API client code for communicating with the backend.
     * app/frontend/src/chatbots/<chatbot_name>/locales: Chatbot-specific translation files.

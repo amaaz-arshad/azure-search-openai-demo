@@ -2,8 +2,6 @@ import { useRef, useState, useEffect, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { Helmet } from "react-helmet-async";
 import { Panel, DefaultButton } from "@fluentui/react";
-import readNDJSONStream from "ndjson-readablestream";
-
 import appLogo from "../../assets/applogo.svg";
 import styles from "./Chat.module.css";
 
@@ -169,33 +167,60 @@ const Chat = () => {
         let askResponse: ChatAppResponse = {} as ChatAppResponse;
 
         const updateState = (newContent: string) => {
-            return new Promise(resolve => {
-                setTimeout(() => {
-                    answer += newContent;
-                    const latestResponse: ChatAppResponse = {
-                        ...askResponse,
-                        message: { content: answer, role: askResponse.message.role }
-                    };
-                    setStreamedAnswers([...answers, [question, latestResponse]]);
-                    resolve(null);
-                }, 33);
-            });
+            answer += newContent;
+            const latestResponse: ChatAppResponse = {
+                ...askResponse,
+                message: { content: answer, role: askResponse.message.role }
+            };
+            setStreamedAnswers([...answers, [question, latestResponse]]);
+        };
+
+        const processStreamEvent = (event: Record<string, any>) => {
+            if (event["context"] && event["context"]["data_points"]) {
+                event["message"] = event["delta"];
+                askResponse = event as ChatAppResponse;
+            } else if (event["delta"] && event["delta"]["content"]) {
+                setIsLoading(false);
+                updateState(event["delta"]["content"]);
+            } else if (event["context"]) {
+                // Update context with new keys from latest event
+                askResponse.context = { ...askResponse.context, ...event["context"] };
+            } else if (event["error"]) {
+                throw Error(event["error"]);
+            }
         };
         try {
             setIsStreaming(true);
-            for await (const event of readNDJSONStream(responseBody)) {
-                if (event["context"] && event["context"]["data_points"]) {
-                    event["message"] = event["delta"];
-                    askResponse = event as ChatAppResponse;
-                } else if (event["delta"] && event["delta"]["content"]) {
-                    setIsLoading(false);
-                    await updateState(event["delta"]["content"]);
-                } else if (event["context"]) {
-                    // Update context with new keys from latest event
-                    askResponse.context = { ...askResponse.context, ...event["context"] };
-                } else if (event["error"]) {
-                    throw Error(event["error"]);
+            const reader = responseBody.getReader();
+            const decoder = new TextDecoder("utf-8");
+            let runningText = "";
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) {
+                    break;
                 }
+
+                const text = decoder.decode(value);
+                const objects = text.split("\n");
+
+                for (const obj of objects) {
+                    try {
+                        if (obj !== "" && obj !== "{}") {
+                            runningText += obj;
+                            processStreamEvent(JSON.parse(runningText) as Record<string, any>);
+                            runningText = "";
+                        }
+                    } catch (e) {
+                        if (!(e instanceof SyntaxError)) {
+                            throw e;
+                        }
+                    }
+                }
+            }
+
+            if (runningText !== "") {
+                processStreamEvent(JSON.parse(runningText) as Record<string, any>);
             }
         } finally {
             setIsStreaming(false);
@@ -488,7 +513,17 @@ const Chat = () => {
         makeApiRequest(example);
     };
 
+    const isPdfCitation = (citation: string) => {
+        const citationWithoutHash = citation.split("#")[0].toLowerCase();
+        return citationWithoutHash.endsWith(".pdf") || citationWithoutHash.includes(".pdf?");
+    };
+
     const onShowCitation = (citation: string, index: number) => {
+        if (isPdfCitation(citation)) {
+            window.open(citation, "_blank", "noopener,noreferrer");
+            return;
+        }
+
         if (activeCitation === citation && activeAnalysisPanelTab === AnalysisPanelTabs.CitationTab && selectedAnswer === index) {
             setActiveAnalysisPanelTab(undefined);
         } else {

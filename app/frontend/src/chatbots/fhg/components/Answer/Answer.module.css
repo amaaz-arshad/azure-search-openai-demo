@@ -87,16 +87,16 @@ h2 {
     cursor: pointer;
 }
 
-.supContainer {
+.answerContainer :global(.supContainer) {
     text-decoration: none;
     cursor: pointer;
 }
 
-.supContainer:hover {
+.answerContainer :global(.supContainer):hover {
     text-decoration: underline;
 }
 
-.citationBadgeContainer {
+.answerContainer :global(.citationBadgeContainer) {
     display: inline-flex;
     align-items: center;
     gap: 0.25em;
@@ -108,7 +108,7 @@ h2 {
     gap: 0.375em;
 }
 
-sup {
+.answerContainer :global(.supContainer) sup {
     position: relative;
     display: inline-flex;
     align-items: center;
@@ -128,7 +128,7 @@ sup {
     cursor: pointer;
 }
 
-.citationStepBadge {
+.answerContainer :global(.citationStepBadge) {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -139,7 +139,7 @@ sup {
     border: 0.0625em solid #dbe8c4;
 }
 
-.citationStepBadgeInline {
+.answerContainer :global(.citationStepBadgeInline) {
     font-size: 0.55em;
     min-width: auto;
     height: auto;
@@ -147,7 +147,7 @@ sup {
     line-height: 1.1;
 }
 
-.citationStepBadgeList {
+.answerContainer :global(.citationStepBadgeList) {
     font-size: 0.75em;
     min-width: auto;
     height: auto;
