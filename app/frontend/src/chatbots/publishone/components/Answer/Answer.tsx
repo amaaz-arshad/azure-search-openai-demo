@@ -141,7 +141,7 @@ export const Answer = ({
                 <ReactMarkdown children={sanitizedAnswerHtml} rehypePlugins={[rehypeRaw]} remarkPlugins={[remarkGfm, supersub]} />
             </Stack.Item>
 
-            {!!parsedAnswer.citations.length && !isStreaming && (
+            {!!parsedAnswer.citations.length && (
                 <Stack.Item>
                     <Stack horizontal wrap tokens={{ childrenGap: 5 }}>
                         <span className={styles.citationLearnMore}>{t("citationWithColon")}</span>
