@@ -338,8 +338,8 @@ async def test_app_config_for_reasoning_without_streaming(monkeypatch, minimal_e
 @pytest.mark.asyncio
 async def test_app_config_for_reasoning_override_effort(monkeypatch, minimal_env):
     monkeypatch.setenv("AZURE_OPENAI_REASONING_EFFORT", "low")
-    monkeypatch.setenv("AZURE_OPENAI_CHATGPT_MODEL", "o3-mini")
-    monkeypatch.setenv("AZURE_OPENAI_CHATGPT_DEPLOYMENT", "o3-mini")
+    monkeypatch.setenv("AZURE_OPENAI_CHATGPT_MODEL", "gpt-5-mini")
+    monkeypatch.setenv("AZURE_OPENAI_CHATGPT_DEPLOYMENT", "gpt-5-mini")
     quart_app = app.create_app()
     async with quart_app.test_app() as test_app:
         client = test_app.test_client()
@@ -348,7 +348,39 @@ async def test_app_config_for_reasoning_override_effort(monkeypatch, minimal_env
         result = await response.get_json()
         assert result["streamingEnabled"] is True
         assert result["showReasoningEffortOption"] is True
+        assert result["defaultChatgptModel"] == "gpt-5-mini"
+        assert [option["model"] for option in result["availableChatgptModels"]] == [
+            "gpt-5-mini",
+            "gpt-5.2",
+            "gpt-5.2-chat",
+            "gpt-5.4-mini",
+        ]
         assert result["defaultReasoningEffort"] == "low"
+        assert result["reasoningEffortOptions"] == ["minimal", "low", "medium", "high"]
+
+
+@pytest.mark.asyncio
+async def test_app_config_for_gpt_5_4_reasoning_options(monkeypatch, minimal_env):
+    monkeypatch.setenv("AZURE_OPENAI_REASONING_EFFORT", "minimal")
+    monkeypatch.setenv("AZURE_OPENAI_CHATGPT_MODEL", "gpt-5.4-mini")
+    monkeypatch.setenv("AZURE_OPENAI_CHATGPT_DEPLOYMENT", "gpt-5.4-mini")
+    quart_app = app.create_app()
+    async with quart_app.test_app() as test_app:
+        client = test_app.test_client()
+        response = await client.get("/config")
+        assert response.status_code == 200
+        result = await response.get_json()
+        assert result["streamingEnabled"] is True
+        assert result["showReasoningEffortOption"] is True
+        assert result["defaultChatgptModel"] == "gpt-5.4-mini"
+        assert [option["model"] for option in result["availableChatgptModels"]] == [
+            "gpt-5-mini",
+            "gpt-5.2",
+            "gpt-5.2-chat",
+            "gpt-5.4-mini",
+        ]
+        assert result["defaultReasoningEffort"] == "low"
+        assert result["reasoningEffortOptions"] == ["none", "low", "medium", "high", "xhigh"]
 
 
 def test_app_enables_azure_monitor_when_connection_string_set(monkeypatch):

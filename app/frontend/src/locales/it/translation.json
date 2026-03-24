@@ -97,12 +97,15 @@
         "useSemanticRanker": "Usa il reranker semantico",
         "useSemanticCaptions": "Usa didascalie semantiche",
         "useQueryRewriting": "Usa la riscrittura delle query per il recupero",
+        "chatgptModel": "Modello OpenAI",
         "reasoningEffort": "Sforzo di ragionamento",
         "reasoningEffortOptions": {
+            "none": "Nessuno",
             "minimal": "Minimo (solo GPT-5)",
             "low": "Basso",
             "medium": "Medio",
-            "high": "Alto"
+            "high": "Alto",
+            "xhigh": "Molto alto"
         },
         "useSuggestFollowupQuestions": "Suggerisci domande di follow-up",
         "useAgenticKnowledgeBase": "Usa il recupero agentico",

@@ -102,6 +102,10 @@ When adding a new developer setting, update:
   * app/backend/approaches/chatreadretrieveread.py :  Retrieve from overrides parameter
   * app/backend/app.py: Some settings may need to be sent down in the /config route.
 
+Model-specific developer-setting choices, such as the LLM `reasoning_effort` dropdown values, are also sent through `/config`.
+The OpenAI model selector in Developer Settings is driven by the allowed deployment list in `app/backend/approaches/approach.py`, and the selected model is passed back through chat request overrides.
+Keep `app/backend/approaches/approach.py`, `app/backend/app.py`, `app/frontend/src/api/models.ts`, `app/frontend/src/pages/chat/Chat.tsx`, and `app/frontend/src/components/Settings/Settings.tsx` in sync when changing supported options.
+
 ## When adding tests for a new feature
 
 All tests are in the `tests` folder and use the pytest framework.

@@ -101,12 +101,15 @@
         "useWebSource": "Incluir pesquisa web",
         "useSharePointSource": "Incluir fonte SharePoint",
         "useQueryRewriting": "Utilize a reescrita de consultas para a recuperação",
+        "chatgptModel": "Modelo OpenAI",
         "reasoningEffort": "Esforço de raciocínio",
         "reasoningEffortOptions": {
+            "none": "Nenhum",
             "minimal": "Mínimo (apenas GPT-5)",
             "low": "Baixo",
             "medium": "Médio",
-            "high": "Alto"
+            "high": "Alto",
+            "xhigh": "Muito alto"
         },
         "llmInputs": "Entradas para LLM",
         "llmInputsOptions": {

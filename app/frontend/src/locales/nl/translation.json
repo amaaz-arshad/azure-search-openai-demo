@@ -106,12 +106,15 @@
         "useSemanticRanker": "Semantische rangschikking gebruiken",
         "useSemanticCaptions": "Semantische bijschriften gebruiken",
         "useQueryRewriting": "Gebruik de herformulering van zoekopdrachten om informatie op te halen",
+        "chatgptModel": "OpenAI-model",
         "reasoningEffort": "Redeneerinspanning",
         "reasoningEffortOptions": {
+            "none": "Geen",
             "minimal": "Minimaal (alleen GPT-5)",
             "low": "Laag",
             "medium": "Gemiddeld",
-            "high": "Hoog"
+            "high": "Hoog",
+            "xhigh": "Zeer hoog"
         },
         "useSuggestFollowupQuestions": "Vervolgvragen voorstellen",
         "useAgenticKnowledgeBase": "Gebruik agentische retrieval",

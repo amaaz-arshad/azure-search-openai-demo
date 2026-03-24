@@ -40,7 +40,6 @@ from openai.types.chat import (
     ChatCompletion,
     ChatCompletionChunk,
     ChatCompletionMessageParam,
-    ChatCompletionReasoningEffort,
     ChatCompletionToolParam,
 )
 
@@ -49,6 +48,9 @@ from prepdocslib.blobmanager import AdlsBlobManager, BlobManager
 from prepdocslib.embeddings import ImageEmbeddings
 
 from approaches.sampleprompt import SAMPLE_PROMPT
+
+ReasoningEffortValue = Optional[str]
+
 
 @dataclass
 class ActivityDetail:
@@ -150,7 +152,7 @@ class RewriteQueryResult:
     query: str
     messages: list[ChatCompletionMessageParam]
     completion: ChatCompletion
-    reasoning_effort: ChatCompletionReasoningEffort
+    reasoning_effort: ReasoningEffortValue
 
 
 @dataclass
@@ -223,6 +225,10 @@ class GPTReasoningModelSupport:
 
 
 class Approach(ABC):
+    AVAILABLE_CHATGPT_MODELS = ("gpt-5-mini", "gpt-5.2", "gpt-5.2-chat", "gpt-5.4-mini")
+    DEFAULT_REASONING_EFFORT_OPTIONS = ("minimal", "low", "medium", "high")
+    GPT_5_4_REASONING_EFFORT_OPTIONS = ("none", "low", "medium", "high", "xhigh")
+    GPT_5_4_REASONING_MODELS = {"gpt-5.4", "gpt-5.4-mini", "gpt-5.4-nano"}
     # List of GPT reasoning models support
     GPT_REASONING_MODELS = {
         "o1": GPTReasoningModelSupport(streaming=False, minimal_effort=False),
@@ -236,6 +242,9 @@ class Approach(ABC):
         "gpt-5.1-chat": GPTReasoningModelSupport(streaming=True, minimal_effort=True),
         "gpt-5.2": GPTReasoningModelSupport(streaming=True, minimal_effort=True),
         "gpt-5.2-chat": GPTReasoningModelSupport(streaming=True, minimal_effort=True),
+        "gpt-5.4": GPTReasoningModelSupport(streaming=True, minimal_effort=False),
+        "gpt-5.4-mini": GPTReasoningModelSupport(streaming=True, minimal_effort=False),
+        "gpt-5.4-nano": GPTReasoningModelSupport(streaming=True, minimal_effort=False),
     }
     # Set a higher token limit for GPT reasoning models
     RESPONSE_DEFAULT_TOKEN_LIMIT = 1024
@@ -285,6 +294,28 @@ class Approach(ABC):
         self.image_embeddings_client = image_embeddings_client
         self.global_blob_manager = global_blob_manager
         self.user_blob_manager = user_blob_manager
+
+    def get_available_chatgpt_model_options(self) -> list[dict[str, Any]]:
+        return [
+            {
+                "model": model,
+                "reasoningEffortOptions": self.get_reasoning_effort_options(model),
+            }
+            for model in self.AVAILABLE_CHATGPT_MODELS
+        ]
+
+    def get_chatgpt_deployment_for_model(self, model: str) -> Optional[str]:
+        if model == self.chatgpt_model and self.chatgpt_deployment:
+            return self.chatgpt_deployment
+        if model in self.AVAILABLE_CHATGPT_MODELS:
+            return model
+        return None
+
+    def resolve_chatgpt_model(self, overrides: dict[str, Any]) -> tuple[str, Optional[str]]:
+        requested_model = overrides.get("chatgpt_model")
+        if isinstance(requested_model, str) and requested_model in self.AVAILABLE_CHATGPT_MODELS:
+            return requested_model, self.get_chatgpt_deployment_for_model(requested_model)
+        return self.chatgpt_model, self.chatgpt_deployment
 
     def build_filter(self, overrides: dict[str, Any]) -> Optional[str]:
         include_category = overrides.get("include_category")
@@ -410,7 +441,7 @@ class Approach(ABC):
         no_response_token: Optional[str] = None,
     ) -> RewriteQueryResult:
         query_messages = [self.prompt_manager.build_system_prompt(prompt_template, prompt_variables)]
-        rewrite_reasoning_effort = self.get_lowest_reasoning_effort(self.chatgpt_model)
+        rewrite_reasoning_effort = self.get_lowest_reasoning_effort(chatgpt_model)
 
         chat_completion = cast(
             ChatCompletion,
@@ -444,6 +475,8 @@ class Approach(ABC):
         messages: list[ChatCompletionMessageParam],
         knowledgebase_client: KnowledgeBaseRetrievalClient,
         search_index_name: str,
+        chatgpt_model: str,
+        chatgpt_deployment: Optional[str],
         filter_add_on: Optional[str] = None,
         minimum_reranker_score: Optional[float] = None,
         access_token: Optional[str] = None,
@@ -501,11 +534,11 @@ class Approach(ABC):
                 prompt_template="query_rewrite.system.jinja2",
                 prompt_variables={"user_query": original_user_query, "past_messages": messages[:-1]},
                 overrides={},
-                chatgpt_model=self.chatgpt_model,
-                chatgpt_deployment=self.chatgpt_deployment,
+                chatgpt_model=chatgpt_model,
+                chatgpt_deployment=chatgpt_deployment,
                 user_query=original_user_query,
                 response_token_limit=self.get_response_token_limit(
-                    self.chatgpt_model, 100
+                    chatgpt_model, 100
                 ),  # Setting too low risks malformed JSON, setting too high may affect performance
                 tools=self.query_rewrite_tools,
                 temperature=0.0,  # Minimize creativity for search query generation
@@ -516,8 +549,8 @@ class Approach(ABC):
                     title="Prompt to generate search query",
                     messages=rewrite_result.messages,
                     overrides={},
-                    model=self.chatgpt_model,
-                    deployment=self.chatgpt_deployment,
+                    model=chatgpt_model,
+                    deployment=chatgpt_deployment,
                     usage=rewrite_result.completion.usage,
                     reasoning_effort=rewrite_result.reasoning_effort,
                 )
@@ -926,7 +959,15 @@ class Approach(ABC):
 
         return default_limit
 
-    def get_lowest_reasoning_effort(self, model: str) -> ChatCompletionReasoningEffort:
+    @classmethod
+    def get_reasoning_effort_options(cls, model: str) -> list[str]:
+        if model in cls.GPT_5_4_REASONING_MODELS:
+            return list(cls.GPT_5_4_REASONING_EFFORT_OPTIONS)
+        if model in cls.GPT_REASONING_MODELS:
+            return list(cls.DEFAULT_REASONING_EFFORT_OPTIONS)
+        return []
+
+    def get_lowest_reasoning_effort(self, model: str) -> ReasoningEffortValue:
         """
         Return the lowest valid reasoning_effort for the given model.
         """
@@ -935,6 +976,19 @@ class Approach(ABC):
         if self.GPT_REASONING_MODELS[model].minimal_effort:
             return "minimal"
         return "low"
+
+    def normalize_reasoning_effort(
+        self, model: str, reasoning_effort: ReasoningEffortValue
+    ) -> ReasoningEffortValue:
+        """
+        Normalize unsupported reasoning_effort values to a supported value for the model.
+        """
+        if reasoning_effort is None or model not in self.GPT_REASONING_MODELS:
+            return reasoning_effort
+        reasoning_effort_options = self.get_reasoning_effort_options(model)
+        if reasoning_effort in reasoning_effort_options:
+            return reasoning_effort
+        return reasoning_effort_options[0]
 
     def create_chat_completion(
         self,
@@ -947,9 +1001,10 @@ class Approach(ABC):
         tools: Optional[list[ChatCompletionToolParam]] = None,
         temperature: Optional[float] = None,
         n: Optional[int] = None,
-        reasoning_effort: Optional[ChatCompletionReasoningEffort] = None,
+        reasoning_effort: ReasoningEffortValue = None,
     ) -> Awaitable[ChatCompletion] | Awaitable[AsyncStream[ChatCompletionChunk]]:
         if chatgpt_model in self.GPT_REASONING_MODELS:
+            requested_reasoning_effort = reasoning_effort or overrides.get("reasoning_effort") or self.reasoning_effort
             params: dict[str, Any] = {
                 # max_tokens is not supported
                 "max_completion_tokens": response_token_limit
@@ -960,7 +1015,9 @@ class Approach(ABC):
             if supported_features.streaming and should_stream:
                 params["stream"] = True
                 params["stream_options"] = {"include_usage": True}
-            params["reasoning_effort"] = reasoning_effort or overrides.get("reasoning_effort") or self.reasoning_effort
+            params["reasoning_effort"] = self.normalize_reasoning_effort(
+                chatgpt_model, requested_reasoning_effort
+            )
 
         else:
             # Include parameters that may not be supported for reasoning models
@@ -993,15 +1050,16 @@ class Approach(ABC):
         model: str,
         deployment: Optional[str],
         usage: Optional[CompletionUsage] = None,
-        reasoning_effort: Optional[ChatCompletionReasoningEffort] = None,
+        reasoning_effort: ReasoningEffortValue = None,
     ) -> ThoughtStep:
         properties: dict[str, Any] = {"model": model}
         if deployment:
             properties["deployment"] = deployment
         # Only add reasoning_effort setting if the model supports it
         if model in self.GPT_REASONING_MODELS:
-            properties["reasoning_effort"] = reasoning_effort or overrides.get(
-                "reasoning_effort", self.reasoning_effort
+            requested_reasoning_effort = reasoning_effort or overrides.get("reasoning_effort", self.reasoning_effort)
+            properties["reasoning_effort"] = self.normalize_reasoning_effort(
+                model, requested_reasoning_effort
             )
         if usage:
             properties["token_usage"] = TokenUsageProps.from_completion_usage(usage)

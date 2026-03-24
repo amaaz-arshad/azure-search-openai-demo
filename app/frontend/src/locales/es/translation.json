@@ -97,12 +97,15 @@
         "useSemanticRanker": "Usar clasificador semántico para la recuperación",
         "useSemanticCaptions": "Usar subtítulos semánticos",
         "useQueryRewriting": "Utiliza la reescritura de consultas para la recuperación",
+        "chatgptModel": "Modelo de OpenAI",
         "reasoningEffort": "Esfuerzo de razonamiento",
         "reasoningEffortOptions": {
+            "none": "Ninguno",
             "minimal": "Mínimo (solo GPT-5)",
             "low": "Bajo",
             "medium": "Medio",
-            "high": "Alto"
+            "high": "Alto",
+            "xhigh": "Muy alto"
         },
         "useSuggestFollowupQuestions": "Sugerir preguntas de seguimiento",
         "useAgenticKnowledgeBase": "Usar la recuperación agéntica",

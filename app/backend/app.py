@@ -325,6 +325,11 @@ def auth_setup():
 
 @bp.route("/config", methods=["GET"])
 def config():
+    chat_approach: ChatReadRetrieveReadApproach = current_app.config[CONFIG_CHAT_APPROACH]
+    reasoning_effort_options = Approach.get_reasoning_effort_options(chat_approach.chatgpt_model)
+    default_reasoning_effort = chat_approach.normalize_reasoning_effort(
+        chat_approach.chatgpt_model, current_app.config[CONFIG_DEFAULT_REASONING_EFFORT]
+    )
     return jsonify(
         {
             "showMultimodalOptions": current_app.config[CONFIG_MULTIMODAL_ENABLED],
@@ -332,7 +337,10 @@ def config():
             "showQueryRewritingOption": current_app.config[CONFIG_QUERY_REWRITING_ENABLED],
             "showReasoningEffortOption": current_app.config[CONFIG_REASONING_EFFORT_ENABLED],
             "streamingEnabled": current_app.config[CONFIG_STREAMING_ENABLED],
-            "defaultReasoningEffort": current_app.config[CONFIG_DEFAULT_REASONING_EFFORT],
+            "defaultChatgptModel": chat_approach.chatgpt_model,
+            "availableChatgptModels": chat_approach.get_available_chatgpt_model_options(),
+            "defaultReasoningEffort": default_reasoning_effort,
+            "reasoningEffortOptions": reasoning_effort_options,
             "defaultRetrievalReasoningEffort": current_app.config[CONFIG_DEFAULT_RETRIEVAL_REASONING_EFFORT],
             "showVectorOption": current_app.config[CONFIG_VECTOR_SEARCH_ENABLED],
             "showUserUpload": current_app.config[CONFIG_USER_UPLOAD_ENABLED],
@@ -563,7 +571,9 @@ async def setup_clients():
     )
 
     knowledgebase_client = KnowledgeBaseRetrievalClient(
-        endpoint=AZURE_SEARCH_ENDPOINT, knowledge_base_name=AZURE_SEARCH_KNOWLEDGEBASE_NAME, credential=azure_credential
+        endpoint=AZURE_SEARCH_ENDPOINT,
+        knowledge_base_name=AZURE_SEARCH_KNOWLEDGEBASE_NAME,
+        credential=azure_credential,
     )
     knowledgebase_client_with_web = None
     knowledgebase_client_with_sharepoint = None

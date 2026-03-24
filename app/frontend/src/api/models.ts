@@ -5,6 +5,7 @@ export const enum RetrievalMode {
 }
 
 export type ChatAppRequestOverrides = {
+    chatgpt_model?: string;
     retrieval_mode?: RetrievalMode;
     semantic_ranker?: boolean;
     semantic_captions?: boolean;
@@ -109,8 +110,16 @@ export type ChatAppRequest = {
     session_state: any;
 };
 
+export type ChatgptModelOption = {
+    model: string;
+    reasoningEffortOptions: string[];
+};
+
 export type Config = {
+    defaultChatgptModel?: string;
+    availableChatgptModels?: ChatgptModelOption[];
     defaultReasoningEffort: string;
+    reasoningEffortOptions?: string[];
     defaultRetrievalReasoningEffort: string;
     showMultimodalOptions: boolean;
     showSemanticRankerOption: boolean;

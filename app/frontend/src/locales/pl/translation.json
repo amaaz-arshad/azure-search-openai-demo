@@ -98,12 +98,15 @@
         "useSemanticRanker": "Użyj semantycznego rankera do pobierania",
         "useSemanticCaptions": "Użyj semantycznych podpisów",
         "useQueryRewriting": "Użyj przepisywania zapytań do pobierania",
+        "chatgptModel": "Model OpenAI",
         "reasoningEffort": "Poziom rozumowania",
         "reasoningEffortOptions": {
+            "none": "Brak",
             "minimal": "Minimal (tylko GPT-5)",
             "low": "Niski",
             "medium": "Średni",
-            "high": "Wysoki"
+            "high": "Wysoki",
+            "xhigh": "Bardzo wysoki"
         },
         "useSuggestFollowupQuestions": "Sugeruj pytania uzupełniające",
         "useAgenticKnowledgeBase": "Użyj agentowego pobierania",

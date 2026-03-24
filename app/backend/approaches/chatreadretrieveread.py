@@ -287,11 +287,12 @@ class ChatReadRetrieveReadApproach(Approach):
     ) -> tuple[ExtraInfo, Awaitable[ChatCompletion] | Awaitable[AsyncStream[ChatCompletionChunk]]]:
         use_agentic_knowledgebase = True if overrides.get("use_agentic_knowledgebase") else False
         original_user_query = messages[-1]["content"]
+        selected_chatgpt_model, selected_chatgpt_deployment = self.resolve_chatgpt_model(overrides)
 
-        reasoning_model_support = self.GPT_REASONING_MODELS.get(self.chatgpt_model)
+        reasoning_model_support = self.GPT_REASONING_MODELS.get(selected_chatgpt_model)
         if reasoning_model_support and (not reasoning_model_support.streaming and should_stream):
             raise Exception(
-                f"{self.chatgpt_model} does not support streaming. Please use a different model or disable streaming."
+                f"{selected_chatgpt_model} does not support streaming. Please use a different model or disable streaming."
             )
         if use_agentic_knowledgebase:
             if should_stream and overrides.get("use_web_source"):
@@ -302,6 +303,8 @@ class ChatReadRetrieveReadApproach(Approach):
                 messages,
                 overrides,
                 auth_claims,
+                selected_chatgpt_model=selected_chatgpt_model,
+                selected_chatgpt_deployment=selected_chatgpt_deployment,
                 timing_context=timing_context,
             )
         else:
@@ -309,6 +312,8 @@ class ChatReadRetrieveReadApproach(Approach):
                 messages,
                 overrides,
                 auth_claims,
+                selected_chatgpt_model=selected_chatgpt_model,
+                selected_chatgpt_deployment=selected_chatgpt_deployment,
                 timing_context=timing_context,
             )
 
@@ -319,7 +324,7 @@ class ChatReadRetrieveReadApproach(Approach):
                     id="no-final-call",
                     object="chat.completion",
                     created=0,
-                    model=self.chatgpt_model,
+                    model=selected_chatgpt_model,
                     choices=[
                         Choice(
                             message=ChatCompletionMessage(
@@ -356,11 +361,11 @@ class ChatReadRetrieveReadApproach(Approach):
         chat_coroutine = cast(
             Awaitable[ChatCompletion] | Awaitable[AsyncStream[ChatCompletionChunk]],
             self.create_chat_completion(
-                self.chatgpt_deployment,
-                self.chatgpt_model,
+                selected_chatgpt_deployment,
+                selected_chatgpt_model,
                 messages,
                 overrides,
-                self.get_response_token_limit(self.chatgpt_model, 1024),
+                self.get_response_token_limit(selected_chatgpt_model, 1024),
                 should_stream,
             ),
         )
@@ -371,8 +376,8 @@ class ChatReadRetrieveReadApproach(Approach):
                 title="Prompt to generate answer",
                 messages=messages,
                 overrides=overrides,
-                model=self.chatgpt_model,
-                deployment=self.chatgpt_deployment,
+                model=selected_chatgpt_model,
+                deployment=selected_chatgpt_deployment,
                 usage=None,
             )
         )
@@ -383,6 +388,8 @@ class ChatReadRetrieveReadApproach(Approach):
         messages: list[ChatCompletionMessageParam],
         overrides: dict[str, Any],
         auth_claims: dict[str, Any],
+        selected_chatgpt_model: str,
+        selected_chatgpt_deployment: Optional[str],
         timing_context: Optional[ChatStreamTimingContext] = None,
     ):
         use_text_search = overrides.get("retrieval_mode") in ["text", "hybrid", None]
@@ -414,11 +421,11 @@ class ChatReadRetrieveReadApproach(Approach):
                 "past_messages": messages[:-1],
             },
             overrides=overrides,
-            chatgpt_model=self.chatgpt_model,
-            chatgpt_deployment=self.chatgpt_deployment,
+            chatgpt_model=selected_chatgpt_model,
+            chatgpt_deployment=selected_chatgpt_deployment,
             user_query=original_user_query,
             response_token_limit=self.get_response_token_limit(
-                self.chatgpt_model, 100
+                selected_chatgpt_model, 100
             ),  # Setting too low risks malformed JSON, setting too high may affect performance
             tools=self.query_rewrite_tools,
             temperature=0.0,  # Minimize creativity for search query generation
@@ -476,8 +483,8 @@ class ChatReadRetrieveReadApproach(Approach):
                     title="Prompt to generate search query",
                     messages=rewrite_result.messages,
                     overrides=overrides,
-                    model=self.chatgpt_model,
-                    deployment=self.chatgpt_deployment,
+                    model=selected_chatgpt_model,
+                    deployment=selected_chatgpt_deployment,
                     usage=rewrite_result.completion.usage,
                     reasoning_effort=rewrite_result.reasoning_effort,
                 ),
@@ -509,6 +516,8 @@ class ChatReadRetrieveReadApproach(Approach):
         messages: list[ChatCompletionMessageParam],
         overrides: dict[str, Any],
         auth_claims: dict[str, Any],
+        selected_chatgpt_model: str,
+        selected_chatgpt_deployment: Optional[str],
         timing_context: Optional[ChatStreamTimingContext] = None,
     ):
         search_index_filter = self.build_filter(overrides)
@@ -539,6 +548,8 @@ class ChatReadRetrieveReadApproach(Approach):
             messages=messages,
             knowledgebase_client=selected_client,
             search_index_name=self.search_index_name,
+            chatgpt_model=selected_chatgpt_model,
+            chatgpt_deployment=selected_chatgpt_deployment,
             filter_add_on=search_index_filter,
             minimum_reranker_score=minimum_reranker_score,
             access_token=access_token,

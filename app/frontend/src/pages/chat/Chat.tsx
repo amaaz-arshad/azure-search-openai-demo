@@ -7,7 +7,7 @@ import readNDJSONStream from "ndjson-readablestream";
 import appLogo from "../../assets/applogo.svg";
 import styles from "./Chat.module.css";
 
-import { chatApi, configApi, RetrievalMode, ChatAppResponse, ChatAppResponseOrError, ChatAppRequest, ResponseMessage, SpeechConfig } from "../../api";
+import { chatApi, configApi, RetrievalMode, ChatAppResponse, ChatAppResponseOrError, ChatAppRequest, ResponseMessage, SpeechConfig, ChatgptModelOption } from "../../api";
 import { Answer, AnswerError, AnswerLoading } from "../../components/Answer";
 import { QuestionInput } from "../../components/QuestionInput";
 import { ExampleList } from "../../components/Example";
@@ -27,12 +27,36 @@ import { LanguagePicker } from "../../i18n/LanguagePicker";
 import { Settings } from "../../components/Settings/Settings";
 import { setGlobalClearChat } from "../layout/Layout";
 
+const DEFAULT_REASONING_EFFORT_OPTIONS = ["minimal", "low", "medium", "high"];
+const DEFAULT_AVAILABLE_CHATGPT_MODELS: ChatgptModelOption[] = [
+    { model: "gpt-5-mini", reasoningEffortOptions: ["minimal", "low", "medium", "high"] },
+    { model: "gpt-5.2", reasoningEffortOptions: ["minimal", "low", "medium", "high"] },
+    { model: "gpt-5.2-chat", reasoningEffortOptions: ["minimal", "low", "medium", "high"] },
+    { model: "gpt-5.4-mini", reasoningEffortOptions: ["none", "low", "medium", "high", "xhigh"] }
+];
+
 const createChatSessionId = () => {
     if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
         return crypto.randomUUID();
     }
     return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 };
+
+const normalizeReasoningEffort = (reasoningEffort: string | undefined, options: string[]) => {
+    if (reasoningEffort && options.includes(reasoningEffort)) {
+        return reasoningEffort;
+    }
+    if (options.includes("low")) {
+        return "low";
+    }
+    return options[0] ?? "";
+};
+
+const getReasoningEffortOptionsForModel = (
+    model: string | undefined,
+    availableChatgptModels: ChatgptModelOption[],
+    fallbackOptions: string[] = DEFAULT_REASONING_EFFORT_OPTIONS
+) => availableChatgptModels.find(option => option.model === model)?.reasoningEffortOptions ?? fallbackOptions;
 
 const Chat = () => {
     const { t, i18n } = useTranslation();
@@ -61,7 +85,10 @@ const Chat = () => {
     const [retrievalMode, setRetrievalMode] = useState<RetrievalMode>(RetrievalMode.Hybrid);
     const [useSemanticRanker, setUseSemanticRanker] = useState<boolean>(true);
     const [useQueryRewriting, setUseQueryRewriting] = useState<boolean>(false);
+    const [chatgptModel, setChatgptModel] = useState<string>(DEFAULT_AVAILABLE_CHATGPT_MODELS[0].model);
+    const [availableChatgptModels, setAvailableChatgptModels] = useState<ChatgptModelOption[]>(DEFAULT_AVAILABLE_CHATGPT_MODELS);
     const [reasoningEffort, setReasoningEffort] = useState<string>("");
+    const [reasoningEffortOptions, setReasoningEffortOptions] = useState<string[]>(DEFAULT_REASONING_EFFORT_OPTIONS);
     const [streamingEnabled, setStreamingEnabled] = useState<boolean>(true);
     const [shouldStream, setShouldStream] = useState<boolean>(true);
     const previousShouldStreamRef = useRef<boolean>(true);
@@ -141,8 +168,19 @@ const Chat = () => {
             setShowQueryRewritingOption(config.showQueryRewritingOption);
             setShowReasoningEffortOption(config.showReasoningEffortOption);
             setStreamingEnabled(config.streamingEnabled);
+            const configuredAvailableChatgptModels = config.availableChatgptModels ?? DEFAULT_AVAILABLE_CHATGPT_MODELS;
+            setAvailableChatgptModels(configuredAvailableChatgptModels);
+            const configuredChatgptModel =
+                config.defaultChatgptModel ?? configuredAvailableChatgptModels[0]?.model ?? DEFAULT_AVAILABLE_CHATGPT_MODELS[0].model;
+            setChatgptModel(configuredChatgptModel);
+            const configuredReasoningEffortOptions = getReasoningEffortOptionsForModel(
+                configuredChatgptModel,
+                configuredAvailableChatgptModels,
+                config.reasoningEffortOptions ?? DEFAULT_REASONING_EFFORT_OPTIONS
+            );
+            setReasoningEffortOptions(configuredReasoningEffortOptions);
             if (config.showReasoningEffortOption) {
-                setReasoningEffort(config.defaultReasoningEffort);
+                setReasoningEffort(normalizeReasoningEffort(config.defaultReasoningEffort, configuredReasoningEffortOptions));
             }
             setShowVectorOption(config.showVectorOption);
             if (!config.showVectorOption) {
@@ -292,6 +330,7 @@ const Chat = () => {
                 context: {
                     chat_session_id: chatSessionId,
                     overrides: {
+                        chatgpt_model: chatgptModel,
                         prompt_template: promptTemplate.length === 0 ? undefined : promptTemplate,
                         include_category: includeCategory.length === 0 ? undefined : includeCategory,
                         exclude_category: excludeCategory.length === 0 ? undefined : excludeCategory,
@@ -447,6 +486,13 @@ const Chat = () => {
             case "useQueryRewriting":
                 setUseQueryRewriting(value);
                 break;
+            case "chatgptModel": {
+                const modelReasoningEffortOptions = getReasoningEffortOptionsForModel(value, availableChatgptModels);
+                setChatgptModel(value);
+                setReasoningEffortOptions(modelReasoningEffortOptions);
+                setReasoningEffort(current => normalizeReasoningEffort(current, modelReasoningEffortOptions));
+                break;
+            }
             case "reasoningEffort":
                 setReasoningEffort(value);
                 break;
@@ -718,7 +764,10 @@ const Chat = () => {
                         useSemanticRanker={useSemanticRanker}
                         useSemanticCaptions={useSemanticCaptions}
                         useQueryRewriting={useQueryRewriting}
+                        chatgptModel={chatgptModel}
+                        chatgptModelOptions={availableChatgptModels.map(option => option.model)}
                         reasoningEffort={reasoningEffort}
+                        reasoningEffortOptions={reasoningEffortOptions}
                         excludeCategory={excludeCategory}
                         includeCategory={includeCategory}
                         retrievalMode={retrievalMode}

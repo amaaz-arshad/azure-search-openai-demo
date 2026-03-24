@@ -97,12 +97,15 @@
         "useSemanticRanker": "Anlamsal sıralayıcı kullan",
         "useSemanticCaptions": "Anlamsal altyazılar kullan",
         "useQueryRewriting": "Bilgi erişimi için sorgu yeniden yazımını kullanın",
+        "chatgptModel": "OpenAI modeli",
         "reasoningEffort": "Akıl yürütme çabası",
         "reasoningEffortOptions": {
+            "none": "Yok",
             "minimal": "En az (yalnızca GPT-5)",
             "low": "Düşük",
             "medium": "Orta",
-            "high": "Yüksek"
+            "high": "Yüksek",
+            "xhigh": "Çok yüksek"
         },
         "useSuggestFollowupQuestions": "Takip soruları öner",
         "useAgenticKnowledgeBase": "Ajan temelli getirim kullan",

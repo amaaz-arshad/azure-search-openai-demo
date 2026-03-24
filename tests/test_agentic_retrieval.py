@@ -25,7 +25,11 @@ async def test_agentic_retrieval_default_sort(chat_approach, monkeypatch):
     )
 
     agentic_results = await chat_approach.run_agentic_retrieval(
-        messages=[], knowledgebase_client=knowledgebase_client, search_index_name="test-index"
+        messages=[],
+        knowledgebase_client=knowledgebase_client,
+        search_index_name="test-index",
+        chatgpt_model=chat_approach.chatgpt_model,
+        chatgpt_deployment=chat_approach.chatgpt_deployment,
     )
 
     assert len(agentic_results.documents) == 2
@@ -58,7 +62,11 @@ async def test_agentic_retrieval_no_references(chat_approach, monkeypatch):
     )
 
     agentic_results = await chat_approach.run_agentic_retrieval(
-        messages=[], knowledgebase_client=knowledgebase_client, search_index_name="test-index"
+        messages=[],
+        knowledgebase_client=knowledgebase_client,
+        search_index_name="test-index",
+        chatgpt_model=chat_approach.chatgpt_model,
+        chatgpt_deployment=chat_approach.chatgpt_deployment,
     )
 
     assert len(agentic_results.documents) == 0
@@ -76,7 +84,11 @@ async def test_agentic_retrieval_web_results(chat_approach, monkeypatch):
     )
 
     agentic_results = await chat_approach.run_agentic_retrieval(
-        messages=[], knowledgebase_client=knowledgebase_client, search_index_name="test-index"
+        messages=[],
+        knowledgebase_client=knowledgebase_client,
+        search_index_name="test-index",
+        chatgpt_model=chat_approach.chatgpt_model,
+        chatgpt_deployment=chat_approach.chatgpt_deployment,
     )
 
     assert len(agentic_results.documents) == 1
@@ -110,6 +122,8 @@ async def test_agentic_retrieval_sharepoint_results(chat_approach, monkeypatch):
         messages=[],
         knowledgebase_client=knowledgebase_client,
         search_index_name="test-index",
+        chatgpt_model=chat_approach.chatgpt_model,
+        chatgpt_deployment=chat_approach.chatgpt_deployment,
         use_sharepoint_source=True,
     )
 
@@ -163,6 +177,8 @@ async def test_agentic_retrieval_minimal_uses_query_rewrite(chat_approach, monke
         messages=[{"role": "user", "content": "Original"}],
         knowledgebase_client=knowledgebase_client,
         search_index_name="test-index",
+        chatgpt_model=chat_approach.chatgpt_model,
+        chatgpt_deployment=chat_approach.chatgpt_deployment,
         retrieval_reasoning_effort="minimal",
     )
 
@@ -183,5 +199,7 @@ async def test_agentic_retrieval_minimal_requires_string(chat_approach):
             messages=[{"role": "user", "content": [{"type": "text", "text": "Hello"}]}],
             knowledgebase_client=knowledgebase_client,
             search_index_name="test-index",
+            chatgpt_model=chat_approach.chatgpt_model,
+            chatgpt_deployment=chat_approach.chatgpt_deployment,
             retrieval_reasoning_effort="minimal",
         )

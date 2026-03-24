@@ -93,12 +93,15 @@
         "useSemanticRanker": "Brug semantisk ranking til søgning",
         "useSemanticCaptions": "Brug semantiske billedtekster",
         "useQueryRewriting": "Brug forespørgselsomskrivning til informationsgenfinding",
+        "chatgptModel": "OpenAI-model",
         "reasoningEffort": "Ræsonnementsindsats",
         "reasoningEffortOptions": {
+            "none": "Ingen",
             "minimal": "Minimal (kun GPT-5)",
             "low": "Lav",
             "medium": "Medium",
-            "high": "Høj"
+            "high": "Høj",
+            "xhigh": "Meget høj"
         },
         "useSuggestFollowupQuestions": "Foreslå opfølgende spørgsmål",
         "useAgenticKnowledgeBase": "Brug agentisk hentning",

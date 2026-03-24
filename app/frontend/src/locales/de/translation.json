@@ -103,12 +103,15 @@
         "useSemanticRanker": "Semantischen Ranker verwenden",
         "useSemanticCaptions": "Semantische Beschriftungen verwenden",
         "useQueryRewriting": "Abfrageumschreibung verwenden",
+        "chatgptModel": "OpenAI-Modell",
         "reasoningEffort": "Begründungsaufwand",
         "reasoningEffortOptions": {
+            "none": "Keine",
             "minimal": "Minimal (nur GPT-5)",
             "low": "Gering",
             "medium": "Mittel",
-            "high": "Hoch"
+            "high": "Hoch",
+            "xhigh": "Sehr hoch"
         },
         "useSuggestFollowupQuestions": "Folgefragen vorschlagen",
         "useAgenticKnowledgeBase": "Agentische Suche verwenden",

@@ -20,7 +20,10 @@ export interface SettingsProps {
     useSemanticRanker: boolean;
     useSemanticCaptions: boolean;
     useQueryRewriting: boolean;
+    chatgptModel: string;
+    chatgptModelOptions: string[];
     reasoningEffort: string;
+    reasoningEffortOptions: string[];
     excludeCategory: string;
     includeCategory: string;
     retrievalMode: RetrievalMode;
@@ -63,7 +66,10 @@ export const Settings = ({
     useSemanticRanker,
     useSemanticCaptions,
     useQueryRewriting,
+    chatgptModel,
+    chatgptModelOptions,
     reasoningEffort,
+    reasoningEffortOptions,
     excludeCategory,
     includeCategory,
     retrievalMode,
@@ -124,6 +130,8 @@ export const Settings = ({
     const semanticRankerId = useId("semanticRanker");
     const semanticRankerFieldId = useId("semanticRankerField");
     const queryRewritingFieldId = useId("queryRewritingField");
+    const chatgptModelId = useId("chatgptModel");
+    const chatgptModelFieldId = useId("chatgptModelField");
     const reasoningEffortFieldId = useId("reasoningEffortField");
     const semanticCaptionsId = useId("semanticCaptions");
     const semanticCaptionsFieldId = useId("semanticCaptionsField");
@@ -357,12 +365,10 @@ export const Settings = ({
                         onChange("reasoningEffort", option?.key || "")
                     }
                     aria-labelledby={reasoningEffortFieldId}
-                    options={[
-                        { key: "minimal", text: t("labels.reasoningEffortOptions.minimal") },
-                        { key: "low", text: t("labels.reasoningEffortOptions.low") },
-                        { key: "medium", text: t("labels.reasoningEffortOptions.medium") },
-                        { key: "high", text: t("labels.reasoningEffortOptions.high") }
-                    ]}
+                    options={reasoningEffortOptions.map(option => ({
+                        key: option,
+                        text: t(`labels.reasoningEffortOptions.${option}`, { defaultValue: option })
+                    }))}
                     onRenderLabel={props => renderLabel(props, queryRewritingFieldId, queryRewritingFieldId, t("helpTexts.reasoningEffort"))}
                 />
             )}
@@ -383,6 +389,30 @@ export const Settings = ({
             {!useWebSource && (
                 <>
                     <h3 className={styles.sectionHeader}>{t("llmSettings")}</h3>
+                    <Dropdown
+                        id={chatgptModelFieldId}
+                        className={styles.settingsSeparator}
+                        selectedKey={chatgptModel}
+                        label={t("labels.chatgptModel", { defaultValue: "OpenAI model" })}
+                        onChange={(_ev?: React.FormEvent<HTMLElement | HTMLInputElement>, option?: IDropdownOption) =>
+                            onChange("chatgptModel", option?.key || chatgptModel)
+                        }
+                        aria-labelledby={chatgptModelId}
+                        options={chatgptModelOptions.map(option => ({
+                            key: option,
+                            text: option
+                        }))}
+                        onRenderLabel={props =>
+                            renderLabel(
+                                props,
+                                chatgptModelId,
+                                chatgptModelFieldId,
+                                t("helpTexts.chatgptModel", {
+                                    defaultValue: "Select which deployed OpenAI model to use for query rewriting and answer generation."
+                                })
+                            )
+                        }
+                    />
                     <TextField
                         id={promptTemplateFieldId}
                         className={styles.settingsSeparator}
