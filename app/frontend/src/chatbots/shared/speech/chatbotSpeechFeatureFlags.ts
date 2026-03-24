@@ -14,6 +14,11 @@ export type ChatbotSpeechConfig = {
 // `true` means "allow the UI if the backend config also enables it".
 // `false` means "hide the UI for this chatbot even if the backend enables it".
 export const chatbotSpeechFeatureFlags: Record<string, ChatbotSpeechVisibility> = {
+    agindo: {
+        showSpeechInput: true,
+        showSpeechOutputBrowser: true,
+        showSpeechOutputAzure: true
+    },
     demo: {
         showSpeechInput: true,
         showSpeechOutputBrowser: true,

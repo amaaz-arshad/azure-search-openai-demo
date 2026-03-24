@@ -50,6 +50,7 @@ If necessary, edit this file to ensure it accurately reflects the current state 
     * app/backend/app.py: The main entry point for the backend application, including SPA fallback routes for chatbot URLs like `/<chatbot_name>`, server-side redirect of unknown chatbot names back to `/`, SPA fallback for `/chatbots`, public chatbot upload routes at `/chatbot_uploads/<chatbot_name>` (currently used by the demo bot), upload cancellation at `/chatbot_uploads/<chatbot_name>/cancel/<upload_id>`, chatbot-upload content fallback in `/content/<path>`, locale-aware content-filter error handling for `/chat` and `/chat/stream` based on `context.overrides.language` or `Accept-Language`, and no-store caching headers for `index.html` responses to avoid stale frontend routing behavior.
   * app/functions: Azure Functions used for cloud ingestion custom skills (document extraction, figure processing, text processing). Each function bundles a synchronized copy of `prepdocslib`; run `python scripts/copy_prepdocslib.py` to refresh the local copies if you modify the library.
   * app/frontend: Contains the React frontend code, built with TypeScript, built with vite.
+    * app/frontend/index.html: Shared Vite HTML entry document. It loads the browser-tab favicon from `app/frontend/src/assets/robo1.png`.
     * app/frontend/src/index.tsx: Frontend entry point and router setup. It resolves chatbot UI by URL path (`/<chatbot_name>`), serves a landing/error page on `/`, provides a password-gated chatbot directory at `/chatbots`, and routes unknown frontend paths back to `/`.
     * app/frontend/src/pages/ChatbotDirectory.tsx: Password-gated page listing all currently registered chatbot links.
     * app/frontend/src/chatbots/registry.ts: Registry of available chatbot UIs, including the chatbot-specific i18n instance.
@@ -59,6 +60,7 @@ If necessary, edit this file to ensure it accurately reflects the current state 
     * app/frontend/src/chatbots/shared/theme: Shared chatbot theme registry and route wrapper. `chatbotThemes.ts` is the single frontend switchboard for navbar colors, header login button colors, basic-login page background/button colors, and user chat bubble colors across chatbot UIs. Most chatbots only need a single `primary` color there because the rest of the theme is auto-derived, with optional overrides for exceptions.
     * app/frontend/src/chatbots/<chatbot_name>: Chatbot-specific frontend implementation (pages, components, layout wrapper, i18n, locales, assets, and chatbot wiring).
       * app/frontend/src/chatbots/nerilio: Chatbot implementation.
+      * app/frontend/src/chatbots/agindo: Chatbot implementation with an additional basic username/password login gate shown before chat.
       * app/frontend/src/chatbots/steuertipps: Chatbot implementation.
       * app/frontend/src/chatbots/knoll: Chatbot implementation with an additional basic username/password login gate shown before chat.
       * app/frontend/src/chatbots/lemon: Chatbot implementation.

@@ -8,6 +8,7 @@ logger = logging.getLogger(__name__)
 # Keep in sync with frontend chatbot routes in app/frontend/src/chatbots/registry.ts.
 DEFAULT_CHATBOT_NAME = "nerilio"
 CHATBOT_PROMPT_MODULES = {
+    "agindo": "approaches.chatbots.agindo.sampleprompt",
     "nerilio": "approaches.chatbots.nerilio.sampleprompt",
     "steuertipps": "approaches.chatbots.steuertipps.sampleprompt",
     "knoll": "approaches.chatbots.knoll.sampleprompt",

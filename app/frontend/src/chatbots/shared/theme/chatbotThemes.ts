@@ -40,6 +40,9 @@ const defaultThemeSeed: ChatbotThemeSeed = {
 // The rest of the navbar/login/page/bubble theme is derived automatically.
 // If one chatbot needs a special case later, use the optional `overrides`.
 export const chatbotThemes: Record<string, ChatbotThemeSeed> = {
+    agindo: {
+        primary: "#e2c200"
+    },
     demo: {
         primary: "#313335"
     },
