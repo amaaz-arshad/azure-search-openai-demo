@@ -93,7 +93,7 @@ from config import (
 from core.authentication import AuthenticationHelper
 from core.sessionhelper import create_session_id
 from decorators import authenticated, authenticated_path
-from error import error_dict, error_response
+from error import ErrorContext, error_dict, error_response, get_request_error_context
 from prepdocs import (
     OpenAIHost,
     setup_embeddings_service,
@@ -271,13 +271,15 @@ class JSONEncoder(json.JSONEncoder):
         return super().default(o)
 
 
-async def format_as_ndjson(r: AsyncGenerator[dict, None]) -> AsyncGenerator[str, None]:
+async def format_as_ndjson(
+    r: AsyncGenerator[dict, None], error_context: ErrorContext | None = None
+) -> AsyncGenerator[str, None]:
     try:
         async for event in r:
             yield json.dumps(event, ensure_ascii=False, cls=JSONEncoder) + "\n"
     except Exception as error:
         logging.exception("Exception while generating response stream: %s", error)
-        yield json.dumps(error_dict(error))
+        yield json.dumps(error_dict(error, error_context=error_context), ensure_ascii=False)
 
 
 async def get_speech_service_token():
@@ -305,6 +307,7 @@ async def chat(auth_claims: dict[str, Any]):
     if not request.is_json:
         return jsonify({"error": "request must be json"}), 415
     request_json = await request.get_json()
+    error_context = get_request_error_context(request_json)
     context = request_json.get("context", {})
     context["auth_claims"] = auth_claims
     try:
@@ -325,7 +328,7 @@ async def chat(auth_claims: dict[str, Any]):
         )
         return jsonify(result)
     except Exception as error:
-        return error_response(error, "/chat")
+        return error_response(error, "/chat", error_context=error_context)
 
 
 @bp.route("/chat/stream", methods=["POST"])
@@ -334,6 +337,7 @@ async def chat_stream(auth_claims: dict[str, Any]):
     if not request.is_json:
         return jsonify({"error": "request must be json"}), 415
     request_json = await request.get_json()
+    error_context = get_request_error_context(request_json)
     context = request_json.get("context", {})
     context["auth_claims"] = auth_claims
     try:
@@ -352,12 +356,12 @@ async def chat_stream(auth_claims: dict[str, Any]):
             context=context,
             session_state=session_state,
         )
-        response = await make_response(format_as_ndjson(result))
+        response = await make_response(format_as_ndjson(result, error_context=error_context))
         response.timeout = None  # type: ignore
         response.mimetype = "application/json-lines"
         return response
     except Exception as error:
-        return error_response(error, "/chat")
+        return error_response(error, "/chat", error_context=error_context)
 
 
 # Send MSAL.js settings to the client UI

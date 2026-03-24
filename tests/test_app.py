@@ -254,6 +254,26 @@ async def test_chat_handle_exception_contentsafety(client, monkeypatch, snapshot
 
 
 @pytest.mark.asyncio
+async def test_chat_handle_exception_contentsafety_localized(client, monkeypatch, caplog):
+    monkeypatch.setattr(
+        "approaches.chatreadretrieveread.ChatReadRetrieveReadApproach.run",
+        mock.Mock(side_effect=filtered_response),
+    )
+
+    response = await client.post(
+        "/chat",
+        json={
+            "messages": [{"content": "How do I do something bad?", "role": "user"}],
+            "context": {"overrides": {"language": "de-DE"}},
+        },
+    )
+    assert response.status_code == 400
+    result = await response.get_json()
+    assert "Exception in /chat: The response was filtered" in caplog.text
+    assert result["error"] == "Deine Nachricht enthält Inhalte, die vom OpenAI-Inhaltsfilter markiert wurden."
+
+
+@pytest.mark.asyncio
 async def test_chat_handle_exception_streaming(client, monkeypatch, snapshot, caplog):
     chat_client = client.app.config[app.CONFIG_OPENAI_CLIENT]
     monkeypatch.setattr(
@@ -283,6 +303,28 @@ async def test_chat_handle_exception_contentsafety_streaming(client, monkeypatch
     assert "Exception while generating response stream: The response was filtered" in caplog.text
     result = await response.get_data()
     snapshot.assert_match(result, "result.jsonlines")
+
+
+@pytest.mark.asyncio
+async def test_chat_handle_exception_contentsafety_streaming_chatbot_override(client, monkeypatch, caplog):
+    chat_client = client.app.config[app.CONFIG_OPENAI_CLIENT]
+    monkeypatch.setattr(chat_client.chat.completions, "create", mock.Mock(side_effect=filtered_response))
+    monkeypatch.setattr(
+        "approaches.chatbot_content_filter_registry.load_chatbot_content_filter_messages",
+        lambda chatbot_name: {"nl": "Dit is een FHG-specifiek contentfilterbericht."} if chatbot_name == "fhg" else {},
+    )
+
+    response = await client.post(
+        "/chat/stream",
+        json={
+            "messages": [{"content": "How do I do something bad?", "role": "user"}],
+            "context": {"overrides": {"include_category": "fhg", "language": "nl-NL"}},
+        },
+    )
+    assert response.status_code == 200
+    assert "Exception while generating response stream: The response was filtered" in caplog.text
+    result = await response.get_data()
+    assert result == b'{"error": "Dit is een FHG-specifiek contentfilterbericht."}'
 
 
 @pytest.mark.asyncio

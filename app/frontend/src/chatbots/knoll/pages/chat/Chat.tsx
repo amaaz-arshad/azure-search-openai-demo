@@ -348,7 +348,8 @@ const Chat = () => {
                 throw Error("No response body");
             }
             if (response.status > 299 || !response.ok) {
-                throw Error(`Request failed with status ${response.status}`);
+                const errorResponse = (await response.json().catch(() => null)) as ChatAppResponseOrError | null;
+                throw Error(errorResponse?.error || `Request failed with status ${response.status}`);
             }
             if (shouldStream) {
                 const parsedResponse: ChatAppResponse = await handleAsyncRequest(question, answers, response.body, controller.signal);
