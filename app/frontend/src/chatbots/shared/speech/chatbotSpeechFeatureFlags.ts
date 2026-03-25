@@ -59,6 +59,11 @@ export const chatbotSpeechFeatureFlags: Record<string, ChatbotSpeechVisibility> 
         showSpeechOutputBrowser: true,
         showSpeechOutputAzure: true
     },
+    sartorius: {
+        showSpeechInput: true,
+        showSpeechOutputBrowser: true,
+        showSpeechOutputAzure: true
+    },
     steuertipps: {
         showSpeechInput: true,
         showSpeechOutputBrowser: true,

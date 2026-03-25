@@ -6,6 +6,8 @@ import styles from "./BasicLoginPage.module.css";
 type BasicLoginPageProps = {
     logoSrc: string;
     logoAlt: string;
+    logoFrameClassName?: string;
+    logoClassName?: string;
     title: string;
     usernamePlaceholder: string;
     passwordPlaceholder: string;
@@ -18,6 +20,8 @@ type BasicLoginPageProps = {
 const BasicLoginPage = ({
     logoSrc,
     logoAlt,
+    logoFrameClassName,
+    logoClassName,
     title,
     usernamePlaceholder,
     passwordPlaceholder,
@@ -65,8 +69,8 @@ const BasicLoginPage = ({
             <section className={styles.shell}>
                 <section className={styles.card}>
                     <div className={styles.header}>
-                        <div className={styles.logoFrame}>
-                            <img className={styles.logo} src={logoSrc} alt={logoAlt} />
+                        <div className={[styles.logoFrame, logoFrameClassName].filter(Boolean).join(" ")}>
+                            <img className={[styles.logo, logoClassName].filter(Boolean).join(" ")} src={logoSrc} alt={logoAlt} />
                         </div>
                     </div>
                     <h2 className={styles.title}>{title}</h2>

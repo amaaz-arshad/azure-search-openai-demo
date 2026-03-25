@@ -84,6 +84,9 @@ export const chatbotThemes: Record<string, ChatbotThemeSeed> = {
     publishone: {
         primary: "#212529"
     },
+    sartorius: {
+        primary: "#ffed00"
+    },
     steuertipps: {
         primary: "#ffe016"
     },

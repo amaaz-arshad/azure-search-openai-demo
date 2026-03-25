@@ -134,6 +134,7 @@ NON_CHATBOT_FRONTEND_PREFIXES = {
 KNOWN_CHATBOT_NAMES = {
     "agindo",
     "nerilio",
+    "sartorius",
     "steuertipps",
     "knoll",
     "lemon",
