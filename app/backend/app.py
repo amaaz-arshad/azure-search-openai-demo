@@ -1016,10 +1016,12 @@ async def setup_clients():
         )
 
     public_test_upload_page_limit = 30
-    current_app.config[CONFIG_PUBLIC_TEST_AUTH_SERVICE] = PublicTestAuthStore(
+    public_test_auth_service = PublicTestAuthStore(
         blob_manager=global_blob_manager,
         session_secret=AZURE_SERVER_APP_SECRET,
     )
+    await public_test_auth_service.setup()
+    current_app.config[CONFIG_PUBLIC_TEST_AUTH_SERVICE] = public_test_auth_service
     current_app.config[CONFIG_CHATBOT_UPLOAD_MANAGERS] = {
         "demo": ChatbotUploadStrategy(
             chatbot_name="demo",
@@ -1234,6 +1236,6 @@ def create_app():
         allowed_origins = allowed_origin.split(";")
         if len(allowed_origins) > 0:
             app.logger.info("CORS enabled for %s", allowed_origins)
-            cors(app, allow_origin=allowed_origins, allow_methods=["GET", "POST"])
+            cors(app, allow_origin=allowed_origins, allow_methods=["GET", "POST"], allow_credentials=True)
 
     return app

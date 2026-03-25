@@ -9,7 +9,7 @@ If necessary, edit this file to ensure it accurately reflects the current state 
 
 * app: Contains the main application code, including frontend and backend.
     * app/backend: Contains the Python backend code, written with Quart framework.
-      * app/backend/core/publictestauth.py: Persistent auth store for the `public-test` chatbot. It stores account records as JSON blobs in a dedicated private container on the main storage account, hashes passwords with PBKDF2-HMAC-SHA256, and issues signed cookie-based sessions using `AZURE_SERVER_APP_SECRET` when available.
+      * app/backend/core/publictestauth.py: Persistent auth store for the `public-test` chatbot. It stores account records as JSON blobs in a dedicated private container on the main storage account, hashes passwords with PBKDF2-HMAC-SHA256, and issues signed cookie-based sessions. It prefers `AZURE_SERVER_APP_SECRET` for session signing and otherwise persists a shared fallback session secret in blob storage so all Container App replicas can validate the same cookies.
       * app/backend/approaches: Contains the different approaches
       * app/backend/approaches/approach.py: Base class for all approaches
       * app/backend/approaches/chatreadretrieveread.py: Chat approach, includes query rewriting step first

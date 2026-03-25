@@ -71,7 +71,8 @@ export const getCurrentSession = async (options?: { forceRefresh?: boolean }): P
     }
 
     const response = await fetch("/public-test-auth/session", {
-        method: "GET"
+        method: "GET",
+        credentials: "include"
     });
     return await readSessionResponse(response);
 };
@@ -81,7 +82,8 @@ export const isAuthenticated = async () => (await getCurrentSession()) !== null;
 export const logout = async () => {
     cachedSession = null;
     await fetch("/public-test-auth/logout", {
-        method: "POST"
+        method: "POST",
+        credentials: "include"
     }).catch(() => undefined);
 };
 
@@ -115,6 +117,7 @@ export const signUp = async ({ displayName, email, password, confirmPassword }: 
 
     const response = await fetch("/public-test-auth/signup", {
         method: "POST",
+        credentials: "include",
         headers: {
             "Content-Type": "application/json"
         },
@@ -151,6 +154,7 @@ export const login = async (email: string, password: string): Promise<AuthResult
 
     const response = await fetch("/public-test-auth/login", {
         method: "POST",
+        credentials: "include",
         headers: {
             "Content-Type": "application/json"
         },

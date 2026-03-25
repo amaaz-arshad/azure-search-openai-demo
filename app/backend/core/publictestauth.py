@@ -20,6 +20,7 @@ PUBLIC_TEST_AUTH_CONTAINER = "public-test-auth"
 PUBLIC_TEST_AUTH_COOKIE = "public_test_session"
 PUBLIC_TEST_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7
 PUBLIC_TEST_PASSWORD_HASH_ITERATIONS = 600_000
+PUBLIC_TEST_SESSION_SECRET_BLOB = "session-secret.txt"
 
 
 @dataclass(frozen=True)
@@ -72,11 +73,11 @@ class PublicTestAuthStore:
         self.auth_container = auth_container
         self.session_cookie_name = session_cookie_name
         self.session_max_age_seconds = session_max_age_seconds
-        self.session_secret = session_secret or secrets.token_urlsafe(48)
-        if not session_secret:
-            logger.warning(
-                "AZURE_SERVER_APP_SECRET is not set. Public-test account data is persistent, but sessions reset on restart."
-            )
+        self.session_secret = session_secret
+        self.session_serializer: URLSafeTimedSerializer | None = None
+
+    async def setup(self):
+        self.session_secret = await self.resolve_session_secret()
         self.session_serializer = URLSafeTimedSerializer(self.session_secret, salt="public-test-auth-session")
 
     @staticmethod
@@ -114,6 +115,52 @@ class PublicTestAuthStore:
         if not await container_client.exists():
             await container_client.create_container()
         return container_client
+
+    async def resolve_session_secret(self) -> str:
+        if self.session_secret:
+            return self.session_secret
+
+        logger.warning(
+            "AZURE_SERVER_APP_SECRET is not set. Falling back to a blob-backed shared session secret for public-test."
+        )
+        container_client = await self.ensure_container_exists()
+        blob_client = container_client.get_blob_client(PUBLIC_TEST_SESSION_SECRET_BLOB)
+
+        download_response = await self.blob_manager.download_blob(
+            PUBLIC_TEST_SESSION_SECRET_BLOB,
+            container=self.auth_container,
+        )
+        if download_response is not None:
+            content, _properties = download_response
+            existing_secret = content.decode("utf-8").strip()
+            if existing_secret:
+                return existing_secret
+
+        generated_secret = secrets.token_urlsafe(48)
+        try:
+            await blob_client.upload_blob(
+                io.BytesIO(generated_secret.encode("utf-8")),
+                overwrite=False,
+                content_settings=ContentSettings(content_type="text/plain"),
+            )
+            return generated_secret
+        except ResourceExistsError:
+            download_response = await self.blob_manager.download_blob(
+                PUBLIC_TEST_SESSION_SECRET_BLOB,
+                container=self.auth_container,
+            )
+            if download_response is None:
+                raise RuntimeError("Unable to resolve public-test session secret from shared storage")
+            content, _properties = download_response
+            persisted_secret = content.decode("utf-8").strip()
+            if not persisted_secret:
+                raise RuntimeError("Persisted public-test session secret is empty")
+            return persisted_secret
+
+    def get_session_serializer(self) -> URLSafeTimedSerializer:
+        if self.session_serializer is None:
+            raise RuntimeError("Public-test auth store has not been initialized")
+        return self.session_serializer
 
     async def load_account(self, email: str) -> PublicTestAccount | None:
         normalized_email = normalize_public_test_email(email)
@@ -224,14 +271,14 @@ class PublicTestAuthStore:
         return PublicTestSession(display_name=account.display_name, email=account.email)
 
     def create_session_token(self, session: PublicTestSession) -> str:
-        return self.session_serializer.dumps({"email": session.email})
+        return self.get_session_serializer().dumps({"email": session.email})
 
     async def load_session(self, session_token: str | None) -> PublicTestSession | None:
         if not session_token:
             return None
 
         try:
-            session_payload = self.session_serializer.loads(
+            session_payload = self.get_session_serializer().loads(
                 session_token,
                 max_age=self.session_max_age_seconds,
             )

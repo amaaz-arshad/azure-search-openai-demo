@@ -48,6 +48,7 @@ export async function chatApi(request: ChatAppRequest, shouldStream: boolean, id
     }
     return await fetch(url, {
         method: "POST",
+        credentials: "include",
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify(request),
         signal: signal
@@ -160,6 +161,7 @@ export async function uploadChatbotFilesApi(
 
     const response = await fetch(`/chatbot_uploads/${chatbotName}`, {
         method: "POST",
+        credentials: "include",
         body: request,
         headers,
         signal: options?.signal
@@ -180,6 +182,7 @@ export async function listChatbotUploadedFilesApi(chatbotName: string, options?:
     }
     const response = await fetch(`/chatbot_uploads/${chatbotName}`, {
         method: "GET",
+        credentials: "include",
         headers
     });
 
@@ -201,6 +204,7 @@ export async function cancelChatbotUploadApi(
     }
     const response = await fetch(`/chatbot_uploads/${chatbotName}/cancel/${encodeURIComponent(uploadId)}`, {
         method: "POST",
+        credentials: "include",
         headers
     });
 
@@ -223,6 +227,7 @@ export async function deleteChatbotUploadedFileApi(
     }
     const response = await fetch(`/chatbot_uploads/${chatbotName}/${encodeURIComponent(filename)}`, {
         method: "DELETE",
+        credentials: "include",
         headers
     });
 
@@ -244,6 +249,7 @@ export async function deleteAllChatbotUploadedFilesApi(
     }
     const response = await fetch(`/chatbot_uploads/${chatbotName}`, {
         method: "DELETE",
+        credentials: "include",
         headers
     });
 
