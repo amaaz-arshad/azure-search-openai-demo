@@ -2,7 +2,7 @@
     "pageTitle": "Sartorius",
     "headerTitle": "Sartorius",
     "initialUserMsg": "Hallo",
-    "initialAssistantMsg": "Willkommen! Schön, dass Du da bist. Möchtest Du Dein Wissen zu einem Thema selbst überprüfen oder hast Du Fragen, die Du klären möchtest?",
+    "initialAssistantMsg": "Hallo! Schreib einfach deine Frage in den Chat.",
     "chat": "Chat",
     "qa": "Stellen Sie eine Frage",
     "login": "Anmelden",
