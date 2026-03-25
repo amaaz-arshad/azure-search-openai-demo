@@ -168,5 +168,38 @@
     },
     "overallSettings": "全体設定",
     "searchSettings": "検索設定",
-    "llmSettings": "LLM設定"
+    "llmSettings": "LLM設定",
+    "loginPage": {
+        "title": "おかえりなさい",
+        "subtitle": "自分でアップロードしたPDFライブラリのみにアクセスするには、メールアドレスでログインしてください。",
+        "email": "メールアドレス",
+        "password": "パスワード",
+        "login": "ログイン",
+        "noAccount": "アカウントが必要ですか？",
+        "switchToSignup": "新規登録",
+        "loggingIn": "ログイン中..."
+    },
+    "signupPage": {
+        "title": "アカウントを作成",
+        "subtitle": "自分のPDFファイルをアップロードしてチャットするために、Public Testアカウントを作成してください。",
+        "displayName": "表示名",
+        "email": "メールアドレス",
+        "password": "パスワード",
+        "confirmPassword": "パスワードを確認",
+        "signUp": "新規登録",
+        "haveAccount": "すでにアカウントをお持ちですか？",
+        "switchToLogin": "ログイン",
+        "creatingAccount": "アカウントを作成中..."
+    },
+    "authErrors": {
+        "displayNameRequired": "表示名は必須です。",
+        "emailRequired": "メールアドレスは必須です。",
+        "invalidEmail": "有効なメールアドレスを入力してください。",
+        "passwordRequired": "パスワードは必須です。",
+        "confirmPasswordRequired": "パスワードを確認してください。",
+        "passwordMismatch": "パスワードが一致しません。",
+        "accountExists": "このメールアドレスのアカウントはすでに存在します。",
+        "invalidCredentials": "メールアドレスまたはパスワードが正しくありません。",
+        "unexpected": "認証に失敗しました。もう一度お試しください。"
+    }
 }

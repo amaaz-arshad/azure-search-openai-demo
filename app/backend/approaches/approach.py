@@ -287,6 +287,7 @@ class Approach(ABC):
     def build_filter(self, overrides: dict[str, Any]) -> Optional[str]:
         include_category = overrides.get("include_category")
         exclude_category = overrides.get("exclude_category")
+        user = overrides.get("user")
         filters = []
         if include_category:
             include_categories = [category.strip() for category in include_category.split(",") if category.strip()]
@@ -299,6 +300,8 @@ class Approach(ABC):
                 filters.append(f"({' or '.join(category_filters)})")
         if exclude_category:
             filters.append("category ne '{}'".format(exclude_category.replace("'", "''")))
+        if isinstance(user, str) and user.strip():
+            filters.append("user eq '{}'".format(user.strip().lower().replace("'", "''")))
         return None if not filters else " and ".join(filters)
 
     async def search(

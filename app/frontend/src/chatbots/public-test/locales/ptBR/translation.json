@@ -168,5 +168,38 @@
     },
     "overallSettings": "Configurações gerais",
     "searchSettings": "Configurações de pesquisa",
-    "llmSettings": "Configurações LLM"
+    "llmSettings": "Configurações LLM",
+    "loginPage": {
+        "title": "Bem-vindo de volta",
+        "subtitle": "Entre com seu e-mail para acessar apenas sua própria biblioteca de PDFs enviados.",
+        "email": "E-mail",
+        "password": "Senha",
+        "login": "Entrar",
+        "noAccount": "Precisa de uma conta?",
+        "switchToSignup": "Cadastrar-se",
+        "loggingIn": "Entrando..."
+    },
+    "signupPage": {
+        "title": "Crie sua conta",
+        "subtitle": "Crie uma conta do Public Test para enviar e conversar com seus próprios arquivos PDF.",
+        "displayName": "Nome de exibição",
+        "email": "E-mail",
+        "password": "Senha",
+        "confirmPassword": "Confirmar senha",
+        "signUp": "Cadastrar-se",
+        "haveAccount": "Já tem uma conta?",
+        "switchToLogin": "Entrar",
+        "creatingAccount": "Criando conta..."
+    },
+    "authErrors": {
+        "displayNameRequired": "O nome de exibição é obrigatório.",
+        "emailRequired": "O e-mail é obrigatório.",
+        "invalidEmail": "Digite um endereço de e-mail válido.",
+        "passwordRequired": "A senha é obrigatória.",
+        "confirmPasswordRequired": "Confirme sua senha.",
+        "passwordMismatch": "As senhas não coincidem.",
+        "accountExists": "Já existe uma conta com este e-mail.",
+        "invalidCredentials": "E-mail ou senha inválidos.",
+        "unexpected": "Falha na autenticação. Tente novamente."
+    }
 }

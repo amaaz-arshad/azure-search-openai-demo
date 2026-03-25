@@ -3,15 +3,61 @@ import { useMsal } from "@azure/msal-react";
 import { useLogin, checkLoggedIn } from "./authConfig";
 import { LoginContext } from "./loginContext";
 import BasicLogin from "./pages/basicauth/BasicLogin";
-import { isAuthenticated } from "./pages/basicauth/basicAuth";
+import { getCurrentSession, PublicTestSession } from "./pages/basicauth/basicAuth";
 import Layout from "./pages/layout/Layout";
 
 const LayoutWrapper = () => {
-    const [loggedIn, setLoggedIn] = useState(false);
-    const [basicAuthenticated, setBasicAuthenticated] = useState<boolean>(isAuthenticated());
+    const [loggedIn, setLoggedIn] = useState<boolean>(false);
+    const [basicAuthenticated, setBasicAuthenticated] = useState<boolean>(false);
+    const [currentUser, setCurrentUser] = useState<PublicTestSession | null>(null);
+    const [isAuthResolved, setIsAuthResolved] = useState(false);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        void getCurrentSession({ forceRefresh: true })
+            .then(session => {
+                if (!isMounted) {
+                    return;
+                }
+                const isAuthenticated = session !== null;
+                setCurrentUser(session);
+                setBasicAuthenticated(isAuthenticated);
+                setLoggedIn(isAuthenticated);
+            })
+            .catch(error => {
+                console.error("Public Test session check failed", error);
+                if (!isMounted) {
+                    return;
+                }
+                setCurrentUser(null);
+                setBasicAuthenticated(false);
+                setLoggedIn(false);
+            })
+            .finally(() => {
+                if (isMounted) {
+                    setIsAuthResolved(true);
+                }
+            });
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
+
+    const handleAuthSuccess = (session: PublicTestSession) => {
+        setBasicAuthenticated(true);
+        setLoggedIn(true);
+        setCurrentUser(session);
+        setIsAuthResolved(true);
+    };
+
+    if (!isAuthResolved) {
+        return null;
+    }
 
     if (!basicAuthenticated) {
-        return <BasicLogin onSuccess={() => setBasicAuthenticated(true)} />;
+        return <BasicLogin onSuccess={handleAuthSuccess} />;
     }
 
     if (useLogin) {
@@ -33,7 +79,7 @@ const LayoutWrapper = () => {
         }, [instance]);
 
         return (
-            <LoginContext.Provider value={{ loggedIn, setLoggedIn }}>
+            <LoginContext.Provider value={{ loggedIn, setLoggedIn, currentUser, setCurrentUser }}>
                 <Layout />
             </LoginContext.Provider>
         );
@@ -42,7 +88,9 @@ const LayoutWrapper = () => {
             <LoginContext.Provider
                 value={{
                     loggedIn,
-                    setLoggedIn
+                    setLoggedIn,
+                    currentUser,
+                    setCurrentUser
                 }}
             >
                 <Layout />

@@ -203,5 +203,38 @@
     },
     "overallSettings": "Impostazioni generali",
     "searchSettings": "Impostazioni di ricerca",
-    "llmSettings": "Impostazioni LLM"
+    "llmSettings": "Impostazioni LLM",
+    "loginPage": {
+        "title": "Bentornato",
+        "subtitle": "Accedi con la tua e-mail per visualizzare solo la tua libreria PDF caricata.",
+        "email": "E-mail",
+        "password": "Password",
+        "login": "Accedi",
+        "noAccount": "Hai bisogno di un account?",
+        "switchToSignup": "Registrati",
+        "loggingIn": "Accesso in corso..."
+    },
+    "signupPage": {
+        "title": "Crea il tuo account",
+        "subtitle": "Crea un account Public Test per caricare e chattare con i tuoi file PDF.",
+        "displayName": "Nome visualizzato",
+        "email": "E-mail",
+        "password": "Password",
+        "confirmPassword": "Conferma password",
+        "signUp": "Registrati",
+        "haveAccount": "Hai già un account?",
+        "switchToLogin": "Accedi",
+        "creatingAccount": "Creazione account..."
+    },
+    "authErrors": {
+        "displayNameRequired": "Il nome visualizzato è obbligatorio.",
+        "emailRequired": "L’e-mail è obbligatoria.",
+        "invalidEmail": "Inserisci un indirizzo e-mail valido.",
+        "passwordRequired": "La password è obbligatoria.",
+        "confirmPasswordRequired": "Conferma la password.",
+        "passwordMismatch": "Le password non corrispondono.",
+        "accountExists": "Esiste già un account con questa e-mail.",
+        "invalidCredentials": "E-mail o password non validi.",
+        "unexpected": "Autenticazione non riuscita. Riprova."
+    }
 }

@@ -13,6 +13,10 @@ import {
 } from "./models";
 import { useLogin, getToken, isUsingAppServicesLogin } from "../authConfig";
 
+type PublicTestUserOptions = {
+    chatbotUser?: string;
+};
+
 export async function getHeaders(idToken: string | undefined): Promise<Record<string, string>> {
     // If using login and not using app services, add the id token of the logged in account as the authorization
     if (useLogin && !isUsingAppServicesLogin) {
@@ -38,6 +42,10 @@ export async function chatApi(request: ChatAppRequest, shouldStream: boolean, id
         url += "/stream";
     }
     const headers = await getHeaders(idToken);
+    const chatbotUser = (request.context as ChatAppRequest["context"] & { chatbotUser?: string })?.chatbotUser;
+    if (chatbotUser) {
+        headers["X-Chatbot-User"] = chatbotUser;
+    }
     return await fetch(url, {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
@@ -70,10 +78,26 @@ export async function getSpeechApi(text: string): Promise<string | null> {
         .then(blob => (blob ? URL.createObjectURL(blob) : null));
 }
 
-export function getCitationFilePath(citation: string): string {
+export function getCitationFilePath(
+    citation: string,
+    options?: {
+        chatbotName?: string;
+        chatbotUser?: string;
+    }
+): string {
     // If there are parentheses at end of citation, remove part in parentheses
     const cleanedCitation = citation.replace(/\s*\(.*?\)\s*$/, "").trim();
-    return `${BACKEND_URI}/content/${cleanedCitation}`;
+    const [pathWithoutFragment, fragment] = cleanedCitation.split("#", 2);
+    const searchParams = new URLSearchParams();
+    if (options?.chatbotName) {
+        searchParams.set("chatbot_name", options.chatbotName);
+    }
+    if (options?.chatbotUser) {
+        searchParams.set("chatbot_user", options.chatbotUser);
+    }
+    const query = searchParams.toString();
+    const fragmentSuffix = fragment ? `#${fragment}` : "";
+    return `${BACKEND_URI}/content/${pathWithoutFragment}${query ? `?${query}` : ""}${fragmentSuffix}`;
 }
 
 export async function uploadFileApi(request: FormData, idToken: string): Promise<SimpleAPIResponse> {
@@ -124,11 +148,14 @@ export async function listUploadedFilesApi(idToken: string): Promise<string[]> {
 export async function uploadChatbotFilesApi(
     chatbotName: string,
     request: FormData,
-    options?: { signal?: AbortSignal; uploadId?: string }
+    options?: { signal?: AbortSignal; uploadId?: string; chatbotUser?: string }
 ): Promise<ChatbotUploadResponse> {
     const headers: Record<string, string> = {};
     if (options?.uploadId) {
         headers["X-Upload-Id"] = options.uploadId;
+    }
+    if (options?.chatbotUser) {
+        headers["X-Chatbot-User"] = options.chatbotUser;
     }
 
     const response = await fetch(`/chatbot_uploads/${chatbotName}`, {
@@ -146,9 +173,14 @@ export async function uploadChatbotFilesApi(
     return (await response.json()) as ChatbotUploadResponse;
 }
 
-export async function listChatbotUploadedFilesApi(chatbotName: string): Promise<string[]> {
+export async function listChatbotUploadedFilesApi(chatbotName: string, options?: PublicTestUserOptions): Promise<string[]> {
+    const headers: Record<string, string> = {};
+    if (options?.chatbotUser) {
+        headers["X-Chatbot-User"] = options.chatbotUser;
+    }
     const response = await fetch(`/chatbot_uploads/${chatbotName}`, {
-        method: "GET"
+        method: "GET",
+        headers
     });
 
     if (!response.ok) {
@@ -158,9 +190,18 @@ export async function listChatbotUploadedFilesApi(chatbotName: string): Promise<
     return (await response.json()) as string[];
 }
 
-export async function cancelChatbotUploadApi(chatbotName: string, uploadId: string): Promise<SimpleAPIResponse> {
+export async function cancelChatbotUploadApi(
+    chatbotName: string,
+    uploadId: string,
+    options?: PublicTestUserOptions
+): Promise<SimpleAPIResponse> {
+    const headers: Record<string, string> = {};
+    if (options?.chatbotUser) {
+        headers["X-Chatbot-User"] = options.chatbotUser;
+    }
     const response = await fetch(`/chatbot_uploads/${chatbotName}/cancel/${encodeURIComponent(uploadId)}`, {
-        method: "POST"
+        method: "POST",
+        headers
     });
 
     if (!response.ok) {
@@ -171,9 +212,18 @@ export async function cancelChatbotUploadApi(chatbotName: string, uploadId: stri
     return (await response.json()) as SimpleAPIResponse;
 }
 
-export async function deleteChatbotUploadedFileApi(chatbotName: string, filename: string): Promise<SimpleAPIResponse> {
+export async function deleteChatbotUploadedFileApi(
+    chatbotName: string,
+    filename: string,
+    options?: PublicTestUserOptions
+): Promise<SimpleAPIResponse> {
+    const headers: Record<string, string> = {};
+    if (options?.chatbotUser) {
+        headers["X-Chatbot-User"] = options.chatbotUser;
+    }
     const response = await fetch(`/chatbot_uploads/${chatbotName}/${encodeURIComponent(filename)}`, {
-        method: "DELETE"
+        method: "DELETE",
+        headers
     });
 
     if (!response.ok) {
@@ -184,9 +234,17 @@ export async function deleteChatbotUploadedFileApi(chatbotName: string, filename
     return (await response.json()) as SimpleAPIResponse;
 }
 
-export async function deleteAllChatbotUploadedFilesApi(chatbotName: string): Promise<ChatbotBulkDeleteResponse> {
+export async function deleteAllChatbotUploadedFilesApi(
+    chatbotName: string,
+    options?: PublicTestUserOptions
+): Promise<ChatbotBulkDeleteResponse> {
+    const headers: Record<string, string> = {};
+    if (options?.chatbotUser) {
+        headers["X-Chatbot-User"] = options.chatbotUser;
+    }
     const response = await fetch(`/chatbot_uploads/${chatbotName}`, {
-        method: "DELETE"
+        method: "DELETE",
+        headers
     });
 
     if (!response.ok) {

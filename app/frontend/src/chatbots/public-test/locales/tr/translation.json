@@ -168,5 +168,38 @@
     },
     "overallSettings": "Genel ayarlar",
     "searchSettings": "Arama ayarları",
-    "llmSettings": "LLM ayarları"
+    "llmSettings": "LLM ayarları",
+    "loginPage": {
+        "title": "Tekrar hoş geldiniz",
+        "subtitle": "Yalnızca kendi yüklediğiniz PDF kitaplığınıza erişmek için e-posta adresinizle giriş yapın.",
+        "email": "E-posta",
+        "password": "Parola",
+        "login": "Giriş yap",
+        "noAccount": "Bir hesaba mı ihtiyacınız var?",
+        "switchToSignup": "Kayıt ol",
+        "loggingIn": "Giriş yapılıyor..."
+    },
+    "signupPage": {
+        "title": "Hesabınızı oluşturun",
+        "subtitle": "Kendi PDF dosyalarınızı yüklemek ve onlarla sohbet etmek için bir Public Test hesabı oluşturun.",
+        "displayName": "Görünen ad",
+        "email": "E-posta",
+        "password": "Parola",
+        "confirmPassword": "Parolayı doğrula",
+        "signUp": "Kayıt ol",
+        "haveAccount": "Zaten bir hesabınız var mı?",
+        "switchToLogin": "Giriş yap",
+        "creatingAccount": "Hesap oluşturuluyor..."
+    },
+    "authErrors": {
+        "displayNameRequired": "Görünen ad zorunludur.",
+        "emailRequired": "E-posta zorunludur.",
+        "invalidEmail": "Lütfen geçerli bir e-posta adresi girin.",
+        "passwordRequired": "Parola zorunludur.",
+        "confirmPasswordRequired": "Lütfen parolanızı doğrulayın.",
+        "passwordMismatch": "Parolalar eşleşmiyor.",
+        "accountExists": "Bu e-posta adresiyle zaten bir hesap var.",
+        "invalidCredentials": "Geçersiz e-posta veya parola.",
+        "unexpected": "Kimlik doğrulama başarısız oldu. Lütfen tekrar deneyin."
+    }
 }

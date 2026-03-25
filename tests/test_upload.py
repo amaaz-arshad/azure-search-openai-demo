@@ -16,6 +16,8 @@ from quart.datastructures import FileStorage
 
 from prepdocslib.embeddings import OpenAIEmbeddings
 from prepdocslib.filestrategy import ChatbotUploadManifest
+from prepdocslib.searchmanager import Section
+from prepdocslib.textsplitter import Chunk
 
 
 class BlobListIterator:
@@ -701,6 +703,9 @@ async def test_cancel_chatbot_upload_prevents_indexing(client, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_public_test_rejects_non_pdf_upload(client, monkeypatch):
+    async def mock_get_authenticated_public_test_user():
+        return SimpleNamespace(email="user@example.com")
+
     async def mock_exists(*args, **kwargs):
         return True
 
@@ -717,6 +722,7 @@ async def test_public_test_rejects_non_pdf_upload(client, monkeypatch):
     monkeypatch.setattr(ContainerClient, "exists", mock_exists)
     monkeypatch.setattr(ContainerClient, "list_blobs", lambda *args, **kwargs: BlobListIterator([]))
     monkeypatch.setattr(SearchClient, "search", mock_search)
+    monkeypatch.setattr(app, "get_authenticated_public_test_user", mock_get_authenticated_public_test_user)
 
     response = await client.post(
         "/chatbot_uploads/public-test",
@@ -730,6 +736,9 @@ async def test_public_test_rejects_non_pdf_upload(client, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_public_test_rejects_pdf_over_total_page_limit(client, monkeypatch):
+    async def mock_get_authenticated_public_test_user():
+        return SimpleNamespace(email="user@example.com")
+
     async def mock_exists(*args, **kwargs):
         return True
 
@@ -746,6 +755,7 @@ async def test_public_test_rejects_pdf_over_total_page_limit(client, monkeypatch
     monkeypatch.setattr(ContainerClient, "exists", mock_exists)
     monkeypatch.setattr(ContainerClient, "list_blobs", lambda *args, **kwargs: BlobListIterator([]))
     monkeypatch.setattr(SearchClient, "search", mock_search)
+    monkeypatch.setattr(app, "get_authenticated_public_test_user", mock_get_authenticated_public_test_user)
 
     response = await client.post(
         "/chatbot_uploads/public-test",
@@ -759,6 +769,9 @@ async def test_public_test_rejects_pdf_over_total_page_limit(client, monkeypatch
 
 @pytest.mark.asyncio
 async def test_public_test_rejects_pdf_when_existing_uploads_exceed_total_page_limit(client, monkeypatch):
+    async def mock_get_authenticated_public_test_user():
+        return SimpleNamespace(email="user@example.com")
+
     async def mock_exists(*args, **kwargs):
         return True
 
@@ -774,25 +787,27 @@ async def test_public_test_rejects_pdf_when_existing_uploads_exceed_total_page_l
 
     manager = client.app.config[app.CONFIG_CHATBOT_UPLOAD_MANAGERS]["public-test"]
 
-    async def mock_list_files():
+    async def mock_list_files(user_identifier=None):
         return ["existing.pdf"]
 
-    async def mock_get_manifest(filename: str):
+    async def mock_get_manifest(filename: str, user_identifier=None):
         if filename != "existing.pdf":
             return None
         return ChatbotUploadManifest(
             filename="existing.pdf",
-            blob_name="chatbot-uploads/public-test/files/existing/existing.pdf",
+            blob_name="chatbot-uploads/public-test/dXNlckBleGFtcGxlLmNvbQ/uploaded-files/files/existing/existing.pdf",
             upload_id="upload-1",
             uploaded_at="2026-03-25T00:00:00+00:00",
             page_count=20,
             file_extension=".pdf",
+            user_identifier="user@example.com",
         )
 
     monkeypatch.setattr(ContainerClient, "exists", mock_exists)
     monkeypatch.setattr(SearchClient, "search", mock_search)
     monkeypatch.setattr(manager, "list_files", mock_list_files)
     monkeypatch.setattr(manager, "get_manifest", mock_get_manifest)
+    monkeypatch.setattr(app, "get_authenticated_public_test_user", mock_get_authenticated_public_test_user)
 
     response = await client.post(
         "/chatbot_uploads/public-test",
@@ -802,3 +817,89 @@ async def test_public_test_rejects_pdf_when_existing_uploads_exceed_total_page_l
     payload = await response.get_json()
     assert response.status_code == 400
     assert "Existing uploads use 20 pages and new-upload.pdf adds 11 pages." in payload["message"]
+
+
+@pytest.mark.asyncio
+async def test_public_test_upload_indexes_user_and_uses_user_scoped_blob_path(client, monkeypatch):
+    async def mock_get_authenticated_public_test_user():
+        return SimpleNamespace(email="person@example.com")
+
+    existing_blobs = set()
+    uploaded_blob_names = []
+
+    async def mock_exists(*args, **kwargs):
+        return True
+
+    async def mock_upload_blob(self, name, *args, **kwargs):
+        uploaded_blob_names.append(name)
+        existing_blobs.add(name)
+        return None
+
+    class EmptyAsyncSearchResultsIterator:
+        def __aiter__(self):
+            return self
+
+        async def __anext__(self):
+            raise StopAsyncIteration
+
+        async def get_count(self):
+            return 0
+
+    async def mock_search(self, *args, **kwargs):
+        return EmptyAsyncSearchResultsIterator()
+
+    async def mock_parse_file(file, *args, **kwargs):
+        return [Section(chunk=Chunk(page_num=0, text="private content"), content=file, category="public-test")]
+
+    async def mock_create_embeddings(self, texts):
+        return [[0.0023064255, -0.009327292, -0.0028842222] for _ in texts]
+
+    documents_uploaded = []
+
+    async def mock_upload_documents(self, documents):
+        documents_uploaded.extend(documents)
+
+    monkeypatch.setattr(ContainerClient, "exists", mock_exists)
+    monkeypatch.setattr(ContainerClient, "upload_blob", mock_upload_blob)
+    monkeypatch.setattr(
+        ContainerClient,
+        "get_blob_client",
+        lambda *args, **kwargs: MockBlobClient(args[1], existing_blobs),
+    )
+    monkeypatch.setattr(
+        ContainerClient,
+        "list_blobs",
+        lambda *args, **kwargs: BlobListIterator(
+            [name for name in existing_blobs if name.startswith(kwargs.get("name_starts_with", ""))]
+        ),
+    )
+    monkeypatch.setattr("prepdocslib.filestrategy.parse_file", mock_parse_file)
+    monkeypatch.setattr(OpenAIEmbeddings, "create_embeddings", mock_create_embeddings)
+    monkeypatch.setattr(SearchClient, "search", mock_search)
+    monkeypatch.setattr(SearchClient, "upload_documents", mock_upload_documents)
+    monkeypatch.setattr(app, "get_authenticated_public_test_user", mock_get_authenticated_public_test_user)
+
+    response = await client.post(
+        "/chatbot_uploads/public-test",
+        headers={"X-Upload-Id": "upload-123"},
+        files={"files": FileStorage(create_pdf_bytes(2), filename="private-notes.pdf")},
+    )
+
+    payload = await response.get_json()
+    filename_token = base64.urlsafe_b64encode(b"private-notes.pdf").decode("ascii").rstrip("=")
+    upload_token = base64.urlsafe_b64encode(b"upload-123").decode("ascii").rstrip("=")
+    user_token = base64.urlsafe_b64encode(b"person@example.com").decode("ascii").rstrip("=")
+    version_blob_name = (
+        f"chatbot-uploads/public-test/{user_token}/uploaded-files/files/"
+        f"{filename_token}/{upload_token}/private-notes.pdf"
+    )
+    manifest_blob_name = f"chatbot-uploads/public-test/{user_token}/uploaded-files/.manifests/{filename_token}.json"
+
+    assert response.status_code == 200
+    assert payload["uploadedFiles"] == ["private-notes.pdf"]
+    assert version_blob_name in uploaded_blob_names
+    assert manifest_blob_name in uploaded_blob_names
+    assert len(documents_uploaded) == 1
+    assert all(document["category"] == "public-test" for document in documents_uploaded)
+    assert all(document["user"] == "person@example.com" for document in documents_uploaded)
+    assert all(document["storageUrl"].endswith(version_blob_name) for document in documents_uploaded)

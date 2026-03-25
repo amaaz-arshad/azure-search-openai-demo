@@ -69,7 +69,14 @@ export const Answer = ({
     showSpeechOutputBrowser
 }: Props) => {
     const followupQuestions = answer.context?.followup_questions;
-    const parsedAnswer = useMemo(() => parseAnswerToHtml(answer, isStreaming, onCitationClicked), [answer, isStreaming, onCitationClicked]);
+    const buildCitationPath = (reference: string) =>
+        getCitationFilePath(reference, {
+            chatbotName: "public-test"
+        });
+    const parsedAnswer = useMemo(
+        () => parseAnswerToHtml(answer, isStreaming, onCitationClicked, buildCitationPath),
+        [answer, isStreaming, onCitationClicked]
+    );
     const { t } = useTranslation();
     const sanitizedAnswerHtml = DOMPurify.sanitize(parsedAnswer.answerHtml);
     const [copied, setCopied] = useState(false);
@@ -161,7 +168,10 @@ export const Answer = ({
                                     </span>
                                 );
                             } else {
-                                const path = getCitationFilePath(reference);
+                                const path = buildCitationPath(reference);
+                                const displayReference = reference.startsWith("http")
+                                    ? decodeURIComponent(reference.split("/").pop() || reference)
+                                    : reference;
                                 return (
                                     <span key={`${reference}-${displayIndex}`} className={styles.citationEntry}>
                                         <a
@@ -172,7 +182,7 @@ export const Answer = ({
                                                 onCitationClicked(path);
                                             }}
                                         >
-                                            {`${displayIndex}. ${reference}`}
+                                            {`${displayIndex}. ${displayReference}`}
                                         </a>
                                     </span>
                                 );

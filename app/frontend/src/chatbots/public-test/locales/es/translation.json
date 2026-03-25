@@ -168,5 +168,38 @@
     },
     "overallSettings": "Configuración general",
     "searchSettings": "Configuración de búsqueda",
-    "llmSettings": "Configuración de LLM"
+    "llmSettings": "Configuración de LLM",
+    "loginPage": {
+        "title": "Bienvenido de nuevo",
+        "subtitle": "Inicia sesión con tu correo electrónico para acceder solo a tu propia biblioteca de PDF cargados.",
+        "email": "Correo electrónico",
+        "password": "Contraseña",
+        "login": "Iniciar sesión",
+        "noAccount": "¿Necesitas una cuenta?",
+        "switchToSignup": "Registrarse",
+        "loggingIn": "Iniciando sesión..."
+    },
+    "signupPage": {
+        "title": "Crea tu cuenta",
+        "subtitle": "Crea una cuenta de Public Test para cargar y chatear con tus propios archivos PDF.",
+        "displayName": "Nombre para mostrar",
+        "email": "Correo electrónico",
+        "password": "Contraseña",
+        "confirmPassword": "Confirmar contraseña",
+        "signUp": "Registrarse",
+        "haveAccount": "¿Ya tienes una cuenta?",
+        "switchToLogin": "Iniciar sesión",
+        "creatingAccount": "Creando cuenta..."
+    },
+    "authErrors": {
+        "displayNameRequired": "El nombre para mostrar es obligatorio.",
+        "emailRequired": "El correo electrónico es obligatorio.",
+        "invalidEmail": "Introduce una dirección de correo electrónico válida.",
+        "passwordRequired": "La contraseña es obligatoria.",
+        "confirmPasswordRequired": "Confirma tu contraseña.",
+        "passwordMismatch": "Las contraseñas no coinciden.",
+        "accountExists": "Ya existe una cuenta con este correo electrónico.",
+        "invalidCredentials": "Correo electrónico o contraseña no válidos.",
+        "unexpected": "La autenticación ha fallado. Inténtalo de nuevo."
+    }
 }

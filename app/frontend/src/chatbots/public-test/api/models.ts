@@ -100,6 +100,7 @@ export type ChatAppResponse = {
 
 export type ChatAppRequestContext = {
     overrides?: ChatAppRequestOverrides;
+    chatbotUser?: string;
 };
 
 export type ChatAppRequest = {

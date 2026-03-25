@@ -168,5 +168,38 @@
     },
     "overallSettings": "Overordnede indstillinger",
     "searchSettings": "Søgeindstillinger",
-    "llmSettings": "LLM-indstillinger"
+    "llmSettings": "LLM-indstillinger",
+    "loginPage": {
+        "title": "Velkommen tilbage",
+        "subtitle": "Log ind med din e-mail for kun at få adgang til dit eget uploadede PDF-bibliotek.",
+        "email": "E-mail",
+        "password": "Adgangskode",
+        "login": "Log ind",
+        "noAccount": "Har du brug for en konto?",
+        "switchToSignup": "Opret konto",
+        "loggingIn": "Logger ind..."
+    },
+    "signupPage": {
+        "title": "Opret din konto",
+        "subtitle": "Opret en Public Test-konto for at uploade og chatte med dine egne PDF-filer.",
+        "displayName": "Visningsnavn",
+        "email": "E-mail",
+        "password": "Adgangskode",
+        "confirmPassword": "Bekræft adgangskode",
+        "signUp": "Opret konto",
+        "haveAccount": "Har du allerede en konto?",
+        "switchToLogin": "Log ind",
+        "creatingAccount": "Opretter konto..."
+    },
+    "authErrors": {
+        "displayNameRequired": "Visningsnavn er påkrævet.",
+        "emailRequired": "E-mail er påkrævet.",
+        "invalidEmail": "Indtast en gyldig e-mailadresse.",
+        "passwordRequired": "Adgangskode er påkrævet.",
+        "confirmPasswordRequired": "Bekræft venligst din adgangskode.",
+        "passwordMismatch": "Adgangskoderne matcher ikke.",
+        "accountExists": "Der findes allerede en konto med denne e-mail.",
+        "invalidCredentials": "Ugyldig e-mail eller adgangskode.",
+        "unexpected": "Godkendelsen mislykkedes. Prøv igen."
+    }
 }

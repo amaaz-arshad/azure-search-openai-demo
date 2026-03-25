@@ -13,8 +13,6 @@ import Chat from "./pages/chat/Chat";
 import LayoutWrapper from "./layoutWrapper";
 import i18next from "./i18n/config";
 import { msalConfig, useLogin } from "./authConfig";
-import { isAuthenticated } from "./pages/basicauth/basicAuth";
-import BasicLogin from "./pages/basicauth/BasicLogin";
 
 initializeIcons();
 
@@ -36,19 +34,6 @@ const router = createHashRouter([
 ]);
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement);
-
-/**
- * Blocks the app until basic username/password auth succeeds
- */
-const AppGate = () => {
-    const [authed, setAuthed] = React.useState<boolean>(isAuthenticated());
-    console.log("isAuthenticated:", authed);
-    if (!authed) {
-        return <BasicLogin onSuccess={() => setAuthed(true)} />;
-    }
-
-    return <RouterProvider router={router} />;
-};
 
 // Bootstrap the app once; conditionally wrap with MsalProvider when login is enabled
 (async () => {
@@ -87,10 +72,10 @@ const AppGate = () => {
                 <HelmetProvider>
                     {useLogin && msalInstance ? (
                         <MsalProvider instance={msalInstance}>
-                            <AppGate />
+                            <RouterProvider router={router} />
                         </MsalProvider>
                     ) : (
-                        <AppGate />
+                        <RouterProvider router={router} />
                     )}
                 </HelmetProvider>
             </I18nextProvider>

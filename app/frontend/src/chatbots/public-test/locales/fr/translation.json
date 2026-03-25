@@ -168,5 +168,38 @@
     },
     "overallSettings": "Paramètres généraux",
     "searchSettings": "Paramètres de recherche",
-    "llmSettings": "Paramètres LLM"
+    "llmSettings": "Paramètres LLM",
+    "loginPage": {
+        "title": "Bon retour",
+        "subtitle": "Connectez-vous avec votre e-mail pour accéder uniquement à votre propre bibliothèque PDF importée.",
+        "email": "E-mail",
+        "password": "Mot de passe",
+        "login": "Se connecter",
+        "noAccount": "Vous avez besoin d’un compte ?",
+        "switchToSignup": "Créer un compte",
+        "loggingIn": "Connexion..."
+    },
+    "signupPage": {
+        "title": "Créez votre compte",
+        "subtitle": "Créez un compte Public Test pour importer et interroger vos propres fichiers PDF.",
+        "displayName": "Nom affiché",
+        "email": "E-mail",
+        "password": "Mot de passe",
+        "confirmPassword": "Confirmer le mot de passe",
+        "signUp": "Créer un compte",
+        "haveAccount": "Vous avez déjà un compte ?",
+        "switchToLogin": "Se connecter",
+        "creatingAccount": "Création du compte..."
+    },
+    "authErrors": {
+        "displayNameRequired": "Le nom affiché est obligatoire.",
+        "emailRequired": "L’e-mail est obligatoire.",
+        "invalidEmail": "Veuillez saisir une adresse e-mail valide.",
+        "passwordRequired": "Le mot de passe est obligatoire.",
+        "confirmPasswordRequired": "Veuillez confirmer votre mot de passe.",
+        "passwordMismatch": "Les mots de passe ne correspondent pas.",
+        "accountExists": "Un compte existe déjà avec cette adresse e-mail.",
+        "invalidCredentials": "E-mail ou mot de passe invalide.",
+        "unexpected": "L’authentification a échoué. Veuillez réessayer."
+    }
 }

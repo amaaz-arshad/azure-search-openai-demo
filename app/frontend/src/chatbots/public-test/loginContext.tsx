@@ -7,7 +7,11 @@
 
 import { createContext } from "react";
 
+import type { PublicTestSession } from "./pages/basicauth/basicAuth";
+
 export const LoginContext = createContext({
     loggedIn: false,
-    setLoggedIn: (_: boolean) => {}
+    setLoggedIn: (_: boolean) => {},
+    currentUser: null as PublicTestSession | null,
+    setCurrentUser: (_: PublicTestSession | null) => {}
 });

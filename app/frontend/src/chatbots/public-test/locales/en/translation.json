@@ -9,11 +9,16 @@
     "clearChat": "Clear chat",
     "newChat": "New chat",
     "loginPage": {
-        "title": "Welcome",
+        "title": "Welcome back",
         "username": "Username",
         "password": "Password",
-        "login": "Login",
-        "invalidCredentials": "Invalid username or password"
+        "login": "Log in",
+        "invalidCredentials": "Invalid username or password",
+        "subtitle": "Sign in with your email to access only your own uploaded PDF library.",
+        "email": "Email",
+        "noAccount": "Need an account?",
+        "switchToSignup": "Sign up",
+        "loggingIn": "Logging in..."
     },
     "history": {
         "chatHistory": "Chat history",
@@ -211,5 +216,28 @@
     },
     "overallSettings": "Overall settings",
     "searchSettings": "Search settings",
-    "llmSettings": "LLM settings"
+    "llmSettings": "LLM settings",
+    "signupPage": {
+        "title": "Create your account",
+        "subtitle": "Create a Public Test account to upload and chat with your own PDF files.",
+        "displayName": "Display name",
+        "email": "Email",
+        "password": "Password",
+        "confirmPassword": "Confirm password",
+        "signUp": "Sign up",
+        "haveAccount": "Already have an account?",
+        "switchToLogin": "Log in",
+        "creatingAccount": "Creating account..."
+    },
+    "authErrors": {
+        "displayNameRequired": "Display name is required.",
+        "emailRequired": "Email is required.",
+        "invalidEmail": "Please enter a valid email address.",
+        "passwordRequired": "Password is required.",
+        "confirmPasswordRequired": "Please confirm your password.",
+        "passwordMismatch": "Passwords do not match.",
+        "accountExists": "An account with this email already exists.",
+        "invalidCredentials": "Invalid email or password.",
+        "unexpected": "Authentication failed. Please try again."
+    }
 }

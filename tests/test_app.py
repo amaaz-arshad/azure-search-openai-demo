@@ -203,6 +203,69 @@ async def test_auth_setup_returns_payload(client):
 
 
 @pytest.mark.asyncio
+async def test_public_test_signup_sets_session_cookie(client, monkeypatch):
+    auth_service = client.app.config[app.CONFIG_PUBLIC_TEST_AUTH_SERVICE]
+
+    async def mock_register_user(**kwargs):
+        assert kwargs["display_name"] == "Test User"
+        assert kwargs["email"] == "user@example.com"
+        return app.PublicTestSession(display_name="Test User", email="user@example.com")
+
+    monkeypatch.setattr(auth_service, "register_user", mock_register_user)
+
+    response = await client.post(
+        "/public-test-auth/signup",
+        json={
+            "displayName": "Test User",
+            "email": "user@example.com",
+            "password": "secret",
+            "confirmPassword": "secret",
+        },
+    )
+
+    payload = await response.get_json()
+    assert response.status_code == 200
+    assert payload["session"] == {"displayName": "Test User", "email": "user@example.com"}
+    assert auth_service.session_cookie_name in response.headers["Set-Cookie"]
+
+
+@pytest.mark.asyncio
+async def test_public_test_login_returns_error_key(client, monkeypatch):
+    auth_service = client.app.config[app.CONFIG_PUBLIC_TEST_AUTH_SERVICE]
+
+    async def mock_login_user(**kwargs):
+        raise app.PublicTestAuthError("authErrors.invalidCredentials", status_code=401)
+
+    monkeypatch.setattr(auth_service, "login_user", mock_login_user)
+
+    response = await client.post(
+        "/public-test-auth/login",
+        json={
+            "email": "user@example.com",
+            "password": "wrong-password",
+        },
+    )
+
+    payload = await response.get_json()
+    assert response.status_code == 401
+    assert payload == {"errorKey": "authErrors.invalidCredentials"}
+
+
+@pytest.mark.asyncio
+async def test_public_test_session_returns_authenticated_user(client, monkeypatch):
+    async def mock_get_authenticated_public_test_user():
+        return app.PublicTestSession(display_name="Stored User", email="stored@example.com")
+
+    monkeypatch.setattr(app, "get_authenticated_public_test_user", mock_get_authenticated_public_test_user)
+
+    response = await client.get("/public-test-auth/session")
+
+    payload = await response.get_json()
+    assert response.status_code == 200
+    assert payload["session"] == {"displayName": "Stored User", "email": "stored@example.com"}
+
+
+@pytest.mark.asyncio
 async def test_chat_handle_exception(client, monkeypatch, snapshot, caplog):
     monkeypatch.setattr(
         "approaches.chatreadretrieveread.ChatReadRetrieveReadApproach.run",

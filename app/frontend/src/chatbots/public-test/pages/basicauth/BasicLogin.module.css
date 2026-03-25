@@ -1,0 +1,74 @@
+.subtitle {
+    margin: -8px auto 18px;
+    max-width: 24rem;
+    color: var(--login-text-muted);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    text-align: center;
+}
+
+.modeSwitch {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-bottom: 18px;
+    padding: 6px;
+    border: 1px solid var(--login-panel-border);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.5);
+}
+
+.modeButton {
+    border: 0;
+    border-radius: 12px;
+    padding: 11px 14px;
+    font: inherit;
+    font-weight: 600;
+    color: var(--login-text-muted);
+    background: transparent;
+    cursor: pointer;
+    transition:
+        background-color 160ms ease,
+        color 160ms ease,
+        transform 160ms ease;
+}
+
+.modeButton:hover {
+    transform: translateY(-1px);
+    color: var(--login-text-strong);
+}
+
+.modeButton:disabled {
+    cursor: not-allowed;
+}
+
+.modeButtonActive {
+    color: var(--login-button-text);
+    background: linear-gradient(135deg, var(--login-accent) 0%, var(--login-accent-dark) 100%);
+    box-shadow: 0 12px 24px var(--login-button-shadow);
+}
+
+.switchText {
+    margin: 18px 0 0;
+    color: var(--login-text-muted);
+    font-size: 0.93rem;
+    text-align: center;
+}
+
+.switchLink {
+    border: 0;
+    padding: 0;
+    font: inherit;
+    font-weight: 600;
+    color: var(--login-accent-dark);
+    background: transparent;
+    cursor: pointer;
+}
+
+.switchLink:hover {
+    text-decoration: underline;
+}
+
+.switchLink:disabled {
+    cursor: not-allowed;
+}

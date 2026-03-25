@@ -1,4 +1,4 @@
-import { ChangeEvent, DragEvent, useEffect, useId, useRef, useState } from "react";
+import { ChangeEvent, DragEvent, useContext, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@fluentui/react-components";
 import {
@@ -18,6 +18,7 @@ import {
     listChatbotUploadedFilesApi,
     uploadChatbotFilesApi
 } from "../../api";
+import { LoginContext } from "../../loginContext";
 import styles from "./UploadManagerModal.module.css";
 
 type Props = {
@@ -67,6 +68,7 @@ const createUniqueId = () => {
 
 export const UploadManagerModal = ({ chatbotName, isOpen, onClose }: Props) => {
     const { t } = useTranslation();
+    const { currentUser } = useContext(LoginContext);
     const titleId = useId();
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const queueRef = useRef<UploadQueueItem[]>([]);
@@ -110,6 +112,10 @@ export const UploadManagerModal = ({ chatbotName, isOpen, onClose }: Props) => {
     };
 
     const loadFiles = async (options?: { suppressErrors?: boolean }) => {
+        if (!currentUser?.email) {
+            setUploadedFiles([]);
+            return [];
+        }
         setIsLoading(true);
         try {
             const files = await listChatbotUploadedFilesApi(chatbotName);
@@ -449,7 +455,7 @@ export const UploadManagerModal = ({ chatbotName, isOpen, onClose }: Props) => {
             document.body.style.overflow = previousOverflow;
             document.removeEventListener("keydown", handleEscape);
         };
-    }, [isOpen]);
+    }, [isOpen, currentUser?.email]);
 
     useEffect(() => {
         if (queueItems.some(item => item.status === "queued") && !processingRef.current) {
@@ -479,7 +485,7 @@ export const UploadManagerModal = ({ chatbotName, isOpen, onClose }: Props) => {
             }
             currentAbortRef.current?.abort();
         };
-    }, [chatbotName]);
+    }, [chatbotName, currentUser?.email]);
 
     const handleInputChange = async (event: ChangeEvent<HTMLInputElement>) => {
         enqueueFiles(Array.from(event.target.files ?? []));

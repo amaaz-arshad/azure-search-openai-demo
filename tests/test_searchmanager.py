@@ -58,7 +58,7 @@ async def test_create_index_doesnt_exist_yet(monkeypatch, search_info):
     await manager.create_index()
     assert len(indexes) == 1, "It should have created one index"
     assert indexes[0].name == "test"
-    assert len(indexes[0].fields) == 6
+    assert len(indexes[0].fields) == 7
 
 
 @pytest.mark.asyncio
@@ -83,7 +83,7 @@ async def test_create_index_using_int_vectorization(monkeypatch, search_info):
     await manager.create_index()
     assert len(indexes) == 1, "It should have created one index"
     assert indexes[0].name == "test"
-    assert len(indexes[0].fields) == 7
+    assert len(indexes[0].fields) == 8
 
 
 @pytest.mark.asyncio
@@ -105,7 +105,12 @@ async def test_create_index_does_exist(monkeypatch, search_info):
                     name="storageUrl",
                     type=SearchFieldDataType.String,
                     filterable=True,
-                )
+                ),
+                SimpleField(
+                    name="user",
+                    type=SearchFieldDataType.String,
+                    filterable=True,
+                ),
             ],
         )
 
@@ -152,8 +157,9 @@ async def test_create_index_add_field(monkeypatch, search_info):
     await manager.create_index()
     assert len(created_indexes) == 0, "It should not have created a new index"
     assert len(updated_indexes) == 1, "It should have updated the existing index"
-    assert len(updated_indexes[0].fields) == 1
+    assert len(updated_indexes[0].fields) == 2
     assert updated_indexes[0].fields[0].name == "storageUrl"
+    assert updated_indexes[0].fields[1].name == "user"
 
 
 @pytest.mark.asyncio
@@ -176,6 +182,11 @@ async def test_create_index_adds_vectorizer_to_existing_index(monkeypatch, searc
             fields=[
                 SimpleField(
                     name="storageUrl",
+                    type=SearchFieldDataType.String,
+                    filterable=True,
+                ),
+                SimpleField(
+                    name="user",
                     type=SearchFieldDataType.String,
                     filterable=True,
                 ),
@@ -308,7 +319,12 @@ async def test_create_index_acls_no_existing_fields(monkeypatch, search_info):
                     name="storageUrl",
                     type=SearchFieldDataType.String,
                     filterable=True,
-                )
+                ),
+                SimpleField(
+                    name="user",
+                    type=SearchFieldDataType.String,
+                    filterable=True,
+                ),
             ],
         )
 
@@ -330,7 +346,7 @@ async def test_create_index_acls_no_existing_fields(monkeypatch, search_info):
     assert len(updated_indexes) == 1, "It should have created one index"
     assert updated_indexes[0].name == "test"
     assert updated_indexes[0].permission_filter_option == SearchIndexPermissionFilterOption.ENABLED
-    assert len(updated_indexes[0].fields) == 3
+    assert len(updated_indexes[0].fields) == 4
     oids_field = next((field for field in updated_indexes[0].fields if field.name == "oids"), None)
     assert oids_field is not None, "Expected 'oids' field to be present"
     assert oids_field.permission_filter == PermissionFilter.USER_IDS
@@ -358,7 +374,12 @@ async def test_create_index_acls_no_existing_fields_no_enforcement(monkeypatch, 
                     name="storageUrl",
                     type=SearchFieldDataType.String,
                     filterable=True,
-                )
+                ),
+                SimpleField(
+                    name="user",
+                    type=SearchFieldDataType.String,
+                    filterable=True,
+                ),
             ],
         )
 
@@ -380,7 +401,7 @@ async def test_create_index_acls_no_existing_fields_no_enforcement(monkeypatch, 
     assert len(updated_indexes) == 1, "It should have created one index"
     assert updated_indexes[0].name == "test"
     assert updated_indexes[0].permission_filter_option == SearchIndexPermissionFilterOption.DISABLED
-    assert len(updated_indexes[0].fields) == 3
+    assert len(updated_indexes[0].fields) == 4
     oids_field = next((field for field in updated_indexes[0].fields if field.name == "oids"), None)
     assert oids_field is not None, "Expected 'oids' field to be present"
     assert oids_field.permission_filter == PermissionFilter.USER_IDS
@@ -410,6 +431,11 @@ async def test_create_index_acls_with_existing_fields(monkeypatch, search_info):
                     filterable=True,
                 ),
                 SimpleField(
+                    name="user",
+                    type=SearchFieldDataType.String,
+                    filterable=True,
+                ),
+                SimpleField(
                     name="oids",
                     type=SearchFieldDataType.Collection(SearchFieldDataType.String),
                     filterable=True,
@@ -440,7 +466,7 @@ async def test_create_index_acls_with_existing_fields(monkeypatch, search_info):
     assert len(updated_indexes) == 1, "It should have created one index"
     assert updated_indexes[0].name == "test"
     assert updated_indexes[0].permission_filter_option == SearchIndexPermissionFilterOption.ENABLED
-    assert len(updated_indexes[0].fields) == 3
+    assert len(updated_indexes[0].fields) == 4
     oids_field = next((field for field in updated_indexes[0].fields if field.name == "oids"), None)
     assert oids_field is not None, "Expected 'oids' field to be present"
     assert oids_field.permission_filter == PermissionFilter.USER_IDS
@@ -466,6 +492,11 @@ async def test_create_index_acls_with_existing_fields_no_enforcement(monkeypatch
             fields=[
                 SimpleField(
                     name="storageUrl",
+                    type=SearchFieldDataType.String,
+                    filterable=True,
+                ),
+                SimpleField(
+                    name="user",
                     type=SearchFieldDataType.String,
                     filterable=True,
                 ),
@@ -500,7 +531,7 @@ async def test_create_index_acls_with_existing_fields_no_enforcement(monkeypatch
     assert len(updated_indexes) == 1, "It should have created one index"
     assert updated_indexes[0].name == "test"
     assert updated_indexes[0].permission_filter_option == SearchIndexPermissionFilterOption.DISABLED
-    assert len(updated_indexes[0].fields) == 3
+    assert len(updated_indexes[0].fields) == 4
     oids_field = next((field for field in updated_indexes[0].fields if field.name == "oids"), None)
     assert oids_field is not None, "Expected 'oids' field to be present"
     assert oids_field.permission_filter == PermissionFilter.USER_IDS

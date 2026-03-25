@@ -48,9 +48,9 @@ const Layout = () => {
         setIsUploadManagerOpen(true);
     };
 
-    const handleBasicLogout = () => {
+    const handleBasicLogout = async () => {
         setDropdownOpen(false);
-        logout();
+        await logout();
         window.location.reload();
     };
 
@@ -90,7 +90,7 @@ const Layout = () => {
                                         </button>
                                     </li>
                                     <li>
-                                        <button className={styles.dropdownItem} onClick={handleBasicLogout}>
+                                        <button className={styles.dropdownItem} onClick={() => void handleBasicLogout()}>
                                             <SignOut24Regular />
                                             <span>{t("logout")}</span>
                                         </button>

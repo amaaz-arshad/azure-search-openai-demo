@@ -10,11 +10,16 @@
     "clearChat": "Chat löschen",
     "newChat": "Neuer Chat",
     "loginPage": {
-        "title": "Willkommen",
+        "title": "Willkommen zurück",
         "username": "Benutzername",
         "password": "Passwort",
         "login": "Anmelden",
-        "invalidCredentials": "Ungültiger Benutzername oder Passwort"
+        "invalidCredentials": "Ungültiger Benutzername oder Passwort",
+        "subtitle": "Melden Sie sich mit Ihrer E-Mail an, um nur auf Ihre eigene hochgeladene PDF-Bibliothek zuzugreifen.",
+        "email": "E-Mail",
+        "noAccount": "Noch kein Konto?",
+        "switchToSignup": "Registrieren",
+        "loggingIn": "Anmeldung läuft..."
     },
     "history": {
         "chatHistory": "Chatverlauf",
@@ -213,5 +218,28 @@
     },
     "overallSettings": "Allgemeine Einstellungen",
     "searchSettings": "Such-Einstellungen",
-    "llmSettings": "LLM-Einstellungen"
+    "llmSettings": "LLM-Einstellungen",
+    "signupPage": {
+        "title": "Konto erstellen",
+        "subtitle": "Erstellen Sie ein Public-Test-Konto, um Ihre eigenen PDF-Dateien hochzuladen und damit zu chatten.",
+        "displayName": "Anzeigename",
+        "email": "E-Mail",
+        "password": "Passwort",
+        "confirmPassword": "Passwort bestätigen",
+        "signUp": "Registrieren",
+        "haveAccount": "Haben Sie bereits ein Konto?",
+        "switchToLogin": "Anmelden",
+        "creatingAccount": "Konto wird erstellt..."
+    },
+    "authErrors": {
+        "displayNameRequired": "Ein Anzeigename ist erforderlich.",
+        "emailRequired": "Eine E-Mail-Adresse ist erforderlich.",
+        "invalidEmail": "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
+        "passwordRequired": "Ein Passwort ist erforderlich.",
+        "confirmPasswordRequired": "Bitte bestätigen Sie Ihr Passwort.",
+        "passwordMismatch": "Die Passwörter stimmen nicht überein.",
+        "accountExists": "Für diese E-Mail-Adresse existiert bereits ein Konto.",
+        "invalidCredentials": "Ungültige E-Mail oder ungültiges Passwort.",
+        "unexpected": "Die Anmeldung ist fehlgeschlagen. Bitte versuchen Sie es erneut."
+    }
 }

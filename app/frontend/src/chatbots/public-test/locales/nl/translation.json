@@ -9,11 +9,16 @@
     "clearChat": "Chat wissen",
     "newChat": "Nieuwe chat",
     "loginPage": {
-        "title": "Welkom",
+        "title": "Welkom terug",
         "username": "Gebruikersnaam",
         "password": "Wachtwoord",
         "login": "Inloggen",
-        "invalidCredentials": "Ongeldige gebruikersnaam of wachtwoord"
+        "invalidCredentials": "Ongeldige gebruikersnaam of wachtwoord",
+        "subtitle": "Log in met je e-mailadres om alleen toegang te krijgen tot je eigen geüploade PDF-bibliotheek.",
+        "email": "E-mailadres",
+        "noAccount": "Heb je een account nodig?",
+        "switchToSignup": "Registreren",
+        "loggingIn": "Bezig met inloggen..."
     },
     "history": {
         "chatHistory": "Chatgeschiedenis",
@@ -212,5 +217,28 @@
     },
     "overallSettings": "Algemene instellingen",
     "searchSettings": "Zoekinstellingen",
-    "llmSettings": "LLM-instellingen"
+    "llmSettings": "LLM-instellingen",
+    "signupPage": {
+        "title": "Maak je account aan",
+        "subtitle": "Maak een Public Test-account aan om je eigen PDF-bestanden te uploaden en ermee te chatten.",
+        "displayName": "Weergavenaam",
+        "email": "E-mailadres",
+        "password": "Wachtwoord",
+        "confirmPassword": "Bevestig wachtwoord",
+        "signUp": "Registreren",
+        "haveAccount": "Heb je al een account?",
+        "switchToLogin": "Inloggen",
+        "creatingAccount": "Account wordt aangemaakt..."
+    },
+    "authErrors": {
+        "displayNameRequired": "Weergavenaam is verplicht.",
+        "emailRequired": "E-mailadres is verplicht.",
+        "invalidEmail": "Voer een geldig e-mailadres in.",
+        "passwordRequired": "Wachtwoord is verplicht.",
+        "confirmPasswordRequired": "Bevestig je wachtwoord.",
+        "passwordMismatch": "Wachtwoorden komen niet overeen.",
+        "accountExists": "Er bestaat al een account met dit e-mailadres.",
+        "invalidCredentials": "Ongeldig e-mailadres of wachtwoord.",
+        "unexpected": "Aanmelden is mislukt. Probeer het opnieuw."
+    }
 }

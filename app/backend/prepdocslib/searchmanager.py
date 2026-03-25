@@ -275,6 +275,12 @@ class SearchManager:
                         filterable=True,
                         facetable=False,
                     ),
+                    SimpleField(
+                        name="user",
+                        type="Edm.String",
+                        filterable=True,
+                        facetable=False,
+                    ),
                 ]
                 if self.use_acls:
                     fields.append(oids_field)
@@ -346,16 +352,29 @@ class SearchManager:
             else:
                 logger.info("Search index %s already exists", self.search_info.index_name)
                 existing_index = await search_index_client.get_index(self.search_info.index_name)
+                missing_simple_fields = []
                 if not any(field.name == "storageUrl" for field in existing_index.fields):
                     logger.info("Adding storageUrl field to index %s", self.search_info.index_name)
-                    existing_index.fields.append(
+                    missing_simple_fields.append(
                         SimpleField(
                             name="storageUrl",
                             type="Edm.String",
                             filterable=True,
                             facetable=False,
-                        ),
+                        )
                     )
+                if not any(field.name == "user" for field in existing_index.fields):
+                    logger.info("Adding user field to index %s", self.search_info.index_name)
+                    missing_simple_fields.append(
+                        SimpleField(
+                            name="user",
+                            type="Edm.String",
+                            filterable=True,
+                            facetable=False,
+                        )
+                    )
+                if missing_simple_fields:
+                    existing_index.fields.extend(missing_simple_fields)
                     await search_index_client.create_or_update_index(existing_index)
 
                 if embedding_field and not any(
@@ -592,7 +611,12 @@ class SearchManager:
                     ", ".join(created_kb_names),
                 )
 
-    def build_filter(self, path: Optional[str] = None, category: Optional[str] = None) -> Optional[str]:
+    def build_filter(
+        self,
+        path: Optional[str] = None,
+        category: Optional[str] = None,
+        user: Optional[str] = None,
+    ) -> Optional[str]:
         filters = []
         if path is not None:
             path_for_filter = os.path.basename(path).replace("'", "''")
@@ -600,11 +624,19 @@ class SearchManager:
         if category is not None:
             category_for_filter = category.replace("'", "''")
             filters.append(f"category eq '{category_for_filter}'")
+        if user is not None:
+            user_for_filter = user.replace("'", "''")
+            filters.append(f"user eq '{user_for_filter}'")
         return None if not filters else " and ".join(filters)
 
-    async def list_documents(self, path: Optional[str] = None, category: Optional[str] = None) -> list[dict[str, Any]]:
+    async def list_documents(
+        self,
+        path: Optional[str] = None,
+        category: Optional[str] = None,
+        user: Optional[str] = None,
+    ) -> list[dict[str, Any]]:
         documents: list[dict[str, Any]] = []
-        filter_expression = self.build_filter(path=path, category=category)
+        filter_expression = self.build_filter(path=path, category=category, user=user)
         max_results = 1000
         skip = 0
 
@@ -642,6 +674,7 @@ class SearchManager:
         url: Optional[str] = None,
         document_id_suffix: str = "",
         check_cancel: Optional[Callable[[], Awaitable[None]]] = None,
+        extra_fields: Optional[dict[str, Any]] = None,
     ):
         MAX_BATCH_SIZE = 1000
         section_batches = [sections[i : i + MAX_BATCH_SIZE] for i in range(0, len(sections), MAX_BATCH_SIZE)]
@@ -679,6 +712,8 @@ class SearchManager:
                         **image_fields,
                         **section.content.acls,
                     }
+                    if extra_fields:
+                        document.update(extra_fields)
                     documents.append(document)
                 if url:
                     for document in documents:
@@ -709,13 +744,14 @@ class SearchManager:
         only_oid: Optional[str] = None,
         category: Optional[str] = None,
         storage_url_suffix: Optional[str] = None,
+        user: Optional[str] = None,
     ):
         logger.info(
             "Removing sections from '{%s or '<all>'}' from search index '%s'", path, self.search_info.index_name
         )
         async with self.search_info.create_search_client() as search_client:
             while True:
-                filter = self.build_filter(path=path, category=category)
+                filter = self.build_filter(path=path, category=category, user=user)
                 max_results = 1000
                 result = await search_client.search(
                     search_text="", filter=filter, top=max_results, include_total_count=True

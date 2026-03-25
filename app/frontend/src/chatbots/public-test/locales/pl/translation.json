@@ -169,5 +169,38 @@
     },
     "overallSettings": "Overall settings",
     "searchSettings": "Search settings",
-    "llmSettings": "LLM settings"
+    "llmSettings": "LLM settings",
+    "loginPage": {
+        "title": "Witamy ponownie",
+        "subtitle": "Zaloguj się swoim adresem e-mail, aby uzyskać dostęp tylko do własnej biblioteki przesłanych plików PDF.",
+        "email": "E-mail",
+        "password": "Hasło",
+        "login": "Zaloguj się",
+        "noAccount": "Potrzebujesz konta?",
+        "switchToSignup": "Zarejestruj się",
+        "loggingIn": "Logowanie..."
+    },
+    "signupPage": {
+        "title": "Utwórz konto",
+        "subtitle": "Utwórz konto Public Test, aby przesyłać własne pliki PDF i rozmawiać na ich podstawie.",
+        "displayName": "Nazwa wyświetlana",
+        "email": "E-mail",
+        "password": "Hasło",
+        "confirmPassword": "Potwierdź hasło",
+        "signUp": "Zarejestruj się",
+        "haveAccount": "Masz już konto?",
+        "switchToLogin": "Zaloguj się",
+        "creatingAccount": "Tworzenie konta..."
+    },
+    "authErrors": {
+        "displayNameRequired": "Nazwa wyświetlana jest wymagana.",
+        "emailRequired": "Adres e-mail jest wymagany.",
+        "invalidEmail": "Wpisz prawidłowy adres e-mail.",
+        "passwordRequired": "Hasło jest wymagane.",
+        "confirmPasswordRequired": "Potwierdź hasło.",
+        "passwordMismatch": "Hasła nie są zgodne.",
+        "accountExists": "Konto z tym adresem e-mail już istnieje.",
+        "invalidCredentials": "Nieprawidłowy adres e-mail lub hasło.",
+        "unexpected": "Uwierzytelnianie nie powiodło się. Spróbuj ponownie."
+    }
 }
