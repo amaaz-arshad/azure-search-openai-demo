@@ -50,6 +50,22 @@ from .textsplitter import Chunk
 logger = logging.getLogger("scripts")
 
 
+def build_default_semantic_search() -> SemanticSearch:
+    return SemanticSearch(
+        default_configuration_name="default",
+        configurations=[
+            SemanticConfiguration(
+                name="default",
+                prioritized_fields=SemanticPrioritizedFields(
+                    title_field=SemanticField(field_name="title"),
+                    content_fields=[SemanticField(field_name="content")],
+                    keywords_fields=[SemanticField(field_name="tags")],
+                ),
+            )
+        ],
+    )
+
+
 class Section:
     """
     A section of a page that is stored in a search service. These sections are used as context by Azure OpenAI service
@@ -275,11 +291,29 @@ class SearchManager:
                         filterable=True,
                         facetable=False,
                     ),
-                    SimpleField(
+                    SearchableField(
+                        name="title",
+                        type="Edm.String",
+                        filterable=True,
+                        analyzer_name="standard.lucene",
+                    ),
+                    SearchableField(
+                        name="url",
+                        type="Edm.String",
+                        analyzer_name="standard.lucene",
+                    ),
+                    SearchableField(
+                        name="tags",
+                        collection=True,
+                        analyzer_name="standard.lucene",
+                    ),
+                    SearchableField(
                         name="user",
                         type="Edm.String",
                         filterable=True,
-                        facetable=False,
+                        sortable=True,
+                        facetable=True,
+                        analyzer_name="standard.lucene",
                     ),
                 ]
                 if self.use_acls:
@@ -327,18 +361,7 @@ class SearchManager:
                 index = SearchIndex(
                     name=self.search_info.index_name,
                     fields=fields,
-                    semantic_search=SemanticSearch(
-                        default_configuration_name="default",
-                        configurations=[
-                            SemanticConfiguration(
-                                name="default",
-                                prioritized_fields=SemanticPrioritizedFields(
-                                    title_field=SemanticField(field_name="sourcepage"),
-                                    content_fields=[SemanticField(field_name="content")],
-                                ),
-                            )
-                        ],
-                    ),
+                    semantic_search=build_default_semantic_search(),
                     vector_search=VectorSearch(
                         profiles=vector_search_profiles,
                         algorithms=vector_algorithms,
@@ -352,10 +375,11 @@ class SearchManager:
             else:
                 logger.info("Search index %s already exists", self.search_info.index_name)
                 existing_index = await search_index_client.get_index(self.search_info.index_name)
-                missing_simple_fields = []
+                index_updated = False
+                missing_fields = []
                 if not any(field.name == "storageUrl" for field in existing_index.fields):
                     logger.info("Adding storageUrl field to index %s", self.search_info.index_name)
-                    missing_simple_fields.append(
+                    missing_fields.append(
                         SimpleField(
                             name="storageUrl",
                             type="Edm.String",
@@ -363,18 +387,74 @@ class SearchManager:
                             facetable=False,
                         )
                     )
+                if not any(field.name == "title" for field in existing_index.fields):
+                    logger.info("Adding title field to index %s", self.search_info.index_name)
+                    missing_fields.append(
+                        SearchableField(
+                            name="title",
+                            type="Edm.String",
+                            filterable=True,
+                            analyzer_name="standard.lucene",
+                        )
+                    )
+                if not any(field.name == "url" for field in existing_index.fields):
+                    logger.info("Adding url field to index %s", self.search_info.index_name)
+                    missing_fields.append(
+                        SearchableField(
+                            name="url",
+                            type="Edm.String",
+                            analyzer_name="standard.lucene",
+                        )
+                    )
+                if not any(field.name == "tags" for field in existing_index.fields):
+                    logger.info("Adding tags field to index %s", self.search_info.index_name)
+                    missing_fields.append(
+                        SearchableField(
+                            name="tags",
+                            collection=True,
+                            analyzer_name="standard.lucene",
+                        )
+                    )
                 if not any(field.name == "user" for field in existing_index.fields):
                     logger.info("Adding user field to index %s", self.search_info.index_name)
-                    missing_simple_fields.append(
-                        SimpleField(
+                    missing_fields.append(
+                        SearchableField(
                             name="user",
                             type="Edm.String",
                             filterable=True,
-                            facetable=False,
+                            sortable=True,
+                            facetable=True,
+                            analyzer_name="standard.lucene",
                         )
                     )
-                if missing_simple_fields:
-                    existing_index.fields.extend(missing_simple_fields)
+                if missing_fields:
+                    existing_index.fields.extend(missing_fields)
+                    index_updated = True
+
+                semantic_search = existing_index.semantic_search
+                semantic_configuration = None
+                if semantic_search and semantic_search.configurations:
+                    semantic_configuration = next(
+                        (config for config in semantic_search.configurations if config.name == "default"),
+                        None,
+                    )
+                prioritized_fields = semantic_configuration.prioritized_fields if semantic_configuration else None
+                title_field_name = (
+                    prioritized_fields.title_field.field_name
+                    if prioritized_fields and prioritized_fields.title_field
+                    else None
+                )
+                keyword_field_names = (
+                    [field.field_name for field in prioritized_fields.keywords_fields]
+                    if prioritized_fields and prioritized_fields.keywords_fields
+                    else []
+                )
+                if title_field_name != "title" or "tags" not in keyword_field_names:
+                    logger.info("Updating semantic search configuration for index %s", self.search_info.index_name)
+                    existing_index.semantic_search = build_default_semantic_search()
+                    index_updated = True
+
+                if index_updated:
                     await search_index_client.create_or_update_index(existing_index)
 
                 if embedding_field and not any(

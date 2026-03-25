@@ -69,6 +69,10 @@ class Document:
     sourcepage: Optional[str] = None
     sourcefile: Optional[str] = None
     storage_url: Optional[str] = None
+    title: Optional[str] = None
+    url: Optional[str] = None
+    tags: Optional[list[str]] = None
+    user: Optional[str] = None
     oids: Optional[list[str]] = None
     groups: Optional[list[str]] = None
     captions: Optional[list[QueryCaptionResult]] = None
@@ -356,6 +360,10 @@ class Approach(ABC):
                         sourcepage=document.get("sourcepage"),
                         sourcefile=document.get("sourcefile"),
                         storage_url=document.get("storageUrl"),
+                        title=document.get("title"),
+                        url=document.get("url"),
+                        tags=document.get("tags"),
+                        user=document.get("user"),
                         oids=document.get("oids"),
                         groups=document.get("groups"),
                         captions=cast(list[QueryCaptionResult], document.get("@search.captions")),
@@ -460,7 +468,7 @@ class Approach(ABC):
         use_sharepoint_source: bool = False,
         retrieval_reasoning_effort: Optional[str] = None,
         should_rewrite_query: bool = True,
-        use_document_storage_url_for_citations: bool = False,
+        document_citation_target: str = "sourcepage",
     ) -> AgenticRetrievalResults:
         # STEP 1: Invoke agentic retrieval
         thoughts = []
@@ -620,6 +628,10 @@ class Approach(ABC):
                         sourcepage=ref.source_data.get("sourcepage"),
                         sourcefile=ref.source_data.get("sourcefile"),
                         storage_url=ref.source_data.get("storageUrl"),
+                        title=ref.source_data.get("title"),
+                        url=ref.source_data.get("url"),
+                        tags=ref.source_data.get("tags"),
+                        user=ref.source_data.get("user"),
                         oids=ref.source_data.get("oids"),
                         groups=ref.source_data.get("groups"),
                         reranker_score=getattr(ref, "reranker_score", None),
@@ -680,7 +692,7 @@ class Approach(ABC):
                         document_results,
                         web_results,
                         sharepoint_results,
-                        use_document_storage_url_for_citations=use_document_storage_url_for_citations,
+                        document_citation_target=document_citation_target,
                     )
 
         thoughts.append(
@@ -716,7 +728,7 @@ class Approach(ABC):
         documents: list[Document],
         web_results: list[WebResult],
         sharepoint_results: Optional[list[SharePointResult]] = None,
-        use_document_storage_url_for_citations: bool = False,
+        document_citation_target: str = "sourcepage",
     ) -> str:
         """Replace [ref_id:<id>] tokens with document citation, web URL, or SharePoint web_url.
 
@@ -725,9 +737,7 @@ class Approach(ABC):
         """
         doc_map: dict[str, str] = {}
         for document in documents:
-            citation = self.get_document_citation(
-                document, use_storage_url=use_document_storage_url_for_citations
-            )
+            citation = self.get_document_citation(document, citation_target=document_citation_target)
             if document.ref_id and citation:
                 doc_map[document.ref_id] = citation
         web_map = {str(w.id): w.url for w in web_results if w.id and w.url}
@@ -755,7 +765,7 @@ class Approach(ABC):
         user_oid: Optional[str] = None,
         web_results: Optional[list[WebResult]] = None,
         sharepoint_results: Optional[list[SharePointResult]] = None,
-        use_document_storage_url_for_citations: bool = False,
+        document_citation_target: str = "sourcepage",
     ) -> DataPoints:
         """Extract text/image sources & citations from documents.
 
@@ -784,7 +794,7 @@ class Approach(ABC):
         citation_activity_details: dict[str, dict[str, Any]] = {}
 
         for doc in results:
-            citation = self.get_document_citation(doc, use_storage_url=use_document_storage_url_for_citations)
+            citation = self.get_document_citation(doc, citation_target=document_citation_target)
             if citation not in citations:
                 citations.append(citation)
                 # Add activity details if available
@@ -859,8 +869,10 @@ class Approach(ABC):
     def get_citation(self, sourcepage: Optional[str]):
         return sourcepage or ""
 
-    def get_document_citation(self, document: Document, use_storage_url: bool = False) -> str:
-        if use_storage_url and document.storage_url:
+    def get_document_citation(self, document: Document, citation_target: str = "sourcepage") -> str:
+        if citation_target == "url" and document.url:
+            return document.url
+        if citation_target == "storage_url" and document.storage_url:
             return document.storage_url
         return self.get_citation(document.sourcepage)
 

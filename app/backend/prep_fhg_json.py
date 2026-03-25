@@ -9,8 +9,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from azure.core.credentials_async import AsyncTokenCredential
+from azure.core.exceptions import ResourceNotFoundError
 from azure.identity.aio import AzureDeveloperCliCredential
-from azure.storage.blob import ContentSettings
 from openai import AsyncOpenAI
 
 from delete_documents_by_category import delete_documents_by_category
@@ -22,7 +22,7 @@ except ImportError:  # pragma: no cover - optional dependency for nicer local lo
 
 from load_azd_env import load_azd_env
 
-DEFAULT_SOURCEPAGE_PREFIX = "fhg"
+DEFAULT_BLOB_PREFIX = "fhg"
 
 if TYPE_CHECKING:
     from prepdocslib.blobmanager import BlobManager
@@ -33,19 +33,58 @@ if TYPE_CHECKING:
 logger = logging.getLogger("scripts")
 
 
-async def upload_source_blobs(blob_manager: BlobManager, dataset: FhgPreparedDataset) -> None:
-    container_client = blob_manager.blob_service_client.get_container_client(blob_manager.container)
-    if not await container_client.exists():
-        await container_client.create_container()
-
-    for source_blob in dataset.source_blobs:
-        logger.info("Uploading FHG source blob '%s'", source_blob.name)
-        await container_client.upload_blob(
-            source_blob.name,
-            source_blob.text.encode("utf-8"),
-            overwrite=True,
-            content_settings=ContentSettings(content_type="text/plain; charset=utf-8"),
+async def upload_dataset_blob(blob_manager: BlobManager, dataset_path: Path, blob_prefix: str) -> str:
+    normalized_prefix = blob_prefix.strip("/")
+    blob_name = f"{normalized_prefix}/{dataset_path.name}" if normalized_prefix else dataset_path.name
+    logger.info("Uploading raw FHG dataset blob '%s'", blob_name)
+    with dataset_path.open("rb") as dataset_file:
+        return await blob_manager.upload_blob_data(
+            dataset_file,
+            blob_name,
+            content_type="application/json; charset=utf-8",
         )
+
+
+async def resolve_embedding_settings(
+    search_info: SearchInfo,
+    configured_field_name: str,
+    configured_dimensions: int,
+) -> tuple[str, int]:
+    try:
+        async with search_info.create_search_index_client() as search_index_client:
+            existing_index = await search_index_client.get_index(search_info.index_name)
+    except ResourceNotFoundError:
+        return configured_field_name, configured_dimensions
+
+    vector_fields = [
+        field
+        for field in existing_index.fields
+        if getattr(field, "vector_search_dimensions", None) is not None
+    ]
+    if not vector_fields:
+        return configured_field_name, configured_dimensions
+
+    if any(field.name == configured_field_name for field in vector_fields):
+        matching_field = next(field for field in vector_fields if field.name == configured_field_name)
+        return configured_field_name, int(matching_field.vector_search_dimensions or configured_dimensions)
+
+    if len(vector_fields) == 1:
+        inferred_field = vector_fields[0]
+        inferred_dimensions = int(inferred_field.vector_search_dimensions or configured_dimensions)
+        logger.info(
+            "Using existing vector field '%s' with %d dimensions from index '%s'",
+            inferred_field.name,
+            inferred_dimensions,
+            search_info.index_name,
+        )
+        return inferred_field.name, inferred_dimensions
+
+    logger.warning(
+        "Configured embedding field '%s' not found in index '%s'; falling back to configured settings",
+        configured_field_name,
+        search_info.index_name,
+    )
+    return configured_field_name, configured_dimensions
 
 
 async def remove_blobs_with_prefix(blob_manager: BlobManager, prefix: str) -> None:
@@ -54,7 +93,7 @@ async def remove_blobs_with_prefix(blob_manager: BlobManager, prefix: str) -> No
         return
 
     async for blob_name in container_client.list_blob_names(name_starts_with=prefix):
-        logger.info("Removing existing FHG source blob '%s'", blob_name)
+        logger.info("Removing existing FHG blob '%s'", blob_name)
         await container_client.delete_blob(blob_name)
 
 
@@ -63,13 +102,16 @@ async def upload_dataset_documents(
     dataset: FhgPreparedDataset,
     embeddings: OpenAIEmbeddings,
     embedding_field_name: str,
+    dataset_storage_url: str,
     global_acls: dict[str, list[str]],
 ) -> None:
     max_batch_size = 1000
     async with search_info.create_search_client() as search_client:
         for offset in range(0, len(dataset.documents), max_batch_size):
             batch = dataset.documents[offset : offset + max_batch_size]
-            documents = [document.to_search_document(global_acls) for document in batch]
+            documents = [
+                document.to_search_document(storage_url=dataset_storage_url, acls=global_acls) for document in batch
+            ]
             vectors = await embeddings.create_embeddings([document["content"] for document in documents])
 
             for index, document in enumerate(documents):
@@ -160,8 +202,13 @@ async def run(args: argparse.Namespace) -> None:
             openai_organization=os.getenv("OPENAI_ORGANIZATION"),
         )
 
-        emb_model_dimensions = int(os.getenv("AZURE_OPENAI_EMB_DIMENSIONS", "1536"))
-        embedding_field_name = os.getenv("AZURE_SEARCH_FIELD_NAME_EMBEDDING", "embedding")
+        configured_embedding_field_name = os.getenv("AZURE_SEARCH_FIELD_NAME_EMBEDDING", "embedding")
+        configured_emb_dimensions = int(os.getenv("AZURE_OPENAI_EMB_DIMENSIONS", "1536"))
+        embedding_field_name, emb_model_dimensions = await resolve_embedding_settings(
+            search_info,
+            configured_embedding_field_name,
+            configured_emb_dimensions,
+        )
         embeddings = setup_embeddings_service(
             openai_host,
             openai_client,
@@ -194,33 +241,37 @@ async def run(args: argparse.Namespace) -> None:
             payload,
             dataset_filename=dataset_path.name,
             category=args.category,
-            sourcepage_prefix=args.sourceprefix,
         )
+        blob_prefix = args.sourceprefix.strip("/")
 
         if not args.preserveexisting:
             await delete_documents_by_category(search_info, args.category)
-            await remove_blobs_with_prefix(blob_manager, f"{args.sourceprefix}/")
+            if blob_prefix:
+                await remove_blobs_with_prefix(blob_manager, f"{blob_prefix}/")
 
-        await upload_source_blobs(blob_manager, prepared_dataset)
+        dataset_storage_url = await upload_dataset_blob(blob_manager, dataset_path, blob_prefix)
         await upload_dataset_documents(
             search_info=search_info,
             dataset=prepared_dataset,
             embeddings=embeddings,
             embedding_field_name=embedding_field_name,
+            dataset_storage_url=dataset_storage_url,
             global_acls=global_acls,
         )
 
         logger.info(
-            "Indexed %d FHG search documents and uploaded %d source blobs",
+            "Indexed %d FHG search documents and uploaded raw dataset blob to %s",
             len(prepared_dataset.documents),
-            len(prepared_dataset.source_blobs),
+            dataset_storage_url,
         )
     finally:
         await close_clients(blob_manager=blob_manager, openai_client=openai_client, azure_credential=azure_credential)
 
 
 if __name__ == "__main__":  # pragma: no cover
-    default_dataset_path = Path(__file__).resolve().parents[2] / "data" / "fhg_alle_studien_20260310.json"
+    default_dataset_path = Path(__file__).resolve().parents[2] / "data" / "fhg.json"
+    if not default_dataset_path.exists():
+        default_dataset_path = Path(__file__).resolve().parents[2] / "data" / "fhg_alle_studien_20260310.json"
     parser = argparse.ArgumentParser(
         description="Ingest the FHG studies JSON file into Azure AI Search with FHG-specific chunking and embeddings."
     )
@@ -233,13 +284,13 @@ if __name__ == "__main__":  # pragma: no cover
     parser.add_argument("--category", default="fhg", help="Category value to set in the search index")
     parser.add_argument(
         "--sourceprefix",
-        default=DEFAULT_SOURCEPAGE_PREFIX,
-        help="Blob path prefix used for generated source documents",
+        default=DEFAULT_BLOB_PREFIX,
+        help="Blob path prefix under the content container for the uploaded raw FHG dataset file",
     )
     parser.add_argument(
         "--preserveexisting",
         action="store_true",
-        help="Do not purge existing documents and source blobs for this category before indexing",
+        help="Do not purge existing documents and FHG blobs for this category before indexing",
     )
     parser.add_argument(
         "--disablebatchvectors",

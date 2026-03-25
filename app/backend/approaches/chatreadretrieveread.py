@@ -360,7 +360,7 @@ class ChatReadRetrieveReadApproach(Approach):
         search_image_embeddings = (
             overrides.get("search_image_embeddings", self.multimodal_enabled) and self.multimodal_enabled
         )
-        use_document_storage_url_for_citations = overrides.get("include_category") == "fhg"
+        document_citation_target = "url" if overrides.get("include_category") == "fhg" else "sourcepage"
 
         original_user_query = messages[-1]["content"]
         if not isinstance(original_user_query, str):
@@ -419,7 +419,7 @@ class ChatReadRetrieveReadApproach(Approach):
             include_text_sources=send_text_sources,
             download_image_sources=send_image_sources,
             user_oid=auth_claims.get("oid"),
-            use_document_storage_url_for_citations=use_document_storage_url_for_citations,
+            document_citation_target=document_citation_target,
         )
         extra_info = ExtraInfo(
             data_points,
@@ -468,7 +468,7 @@ class ChatReadRetrieveReadApproach(Approach):
         send_text_sources = overrides.get("send_text_sources", True)
         send_image_sources = overrides.get("send_image_sources", self.multimodal_enabled) and self.multimodal_enabled
         retrieval_reasoning_effort = overrides.get("retrieval_reasoning_effort", self.retrieval_reasoning_effort)
-        use_document_storage_url_for_citations = overrides.get("include_category") == "fhg"
+        document_citation_target = "url" if overrides.get("include_category") == "fhg" else "sourcepage"
         # Overrides can only disable web source support configured at construction time.
         use_web_source = self.web_source_enabled
         override_use_web_source = overrides.get("use_web_source")
@@ -497,7 +497,7 @@ class ChatReadRetrieveReadApproach(Approach):
             use_web_source=effective_web_source,
             use_sharepoint_source=effective_sharepoint_source,
             retrieval_reasoning_effort=retrieval_reasoning_effort,
-            use_document_storage_url_for_citations=use_document_storage_url_for_citations,
+            document_citation_target=document_citation_target,
         )
 
         data_points = await self.get_sources_content(
@@ -508,7 +508,7 @@ class ChatReadRetrieveReadApproach(Approach):
             user_oid=auth_claims.get("oid"),
             web_results=agentic_results.web_results,
             sharepoint_results=agentic_results.sharepoint_results,
-            use_document_storage_url_for_citations=use_document_storage_url_for_citations,
+            document_citation_target=document_citation_target,
         )
 
         return ExtraInfo(

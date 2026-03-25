@@ -506,13 +506,14 @@ async def test_get_sources_content_includes_sharepoint(chat_approach):
 
 
 @pytest.mark.asyncio
-async def test_get_sources_content_uses_storage_url_for_fhg_citations(chat_approach):
+async def test_get_sources_content_uses_url_for_fhg_citations(chat_approach):
     documents = [
         Document(
             id="doc1",
-            sourcepage="fhg/radiologietechnologie-page-812.txt",
-            sourcefile="fhg_alle_studien_20260310.json",
-            storage_url="https://www.fhg-tirol.ac.at/page.cfm?vpath=studium/bachelor/radiologietechnologie",
+            sourcepage="doc_id=page-812;parent_id=page-224",
+            sourcefile="studium/bachelor/radiologietechnologie",
+            storage_url="https://storage.example.net/content/fhg/fhg.json",
+            url="https://www.fhg-tirol.ac.at/page.cfm?vpath=studium/bachelor/radiologietechnologie",
             content="Study content",
         )
     ]
@@ -522,7 +523,7 @@ async def test_get_sources_content_uses_storage_url_for_fhg_citations(chat_appro
         use_semantic_captions=False,
         include_text_sources=True,
         download_image_sources=False,
-        use_document_storage_url_for_citations=True,
+        document_citation_target="url",
     )
 
     assert data_points.citations == ["https://www.fhg-tirol.ac.at/page.cfm?vpath=studium/bachelor/radiologietechnologie"]
@@ -531,14 +532,15 @@ async def test_get_sources_content_uses_storage_url_for_fhg_citations(chat_appro
     ]
 
 
-def test_replace_all_ref_ids_uses_storage_url_for_fhg_citations(chat_approach):
+def test_replace_all_ref_ids_uses_url_for_fhg_citations(chat_approach):
     answer = "See [ref_id:1] for the source."
     documents = [
         Document(
             id="doc1",
             ref_id="1",
-            sourcepage="fhg/radiologietechnologie-page-812.txt",
-            storage_url="https://www.fhg-tirol.ac.at/page.cfm?vpath=studium/bachelor/radiologietechnologie",
+            sourcepage="doc_id=page-812;parent_id=page-224",
+            storage_url="https://storage.example.net/content/fhg/fhg.json",
+            url="https://www.fhg-tirol.ac.at/page.cfm?vpath=studium/bachelor/radiologietechnologie",
         )
     ]
 
@@ -546,7 +548,7 @@ def test_replace_all_ref_ids_uses_storage_url_for_fhg_citations(chat_approach):
         answer,
         documents,
         [],
-        use_document_storage_url_for_citations=True,
+        document_citation_target="url",
     )
 
     assert result == "See [https://www.fhg-tirol.ac.at/page.cfm?vpath=studium/bachelor/radiologietechnologie] for the source."

@@ -1,7 +1,5 @@
-import json
 import logging
 import re
-import unicodedata
 from dataclasses import dataclass
 from typing import Any
 
@@ -12,7 +10,6 @@ from .textsplitter import ENCODING_MODEL, SentenceTextSplitter
 
 logger = logging.getLogger("scripts")
 
-DEFAULT_SOURCEPAGE_PREFIX = "fhg"
 DEFAULT_MAX_CHUNK_TOKENS = 650
 MIN_CONTENT_CHUNK_TOKENS = 200
 
@@ -24,30 +21,37 @@ class FhgPreparedDocument:
     category: str
     sourcepage: str
     sourcefile: str
-    storage_url: str
+    title: str
+    url: str
+    tags: list[str]
+    user: str | None = None
 
-    def to_search_document(self, acls: dict[str, list[str]] | None = None) -> dict[str, Any]:
-        return {
+    def to_search_document(
+        self,
+        *,
+        storage_url: str,
+        acls: dict[str, list[str]] | None = None,
+    ) -> dict[str, Any]:
+        document = {
             "id": self.id,
             "content": self.content,
             "category": self.category,
             "sourcepage": self.sourcepage,
             "sourcefile": self.sourcefile,
-            "storageUrl": self.storage_url,
+            "storageUrl": storage_url,
+            "title": self.title,
+            "url": self.url,
+            "tags": self.tags,
             **(acls or {}),
         }
-
-
-@dataclass
-class FhgSourceBlob:
-    name: str
-    text: str
+        if self.user is not None:
+            document["user"] = self.user
+        return document
 
 
 @dataclass
 class FhgPreparedDataset:
     documents: list[FhgPreparedDocument]
-    source_blobs: list[FhgSourceBlob]
 
 
 def prepare_fhg_dataset(
@@ -55,24 +59,16 @@ def prepare_fhg_dataset(
     *,
     dataset_filename: str,
     category: str,
-    sourcepage_prefix: str = DEFAULT_SOURCEPAGE_PREFIX,
     max_chunk_tokens: int = DEFAULT_MAX_CHUNK_TOKENS,
 ) -> FhgPreparedDataset:
     documents_payload, dataset_count = validate_fhg_payload(payload)
 
     prepared_documents: list[FhgPreparedDocument] = []
-    source_blobs: list[FhgSourceBlob] = []
 
-    for study in documents_payload:
-        sourcepage = make_sourcepage_name(study, prefix=sourcepage_prefix)
-        source_text = build_source_blob_text(
-            study=study,
-            dataset_filename=dataset_filename,
-            dataset_count=dataset_count,
-            category=category,
-        )
-        source_blobs.append(FhgSourceBlob(name=sourcepage, text=source_text))
-
+    for study_index, study in enumerate(documents_payload, start=1):
+        doc_id = resolve_doc_id(study, study_index)
+        title = resolve_title(study, doc_id)
+        url = get_text_field(study, "url").strip()
         chunk_texts = build_chunk_texts(
             study=study,
             dataset_filename=dataset_filename,
@@ -81,20 +77,21 @@ def prepare_fhg_dataset(
             max_chunk_tokens=max_chunk_tokens,
         )
 
-        doc_id = require_string_field(study, "doc_id")
         for chunk_index, chunk_text in enumerate(chunk_texts, start=1):
             prepared_documents.append(
                 FhgPreparedDocument(
                     id=f"fhg-{doc_id}-chunk-{chunk_index:03d}",
                     content=chunk_text,
                     category=category,
-                    sourcepage=sourcepage,
-                    sourcefile=dataset_filename,
-                    storage_url=require_string_field(study, "url"),
+                    sourcepage=make_sourcepage_value(study, doc_id=doc_id),
+                    sourcefile=get_text_field(study, "filename").strip(),
+                    title=title,
+                    url=url,
+                    tags=require_string_list_field(study, "tags"),
                 )
             )
 
-    return FhgPreparedDataset(documents=prepared_documents, source_blobs=source_blobs)
+    return FhgPreparedDataset(documents=prepared_documents)
 
 
 def validate_fhg_payload(payload: dict[str, Any]) -> tuple[list[dict[str, Any]], int]:
@@ -127,35 +124,9 @@ def validate_fhg_payload(payload: dict[str, Any]) -> tuple[list[dict[str, Any]],
     return normalized_documents, dataset_count
 
 
-def make_sourcepage_name(study: dict[str, Any], *, prefix: str) -> str:
-    title_slug = slugify(require_string_field(study, "title"))
-    doc_id = slugify(require_string_field(study, "doc_id"))
-    filename_slug = slugify(require_string_field(study, "filename").split("/")[-1])
-    stable_slug = title_slug or filename_slug or doc_id or "fhg-document"
-    return f"{prefix}/{stable_slug}-{doc_id}.txt"
-
-
-def build_source_blob_text(
-    *,
-    study: dict[str, Any],
-    dataset_filename: str,
-    dataset_count: int,
-    category: str,
-) -> str:
-    dataset_json = build_dataset_json(
-        dataset_filename=dataset_filename,
-        dataset_count=dataset_count,
-        category=category,
-    )
-    return "\n".join(
-        [
-            f"title: {require_string_field(study, 'title')}",
-            f"url: {require_string_field(study, 'url')}",
-            f"dataset_json: {dataset_json}",
-            "document_json:",
-            json.dumps(study, ensure_ascii=False, indent=2, sort_keys=True),
-        ]
-    )
+def make_sourcepage_value(study: dict[str, Any], *, doc_id: str) -> str:
+    parent_id = get_text_field(study, "parent_id").strip() or "none"
+    return f"doc_id={doc_id};parent_id={parent_id}"
 
 
 def build_chunk_texts(
@@ -166,30 +137,18 @@ def build_chunk_texts(
     category: str,
     max_chunk_tokens: int,
 ) -> list[str]:
-    dataset_json = build_dataset_json(
-        dataset_filename=dataset_filename,
-        dataset_count=dataset_count,
-        category=category,
-    )
+    _ = dataset_filename, dataset_count, category
     metadata_lines = build_metadata_lines(study)
-    header_without_chunk = "\n".join(
-        [
-            *metadata_lines,
-            f"dataset_json: {dataset_json}",
-        ]
-    )
-    content_value = require_string_field(study, "content")
+    header_without_chunk = "\n".join(metadata_lines)
+    content_value = get_text_field(study, "content")
     content_chunks = split_content_into_chunks(content_value, header_without_chunk, max_chunk_tokens)
 
     rendered_chunks: list[str] = []
-    chunk_count = len(content_chunks)
-    for chunk_index, chunk in enumerate(content_chunks, start=1):
+    for chunk in content_chunks:
         rendered_chunks.append(
             "\n".join(
                 [
                     *metadata_lines,
-                    f"dataset_json: {dataset_json}",
-                    f"chunk: {chunk_index}/{chunk_count}",
                     "",
                     "content:",
                     chunk,
@@ -207,34 +166,26 @@ def build_metadata_lines(study: dict[str, Any]) -> list[str]:
     if not isinstance(metadata, dict):
         raise ValueError("FHG study field 'metadata' must be an object")
 
-    categories = study.get("category")
-    if categories is None:
-        categories = []
-    if not isinstance(categories, list) or not all(isinstance(item, str) for item in categories):
-        raise ValueError("FHG study field 'category' must be an array of strings")
+    categories = require_string_list_field(study, "category")
+    tags = require_string_list_field(study, "tags")
 
-    tags = study.get("tags")
-    if tags is None:
-        tags = []
-    if not isinstance(tags, list) or not all(isinstance(item, str) for item in tags):
-        raise ValueError("FHG study field 'tags' must be an array of strings")
+    title = (
+        get_text_field(study, "title").strip()
+        or get_text_field(study, "filename").strip()
+        or get_text_field(study, "url").strip()
+        or get_text_field(study, "doc_id").strip()
+        or "Untitled FHG document"
+    )
 
-    lines = [
-        f"title: {require_string_field(study, 'title')}",
-        f"doc_id: {require_string_field(study, 'doc_id')}",
-        f"parent_id: {require_string_field(study, 'parent_id')}",
-        f"filename: {require_string_field(study, 'filename')}",
-        f"url: {require_string_field(study, 'url')}",
-        f"categories: {json.dumps(categories, ensure_ascii=False)}",
-        f"tags: {json.dumps(tags, ensure_ascii=False)}",
-        f"metadata_json: {json.dumps(metadata, ensure_ascii=False, sort_keys=True)}",
-    ]
+    lines = [f"title: {title}"]
 
-    study_name = metadata.get("studium_name")
-    if isinstance(study_name, str) and study_name:
-        lines.append(f"studium_name: {study_name}")
+    if categories:
+        lines.append(f"categories: {', '.join(categories)}")
+    if tags:
+        lines.append(f"tags: {', '.join(tags)}")
 
     for key in [
+        "studium_name",
         "degree_type",
         "degree_name",
         "degree_abbreviation",
@@ -302,19 +253,6 @@ def split_paragraphs(content: str) -> list[str]:
     normalized = content.replace("\r\n", "\n").replace("\r", "\n").strip()
     return [paragraph.strip() for paragraph in re.split(r"\n\s*\n+", normalized) if paragraph.strip()]
 
-
-def build_dataset_json(*, dataset_filename: str, dataset_count: int, category: str) -> str:
-    return json.dumps(
-        {
-            "dataset_filename": dataset_filename,
-            "dataset_count": dataset_count,
-            "index_category": category,
-        },
-        ensure_ascii=False,
-        sort_keys=True,
-    )
-
-
 def require_string_field(study: dict[str, Any], field_name: str) -> str:
     value = study.get(field_name)
     if not isinstance(value, str) or not value:
@@ -322,8 +260,48 @@ def require_string_field(study: dict[str, Any], field_name: str) -> str:
     return value
 
 
-def slugify(value: str) -> str:
-    normalized = unicodedata.normalize("NFKD", value)
-    ascii_value = normalized.encode("ascii", "ignore").decode("ascii")
-    slug = re.sub(r"[^0-9a-zA-Z]+", "-", ascii_value).strip("-").lower()
-    return slug
+def resolve_doc_id(study: dict[str, Any], fallback_index: int) -> str:
+    doc_id = get_text_field(study, "doc_id").strip()
+    if doc_id:
+        return doc_id
+    return f"fhg-record-{fallback_index:04d}"
+
+
+def resolve_title(study: dict[str, Any], doc_id: str) -> str:
+    title = get_text_field(study, "title").strip()
+    if title:
+        return title
+    filename = get_text_field(study, "filename").strip()
+    if filename:
+        return filename
+    url = get_text_field(study, "url").strip()
+    if url:
+        return url
+    return doc_id
+
+
+def get_text_field(study: dict[str, Any], field_name: str) -> str:
+    value = study.get(field_name)
+    if value is None:
+        return ""
+    if not isinstance(value, str):
+        raise ValueError(f"FHG study field '{field_name}' must be a string when present")
+    return value
+
+
+def get_optional_string_field(study: dict[str, Any], field_name: str) -> str | None:
+    value = study.get(field_name)
+    if value is None:
+        return None
+    if not isinstance(value, str) or not value:
+        raise ValueError(f"FHG study field '{field_name}' must be a non-empty string when present")
+    return value
+
+
+def require_string_list_field(study: dict[str, Any], field_name: str) -> list[str]:
+    value = study.get(field_name)
+    if value is None:
+        return []
+    if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+        raise ValueError(f"FHG study field '{field_name}' must be an array of strings")
+    return value
