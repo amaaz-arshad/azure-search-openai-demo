@@ -104,7 +104,12 @@ from prepdocs import (
 )
 from prepdocslib.blobmanager import AdlsBlobManager, BlobManager
 from prepdocslib.embeddings import ImageEmbeddings
-from prepdocslib.filestrategy import ChatbotUploadCancelled, ChatbotUploadStrategy, UploadUserFileStrategy
+from prepdocslib.filestrategy import (
+    ChatbotUploadCancelled,
+    ChatbotUploadRules,
+    ChatbotUploadStrategy,
+    UploadUserFileStrategy,
+)
 from prepdocslib.listfilestrategy import File
 
 bp = Blueprint("routes", __name__, static_folder="static")
@@ -134,6 +139,7 @@ NON_CHATBOT_FRONTEND_PREFIXES = {
 KNOWN_CHATBOT_NAMES = {
     "agindo",
     "nerilio",
+    "public-test",
     "sartorius",
     "steuertipps",
     "knoll",
@@ -834,6 +840,7 @@ async def setup_clients():
             azure_openai_endpoint=azure_openai_endpoint,
         )
 
+    public_test_upload_page_limit = 30
     current_app.config[CONFIG_CHATBOT_UPLOAD_MANAGERS] = {
         "demo": ChatbotUploadStrategy(
             chatbot_name="demo",
@@ -842,7 +849,19 @@ async def setup_clients():
             embeddings=chatbot_upload_embeddings,
             search_field_name_embedding=AZURE_SEARCH_FIELD_NAME_EMBEDDING,
             blob_manager=global_blob_manager,
-        )
+        ),
+        "public-test": ChatbotUploadStrategy(
+            chatbot_name="public-test",
+            search_info=chatbot_upload_search_info,
+            file_processors=chatbot_upload_file_processors,
+            embeddings=chatbot_upload_embeddings,
+            search_field_name_embedding=AZURE_SEARCH_FIELD_NAME_EMBEDDING,
+            blob_manager=global_blob_manager,
+            rules=ChatbotUploadRules(
+                allowed_extensions=frozenset({".pdf"}),
+                max_total_pdf_pages=public_test_upload_page_limit,
+            ),
+        ),
     }
 
     user_blob_manager = None

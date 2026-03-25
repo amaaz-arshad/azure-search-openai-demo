@@ -9,6 +9,7 @@ import { knollChatbot } from "./knoll";
 import { lemonChatbot } from "./lemon";
 import { moodleChatbot } from "./moodle";
 import { nerilioChatbot } from "./nerilio";
+import { publicTestChatbot } from "./public-test";
 import { publishoneChatbot } from "./publishone";
 import { sartoriusChatbot } from "./sartorius";
 import { steuertippsChatbot } from "./steuertipps";
@@ -25,6 +26,7 @@ export interface ChatbotDefinition {
 export const chatbotDefinitions: ChatbotDefinition[] = [
     agindoChatbot,
     nerilioChatbot,
+    publicTestChatbot,
     steuertippsChatbot,
     knollChatbot,
     lemonChatbot,

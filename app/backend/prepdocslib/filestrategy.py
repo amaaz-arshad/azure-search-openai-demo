@@ -8,6 +8,8 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from typing import Optional
 
+from pypdf import PdfReader
+
 from .blobmanager import AdlsBlobManager, BaseBlobManager, BlobManager
 from .embeddings import ImageEmbeddings, OpenAIEmbeddings
 from .figureprocessor import FigureProcessor, MediaDescriptionStrategy, process_page_image
@@ -27,6 +29,14 @@ class ChatbotUploadManifest:
     blob_name: str
     upload_id: str
     uploaded_at: str
+    page_count: Optional[int] = None
+    file_extension: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class ChatbotUploadRules:
+    allowed_extensions: Optional[frozenset[str]] = None
+    max_total_pdf_pages: Optional[int] = None
 
 
 class ChatbotUploadCancelled(Exception):
@@ -247,12 +257,14 @@ class ChatbotUploadStrategy:
         blob_manager: BlobManager,
         search_field_name_embedding: Optional[str] = None,
         embeddings: Optional[OpenAIEmbeddings] = None,
+        rules: Optional[ChatbotUploadRules] = None,
     ):
         self.chatbot_name = chatbot_name
         self.file_processors = file_processors
         self.embeddings = embeddings
         self.search_info = search_info
         self.blob_manager = blob_manager
+        self.rules = rules or ChatbotUploadRules()
         self.storage_prefix = f"chatbot-uploads/{self.chatbot_name}"
         self.files_prefix = f"{self.storage_prefix}/files"
         self.manifest_prefix = f"{self.storage_prefix}/.manifests"
@@ -303,7 +315,12 @@ class ChatbotUploadStrategy:
         return f"{self.cancel_prefix}/{self.upload_token(upload_id)}.cancel"
 
     def is_supported(self, filename: str) -> bool:
-        return os.path.splitext(filename)[1].lower() in self.file_processors
+        extension = os.path.splitext(filename)[1].lower()
+        if extension not in self.file_processors:
+            return False
+        if self.rules.allowed_extensions is None:
+            return True
+        return extension in self.rules.allowed_extensions
 
     def is_own_storage_url(self, storage_url: Optional[str], filename: str) -> bool:
         if not storage_url:
@@ -323,6 +340,8 @@ class ChatbotUploadStrategy:
                 blob_name=manifest_data["blob_name"],
                 upload_id=manifest_data["upload_id"],
                 uploaded_at=manifest_data["uploaded_at"],
+                page_count=manifest_data.get("page_count"),
+                file_extension=manifest_data.get("file_extension"),
             )
         except (KeyError, TypeError, ValueError, json.JSONDecodeError):
             logger.warning("Invalid upload manifest for %s", filename)
@@ -410,14 +429,76 @@ class ChatbotUploadStrategy:
                     return True
         return False
 
+    @staticmethod
+    def count_pdf_pages(file_content, filename: str) -> int:
+        try:
+            file_content.seek(0)
+            reader = PdfReader(file_content)
+            page_count = len(reader.pages)
+            file_content.seek(0)
+            return page_count
+        except Exception as error:
+            try:
+                file_content.seek(0)
+            except Exception:
+                pass
+            raise ValueError(f"Unable to read PDF page count from {filename}") from error
+
+    async def get_uploaded_pdf_page_count(self, filename: str) -> int:
+        manifest = await self.get_manifest(filename)
+        file_extension = manifest.file_extension if manifest is not None else os.path.splitext(filename)[1].lower()
+        if file_extension != ".pdf":
+            return 0
+
+        if manifest is not None and manifest.page_count is not None:
+            return manifest.page_count
+
+        blob_name = manifest.blob_name if manifest is not None else self.legacy_blob_name(filename)
+        blob = await self.blob_manager.download_blob(blob_name)
+        if blob is None:
+            return 0
+
+        content, _ = blob
+        return self.count_pdf_pages(io.BytesIO(content), filename)
+
+    async def get_total_uploaded_pdf_pages(self, excluding_filename: Optional[str] = None) -> int:
+        total_pages = 0
+        normalized_excluding_filename = self.logical_filename(excluding_filename) if excluding_filename else None
+
+        for existing_filename in await self.list_files():
+            normalized_filename = self.logical_filename(existing_filename)
+            if normalized_excluding_filename is not None and normalized_filename == normalized_excluding_filename:
+                continue
+            total_pages += await self.get_uploaded_pdf_page_count(normalized_filename)
+
+        return total_pages
+
+    async def validate_upload_constraints(self, file: File, filename: str) -> Optional[int]:
+        if self.rules.max_total_pdf_pages is None or os.path.splitext(filename)[1].lower() != ".pdf":
+            return None
+
+        pdf_page_count = self.count_pdf_pages(file.content, filename)
+        existing_pdf_pages = await self.get_total_uploaded_pdf_pages(excluding_filename=filename)
+        total_pdf_pages = existing_pdf_pages + pdf_page_count
+
+        if total_pdf_pages > self.rules.max_total_pdf_pages:
+            raise ValueError(
+                f"{self.chatbot_name} allows up to {self.rules.max_total_pdf_pages} uploaded PDF pages in total. "
+                f"Existing uploads use {existing_pdf_pages} pages and {filename} adds {pdf_page_count} pages."
+            )
+
+        return pdf_page_count
+
     async def add_file(self, file: File, upload_id: Optional[str] = None) -> str:
         filename = self.logical_filename(file.filename())
+        file_extension = os.path.splitext(filename)[1].lower()
         if not self.is_supported(filename):
             raise ValueError(f"Unsupported file type: {filename}")
         if await self.has_conflicting_non_upload_document(filename):
             raise ValueError(
                 f"Filename '{filename}' conflicts with existing {self.chatbot_name} content. Rename the file and upload it again."
             )
+        pdf_page_count = await self.validate_upload_constraints(file, filename)
 
         upload_id = upload_id or datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")
         new_blob_name: Optional[str] = None
@@ -462,6 +543,8 @@ class ChatbotUploadStrategy:
                     blob_name=new_blob_name,
                     upload_id=upload_id,
                     uploaded_at=datetime.now(timezone.utc).isoformat(),
+                    page_count=pdf_page_count,
+                    file_extension=file_extension,
                 )
             )
             await self.remove_stale_blobs(filename, keep_blob_name=new_blob_name)

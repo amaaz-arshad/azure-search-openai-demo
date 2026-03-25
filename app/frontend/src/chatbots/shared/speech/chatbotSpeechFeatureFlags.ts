@@ -54,6 +54,11 @@ export const chatbotSpeechFeatureFlags: Record<string, ChatbotSpeechVisibility> 
         showSpeechOutputBrowser: false,
         showSpeechOutputAzure: false
     },
+    "public-test": {
+        showSpeechInput: true,
+        showSpeechOutputBrowser: true,
+        showSpeechOutputAzure: true
+    },
     publishone: {
         showSpeechInput: true,
         showSpeechOutputBrowser: true,

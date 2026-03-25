@@ -81,6 +81,9 @@ export const chatbotThemes: Record<string, ChatbotThemeSeed> = {
     nerilio: {
         primary: "#ac44c6"
     },
+    "public-test": {
+        primary: "#313335"
+    },
     publishone: {
         primary: "#212529"
     },

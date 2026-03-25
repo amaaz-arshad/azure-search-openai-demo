@@ -7,12 +7,15 @@ import azure.storage.blob.aio
 import azure.storage.filedatalake
 import azure.storage.filedatalake.aio
 import pytest
+import app
 from azure.search.documents.aio import SearchClient
 from azure.storage.blob.aio import ContainerClient
 from azure.storage.filedatalake.aio import DataLakeDirectoryClient, DataLakeFileClient
+from pypdf import PdfWriter
 from quart.datastructures import FileStorage
 
 from prepdocslib.embeddings import OpenAIEmbeddings
+from prepdocslib.filestrategy import ChatbotUploadManifest
 
 
 class BlobListIterator:
@@ -36,6 +39,17 @@ class MockBlobClient:
 
     async def exists(self):
         return self.name in self.existing_blobs
+
+
+def create_pdf_bytes(page_count: int) -> BytesIO:
+    writer = PdfWriter()
+    for _ in range(page_count):
+        writer.add_blank_page(width=72, height=72)
+
+    pdf_stream = BytesIO()
+    writer.write(pdf_stream)
+    pdf_stream.seek(0)
+    return pdf_stream
 
 
 @pytest.mark.asyncio
@@ -683,3 +697,108 @@ async def test_cancel_chatbot_upload_prevents_indexing(client, monkeypatch):
     assert uploaded_blob_names == [cancel_marker_name]
     assert deleted_blob_names == [cancel_marker_name]
     assert documents_uploaded == []
+
+
+@pytest.mark.asyncio
+async def test_public_test_rejects_non_pdf_upload(client, monkeypatch):
+    async def mock_exists(*args, **kwargs):
+        return True
+
+    class EmptyAsyncSearchResultsIterator:
+        def __aiter__(self):
+            return self
+
+        async def __anext__(self):
+            raise StopAsyncIteration
+
+    async def mock_search(self, *args, **kwargs):
+        return EmptyAsyncSearchResultsIterator()
+
+    monkeypatch.setattr(ContainerClient, "exists", mock_exists)
+    monkeypatch.setattr(ContainerClient, "list_blobs", lambda *args, **kwargs: BlobListIterator([]))
+    monkeypatch.setattr(SearchClient, "search", mock_search)
+
+    response = await client.post(
+        "/chatbot_uploads/public-test",
+        files={"files": FileStorage(BytesIO(b"demo upload content"), filename="notes.txt")},
+    )
+
+    payload = await response.get_json()
+    assert response.status_code == 400
+    assert payload["message"] == "Unsupported file type: notes.txt"
+
+
+@pytest.mark.asyncio
+async def test_public_test_rejects_pdf_over_total_page_limit(client, monkeypatch):
+    async def mock_exists(*args, **kwargs):
+        return True
+
+    class EmptyAsyncSearchResultsIterator:
+        def __aiter__(self):
+            return self
+
+        async def __anext__(self):
+            raise StopAsyncIteration
+
+    async def mock_search(self, *args, **kwargs):
+        return EmptyAsyncSearchResultsIterator()
+
+    monkeypatch.setattr(ContainerClient, "exists", mock_exists)
+    monkeypatch.setattr(ContainerClient, "list_blobs", lambda *args, **kwargs: BlobListIterator([]))
+    monkeypatch.setattr(SearchClient, "search", mock_search)
+
+    response = await client.post(
+        "/chatbot_uploads/public-test",
+        files={"files": FileStorage(create_pdf_bytes(31), filename="too-many-pages.pdf")},
+    )
+
+    payload = await response.get_json()
+    assert response.status_code == 400
+    assert "allows up to 30 uploaded PDF pages in total" in payload["message"]
+
+
+@pytest.mark.asyncio
+async def test_public_test_rejects_pdf_when_existing_uploads_exceed_total_page_limit(client, monkeypatch):
+    async def mock_exists(*args, **kwargs):
+        return True
+
+    class EmptyAsyncSearchResultsIterator:
+        def __aiter__(self):
+            return self
+
+        async def __anext__(self):
+            raise StopAsyncIteration
+
+    async def mock_search(self, *args, **kwargs):
+        return EmptyAsyncSearchResultsIterator()
+
+    manager = client.app.config[app.CONFIG_CHATBOT_UPLOAD_MANAGERS]["public-test"]
+
+    async def mock_list_files():
+        return ["existing.pdf"]
+
+    async def mock_get_manifest(filename: str):
+        if filename != "existing.pdf":
+            return None
+        return ChatbotUploadManifest(
+            filename="existing.pdf",
+            blob_name="chatbot-uploads/public-test/files/existing/existing.pdf",
+            upload_id="upload-1",
+            uploaded_at="2026-03-25T00:00:00+00:00",
+            page_count=20,
+            file_extension=".pdf",
+        )
+
+    monkeypatch.setattr(ContainerClient, "exists", mock_exists)
+    monkeypatch.setattr(SearchClient, "search", mock_search)
+    monkeypatch.setattr(manager, "list_files", mock_list_files)
+    monkeypatch.setattr(manager, "get_manifest", mock_get_manifest)
+
+    response = await client.post(
+        "/chatbot_uploads/public-test",
+        files={"files": FileStorage(create_pdf_bytes(11), filename="new-upload.pdf")},
+    )
+
+    payload = await response.get_json()
+    assert response.status_code == 400
+    assert "Existing uploads use 20 pages and new-upload.pdf adds 11 pages." in payload["message"]

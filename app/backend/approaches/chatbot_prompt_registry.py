@@ -10,6 +10,7 @@ DEFAULT_CHATBOT_NAME = "nerilio"
 CHATBOT_PROMPT_MODULES = {
     "agindo": "approaches.chatbots.agindo.sampleprompt",
     "nerilio": "approaches.chatbots.nerilio.sampleprompt",
+    "public-test": "approaches.chatbots.public_test.sampleprompt",
     "sartorius": "approaches.chatbots.sartorius.sampleprompt",
     "steuertipps": "approaches.chatbots.steuertipps.sampleprompt",
     "knoll": "approaches.chatbots.knoll.sampleprompt",
