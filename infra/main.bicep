@@ -120,7 +120,7 @@ param deployAzureOpenAi bool = openAiHost == 'azure'
 param azureOpenAiCustomUrl string = ''
 @secure()
 param azureOpenAiApiKey string = ''
-param azureOpenAiDisableKeys bool = true
+param azureOpenAiDisableKeys bool = false
 param openAiServiceName string = ''
 param openAiResourceGroupName string = ''
 
@@ -963,7 +963,7 @@ module storage 'core/storage/storage-account.bicep' = {
     publicNetworkAccess: publicNetworkAccess
     bypass: bypass
     allowBlobPublicAccess: false
-    allowSharedKeyAccess: false
+    allowSharedKeyAccess: true
     sku: {
       name: storageSkuName
     }
@@ -1000,7 +1000,7 @@ module userStorage 'core/storage/storage-account.bicep' = if (useUserUpload) {
     publicNetworkAccess: publicNetworkAccess
     bypass: bypass
     allowBlobPublicAccess: false
-    allowSharedKeyAccess: false
+    allowSharedKeyAccess: true
     isHnsEnabled: true
     sku: {
       name: storageSkuName
@@ -1032,7 +1032,7 @@ module adlsStorage 'core/storage/storage-account.bicep' = if (useCloudIngestionA
     publicNetworkAccess: publicNetworkAccess
     bypass: bypass
     allowBlobPublicAccess: false
-    allowSharedKeyAccess: false
+    allowSharedKeyAccess: true
     isHnsEnabled: true
     sku: {
       name: storageSkuName
