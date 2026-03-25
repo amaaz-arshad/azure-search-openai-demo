@@ -228,7 +228,19 @@
         "signUp": "Registreren",
         "haveAccount": "Heb je al een account?",
         "switchToLogin": "Inloggen",
-        "creatingAccount": "Account wordt aangemaakt..."
+        "creatingAccount": "Account wordt aangemaakt...",
+        "verifyTitle": "Bevestig je e-mail",
+        "verifySubtitle": "We hebben een 6-cijferige code naar {{email}} gestuurd. Vul die hieronder in om je account af te ronden.",
+        "verificationCode": "Verificatiecode",
+        "verifyCode": "E-mail bevestigen",
+        "verifyingCode": "Code wordt gecontroleerd...",
+        "sendingCode": "Code wordt verzonden...",
+        "resendCode": "Code opnieuw verzenden",
+        "resendingCode": "Code wordt opnieuw verzonden...",
+        "changeEmail": "E-mail wijzigen",
+        "codeSent": "We hebben een verificatiecode naar {{email}} gestuurd.",
+        "codeResent": "Er is een nieuwe verificatiecode naar {{email}} gestuurd.",
+        "verificationHint": "Voer de 6-cijferige code uit je e-mail in."
     },
     "authErrors": {
         "displayNameRequired": "Weergavenaam is verplicht.",
@@ -239,6 +251,14 @@
         "passwordMismatch": "Wachtwoorden komen niet overeen.",
         "accountExists": "Er bestaat al een account met dit e-mailadres.",
         "invalidCredentials": "Ongeldig e-mailadres of wachtwoord.",
-        "unexpected": "Aanmelden is mislukt. Probeer het opnieuw."
+        "unexpected": "Aanmelden is mislukt. Probeer het opnieuw.",
+        "verificationCodeRequired": "Verificatiecode is verplicht.",
+        "invalidVerificationCode": "De verificatiecode is onjuist.",
+        "verificationCodeExpired": "De verificatiecode is verlopen. Vraag een nieuwe code aan.",
+        "verificationResendTooSoon": "Wacht even voordat je een nieuwe code aanvraagt.",
+        "verificationEmailUnavailable": "E-mailverificatie is momenteel niet beschikbaar.",
+        "verificationEmailFailed": "We konden de verificatie-e-mail niet verzenden. Probeer het opnieuw.",
+        "verificationTooManyAttempts": "Te veel onjuiste verificatiepogingen. Start de registratie opnieuw.",
+        "verificationSessionNotFound": "Er is geen actieve verificatiesessie gevonden voor dit e-mailadres."
     }
 }

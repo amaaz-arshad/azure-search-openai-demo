@@ -299,6 +299,24 @@
     "serverAppSecret": {
       "value": "${AZURE_SERVER_APP_SECRET}"
     },
+    "publicTestSmtpHost": {
+      "value": "${PUBLIC_TEST_SMTP_HOST}"
+    },
+    "publicTestSmtpPort": {
+      "value": "${PUBLIC_TEST_SMTP_PORT=587}"
+    },
+    "publicTestSmtpUsername": {
+      "value": "${PUBLIC_TEST_SMTP_USERNAME}"
+    },
+    "publicTestSmtpPassword": {
+      "value": "${PUBLIC_TEST_SMTP_PASSWORD}"
+    },
+    "publicTestEmailFrom": {
+      "value": "${PUBLIC_TEST_EMAIL_FROM}"
+    },
+    "publicTestEmailFromName": {
+      "value": "${PUBLIC_TEST_EMAIL_FROM_NAME=Public Test}"
+    },
     "clientAppId": {
       "value": "${AZURE_CLIENT_APP_ID}"
     },

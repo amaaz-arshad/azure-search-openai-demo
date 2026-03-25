@@ -189,7 +189,19 @@
         "signUp": "新規登録",
         "haveAccount": "すでにアカウントをお持ちですか？",
         "switchToLogin": "ログイン",
-        "creatingAccount": "アカウントを作成中..."
+        "creatingAccount": "アカウントを作成中...",
+        "verifyTitle": "メールを確認してください",
+        "verifySubtitle": "{{email}} に6桁の確認コードを送信しました。アカウント作成を完了するため、下に入力してください。",
+        "verificationCode": "確認コード",
+        "verifyCode": "メールを確認",
+        "verifyingCode": "コードを確認中...",
+        "sendingCode": "コードを送信中...",
+        "resendCode": "コードを再送信",
+        "resendingCode": "コードを再送信中...",
+        "changeEmail": "メールアドレスを変更",
+        "codeSent": "{{email}} に確認コードを送信しました。",
+        "codeResent": "{{email}} に新しい確認コードを送信しました。",
+        "verificationHint": "メールに届いた6桁のコードを入力してください。"
     },
     "authErrors": {
         "displayNameRequired": "表示名は必須です。",
@@ -200,6 +212,14 @@
         "passwordMismatch": "パスワードが一致しません。",
         "accountExists": "このメールアドレスのアカウントはすでに存在します。",
         "invalidCredentials": "メールアドレスまたはパスワードが正しくありません。",
-        "unexpected": "認証に失敗しました。もう一度お試しください。"
+        "unexpected": "認証に失敗しました。もう一度お試しください。",
+        "verificationCodeRequired": "確認コードを入力してください。",
+        "invalidVerificationCode": "確認コードが正しくありません。",
+        "verificationCodeExpired": "確認コードの有効期限が切れました。新しいコードをリクエストしてください。",
+        "verificationResendTooSoon": "新しいコードをリクエストする前に少しお待ちください。",
+        "verificationEmailUnavailable": "現在、メール確認を利用できません。",
+        "verificationEmailFailed": "確認メールを送信できませんでした。もう一度お試しください。",
+        "verificationTooManyAttempts": "確認コードの入力間違いが多すぎます。もう一度サインアップを開始してください。",
+        "verificationSessionNotFound": "このメールアドレスの有効なサインアップ確認が見つかりません。"
     }
 }

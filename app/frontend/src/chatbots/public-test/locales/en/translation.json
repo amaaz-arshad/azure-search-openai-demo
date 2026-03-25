@@ -227,7 +227,19 @@
         "signUp": "Sign up",
         "haveAccount": "Already have an account?",
         "switchToLogin": "Log in",
-        "creatingAccount": "Creating account..."
+        "creatingAccount": "Creating account...",
+        "verifyTitle": "Verify your email",
+        "verifySubtitle": "We sent a 6-digit code to {{email}}. Enter it below to finish creating your account.",
+        "verificationCode": "Verification code",
+        "verifyCode": "Verify email",
+        "verifyingCode": "Verifying code...",
+        "sendingCode": "Sending code...",
+        "resendCode": "Resend code",
+        "resendingCode": "Resending code...",
+        "changeEmail": "Change email",
+        "codeSent": "We sent a verification code to {{email}}.",
+        "codeResent": "A new verification code was sent to {{email}}.",
+        "verificationHint": "Enter the 6-digit code from your email."
     },
     "authErrors": {
         "displayNameRequired": "Display name is required.",
@@ -238,6 +250,14 @@
         "passwordMismatch": "Passwords do not match.",
         "accountExists": "An account with this email already exists.",
         "invalidCredentials": "Invalid email or password.",
-        "unexpected": "Authentication failed. Please try again."
+        "unexpected": "Authentication failed. Please try again.",
+        "verificationCodeRequired": "Verification code is required.",
+        "invalidVerificationCode": "The verification code is incorrect.",
+        "verificationCodeExpired": "The verification code has expired. Request a new one.",
+        "verificationResendTooSoon": "Please wait a moment before requesting another code.",
+        "verificationEmailUnavailable": "Email verification is currently unavailable.",
+        "verificationEmailFailed": "We could not send the verification email. Please try again.",
+        "verificationTooManyAttempts": "Too many incorrect verification attempts. Start signup again.",
+        "verificationSessionNotFound": "No active signup verification was found for this email."
     }
 }

@@ -189,7 +189,19 @@
         "signUp": "Registrarse",
         "haveAccount": "¿Ya tienes una cuenta?",
         "switchToLogin": "Iniciar sesión",
-        "creatingAccount": "Creando cuenta..."
+        "creatingAccount": "Creando cuenta...",
+        "verifyTitle": "Verifica tu correo",
+        "verifySubtitle": "Enviamos un codigo de 6 digitos a {{email}}. Introducelo abajo para terminar de crear tu cuenta.",
+        "verificationCode": "Codigo de verificacion",
+        "verifyCode": "Verificar correo",
+        "verifyingCode": "Verificando codigo...",
+        "sendingCode": "Enviando codigo...",
+        "resendCode": "Reenviar codigo",
+        "resendingCode": "Reenviando codigo...",
+        "changeEmail": "Cambiar correo",
+        "codeSent": "Enviamos un codigo de verificacion a {{email}}.",
+        "codeResent": "Se envio un nuevo codigo de verificacion a {{email}}.",
+        "verificationHint": "Introduce el codigo de 6 digitos de tu correo."
     },
     "authErrors": {
         "displayNameRequired": "El nombre para mostrar es obligatorio.",
@@ -200,6 +212,14 @@
         "passwordMismatch": "Las contraseñas no coinciden.",
         "accountExists": "Ya existe una cuenta con este correo electrónico.",
         "invalidCredentials": "Correo electrónico o contraseña no válidos.",
-        "unexpected": "La autenticación ha fallado. Inténtalo de nuevo."
+        "unexpected": "La autenticación ha fallado. Inténtalo de nuevo.",
+        "verificationCodeRequired": "Se requiere el codigo de verificacion.",
+        "invalidVerificationCode": "El codigo de verificacion es incorrecto.",
+        "verificationCodeExpired": "El codigo de verificacion ha caducado. Solicita uno nuevo.",
+        "verificationResendTooSoon": "Espera un momento antes de solicitar otro codigo.",
+        "verificationEmailUnavailable": "La verificacion por correo no esta disponible en este momento.",
+        "verificationEmailFailed": "No pudimos enviar el correo de verificacion. Intentalo de nuevo.",
+        "verificationTooManyAttempts": "Demasiados intentos de verificacion incorrectos. Vuelve a iniciar el registro.",
+        "verificationSessionNotFound": "No se encontro una verificacion de registro activa para este correo."
     }
 }

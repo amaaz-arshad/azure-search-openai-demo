@@ -189,7 +189,19 @@
         "signUp": "Kayıt ol",
         "haveAccount": "Zaten bir hesabınız var mı?",
         "switchToLogin": "Giriş yap",
-        "creatingAccount": "Hesap oluşturuluyor..."
+        "creatingAccount": "Hesap oluşturuluyor...",
+        "verifyTitle": "E-postani dogrula",
+        "verifySubtitle": "{{email}} adresine 6 haneli bir kod gonderdik. Hesabini tamamlamak icin asagida gir.",
+        "verificationCode": "Dogrulama kodu",
+        "verifyCode": "E-postayi dogrula",
+        "verifyingCode": "Kod dogrulaniyor...",
+        "sendingCode": "Kod gonderiliyor...",
+        "resendCode": "Kodu tekrar gonder",
+        "resendingCode": "Kod tekrar gonderiliyor...",
+        "changeEmail": "E-postayi degistir",
+        "codeSent": "{{email}} adresine bir dogrulama kodu gonderdik.",
+        "codeResent": "{{email}} adresine yeni bir dogrulama kodu gonderildi.",
+        "verificationHint": "E-postandaki 6 haneli kodu gir."
     },
     "authErrors": {
         "displayNameRequired": "Görünen ad zorunludur.",
@@ -200,6 +212,14 @@
         "passwordMismatch": "Parolalar eşleşmiyor.",
         "accountExists": "Bu e-posta adresiyle zaten bir hesap var.",
         "invalidCredentials": "Geçersiz e-posta veya parola.",
-        "unexpected": "Kimlik doğrulama başarısız oldu. Lütfen tekrar deneyin."
+        "unexpected": "Kimlik doğrulama başarısız oldu. Lütfen tekrar deneyin.",
+        "verificationCodeRequired": "Dogrulama kodu gerekli.",
+        "invalidVerificationCode": "Dogrulama kodu hatali.",
+        "verificationCodeExpired": "Dogrulama kodunun suresi doldu. Yeni bir kod iste.",
+        "verificationResendTooSoon": "Yeni bir kod istemeden once biraz bekle.",
+        "verificationEmailUnavailable": "E-posta dogrulamasi su anda kullanilamiyor.",
+        "verificationEmailFailed": "Dogrulama e-postasi gonderilemedi. Lutfen tekrar dene.",
+        "verificationTooManyAttempts": "Cok fazla hatali dogrulama denemesi yapildi. Kaydi yeniden baslat.",
+        "verificationSessionNotFound": "Bu e-posta icin etkin bir kayit dogrulamasi bulunamadi."
     }
 }

@@ -13,6 +13,17 @@ type AuthResult =
           errorKey: string;
       };
 
+type VerificationStartResult =
+    | {
+          ok: true;
+          email: string;
+          expiresInSeconds: number;
+      }
+    | {
+          ok: false;
+          errorKey: string;
+      };
+
 type SignUpInput = {
     displayName: string;
     email: string;
@@ -87,7 +98,7 @@ export const logout = async () => {
     }).catch(() => undefined);
 };
 
-export const signUp = async ({ displayName, email, password, confirmPassword }: SignUpInput): Promise<AuthResult> => {
+export const signUp = async ({ displayName, email, password, confirmPassword }: SignUpInput): Promise<VerificationStartResult> => {
     const normalizedDisplayName = displayName.trim();
     const normalizedEmail = normalizeEmail(email);
 
@@ -136,6 +147,50 @@ export const signUp = async ({ displayName, email, password, confirmPassword }: 
         };
     }
 
+    const payload = (await response.json()) as {
+        verificationRequired?: boolean;
+        email?: string;
+        expiresInSeconds?: number;
+    };
+    if (!payload.verificationRequired || typeof payload.email !== "string") {
+        return { ok: false, errorKey: "authErrors.unexpected" };
+    }
+
+    return {
+        ok: true,
+        email: normalizeEmail(payload.email),
+        expiresInSeconds: typeof payload.expiresInSeconds === "number" ? payload.expiresInSeconds : 0
+    };
+};
+
+export const verifySignUp = async (email: string, verificationCode: string): Promise<AuthResult> => {
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail) {
+        return { ok: false, errorKey: "authErrors.emailRequired" };
+    }
+    if (!verificationCode.trim()) {
+        return { ok: false, errorKey: "authErrors.verificationCodeRequired" };
+    }
+
+    const response = await fetch("/public-test-auth/signup/verify", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            email: normalizedEmail,
+            verificationCode: verificationCode.trim()
+        })
+    });
+
+    if (!response.ok) {
+        return {
+            ok: false,
+            errorKey: await readErrorKey(response, "authErrors.unexpected")
+        };
+    }
+
     const payload = (await response.json()) as { session?: unknown };
     const session = parseSession(payload.session);
     if (!session) {
@@ -144,6 +199,46 @@ export const signUp = async ({ displayName, email, password, confirmPassword }: 
 
     cachedSession = session;
     return { ok: true, session };
+};
+
+export const resendSignUpCode = async (email: string): Promise<VerificationStartResult> => {
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail) {
+        return { ok: false, errorKey: "authErrors.emailRequired" };
+    }
+
+    const response = await fetch("/public-test-auth/signup/resend", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            email: normalizedEmail
+        })
+    });
+
+    if (!response.ok) {
+        return {
+            ok: false,
+            errorKey: await readErrorKey(response, "authErrors.unexpected")
+        };
+    }
+
+    const payload = (await response.json()) as {
+        verificationRequired?: boolean;
+        email?: string;
+        expiresInSeconds?: number;
+    };
+    if (!payload.verificationRequired || typeof payload.email !== "string") {
+        return { ok: false, errorKey: "authErrors.unexpected" };
+    }
+
+    return {
+        ok: true,
+        email: normalizeEmail(payload.email),
+        expiresInSeconds: typeof payload.expiresInSeconds === "number" ? payload.expiresInSeconds : 0
+    };
 };
 
 export const login = async (email: string, password: string): Promise<AuthResult> => {

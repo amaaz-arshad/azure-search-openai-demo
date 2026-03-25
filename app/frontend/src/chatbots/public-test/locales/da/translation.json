@@ -189,7 +189,19 @@
         "signUp": "Opret konto",
         "haveAccount": "Har du allerede en konto?",
         "switchToLogin": "Log ind",
-        "creatingAccount": "Opretter konto..."
+        "creatingAccount": "Opretter konto...",
+        "verifyTitle": "Bekraeft din e-mail",
+        "verifySubtitle": "Vi har sendt en 6-cifret kode til {{email}}. Indtast den nedenfor for at faerdiggoere din konto.",
+        "verificationCode": "Bekraeftelseskode",
+        "verifyCode": "Bekraeft e-mail",
+        "verifyingCode": "Koden bekraeftes...",
+        "sendingCode": "Koden sendes...",
+        "resendCode": "Send kode igen",
+        "resendingCode": "Sender kode igen...",
+        "changeEmail": "Aendr e-mail",
+        "codeSent": "Vi har sendt en bekraeftelseskode til {{email}}.",
+        "codeResent": "En ny bekraeftelseskode blev sendt til {{email}}.",
+        "verificationHint": "Indtast den 6-cifrede kode fra din e-mail."
     },
     "authErrors": {
         "displayNameRequired": "Visningsnavn er påkrævet.",
@@ -200,6 +212,14 @@
         "passwordMismatch": "Adgangskoderne matcher ikke.",
         "accountExists": "Der findes allerede en konto med denne e-mail.",
         "invalidCredentials": "Ugyldig e-mail eller adgangskode.",
-        "unexpected": "Godkendelsen mislykkedes. Prøv igen."
+        "unexpected": "Godkendelsen mislykkedes. Prøv igen.",
+        "verificationCodeRequired": "Bekraeftelseskode er paakraevet.",
+        "invalidVerificationCode": "Bekraeftelseskoden er forkert.",
+        "verificationCodeExpired": "Bekraeftelseskoden er udloeebet. Anmod om en ny kode.",
+        "verificationResendTooSoon": "Vent et oe jeblik, foer du anmoder om en ny kode.",
+        "verificationEmailUnavailable": "E-mailbekraeftelse er ikke tilgaengelig lige nu.",
+        "verificationEmailFailed": "Vi kunne ikke sende bekraeftelsesmailen. Proev igen.",
+        "verificationTooManyAttempts": "For mange forkerte bekraeftelsesforsoeg. Start tilmeldingen igen.",
+        "verificationSessionNotFound": "Der blev ikke fundet en aktiv tilmeldingsbekraeftelse for denne e-mail."
     }
 }

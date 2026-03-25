@@ -229,7 +229,19 @@
         "signUp": "Registrieren",
         "haveAccount": "Haben Sie bereits ein Konto?",
         "switchToLogin": "Anmelden",
-        "creatingAccount": "Konto wird erstellt..."
+        "creatingAccount": "Konto wird erstellt...",
+        "verifyTitle": "E-Mail bestaetigen",
+        "verifySubtitle": "Wir haben einen 6-stelligen Code an {{email}} gesendet. Gib ihn unten ein, um dein Konto fertig zu erstellen.",
+        "verificationCode": "Bestaetigungscode",
+        "verifyCode": "E-Mail bestaetigen",
+        "verifyingCode": "Code wird bestaetigt...",
+        "sendingCode": "Code wird gesendet...",
+        "resendCode": "Code erneut senden",
+        "resendingCode": "Code wird erneut gesendet...",
+        "changeEmail": "E-Mail aendern",
+        "codeSent": "Wir haben einen Bestaetigungscode an {{email}} gesendet.",
+        "codeResent": "Ein neuer Bestaetigungscode wurde an {{email}} gesendet.",
+        "verificationHint": "Gib den 6-stelligen Code aus deiner E-Mail ein."
     },
     "authErrors": {
         "displayNameRequired": "Ein Anzeigename ist erforderlich.",
@@ -240,6 +252,14 @@
         "passwordMismatch": "Die Passwörter stimmen nicht überein.",
         "accountExists": "Für diese E-Mail-Adresse existiert bereits ein Konto.",
         "invalidCredentials": "Ungültige E-Mail oder ungültiges Passwort.",
-        "unexpected": "Die Anmeldung ist fehlgeschlagen. Bitte versuchen Sie es erneut."
+        "unexpected": "Die Anmeldung ist fehlgeschlagen. Bitte versuchen Sie es erneut.",
+        "verificationCodeRequired": "Der Bestaetigungscode ist erforderlich.",
+        "invalidVerificationCode": "Der Bestaetigungscode ist falsch.",
+        "verificationCodeExpired": "Der Bestaetigungscode ist abgelaufen. Bitte fordere einen neuen an.",
+        "verificationResendTooSoon": "Bitte warte kurz, bevor du einen weiteren Code anforderst.",
+        "verificationEmailUnavailable": "Die E-Mail-Bestaetigung ist derzeit nicht verfuegbar.",
+        "verificationEmailFailed": "Die Bestaetigungs-E-Mail konnte nicht gesendet werden. Bitte versuche es erneut.",
+        "verificationTooManyAttempts": "Zu viele falsche Bestaetigungsversuche. Bitte starte die Registrierung erneut.",
+        "verificationSessionNotFound": "Fuer diese E-Mail wurde keine aktive Registrierungsbestaetigung gefunden."
     }
 }

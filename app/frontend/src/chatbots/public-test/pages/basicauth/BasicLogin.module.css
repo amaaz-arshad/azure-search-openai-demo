@@ -7,6 +7,14 @@
     text-align: center;
 }
 
+.verificationHint {
+    margin: -4px 0 0;
+    color: var(--login-text-muted);
+    font-size: 0.9rem;
+    line-height: 1.45;
+    text-align: center;
+}
+
 .modeSwitch {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -71,4 +79,41 @@
 
 .switchLink:disabled {
     cursor: not-allowed;
+}
+
+.secondaryActions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.secondaryButton {
+    border: 1px solid var(--login-panel-border);
+    border-radius: 14px;
+    padding: 11px 14px;
+    font: inherit;
+    font-weight: 600;
+    color: var(--login-accent-dark);
+    background: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    transition:
+        background-color 160ms ease,
+        color 160ms ease,
+        border-color 160ms ease;
+}
+
+.secondaryButton:hover {
+    background: var(--login-accent-soft);
+}
+
+.secondaryButton:disabled {
+    cursor: not-allowed;
+}
+
+.statusMessage {
+    min-height: 1.4rem;
+    margin: 0;
+    color: var(--login-accent-dark);
+    font-size: 0.92rem;
+    text-align: center;
 }

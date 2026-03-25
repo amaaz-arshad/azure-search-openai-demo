@@ -190,7 +190,19 @@
         "signUp": "Zarejestruj się",
         "haveAccount": "Masz już konto?",
         "switchToLogin": "Zaloguj się",
-        "creatingAccount": "Tworzenie konta..."
+        "creatingAccount": "Tworzenie konta...",
+        "verifyTitle": "Potwierdz adres e-mail",
+        "verifySubtitle": "Wyslalismy 6-cyfrowy kod na adres {{email}}. Wpisz go ponizej, aby dokonczyc tworzenie konta.",
+        "verificationCode": "Kod weryfikacyjny",
+        "verifyCode": "Potwierdz e-mail",
+        "verifyingCode": "Trwa weryfikacja kodu...",
+        "sendingCode": "Wysylanie kodu...",
+        "resendCode": "Wyslij kod ponownie",
+        "resendingCode": "Ponowne wysylanie kodu...",
+        "changeEmail": "Zmien adres e-mail",
+        "codeSent": "Wyslalismy kod weryfikacyjny na adres {{email}}.",
+        "codeResent": "Nowy kod weryfikacyjny zostal wyslany na adres {{email}}.",
+        "verificationHint": "Wpisz 6-cyfrowy kod z wiadomosci e-mail."
     },
     "authErrors": {
         "displayNameRequired": "Nazwa wyświetlana jest wymagana.",
@@ -201,6 +213,14 @@
         "passwordMismatch": "Hasła nie są zgodne.",
         "accountExists": "Konto z tym adresem e-mail już istnieje.",
         "invalidCredentials": "Nieprawidłowy adres e-mail lub hasło.",
-        "unexpected": "Uwierzytelnianie nie powiodło się. Spróbuj ponownie."
+        "unexpected": "Uwierzytelnianie nie powiodło się. Spróbuj ponownie.",
+        "verificationCodeRequired": "Kod weryfikacyjny jest wymagany.",
+        "invalidVerificationCode": "Kod weryfikacyjny jest nieprawidlowy.",
+        "verificationCodeExpired": "Kod weryfikacyjny wygasl. Popros o nowy kod.",
+        "verificationResendTooSoon": "Poczekaj chwile przed poproszeniem o kolejny kod.",
+        "verificationEmailUnavailable": "Weryfikacja e-mail jest obecnie niedostepna.",
+        "verificationEmailFailed": "Nie udalo sie wyslac wiadomosci weryfikacyjnej. Sprobuj ponownie.",
+        "verificationTooManyAttempts": "Zbyt wiele blednych prob weryfikacji. Rozpocznij rejestracje ponownie.",
+        "verificationSessionNotFound": "Nie znaleziono aktywnej weryfikacji rejestracji dla tego adresu e-mail."
     }
 }

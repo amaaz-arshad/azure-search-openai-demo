@@ -1,6 +1,7 @@
 import json
 import os
 from typing import Any
+from types import SimpleNamespace
 from unittest import mock
 
 import pytest
@@ -203,15 +204,15 @@ async def test_auth_setup_returns_payload(client):
 
 
 @pytest.mark.asyncio
-async def test_public_test_signup_sets_session_cookie(client, monkeypatch):
+async def test_public_test_signup_starts_verification(client, monkeypatch):
     auth_service = client.app.config[app.CONFIG_PUBLIC_TEST_AUTH_SERVICE]
 
-    async def mock_register_user(**kwargs):
+    async def mock_start_signup(**kwargs):
         assert kwargs["display_name"] == "Test User"
         assert kwargs["email"] == "user@example.com"
-        return app.PublicTestSession(display_name="Test User", email="user@example.com")
+        return SimpleNamespace(email="user@example.com", expires_in_seconds=900)
 
-    monkeypatch.setattr(auth_service, "register_user", mock_register_user)
+    monkeypatch.setattr(auth_service, "start_signup", mock_start_signup)
 
     response = await client.post(
         "/public-test-auth/signup",
@@ -220,6 +221,34 @@ async def test_public_test_signup_sets_session_cookie(client, monkeypatch):
             "email": "user@example.com",
             "password": "secret",
             "confirmPassword": "secret",
+        },
+    )
+
+    payload = await response.get_json()
+    assert response.status_code == 200
+    assert payload == {
+        "verificationRequired": True,
+        "email": "user@example.com",
+        "expiresInSeconds": 900,
+    }
+
+
+@pytest.mark.asyncio
+async def test_public_test_signup_verify_sets_session_cookie(client, monkeypatch):
+    auth_service = client.app.config[app.CONFIG_PUBLIC_TEST_AUTH_SERVICE]
+
+    async def mock_verify_signup(**kwargs):
+        assert kwargs["email"] == "user@example.com"
+        assert kwargs["verification_code"] == "123456"
+        return app.PublicTestSession(display_name="Test User", email="user@example.com")
+
+    monkeypatch.setattr(auth_service, "verify_signup", mock_verify_signup)
+
+    response = await client.post(
+        "/public-test-auth/signup/verify",
+        json={
+            "email": "user@example.com",
+            "verificationCode": "123456",
         },
     )
 

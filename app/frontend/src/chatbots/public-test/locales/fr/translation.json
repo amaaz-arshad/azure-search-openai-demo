@@ -189,7 +189,19 @@
         "signUp": "Créer un compte",
         "haveAccount": "Vous avez déjà un compte ?",
         "switchToLogin": "Se connecter",
-        "creatingAccount": "Création du compte..."
+        "creatingAccount": "Création du compte...",
+        "verifyTitle": "Verifiez votre e-mail",
+        "verifySubtitle": "Nous avons envoye un code a 6 chiffres a {{email}}. Saisissez-le ci-dessous pour finaliser la creation de votre compte.",
+        "verificationCode": "Code de verification",
+        "verifyCode": "Verifier l e-mail",
+        "verifyingCode": "Verification du code...",
+        "sendingCode": "Envoi du code...",
+        "resendCode": "Renvoyer le code",
+        "resendingCode": "Renvoi du code...",
+        "changeEmail": "Changer d e-mail",
+        "codeSent": "Nous avons envoye un code de verification a {{email}}.",
+        "codeResent": "Un nouveau code de verification a ete envoye a {{email}}.",
+        "verificationHint": "Saisissez le code a 6 chiffres recu par e-mail."
     },
     "authErrors": {
         "displayNameRequired": "Le nom affiché est obligatoire.",
@@ -200,6 +212,14 @@
         "passwordMismatch": "Les mots de passe ne correspondent pas.",
         "accountExists": "Un compte existe déjà avec cette adresse e-mail.",
         "invalidCredentials": "E-mail ou mot de passe invalide.",
-        "unexpected": "L’authentification a échoué. Veuillez réessayer."
+        "unexpected": "L’authentification a échoué. Veuillez réessayer.",
+        "verificationCodeRequired": "Le code de verification est requis.",
+        "invalidVerificationCode": "Le code de verification est incorrect.",
+        "verificationCodeExpired": "Le code de verification a expire. Demandez-en un nouveau.",
+        "verificationResendTooSoon": "Veuillez patienter un instant avant de demander un autre code.",
+        "verificationEmailUnavailable": "La verification par e-mail est actuellement indisponible.",
+        "verificationEmailFailed": "Nous n avons pas pu envoyer l e-mail de verification. Veuillez reessayer.",
+        "verificationTooManyAttempts": "Trop de tentatives de verification incorrectes. Recommencez l inscription.",
+        "verificationSessionNotFound": "Aucune verification d inscription active n a ete trouvee pour cette adresse e-mail."
     }
 }

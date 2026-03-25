@@ -377,7 +377,7 @@ async def public_test_signup():
         return jsonify({"errorKey": "authErrors.unexpected"}), 400
     auth_service = get_public_test_auth_service()
     try:
-        session = await auth_service.register_user(
+        verification_challenge = await auth_service.start_signup(
             display_name=str(request_json.get("displayName", "")),
             email=str(request_json.get("email", "")),
             password=str(request_json.get("password", "")),
@@ -386,9 +386,66 @@ async def public_test_signup():
     except PublicTestAuthError as auth_error:
         return jsonify({"errorKey": auth_error.error_key}), auth_error.status_code
 
+    return (
+        jsonify(
+            {
+                "verificationRequired": True,
+                "email": verification_challenge.email,
+                "expiresInSeconds": verification_challenge.expires_in_seconds,
+            }
+        ),
+        200,
+    )
+
+
+@bp.post("/public-test-auth/signup/verify")
+async def public_test_signup_verify():
+    if not request.is_json:
+        return jsonify({"errorKey": "authErrors.unexpected"}), 415
+
+    request_json = await request.get_json()
+    if not isinstance(request_json, dict):
+        return jsonify({"errorKey": "authErrors.unexpected"}), 400
+    auth_service = get_public_test_auth_service()
+    try:
+        session = await auth_service.verify_signup(
+            email=str(request_json.get("email", "")),
+            verification_code=str(request_json.get("verificationCode", "")),
+        )
+    except PublicTestAuthError as auth_error:
+        return jsonify({"errorKey": auth_error.error_key}), auth_error.status_code
+
     response = jsonify({"session": {"displayName": session.display_name, "email": session.email}})
     auth_service.set_session_cookie(response, session, secure=should_set_secure_session_cookie())
     return response, 200
+
+
+@bp.post("/public-test-auth/signup/resend")
+async def public_test_signup_resend():
+    if not request.is_json:
+        return jsonify({"errorKey": "authErrors.unexpected"}), 415
+
+    request_json = await request.get_json()
+    if not isinstance(request_json, dict):
+        return jsonify({"errorKey": "authErrors.unexpected"}), 400
+    auth_service = get_public_test_auth_service()
+    try:
+        verification_challenge = await auth_service.resend_signup_code(
+            email=str(request_json.get("email", "")),
+        )
+    except PublicTestAuthError as auth_error:
+        return jsonify({"errorKey": auth_error.error_key}), auth_error.status_code
+
+    return (
+        jsonify(
+            {
+                "verificationRequired": True,
+                "email": verification_challenge.email,
+                "expiresInSeconds": verification_challenge.expires_in_seconds,
+            }
+        ),
+        200,
+    )
 
 
 @bp.post("/public-test-auth/login")
@@ -827,6 +884,12 @@ async def setup_clients():
     AZURE_SERVER_APP_SECRET = os.getenv("AZURE_SERVER_APP_SECRET")
     AZURE_CLIENT_APP_ID = os.getenv("AZURE_CLIENT_APP_ID")
     AZURE_AUTH_TENANT_ID = os.getenv("AZURE_AUTH_TENANT_ID", AZURE_TENANT_ID)
+    PUBLIC_TEST_SMTP_HOST = os.getenv("PUBLIC_TEST_SMTP_HOST")
+    PUBLIC_TEST_SMTP_PORT = int(os.getenv("PUBLIC_TEST_SMTP_PORT", "587"))
+    PUBLIC_TEST_SMTP_USERNAME = os.getenv("PUBLIC_TEST_SMTP_USERNAME")
+    PUBLIC_TEST_SMTP_PASSWORD = os.getenv("PUBLIC_TEST_SMTP_PASSWORD")
+    PUBLIC_TEST_EMAIL_FROM = os.getenv("PUBLIC_TEST_EMAIL_FROM")
+    PUBLIC_TEST_EMAIL_FROM_NAME = os.getenv("PUBLIC_TEST_EMAIL_FROM_NAME", "Public Test")
 
     KB_FIELDS_CONTENT = os.getenv("KB_FIELDS_CONTENT", "content")
     KB_FIELDS_SOURCEPAGE = os.getenv("KB_FIELDS_SOURCEPAGE", "sourcepage")
@@ -1019,6 +1082,13 @@ async def setup_clients():
     public_test_auth_service = PublicTestAuthStore(
         blob_manager=global_blob_manager,
         session_secret=AZURE_SERVER_APP_SECRET,
+        smtp_host=PUBLIC_TEST_SMTP_HOST,
+        smtp_port=PUBLIC_TEST_SMTP_PORT,
+        smtp_username=PUBLIC_TEST_SMTP_USERNAME,
+        smtp_password=PUBLIC_TEST_SMTP_PASSWORD,
+        email_from=PUBLIC_TEST_EMAIL_FROM,
+        email_from_name=PUBLIC_TEST_EMAIL_FROM_NAME,
+        running_in_production=RUNNING_ON_AZURE,
     )
     await public_test_auth_service.setup()
     current_app.config[CONFIG_PUBLIC_TEST_AUTH_SERVICE] = public_test_auth_service

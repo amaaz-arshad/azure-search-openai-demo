@@ -283,6 +283,13 @@ param enableUnauthenticatedAccess bool = false
 param serverAppId string = ''
 @secure()
 param serverAppSecret string = ''
+param publicTestSmtpHost string = ''
+param publicTestSmtpPort string = '587'
+param publicTestSmtpUsername string = ''
+@secure()
+param publicTestSmtpPassword string = ''
+param publicTestEmailFrom string = ''
+param publicTestEmailFromName string = 'Public Test'
 param clientAppId string = ''
 @secure()
 param clientAppSecret string = ''
@@ -583,6 +590,10 @@ var appEnvVariables = {
   RAG_SEND_IMAGE_SOURCES: ragSendImageSources
   USE_WEB_SOURCE: useWebSource
   USE_SHAREPOINT_SOURCE: useSharePointSource
+  PUBLIC_TEST_SMTP_HOST: publicTestSmtpHost
+  PUBLIC_TEST_SMTP_PORT: publicTestSmtpPort
+  PUBLIC_TEST_EMAIL_FROM: publicTestEmailFrom
+  PUBLIC_TEST_EMAIL_FROM_NAME: publicTestEmailFromName
 }
 
 // App Service for the web application (Python Quart app with JS frontend)
@@ -614,6 +625,8 @@ module backend 'core/host/appservice.bicep' = if (deploymentTarget == 'appservic
     appSettings: union(appEnvVariables, {
       AZURE_SERVER_APP_SECRET: serverAppSecret
       AZURE_CLIENT_APP_SECRET: clientAppSecret
+      PUBLIC_TEST_SMTP_USERNAME: publicTestSmtpUsername
+      PUBLIC_TEST_SMTP_PASSWORD: publicTestSmtpPassword
     })
   }
 }
@@ -671,8 +684,13 @@ module acaBackend 'core/host/container-app-upsert.bicep' = if (deploymentTarget 
     secrets: useAuthentication ? {
       azureclientappsecret: clientAppSecret
       azureserverappsecret: serverAppSecret
-    } : {}
-    envSecrets: useAuthentication ? [
+      publictestsmtpusername: publicTestSmtpUsername
+      publictestsmtppassword: publicTestSmtpPassword
+    } : {
+      publictestsmtpusername: publicTestSmtpUsername
+      publictestsmtppassword: publicTestSmtpPassword
+    }
+    envSecrets: concat(useAuthentication ? [
       {
         name: 'AZURE_CLIENT_APP_SECRET'
         secretRef: 'azureclientappsecret'
@@ -681,7 +699,16 @@ module acaBackend 'core/host/container-app-upsert.bicep' = if (deploymentTarget 
         name: 'AZURE_SERVER_APP_SECRET'
         secretRef: 'azureserverappsecret'
       }
-    ] : []
+    ] : [], [
+      {
+        name: 'PUBLIC_TEST_SMTP_USERNAME'
+        secretRef: 'publictestsmtpusername'
+      }
+      {
+        name: 'PUBLIC_TEST_SMTP_PASSWORD'
+        secretRef: 'publictestsmtppassword'
+      }
+    ])
   }
 }
 

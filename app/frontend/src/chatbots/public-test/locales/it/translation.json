@@ -224,7 +224,19 @@
         "signUp": "Registrati",
         "haveAccount": "Hai già un account?",
         "switchToLogin": "Accedi",
-        "creatingAccount": "Creazione account..."
+        "creatingAccount": "Creazione account...",
+        "verifyTitle": "Verifica la tua e-mail",
+        "verifySubtitle": "Abbiamo inviato un codice di 6 cifre a {{email}}. Inseriscilo qui sotto per completare la creazione del tuo account.",
+        "verificationCode": "Codice di verifica",
+        "verifyCode": "Verifica e-mail",
+        "verifyingCode": "Verifica del codice...",
+        "sendingCode": "Invio del codice...",
+        "resendCode": "Invia di nuovo il codice",
+        "resendingCode": "Invio del codice in corso...",
+        "changeEmail": "Cambia e-mail",
+        "codeSent": "Abbiamo inviato un codice di verifica a {{email}}.",
+        "codeResent": "Un nuovo codice di verifica e stato inviato a {{email}}.",
+        "verificationHint": "Inserisci il codice di 6 cifre ricevuto via e-mail."
     },
     "authErrors": {
         "displayNameRequired": "Il nome visualizzato è obbligatorio.",
@@ -235,6 +247,14 @@
         "passwordMismatch": "Le password non corrispondono.",
         "accountExists": "Esiste già un account con questa e-mail.",
         "invalidCredentials": "E-mail o password non validi.",
-        "unexpected": "Autenticazione non riuscita. Riprova."
+        "unexpected": "Autenticazione non riuscita. Riprova.",
+        "verificationCodeRequired": "Il codice di verifica e obbligatorio.",
+        "invalidVerificationCode": "Il codice di verifica non e corretto.",
+        "verificationCodeExpired": "Il codice di verifica e scaduto. Richiedine uno nuovo.",
+        "verificationResendTooSoon": "Attendi un momento prima di richiedere un altro codice.",
+        "verificationEmailUnavailable": "La verifica e-mail non e attualmente disponibile.",
+        "verificationEmailFailed": "Non siamo riusciti a inviare l e-mail di verifica. Riprova.",
+        "verificationTooManyAttempts": "Troppi tentativi di verifica errati. Riavvia la registrazione.",
+        "verificationSessionNotFound": "Non e stata trovata una verifica di registrazione attiva per questa e-mail."
     }
 }
