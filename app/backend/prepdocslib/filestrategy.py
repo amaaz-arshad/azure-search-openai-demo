@@ -164,11 +164,12 @@ class FileStrategy(Strategy):
 
     async def run(self):
         self.setup_search_manager()
+        blob_prefix = BaseBlobManager.normalize_blob_prefix(self.category)
         if self.document_action == DocumentAction.Add:
             files = self.list_file_strategy.list()
             async for file in files:
                 try:
-                    blob_url = await self.blob_manager.upload_blob(file)
+                    blob_url = await self.blob_manager.upload_blob(file, prefix=blob_prefix)
                     sections = await parse_file(
                         file,
                         self.file_processors,
@@ -185,7 +186,7 @@ class FileStrategy(Strategy):
         elif self.document_action == DocumentAction.Remove:
             paths = self.list_file_strategy.list_paths()
             async for path in paths:
-                await self.blob_manager.remove_blob(path)
+                await self.blob_manager.remove_blob(path, prefix=blob_prefix)
                 await self.search_manager.remove_content(path)
         elif self.document_action == DocumentAction.RemoveAll:
             await self.blob_manager.remove_blob()
@@ -267,7 +268,8 @@ class ChatbotUploadStrategy:
         self.search_info = search_info
         self.blob_manager = blob_manager
         self.rules = rules or ChatbotUploadRules()
-        self.storage_root = f"chatbot-uploads/{self.chatbot_name}"
+        self.storage_root = self.chatbot_name
+        self.legacy_storage_root = f"chatbot-uploads/{self.chatbot_name}"
         self.category = self.chatbot_name
         self.search_manager = SearchManager(
             search_info=self.search_info,
@@ -316,19 +318,34 @@ class ChatbotUploadStrategy:
         user_token = self.user_token(user_identifier)
         if user_token is None:
             return self.storage_root
-        return f"{self.storage_root}/{user_token}/uploaded-files"
+        return f"{self.storage_root}/{user_token}"
+
+    def legacy_storage_prefix(self, user_identifier: Optional[str] = None) -> str:
+        user_token = self.user_token(user_identifier)
+        if user_token is None:
+            return self.legacy_storage_root
+        return f"{self.legacy_storage_root}/{user_token}/uploaded-files"
 
     def files_prefix(self, user_identifier: Optional[str] = None) -> str:
-        return f"{self.storage_prefix(user_identifier)}/files"
+        return f"{self.legacy_storage_prefix(user_identifier)}/files"
 
     def manifest_prefix(self, user_identifier: Optional[str] = None) -> str:
         return f"{self.storage_prefix(user_identifier)}/.manifests"
 
+    def legacy_manifest_prefix(self, user_identifier: Optional[str] = None) -> str:
+        return f"{self.legacy_storage_prefix(user_identifier)}/.manifests"
+
     def cancel_prefix(self, user_identifier: Optional[str] = None) -> str:
         return f"{self.storage_prefix(user_identifier)}/.cancel"
 
-    def legacy_blob_name(self, filename: str, user_identifier: Optional[str] = None) -> str:
+    def legacy_cancel_prefix(self, user_identifier: Optional[str] = None) -> str:
+        return f"{self.legacy_storage_prefix(user_identifier)}/.cancel"
+
+    def file_blob_name(self, filename: str, user_identifier: Optional[str] = None) -> str:
         return f"{self.storage_prefix(user_identifier)}/{self.logical_filename(filename)}"
+
+    def legacy_blob_name(self, filename: str, user_identifier: Optional[str] = None) -> str:
+        return f"{self.legacy_storage_prefix(user_identifier)}/{self.logical_filename(filename)}"
 
     def version_blob_prefix(self, filename: str, user_identifier: Optional[str] = None) -> str:
         return f"{self.files_prefix(user_identifier)}/{self.filename_token(filename)}/"
@@ -342,8 +359,14 @@ class ChatbotUploadStrategy:
     def manifest_blob_name(self, filename: str, user_identifier: Optional[str] = None) -> str:
         return f"{self.manifest_prefix(user_identifier)}/{self.filename_token(filename)}.json"
 
+    def legacy_manifest_blob_name(self, filename: str, user_identifier: Optional[str] = None) -> str:
+        return f"{self.legacy_manifest_prefix(user_identifier)}/{self.filename_token(filename)}.json"
+
     def cancel_blob_name(self, upload_id: str, user_identifier: Optional[str] = None) -> str:
         return f"{self.cancel_prefix(user_identifier)}/{self.upload_token(upload_id)}.cancel"
+
+    def legacy_cancel_blob_name(self, upload_id: str, user_identifier: Optional[str] = None) -> str:
+        return f"{self.legacy_cancel_prefix(user_identifier)}/{self.upload_token(upload_id)}.cancel"
 
     def is_supported(self, filename: str) -> bool:
         extension = os.path.splitext(filename)[1].lower()
@@ -361,9 +384,11 @@ class ChatbotUploadStrategy:
     ) -> bool:
         if not storage_url:
             return False
-        return storage_url.endswith(self.legacy_blob_name(filename, user_identifier)) or self.version_blob_prefix(
-            filename, user_identifier
-        ) in storage_url
+        return (
+            storage_url.endswith(self.file_blob_name(filename, user_identifier))
+            or storage_url.endswith(self.legacy_blob_name(filename, user_identifier))
+            or self.version_blob_prefix(filename, user_identifier) in storage_url
+        )
 
     async def get_manifest(
         self,
@@ -371,27 +396,30 @@ class ChatbotUploadStrategy:
         user_identifier: Optional[str] = None,
     ) -> Optional[ChatbotUploadManifest]:
         normalized_user_identifier = self.normalize_user_identifier(user_identifier)
-        manifest_blob = await self.blob_manager.download_blob(
-            self.manifest_blob_name(filename, normalized_user_identifier)
-        )
-        if manifest_blob is None:
-            return None
+        for manifest_blob_name in (
+            self.manifest_blob_name(filename, normalized_user_identifier),
+            self.legacy_manifest_blob_name(filename, normalized_user_identifier),
+        ):
+            manifest_blob = await self.blob_manager.download_blob(manifest_blob_name)
+            if manifest_blob is None:
+                continue
 
-        try:
-            payload, _ = manifest_blob
-            manifest_data = json.loads(payload.decode("utf-8"))
-            return ChatbotUploadManifest(
-                filename=self.logical_filename(manifest_data["filename"]),
-                blob_name=manifest_data["blob_name"],
-                upload_id=manifest_data["upload_id"],
-                uploaded_at=manifest_data["uploaded_at"],
-                page_count=manifest_data.get("page_count"),
-                file_extension=manifest_data.get("file_extension"),
-                user_identifier=manifest_data.get("user_identifier"),
-            )
-        except (KeyError, TypeError, ValueError, json.JSONDecodeError):
-            logger.warning("Invalid upload manifest for %s", filename)
-            return None
+            try:
+                payload, _ = manifest_blob
+                manifest_data = json.loads(payload.decode("utf-8"))
+                return ChatbotUploadManifest(
+                    filename=self.logical_filename(manifest_data["filename"]),
+                    blob_name=manifest_data["blob_name"],
+                    upload_id=manifest_data["upload_id"],
+                    uploaded_at=manifest_data["uploaded_at"],
+                    page_count=manifest_data.get("page_count"),
+                    file_extension=manifest_data.get("file_extension"),
+                    user_identifier=manifest_data.get("user_identifier"),
+                )
+            except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+                logger.warning("Invalid upload manifest for %s", filename)
+
+        return None
 
     async def save_manifest(self, manifest: ChatbotUploadManifest) -> None:
         manifest_buffer = io.BytesIO(json.dumps(asdict(manifest)).encode("utf-8"))
@@ -403,7 +431,12 @@ class ChatbotUploadStrategy:
 
     async def remove_manifest(self, filename: str, user_identifier: Optional[str] = None) -> None:
         normalized_user_identifier = self.normalize_user_identifier(user_identifier)
-        await self.blob_manager.remove_blob_name(self.manifest_blob_name(filename, normalized_user_identifier))
+        for manifest_blob_name in (
+            self.manifest_blob_name(filename, normalized_user_identifier),
+            self.legacy_manifest_blob_name(filename, normalized_user_identifier),
+        ):
+            if await self.blob_manager.blob_exists(manifest_blob_name):
+                await self.blob_manager.remove_blob_name(manifest_blob_name)
 
     async def request_cancel(self, upload_id: str, user_identifier: Optional[str] = None) -> None:
         normalized_user_identifier = self.normalize_user_identifier(user_identifier)
@@ -416,11 +449,18 @@ class ChatbotUploadStrategy:
 
     async def is_cancel_requested(self, upload_id: str, user_identifier: Optional[str] = None) -> bool:
         normalized_user_identifier = self.normalize_user_identifier(user_identifier)
-        return await self.blob_manager.blob_exists(self.cancel_blob_name(upload_id, normalized_user_identifier))
+        return await self.blob_manager.blob_exists(
+            self.cancel_blob_name(upload_id, normalized_user_identifier)
+        ) or await self.blob_manager.blob_exists(self.legacy_cancel_blob_name(upload_id, normalized_user_identifier))
 
     async def clear_cancel_request(self, upload_id: str, user_identifier: Optional[str] = None) -> None:
         normalized_user_identifier = self.normalize_user_identifier(user_identifier)
-        await self.blob_manager.remove_blob_name(self.cancel_blob_name(upload_id, normalized_user_identifier))
+        for cancel_blob_name in (
+            self.cancel_blob_name(upload_id, normalized_user_identifier),
+            self.legacy_cancel_blob_name(upload_id, normalized_user_identifier),
+        ):
+            if await self.blob_manager.blob_exists(cancel_blob_name):
+                await self.blob_manager.remove_blob_name(cancel_blob_name)
 
     async def list_upload_documents(
         self,
@@ -472,6 +512,9 @@ class ChatbotUploadStrategy:
     ) -> list[str]:
         normalized_user_identifier = self.normalize_user_identifier(user_identifier)
         blob_names = []
+        current_blob_name = self.file_blob_name(filename, normalized_user_identifier)
+        if await self.blob_manager.blob_exists(current_blob_name):
+            blob_names.append(current_blob_name)
         legacy_blob_name = self.legacy_blob_name(filename, normalized_user_identifier)
         if await self.blob_manager.blob_exists(legacy_blob_name):
             blob_names.append(legacy_blob_name)
@@ -553,9 +596,11 @@ class ChatbotUploadStrategy:
         blob_name = (
             manifest.blob_name
             if manifest is not None
-            else self.legacy_blob_name(filename, normalized_user_identifier)
+            else self.file_blob_name(filename, normalized_user_identifier)
         )
         blob = await self.blob_manager.download_blob(blob_name)
+        if blob is None and manifest is None:
+            blob = await self.blob_manager.download_blob(self.legacy_blob_name(filename, normalized_user_identifier))
         if blob is None:
             return 0
 
@@ -643,7 +688,12 @@ class ChatbotUploadStrategy:
                 raise ValueError(f"Unable to extract searchable content from {filename}")
 
             await check_cancel()
-            new_blob_name = self.version_blob_name(filename, upload_id, user_identifier=normalized_user_identifier)
+            await self.remove_stale_upload_documents(
+                filename,
+                keep_storage_url=None,
+                user_identifier=normalized_user_identifier,
+            )
+            new_blob_name = self.file_blob_name(filename, user_identifier=normalized_user_identifier)
             new_storage_url = await self.blob_manager.upload_blob_data(
                 file.content,
                 new_blob_name,
@@ -660,11 +710,6 @@ class ChatbotUploadStrategy:
             )
 
             await check_cancel()
-            await self.remove_stale_upload_documents(
-                filename,
-                keep_storage_url=new_storage_url,
-                user_identifier=normalized_user_identifier,
-            )
             await self.save_manifest(
                 ChatbotUploadManifest(
                     filename=filename,
@@ -675,6 +720,9 @@ class ChatbotUploadStrategy:
                     file_extension=file_extension,
                     user_identifier=normalized_user_identifier,
                 )
+            )
+            await self.blob_manager.remove_blob_name(
+                self.legacy_manifest_blob_name(filename, normalized_user_identifier)
             )
             await self.remove_stale_blobs(
                 filename,
@@ -744,12 +792,33 @@ class ChatbotUploadStrategy:
             except Exception:
                 logger.warning("Skipping unreadable manifest blob %s", blob_name)
 
+        legacy_manifest_prefix = f"{self.legacy_manifest_prefix(normalized_user_identifier)}/"
+        legacy_manifest_blob_names = await self.blob_manager.list_blob_names(legacy_manifest_prefix)
+        for blob_name in legacy_manifest_blob_names:
+            if not blob_name.startswith(legacy_manifest_prefix) or not blob_name.endswith(".json"):
+                continue
+            encoded_name = blob_name[len(legacy_manifest_prefix) : -5]
+            try:
+                filenames.add(self.decode_token(encoded_name))
+            except Exception:
+                logger.warning("Skipping unreadable manifest blob %s", blob_name)
+
         storage_prefix = f"{self.storage_prefix(normalized_user_identifier)}/"
-        legacy_blob_names = await self.blob_manager.list_blob_names(storage_prefix)
-        for blob_name in legacy_blob_names:
+        current_blob_names = await self.blob_manager.list_blob_names(storage_prefix)
+        for blob_name in current_blob_names:
             if not blob_name.startswith(storage_prefix):
                 continue
             relative_name = blob_name[len(storage_prefix) :]
+            if not relative_name or "/" in relative_name or relative_name.startswith("."):
+                continue
+            filenames.add(os.path.basename(relative_name))
+
+        legacy_storage_prefix = f"{self.legacy_storage_prefix(normalized_user_identifier)}/"
+        legacy_blob_names = await self.blob_manager.list_blob_names(legacy_storage_prefix)
+        for blob_name in legacy_blob_names:
+            if not blob_name.startswith(legacy_storage_prefix):
+                continue
+            relative_name = blob_name[len(legacy_storage_prefix) :]
             if not relative_name or "/" in relative_name or relative_name.startswith("."):
                 continue
             filenames.add(os.path.basename(relative_name))
@@ -764,6 +833,7 @@ class ChatbotUploadStrategy:
             blob = await self.blob_manager.download_blob(manifest.blob_name)
             if blob is not None:
                 return blob
-        return await self.blob_manager.download_blob(
-            self.legacy_blob_name(filename, normalized_user_identifier)
-        )
+        blob = await self.blob_manager.download_blob(self.file_blob_name(filename, normalized_user_identifier))
+        if blob is not None:
+            return blob
+        return await self.blob_manager.download_blob(self.legacy_blob_name(filename, normalized_user_identifier))

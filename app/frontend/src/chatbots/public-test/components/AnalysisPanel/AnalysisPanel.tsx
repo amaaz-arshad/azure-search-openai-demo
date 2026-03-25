@@ -44,7 +44,8 @@ export const AnalysisPanel = ({ answer, activeTab, activeCitation, citationHeigh
         if (activeCitation) {
             // Get hash from the URL as it may contain #page=N
             // which helps browser PDF renderer jump to correct page N
-            const originalHash = activeCitation.indexOf("#") ? activeCitation.split("#")[1] : "";
+            const hashIndex = activeCitation.indexOf("#");
+            const originalHash = hashIndex >= 0 ? activeCitation.slice(hashIndex + 1) : "";
             const response = await fetch(activeCitation, {
                 method: "GET",
                 headers: await getHeaders(token)

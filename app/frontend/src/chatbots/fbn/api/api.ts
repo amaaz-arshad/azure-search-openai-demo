@@ -82,7 +82,15 @@ export async function getSpeechApi(text: string): Promise<string | null> {
 export function getCitationFilePath(citation: string): string {
     // If there are parentheses at end of citation, remove part in parentheses
     const cleanedCitation = citation.replace(/\s*\(.*?\)\s*$/, "").trim();
-    return `${BACKEND_URI}/content/${cleanedCitation}`;
+    const [pathWithoutFragment, fragment] = cleanedCitation.split("#", 2);
+    const fragmentSuffix = fragment ? `#${fragment}` : "";
+    const firstSegment = typeof window === "undefined" ? "" : window.location.pathname.split("/").filter(Boolean)[0] || "";
+    const chatbotName = !firstSegment || ["chatbots", "upload-files", "content", "assets"].includes(firstSegment) ? "" : firstSegment;
+    if (!chatbotName) {
+        return `${BACKEND_URI}/content/${pathWithoutFragment}${fragmentSuffix}`;
+    }
+
+    return `${BACKEND_URI}/content/${chatbotName}/${pathWithoutFragment}${fragmentSuffix}`;
 }
 
 export async function uploadFileApi(request: FormData, idToken: string): Promise<SimpleAPIResponse> {

@@ -4,25 +4,19 @@ import { Link } from "react-router-dom";
 import { Icon } from "@fluentui/react";
 
 import { chatbotDefinitions } from "../chatbots/registry";
+import {
+    INTERNAL_TOOLS_PASSWORD,
+    INTERNAL_TOOLS_SESSION_KEY,
+    getInitialInternalAuthenticationState
+} from "./internalToolsAccess";
 import styles from "./ChatbotDirectory.module.css";
-
-const DIRECTORY_PASSWORD = (import.meta.env.VITE_CHATBOT_DIRECTORY_PASSWORD as string | undefined) || "chatbot123";
-const DIRECTORY_SESSION_KEY = "chatbotDirectoryAuthenticated";
 
 const sortedChatbots = [...chatbotDefinitions].sort((a, b) => a.name.localeCompare(b.name));
 
 const formatChatbotLabel = (name: string) => name.replace(/[-_]+/g, " ");
 
-const getInitialAuthenticationState = () => {
-    if (typeof window === "undefined") {
-        return false;
-    }
-
-    return window.sessionStorage.getItem(DIRECTORY_SESSION_KEY) === "true";
-};
-
 const ChatbotDirectory = () => {
-    const [isAuthenticated, setIsAuthenticated] = useState<boolean>(getInitialAuthenticationState);
+    const [isAuthenticated, setIsAuthenticated] = useState<boolean>(getInitialInternalAuthenticationState);
     const [password, setPassword] = useState("");
     const [errorMessage, setErrorMessage] = useState("");
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
@@ -34,8 +28,8 @@ const ChatbotDirectory = () => {
     const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
 
-        if (password === DIRECTORY_PASSWORD) {
-            window.sessionStorage.setItem(DIRECTORY_SESSION_KEY, "true");
+        if (password === INTERNAL_TOOLS_PASSWORD) {
+            window.sessionStorage.setItem(INTERNAL_TOOLS_SESSION_KEY, "true");
             setIsAuthenticated(true);
             setPassword("");
             setErrorMessage("");
@@ -47,7 +41,7 @@ const ChatbotDirectory = () => {
     };
 
     const handleLockDirectory = () => {
-        window.sessionStorage.removeItem(DIRECTORY_SESSION_KEY);
+        window.sessionStorage.removeItem(INTERNAL_TOOLS_SESSION_KEY);
         setIsAuthenticated(false);
         setPassword("");
         setQuery("");
@@ -79,9 +73,14 @@ const ChatbotDirectory = () => {
                         </span>
 
                         {isAuthenticated ? (
-                            <button className={styles.secondaryButton} type="button" onClick={handleLockDirectory}>
-                                Lock directory
-                            </button>
+                            <>
+                                <Link className={styles.secondaryButton} to="/upload-files">
+                                    Manage uploads
+                                </Link>
+                                <button className={styles.secondaryButton} type="button" onClick={handleLockDirectory}>
+                                    Lock directory
+                                </button>
+                            </>
                         ) : null}
                     </div>
                 </header>

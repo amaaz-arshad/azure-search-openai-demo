@@ -21,6 +21,7 @@ from azure.search.documents.indexes.models import (
 )
 
 from .blobmanager import BlobManager
+from .blobmanager import BaseBlobManager
 from .embeddings import OpenAIEmbeddings
 from .listfilestrategy import ListFileStrategy
 from .searchmanager import SearchManager
@@ -166,18 +167,19 @@ class IntegratedVectorizerStrategy(Strategy):  # pragma: no cover
         await ds_client.close()
 
     async def run(self):
+        blob_prefix = BaseBlobManager.normalize_blob_prefix(self.category)
         if self.document_action == DocumentAction.Add:
             files = self.list_file_strategy.list()
             async for file in files:
                 try:
-                    await self.blob_manager.upload_blob(file)
+                    await self.blob_manager.upload_blob(file, prefix=blob_prefix)
                 finally:
                     if file:
                         file.close()
         elif self.document_action == DocumentAction.Remove:
             paths = self.list_file_strategy.list_paths()
             async for path in paths:
-                await self.blob_manager.remove_blob(path)
+                await self.blob_manager.remove_blob(path, prefix=blob_prefix)
         elif self.document_action == DocumentAction.RemoveAll:
             await self.blob_manager.remove_blob()
 

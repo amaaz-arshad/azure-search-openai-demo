@@ -8,6 +8,7 @@ import time
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from pathlib import Path
 from typing import Any, cast
+from urllib.parse import urlparse
 
 from azure.cognitiveservices.speech import (
     ResultReason,
@@ -52,6 +53,7 @@ from chat_history.cosmosdb import chat_history_cosmosdb_bp
 from config import (
     CONFIG_AGENTIC_KNOWLEDGEBASE_ENABLED,
     CONFIG_AUTH_CLIENT,
+    CONFIG_CATEGORY_UPLOAD_MANAGER,
     CONFIG_CHATBOT_UPLOAD_MANAGERS,
     CONFIG_CHAT_APPROACH,
     CONFIG_CHAT_HISTORY_BROWSER_ENABLED,
@@ -105,6 +107,7 @@ from prepdocs import (
     setup_search_info,
 )
 from prepdocslib.blobmanager import AdlsBlobManager, BlobManager
+from prepdocslib.categoryupload import CategoryUploadStrategy
 from prepdocslib.embeddings import ImageEmbeddings
 from prepdocslib.filestrategy import (
     ChatbotUploadCancelled,
@@ -133,9 +136,11 @@ NON_CHATBOT_FRONTEND_PREFIXES = {
     "delete_uploaded",
     "favicon.ico",
     "list_uploaded",
+    "managed_uploads",
     "redirect",
     "speech",
     "upload",
+    "upload-files",
 }
 
 # Keep in sync with frontend chatbot routes in app/frontend/src/chatbots/registry.ts.
@@ -162,6 +167,13 @@ def get_chatbot_upload_manager(chatbot_name: str) -> ChatbotUploadStrategy:
     if manager is None:
         abort(404)
     return manager
+
+
+def get_category_upload_manager() -> CategoryUploadStrategy:
+    manager = current_app.config.get(CONFIG_CATEGORY_UPLOAD_MANAGER)
+    if manager is None:
+        raise RuntimeError("Category upload manager is not configured")
+    return cast(CategoryUploadStrategy, manager)
 
 
 def get_chatbot_name_from_request_json(request_json: dict[str, Any]) -> str | None:
@@ -235,6 +247,13 @@ async def chatbot_directory(subpath: str | None = None):
     return await serve_spa_index()
 
 
+@bp.route("/upload-files")
+@bp.route("/upload-files/")
+@bp.route("/upload-files/<path:subpath>")
+async def upload_files_page(subpath: str | None = None):
+    return await serve_spa_index()
+
+
 @bp.route("/<chatbot_name>")
 @bp.route("/<chatbot_name>/<path:subpath>")
 async def chatbot_entry(chatbot_name: str, subpath: str | None = None):
@@ -246,7 +265,7 @@ async def chatbot_entry(chatbot_name: str, subpath: str | None = None):
     return await serve_spa_index()
 
 
-@bp.route("/content/<path>")
+@bp.route("/content/<path:path>")
 @authenticated_path
 async def content_file(path: str, auth_claims: dict[str, Any]):
     """
@@ -265,6 +284,22 @@ async def content_file(path: str, auth_claims: dict[str, Any]):
     result = None
     chatbot_upload_managers: dict[str, ChatbotUploadStrategy] = current_app.config.get(CONFIG_CHATBOT_UPLOAD_MANAGERS, {})
     requested_chatbot_name = (request.args.get("chatbot_name") or "").strip().lower() or None
+    normalized_path = path
+    path_chatbot_name = None
+    if "/" in path:
+        path_first_segment, remaining_path = path.split("/", 1)
+        normalized_path_first_segment = path_first_segment.strip().lower()
+        if normalized_path_first_segment in KNOWN_CHATBOT_NAMES and remaining_path:
+            path_chatbot_name = normalized_path_first_segment
+            requested_chatbot_name = path_chatbot_name
+            normalized_path = remaining_path
+
+    if requested_chatbot_name is None:
+        referer = request.headers.get("Referer")
+        if referer:
+            referer_first_segment = urlparse(referer).path.strip("/").split("/", 1)[0].strip().lower()
+            if referer_first_segment in KNOWN_CHATBOT_NAMES:
+                requested_chatbot_name = referer_first_segment
     requested_public_test_user_email = None
     if requested_chatbot_name == PUBLIC_TEST_CHATBOT_NAME:
         public_test_user = await get_authenticated_public_test_user()
@@ -276,16 +311,16 @@ async def content_file(path: str, auth_claims: dict[str, Any]):
         chatbot_upload_manager = chatbot_upload_managers.get(requested_chatbot_name)
         if chatbot_upload_manager is not None:
             result = await chatbot_upload_manager.download_file(
-                path,
+                normalized_path,
                 user_identifier=requested_public_test_user_email if requested_chatbot_name == PUBLIC_TEST_CHATBOT_NAME else None,
             )
 
-    if result is None:
+    if result is None and requested_chatbot_name is None:
         for chatbot_name, chatbot_upload_manager in chatbot_upload_managers.items():
             if chatbot_name == PUBLIC_TEST_CHATBOT_NAME:
                 continue
             result = await chatbot_upload_manager.download_file(
-                path,
+                normalized_path,
                 user_identifier=None,
             )
             if result is not None:
@@ -294,8 +329,12 @@ async def content_file(path: str, auth_claims: dict[str, Any]):
     if result is None:
         blob_manager: BlobManager = current_app.config[CONFIG_GLOBAL_BLOB_MANAGER]
 
-        # Get bytes and properties from the blob manager
-        result = await blob_manager.download_blob(path)
+        if requested_chatbot_name and path_chatbot_name is None:
+            result = await blob_manager.download_blob(f"{requested_chatbot_name}/{normalized_path}")
+
+        if result is None:
+            # Get bytes and properties from the blob manager
+            result = await blob_manager.download_blob(path)
 
     if result is None:
         current_app.logger.info("Path not found in general Blob container: %s", path)
@@ -839,6 +878,146 @@ async def delete_all_chatbot_uploaded(chatbot_name: str):
     return jsonify({"message": message, "deletedFiles": deleted, "failedFiles": []}), 200
 
 
+@bp.get("/managed_uploads")
+async def list_managed_uploads():
+    category = (request.args.get("category") or "").strip() or None
+    manager = get_category_upload_manager()
+    try:
+        normalized_category = manager.normalize_category(category) if category is not None else None
+        files = [dataclasses.asdict(entry) for entry in await manager.list_entries(category=normalized_category)]
+        categories = await manager.list_categories()
+    except ValueError as error:
+        return jsonify({"message": str(error)}), 400
+    return jsonify({"files": files, "categories": categories}), 200
+
+
+@bp.post("/managed_uploads")
+async def upload_managed_files():
+    form = await request.form
+    category = (form.get("category") or "").strip()
+    if not category:
+        return jsonify({"message": "Category is required.", "uploadedFiles": [], "failedFiles": []}), 400
+
+    manager = get_category_upload_manager()
+    try:
+        category = manager.normalize_category(category)
+    except ValueError as error:
+        return jsonify({"message": str(error), "uploadedFiles": [], "failedFiles": []}), 400
+
+    request_files = await request.files
+    uploaded_files = request_files.getlist("files") or request_files.getlist("file")
+    uploaded_files = [file for file in uploaded_files if file and file.filename]
+    if not uploaded_files:
+        return jsonify({"message": "No file part in the request", "uploadedFiles": [], "failedFiles": []}), 400
+
+    succeeded: list[dict[str, str]] = []
+    failed: list[dict[str, str]] = []
+    upload_id = (request.headers.get("X-Upload-Id") or "").strip() or None
+
+    try:
+        for file_index, uploaded_file in enumerate(uploaded_files):
+            if upload_id and await manager.is_cancel_requested(category, upload_id):
+                failed.append({"category": category, "filename": uploaded_file.filename, "message": "Upload canceled"})
+                for skipped_file in uploaded_files[file_index + 1 :]:
+                    failed.append({"category": category, "filename": skipped_file.filename, "message": "Upload canceled"})
+                break
+            try:
+                entry = await manager.add_file(
+                    File(content=uploaded_file),
+                    category=category,
+                    upload_id=upload_id,
+                )
+                succeeded.append({"category": entry.category, "filename": entry.filename})
+            except ChatbotUploadCancelled:
+                failed.append({"category": category, "filename": uploaded_file.filename, "message": "Upload canceled"})
+                for skipped_file in uploaded_files[file_index + 1 :]:
+                    failed.append({"category": category, "filename": skipped_file.filename, "message": "Upload canceled"})
+                break
+            except ValueError as error:
+                failed.append({"category": category, "filename": uploaded_file.filename, "message": str(error)})
+            except Exception as error:
+                current_app.logger.error("Error uploading managed file '%s' into '%s': %s", uploaded_file.filename, category, error)
+                failed.append({"category": category, "filename": uploaded_file.filename, "message": "Unexpected upload failure"})
+    finally:
+        if upload_id:
+            await manager.clear_cancel_request(category, upload_id)
+
+    if succeeded and failed:
+        message = f"Uploaded {len(succeeded)} file(s); {len(failed)} file(s) failed."
+        return jsonify({"message": message, "uploadedFiles": succeeded, "failedFiles": failed}), 207
+    if failed:
+        status_code = 409 if all(file["message"] == "Upload canceled" for file in failed) else 400
+        return jsonify({"message": failed[0]["message"], "uploadedFiles": [], "failedFiles": failed}), status_code
+
+    message = (
+        f"{len(succeeded)} file uploaded successfully."
+        if len(succeeded) == 1
+        else f"{len(succeeded)} files uploaded successfully."
+    )
+    return jsonify({"message": message, "uploadedFiles": succeeded, "failedFiles": []}), 200
+
+
+@bp.post("/managed_uploads/cancel/<upload_id>")
+async def cancel_managed_upload(upload_id: str):
+    upload_id = upload_id.strip()
+    category = (request.args.get("category") or "").strip()
+    if not upload_id:
+        return jsonify({"message": "Upload id is required"}), 400
+    if not category:
+        return jsonify({"message": "Category is required."}), 400
+
+    manager = get_category_upload_manager()
+    try:
+        normalized_category = manager.normalize_category(category)
+        await manager.request_cancel(normalized_category, upload_id)
+    except ValueError as error:
+        return jsonify({"message": str(error)}), 400
+    return jsonify({"message": "Upload cancellation requested"}), 202
+
+
+@bp.delete("/managed_uploads/<path:filename>")
+async def delete_managed_uploaded_file(filename: str):
+    category = (request.args.get("category") or "").strip()
+    if not category:
+        return jsonify({"message": "Category is required."}), 400
+
+    manager = get_category_upload_manager()
+    try:
+        normalized_filename = os.path.basename(filename)
+        normalized_category = manager.normalize_category(category)
+        await manager.remove_file(normalized_filename, normalized_category)
+    except ValueError as error:
+        return jsonify({"message": str(error)}), 400
+    return jsonify({"message": f"File {normalized_filename} deleted successfully"}), 200
+
+
+@bp.delete("/managed_uploads")
+async def delete_managed_uploaded_files():
+    category = (request.args.get("category") or "").strip() or None
+    manager = get_category_upload_manager()
+    try:
+        normalized_category = manager.normalize_category(category) if category is not None else None
+        deleted, failed = await manager.remove_all_files(category=normalized_category)
+    except ValueError as error:
+        return jsonify({"message": str(error), "deletedFiles": [], "failedFiles": []}), 400
+
+    deleted_payload = [dataclasses.asdict(entry) for entry in deleted]
+    if deleted_payload and failed:
+        message = f"Deleted {len(deleted_payload)} file(s); {len(failed)} file(s) failed."
+        return jsonify({"message": message, "deletedFiles": deleted_payload, "failedFiles": failed}), 207
+    if failed:
+        return jsonify({"message": "Unable to delete uploaded files.", "deletedFiles": [], "failedFiles": failed}), 500
+    if not deleted_payload:
+        return jsonify({"message": "No uploaded files to delete.", "deletedFiles": [], "failedFiles": []}), 200
+
+    message = (
+        f"{len(deleted_payload)} file deleted successfully."
+        if len(deleted_payload) == 1
+        else f"{len(deleted_payload)} files deleted successfully."
+    )
+    return jsonify({"message": message, "deletedFiles": deleted_payload, "failedFiles": []}), 200
+
+
 @bp.before_app_serving
 async def setup_clients():
     # Replace these with your own values, either in environment variables or directly here
@@ -1115,6 +1294,13 @@ async def setup_clients():
             ),
         ),
     }
+    current_app.config[CONFIG_CATEGORY_UPLOAD_MANAGER] = CategoryUploadStrategy(
+        search_info=chatbot_upload_search_info,
+        file_processors=chatbot_upload_file_processors,
+        embeddings=chatbot_upload_embeddings,
+        search_field_name_embedding=AZURE_SEARCH_FIELD_NAME_EMBEDDING,
+        blob_manager=global_blob_manager,
+    )
 
     user_blob_manager = None
     if USE_USER_UPLOAD:

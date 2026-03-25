@@ -15,6 +15,7 @@ from pypdf import PdfWriter
 from quart.datastructures import FileStorage
 
 from prepdocslib.embeddings import OpenAIEmbeddings
+from prepdocslib.categoryupload import CategoryUploadEntry
 from prepdocslib.filestrategy import ChatbotUploadManifest
 from prepdocslib.searchmanager import Section
 from prepdocslib.textsplitter import Chunk
@@ -359,16 +360,90 @@ async def test_chatbot_upload_file(client, monkeypatch):
     payload = await response.get_json()
     filename_token = base64.urlsafe_b64encode(b"demo-notes.txt").decode("ascii").rstrip("=")
     upload_token = base64.urlsafe_b64encode(b"upload-123").decode("ascii").rstrip("=")
-    version_blob_name = f"chatbot-uploads/demo/files/{filename_token}/{upload_token}/demo-notes.txt"
-    manifest_blob_name = f"chatbot-uploads/demo/.manifests/{filename_token}.json"
+    file_blob_name = "demo/demo-notes.txt"
+    manifest_blob_name = f"demo/.manifests/{filename_token}.json"
     assert response.status_code == 200
     assert payload["uploadedFiles"] == ["demo-notes.txt"]
-    assert version_blob_name in uploaded_blob_names
+    assert file_blob_name in uploaded_blob_names
     assert manifest_blob_name in uploaded_blob_names
     assert len(documents_uploaded) == 1
     assert documents_uploaded[0]["id"].endswith(f"-upload-{upload_token}")
     assert documents_uploaded[0]["sourcefile"] == "demo-notes.txt"
     assert documents_uploaded[0]["category"] == "demo"
+    assert documents_uploaded[0]["storageUrl"].endswith(file_blob_name)
+
+
+@pytest.mark.asyncio
+async def test_managed_upload_file_uses_category_prefix(client, monkeypatch):
+    existing_blobs = set()
+    uploaded_blob_names = []
+
+    async def mock_exists(*args, **kwargs):
+        return True
+
+    async def mock_upload_blob(self, name, *args, **kwargs):
+        uploaded_blob_names.append(name)
+        existing_blobs.add(name)
+        return None
+
+    monkeypatch.setattr(ContainerClient, "exists", mock_exists)
+    monkeypatch.setattr(ContainerClient, "upload_blob", mock_upload_blob)
+    monkeypatch.setattr(
+        ContainerClient,
+        "get_blob_client",
+        lambda *args, **kwargs: MockBlobClient(args[1], existing_blobs),
+    )
+    monkeypatch.setattr(
+        ContainerClient,
+        "list_blobs",
+        lambda *args, **kwargs: BlobListIterator(
+            [name for name in existing_blobs if name.startswith(kwargs.get("name_starts_with", ""))]
+        ),
+    )
+
+    async def mock_create_embeddings(self, texts):
+        return [[0.0023064255, -0.009327292, -0.0028842222] for _ in texts]
+
+    class EmptyAsyncSearchResultsIterator:
+        def __aiter__(self):
+            return self
+
+        async def __anext__(self):
+            raise StopAsyncIteration
+
+        async def get_count(self):
+            return 0
+
+    async def mock_search(self, *args, **kwargs):
+        return EmptyAsyncSearchResultsIterator()
+
+    documents_uploaded = []
+
+    async def mock_upload_documents(self, documents):
+        documents_uploaded.extend(documents)
+
+    monkeypatch.setattr(OpenAIEmbeddings, "create_embeddings", mock_create_embeddings)
+    monkeypatch.setattr(SearchClient, "search", mock_search)
+    monkeypatch.setattr(SearchClient, "upload_documents", mock_upload_documents)
+
+    response = await client.post(
+        "/managed_uploads",
+        headers={"X-Upload-Id": "upload-123"},
+        data={"category": "sartorius"},
+        files={"files": FileStorage(BytesIO(b"managed upload content"), filename="shared-notes.txt")},
+    )
+
+    payload = await response.get_json()
+    filename_token = base64.urlsafe_b64encode(b"shared-notes.txt").decode("ascii").rstrip("=")
+    version_blob_name = "sartorius/shared-notes.txt"
+    manifest_blob_name = f"sartorius/.managed-uploads/manifests/{filename_token}.json"
+    assert response.status_code == 200
+    assert payload["uploadedFiles"] == [{"category": "sartorius", "filename": "shared-notes.txt"}]
+    assert version_blob_name in uploaded_blob_names
+    assert manifest_blob_name in uploaded_blob_names
+    assert len(documents_uploaded) == 1
+    assert documents_uploaded[0]["category"] == "sartorius"
+    assert documents_uploaded[0]["sourcefile"] == "shared-notes.txt"
     assert documents_uploaded[0]["storageUrl"].endswith(version_blob_name)
 
 
@@ -379,15 +454,14 @@ async def test_list_chatbot_uploaded_files(client, monkeypatch):
 
     monkeypatch.setattr(ContainerClient, "exists", mock_exists)
     alpha_token = base64.urlsafe_b64encode(b"alpha.txt").decode("ascii").rstrip("=")
-    upload_token = base64.urlsafe_b64encode(b"upload-1").decode("ascii").rstrip("=")
     monkeypatch.setattr(
         ContainerClient,
         "list_blobs",
         lambda *args, **kwargs: BlobListIterator(
             [
-                f"chatbot-uploads/demo/.manifests/{alpha_token}.json",
-                f"chatbot-uploads/demo/files/{alpha_token}/{upload_token}/alpha.txt",
-                "chatbot-uploads/demo/zeta.pdf",
+                f"demo/.manifests/{alpha_token}.json",
+                "demo/alpha.txt",
+                "demo/zeta.pdf",
             ]
         ),
     )
@@ -395,6 +469,44 @@ async def test_list_chatbot_uploaded_files(client, monkeypatch):
     response = await client.get("/chatbot_uploads/demo")
     assert response.status_code == 200
     assert await response.get_json() == ["alpha.txt", "zeta.pdf"]
+
+
+@pytest.mark.asyncio
+async def test_list_managed_uploaded_files(client, monkeypatch):
+    manager = client.app.config[app.CONFIG_CATEGORY_UPLOAD_MANAGER]
+
+    async def mock_list_entries(category=None):
+        entries = [
+            CategoryUploadEntry(
+                category="demo",
+                filename="alpha.txt",
+                storage_url="https://test.blob.core.windows.net/test-storage-container/demo/alpha.txt",
+                uploaded_at="2026-03-25T10:00:00+00:00",
+            ),
+            CategoryUploadEntry(
+                category="sartorius",
+                filename="beta.pdf",
+                storage_url="https://test.blob.core.windows.net/test-storage-container/sartorius/beta.pdf",
+                uploaded_at="2026-03-25T11:00:00+00:00",
+            ),
+        ]
+        if category is None:
+            return entries
+        return [entry for entry in entries if entry.category == category]
+
+    async def mock_list_categories():
+        return ["demo", "sartorius"]
+
+    monkeypatch.setattr(manager, "list_entries", mock_list_entries)
+    monkeypatch.setattr(manager, "list_categories", mock_list_categories)
+
+    response = await client.get("/managed_uploads")
+    payload = await response.get_json()
+
+    assert response.status_code == 200
+    assert payload["categories"] == ["demo", "sartorius"]
+    assert payload["files"][0]["category"] == "demo"
+    assert payload["files"][1]["category"] == "sartorius"
 
 
 @pytest.mark.asyncio
@@ -486,6 +598,41 @@ async def test_delete_chatbot_uploaded_file(client, monkeypatch):
     ]
     assert searched_filters[0] == "sourcefile eq 'demo-notes.txt' and category eq 'demo'"
     assert deleted_documents == [{"id": "file-demo_notes_txt-page-0"}]
+
+
+@pytest.mark.asyncio
+async def test_delete_managed_uploaded_files_by_category(client, monkeypatch):
+    manager = client.app.config[app.CONFIG_CATEGORY_UPLOAD_MANAGER]
+
+    async def mock_remove_all_files(category=None):
+        assert category == "sartorius"
+        return (
+            [
+                CategoryUploadEntry(
+                    category="sartorius",
+                    filename="alpha.txt",
+                    storage_url="https://test.blob.core.windows.net/test-storage-container/sartorius/alpha.txt",
+                    uploaded_at="2026-03-25T10:00:00+00:00",
+                )
+            ],
+            [],
+        )
+
+    monkeypatch.setattr(manager, "remove_all_files", mock_remove_all_files)
+
+    response = await client.delete("/managed_uploads?category=sartorius")
+    payload = await response.get_json()
+
+    assert response.status_code == 200
+    assert payload["deletedFiles"] == [
+        {
+            "category": "sartorius",
+            "filename": "alpha.txt",
+            "storage_url": "https://test.blob.core.windows.net/test-storage-container/sartorius/alpha.txt",
+            "uploaded_at": "2026-03-25T10:00:00+00:00",
+        }
+    ]
+    assert payload["failedFiles"] == []
 
 
 @pytest.mark.asyncio
@@ -693,7 +840,7 @@ async def test_cancel_chatbot_upload_prevents_indexing(client, monkeypatch):
     )
 
     payload = await response.get_json()
-    cancel_marker_name = f"chatbot-uploads/demo/.cancel/{base64.urlsafe_b64encode(b'upload-123').decode('ascii').rstrip('=')}.cancel"
+    cancel_marker_name = f"demo/.cancel/{base64.urlsafe_b64encode(b'upload-123').decode('ascii').rstrip('=')}.cancel"
     assert response.status_code == 409
     assert payload["failedFiles"] == [{"filename": "demo-notes.txt", "message": "Upload canceled"}]
     assert uploaded_blob_names == [cancel_marker_name]
@@ -887,19 +1034,15 @@ async def test_public_test_upload_indexes_user_and_uses_user_scoped_blob_path(cl
 
     payload = await response.get_json()
     filename_token = base64.urlsafe_b64encode(b"private-notes.pdf").decode("ascii").rstrip("=")
-    upload_token = base64.urlsafe_b64encode(b"upload-123").decode("ascii").rstrip("=")
     user_token = base64.urlsafe_b64encode(b"person@example.com").decode("ascii").rstrip("=")
-    version_blob_name = (
-        f"chatbot-uploads/public-test/{user_token}/uploaded-files/files/"
-        f"{filename_token}/{upload_token}/private-notes.pdf"
-    )
-    manifest_blob_name = f"chatbot-uploads/public-test/{user_token}/uploaded-files/.manifests/{filename_token}.json"
+    file_blob_name = f"public-test/{user_token}/private-notes.pdf"
+    manifest_blob_name = f"public-test/{user_token}/.manifests/{filename_token}.json"
 
     assert response.status_code == 200
     assert payload["uploadedFiles"] == ["private-notes.pdf"]
-    assert version_blob_name in uploaded_blob_names
+    assert file_blob_name in uploaded_blob_names
     assert manifest_blob_name in uploaded_blob_names
     assert len(documents_uploaded) == 1
     assert all(document["category"] == "public-test" for document in documents_uploaded)
     assert all(document["user"] == "person@example.com" for document in documents_uploaded)
-    assert all(document["storageUrl"].endswith(version_blob_name) for document in documents_uploaded)
+    assert all(document["storageUrl"].endswith(file_blob_name) for document in documents_uploaded)

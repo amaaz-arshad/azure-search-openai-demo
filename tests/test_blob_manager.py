@@ -57,26 +57,6 @@ async def test_upload_and_remove(monkeypatch, mock_env, mock_blob_container_clie
         await blob_manager.upload_blob(f)
         assert f.url == "https://test.blob.core.windows.net/test/test.pdf"
 
-        # Set up mocks used by remove_blob
-        def mock_list_blob_names(*args, **kwargs):
-            assert kwargs.get("name_starts_with") == filename.split(".pdf")[0]
-
-            class AsyncBlobItemsIterator:
-                def __init__(self, file):
-                    self.files = [file, "dontdelete.pdf"]
-
-                def __aiter__(self):
-                    return self
-
-                async def __anext__(self):
-                    if self.files:
-                        return self.files.pop()
-                    raise StopAsyncIteration
-
-            return AsyncBlobItemsIterator(filename)
-
-        monkeypatch.setattr("azure.storage.blob.aio.ContainerClient.list_blob_names", mock_list_blob_names)
-
         async def mock_delete_blob(self, name, *args, **kwargs):
             assert name == filename
             return True
@@ -133,6 +113,38 @@ async def test_upload_and_remove_all(monkeypatch, mock_env, mock_blob_container_
         monkeypatch.setattr("azure.storage.blob.aio.ContainerClient.delete_blob", mock_delete_blob)
 
         await blob_manager.remove_blob()
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(sys.version_info.minor < 10, reason="requires Python 3.10 or higher (due to NamedTemporaryFile)")
+@pytest.mark.skipif(WINDOWS, reason="NamedTemporaryFile keeps handles open on Windows")
+async def test_upload_and_remove_with_category_prefix(monkeypatch, mock_env, mock_blob_container_client_exists, blob_manager):
+    with NamedTemporaryFile(suffix=".pdf") as temp_file:
+        f = File(temp_file.file)
+        filename = os.path.basename(f.content.name)
+        expected_blob_name = f"sartorius/{filename}"
+
+        async def mock_upload_blob(self, name, *args, **kwargs):
+            assert name == expected_blob_name
+            return azure.storage.blob.aio.BlobClient.from_blob_url(
+                f"https://test.blob.core.windows.net/test/{expected_blob_name}", credential=MockAzureCredential()
+            )
+
+        monkeypatch.setattr("azure.storage.blob.aio.ContainerClient.upload_blob", mock_upload_blob)
+
+        await blob_manager.upload_blob(f, prefix="sartorius")
+        assert f.url == f"https://test.blob.core.windows.net/test/{expected_blob_name}"
+
+        delete_calls = []
+
+        async def mock_delete_blob(self, name, *args, **kwargs):
+            delete_calls.append(name)
+            return True
+
+        monkeypatch.setattr("azure.storage.blob.aio.ContainerClient.delete_blob", mock_delete_blob)
+
+        await blob_manager.remove_blob(f.content.name, prefix="sartorius")
+        assert delete_calls == [expected_blob_name, filename]
 
 
 @pytest.mark.asyncio

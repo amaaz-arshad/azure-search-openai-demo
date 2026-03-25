@@ -9,6 +9,7 @@ from prepdocslib.fileprocessor import FileProcessor
 from prepdocslib.filestrategy import FileStrategy, parse_file
 from prepdocslib.listfilestrategy import (
     File,
+    ListFileStrategy,
     LocalListFileStrategy,
 )
 from prepdocslib.page import ImageOnPage, Page
@@ -17,6 +18,18 @@ from prepdocslib.textparser import TextParser
 from prepdocslib.textsplitter import SimpleTextSplitter
 
 from .mocks import MockAzureCredential
+
+
+class SingleFileListStrategy(ListFileStrategy):
+    def __init__(self, path: str, file: File):
+        self.path = path
+        self.file = file
+
+    async def list(self):
+        yield self.file
+
+    async def list_paths(self):
+        yield self.path
 
 
 @pytest.mark.asyncio
@@ -154,3 +167,96 @@ async def test_file_strategy_setup_with_content_understanding(monkeypatch, mock_
     # create_analyzer should be called during setup for content understanding
     assert figure_processor.media_describer.create_analyzer_called
     assert figure_processor.content_understanding_ready
+
+
+@pytest.mark.asyncio
+async def test_file_strategy_uses_category_prefix_for_blob_upload(monkeypatch, mock_env):
+    file_content = BytesIO(b"hello world")
+    file_content.name = "alpha.txt"
+    file = File(content=file_content)
+    list_strategy = SingleFileListStrategy("alpha.txt", file)
+
+    blob_manager = BlobManager(
+        endpoint=f"https://{os.environ['AZURE_STORAGE_ACCOUNT']}.blob.core.windows.net",
+        credential=MockAzureCredential(),
+        container=os.environ["AZURE_STORAGE_CONTAINER"],
+        account=os.environ["AZURE_STORAGE_ACCOUNT"],
+        resource_group=os.environ["AZURE_STORAGE_RESOURCE_GROUP"],
+        subscription_id=os.environ["AZURE_SUBSCRIPTION_ID"],
+    )
+    search_info = SearchInfo(
+        endpoint="https://testsearchclient.blob.core.windows.net",
+        credential=MockAzureCredential(),
+        index_name="test",
+    )
+
+    upload_calls = []
+
+    async def mock_upload_blob(file, prefix=None):
+        upload_calls.append(prefix)
+        return "https://test.blob.core.windows.net/content/sartorius/alpha.txt"
+
+    async def mock_parse_file(*args, **kwargs):
+        return []
+
+    monkeypatch.setattr(blob_manager, "upload_blob", mock_upload_blob)
+    monkeypatch.setattr("prepdocslib.filestrategy.parse_file", mock_parse_file)
+
+    strategy = FileStrategy(
+        list_file_strategy=list_strategy,
+        blob_manager=blob_manager,
+        search_info=search_info,
+        file_processors={},
+        category="sartorius",
+    )
+
+    await strategy.run()
+
+    assert upload_calls == ["sartorius"]
+
+
+@pytest.mark.asyncio
+async def test_file_strategy_uses_category_prefix_for_blob_remove(monkeypatch, mock_env):
+    list_strategy = SingleFileListStrategy("alpha.txt", File(content=BytesIO(b"unused")))
+
+    blob_manager = BlobManager(
+        endpoint=f"https://{os.environ['AZURE_STORAGE_ACCOUNT']}.blob.core.windows.net",
+        credential=MockAzureCredential(),
+        container=os.environ["AZURE_STORAGE_CONTAINER"],
+        account=os.environ["AZURE_STORAGE_ACCOUNT"],
+        resource_group=os.environ["AZURE_STORAGE_RESOURCE_GROUP"],
+        subscription_id=os.environ["AZURE_SUBSCRIPTION_ID"],
+    )
+    search_info = SearchInfo(
+        endpoint="https://testsearchclient.blob.core.windows.net",
+        credential=MockAzureCredential(),
+        index_name="test",
+    )
+
+    remove_calls = []
+    remove_content_calls = []
+
+    async def mock_remove_blob(path=None, prefix=None):
+        remove_calls.append((path, prefix))
+
+    class MockSearchManager:
+        async def remove_content(self, path=None):
+            remove_content_calls.append(path)
+
+    monkeypatch.setattr(blob_manager, "remove_blob", mock_remove_blob)
+
+    strategy = FileStrategy(
+        list_file_strategy=list_strategy,
+        blob_manager=blob_manager,
+        search_info=search_info,
+        file_processors={},
+        document_action=DocumentAction.Remove,
+        category="sartorius",
+    )
+    strategy.search_manager = MockSearchManager()
+    strategy.setup_search_manager = lambda: None
+
+    await strategy.run()
+
+    assert remove_calls == [("alpha.txt", "sartorius")]
+    assert remove_content_calls == ["alpha.txt"]

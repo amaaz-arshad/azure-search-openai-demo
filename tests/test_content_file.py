@@ -199,3 +199,90 @@ async def test_content_file_chatbot_uploaded_found(monkeypatch, client):
     assert response.status_code == 200
     assert response.headers["Content-Type"].startswith("text/plain")
     assert await response.get_data() == b"demo upload content"
+
+
+@pytest.mark.asyncio
+async def test_content_file_category_prefixed_blob_found(monkeypatch, client):
+    quart_app = client.app
+    quart_app.config[app.CONFIG_CHATBOT_UPLOAD_MANAGERS] = {}
+
+    requested_paths = []
+
+    async def mock_download_blob(path: str, user_oid=None, container=None):
+        requested_paths.append(path)
+        if path == "knoll/role_library.pdf":
+            return (
+                b"category content",
+                {
+                    "content_settings": {
+                        "content_type": "application/pdf"
+                    }
+                },
+            )
+        return None
+
+    monkeypatch.setattr(quart_app.config[app.CONFIG_GLOBAL_BLOB_MANAGER], "download_blob", mock_download_blob)
+
+    response = await client.get("/content/role_library.pdf?chatbot_name=knoll")
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/pdf"
+    assert await response.get_data() == b"category content"
+    assert requested_paths[0] == "knoll/role_library.pdf"
+
+
+@pytest.mark.asyncio
+async def test_content_file_direct_category_path_found(monkeypatch, client):
+    quart_app = client.app
+    quart_app.config[app.CONFIG_CHATBOT_UPLOAD_MANAGERS] = {}
+
+    requested_paths = []
+
+    async def mock_download_blob(path: str, user_oid=None, container=None):
+        requested_paths.append(path)
+        if path == "knoll/role_library.pdf":
+            return (
+                b"category content",
+                {
+                    "content_settings": {
+                        "content_type": "application/pdf"
+                    }
+                },
+            )
+        return None
+
+    monkeypatch.setattr(quart_app.config[app.CONFIG_GLOBAL_BLOB_MANAGER], "download_blob", mock_download_blob)
+
+    response = await client.get("/content/knoll/role_library.pdf")
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/pdf"
+    assert await response.get_data() == b"category content"
+    assert requested_paths == ["knoll/role_library.pdf"]
+
+
+@pytest.mark.asyncio
+async def test_content_file_infers_category_from_referer(monkeypatch, client):
+    quart_app = client.app
+    quart_app.config[app.CONFIG_CHATBOT_UPLOAD_MANAGERS] = {}
+
+    requested_paths = []
+
+    async def mock_download_blob(path: str, user_oid=None, container=None):
+        requested_paths.append(path)
+        if path == "knoll/role_library.pdf":
+            return (
+                b"category content",
+                {
+                    "content_settings": {
+                        "content_type": "application/pdf"
+                    }
+                },
+            )
+        return None
+
+    monkeypatch.setattr(quart_app.config[app.CONFIG_GLOBAL_BLOB_MANAGER], "download_blob", mock_download_blob)
+
+    response = await client.get("/content/role_library.pdf", headers={"Referer": "https://chat.nerilio.ai/knoll"})
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/pdf"
+    assert await response.get_data() == b"category content"
+    assert requested_paths[0] == "knoll/role_library.pdf"

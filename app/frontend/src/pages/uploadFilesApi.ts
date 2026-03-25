@@ -1,0 +1,116 @@
+export type ManagedUploadEntry = {
+    category: string;
+    filename: string;
+    storage_url: string;
+    uploaded_at?: string | null;
+};
+
+export type ManagedUploadFailure = {
+    category: string;
+    filename: string;
+    message: string;
+};
+
+export type ManagedUploadListResponse = {
+    files: ManagedUploadEntry[];
+    categories: string[];
+};
+
+export type ManagedUploadMutationResponse = {
+    message?: string;
+    uploadedFiles?: Array<Pick<ManagedUploadEntry, "category" | "filename">>;
+    deletedFiles?: ManagedUploadEntry[];
+    failedFiles: ManagedUploadFailure[];
+};
+
+async function parseErrorMessage(response: Response, fallbackMessage: string): Promise<never> {
+    const errorBody = (await response.json().catch(() => null)) as { message?: string } | null;
+    throw new Error(errorBody?.message || fallbackMessage);
+}
+
+export async function listManagedUploadsApi(category?: string): Promise<ManagedUploadListResponse> {
+    const params = new URLSearchParams();
+    if (category) {
+        params.set("category", category);
+    }
+
+    const response = await fetch(`/managed_uploads${params.size > 0 ? `?${params.toString()}` : ""}`, {
+        method: "GET"
+    });
+
+    if (!response.ok) {
+        await parseErrorMessage(response, `Listing files failed: ${response.statusText}`);
+    }
+
+    return (await response.json()) as ManagedUploadListResponse;
+}
+
+export async function uploadManagedFilesApi(
+    request: FormData,
+    options?: { signal?: AbortSignal; uploadId?: string }
+): Promise<ManagedUploadMutationResponse> {
+    const headers: Record<string, string> = {};
+    if (options?.uploadId) {
+        headers["X-Upload-Id"] = options.uploadId;
+    }
+
+    const response = await fetch("/managed_uploads", {
+        method: "POST",
+        body: request,
+        headers,
+        signal: options?.signal
+    });
+
+    if (!response.ok) {
+        await parseErrorMessage(response, `Uploading files failed: ${response.statusText}`);
+    }
+
+    return (await response.json()) as ManagedUploadMutationResponse;
+}
+
+export async function cancelManagedUploadApi(category: string, uploadId: string): Promise<{ message?: string }> {
+    const response = await fetch(
+        `/managed_uploads/cancel/${encodeURIComponent(uploadId)}?${new URLSearchParams({ category }).toString()}`,
+        {
+            method: "POST"
+        }
+    );
+
+    if (!response.ok) {
+        await parseErrorMessage(response, `Stopping upload failed: ${response.statusText}`);
+    }
+
+    return (await response.json()) as { message?: string };
+}
+
+export async function deleteManagedUploadedFileApi(category: string, filename: string): Promise<{ message?: string }> {
+    const response = await fetch(
+        `/managed_uploads/${encodeURIComponent(filename)}?${new URLSearchParams({ category }).toString()}`,
+        {
+            method: "DELETE"
+        }
+    );
+
+    if (!response.ok) {
+        await parseErrorMessage(response, `Deleting file failed: ${response.statusText}`);
+    }
+
+    return (await response.json()) as { message?: string };
+}
+
+export async function deleteManagedUploadedFilesApi(category?: string): Promise<ManagedUploadMutationResponse> {
+    const params = new URLSearchParams();
+    if (category) {
+        params.set("category", category);
+    }
+
+    const response = await fetch(`/managed_uploads${params.size > 0 ? `?${params.toString()}` : ""}`, {
+        method: "DELETE"
+    });
+
+    if (!response.ok) {
+        await parseErrorMessage(response, `Deleting files failed: ${response.statusText}`);
+    }
+
+    return (await response.json()) as ManagedUploadMutationResponse;
+}

@@ -14,6 +14,7 @@ import { ChatbotThemeRoot } from "./chatbots/shared/theme/ChatbotThemeRoot";
 import i18n from "./chatbots/nerilio/i18n/config";
 import ChatbotDirectory from "./pages/ChatbotDirectory";
 import RootLanding from "./pages/RootLanding";
+import UploadFilesPage from "./pages/UploadFilesPage";
 import { msalConfig, useLogin } from "./authConfig";
 
 initializeIcons();
@@ -51,6 +52,10 @@ const router = createBrowserRouter([
     {
         path: "/chatbots",
         element: <ChatbotDirectory />
+    },
+    {
+        path: "/upload-files",
+        element: <UploadFilesPage />
     },
     ...chatbotRoutes,
     {
