@@ -438,7 +438,12 @@ async def test_managed_upload_file_uses_category_prefix(client, monkeypatch):
     version_blob_name = "sartorius/shared-notes.txt"
     manifest_blob_name = f"sartorius/.managed-uploads/manifests/{filename_token}.json"
     assert response.status_code == 200
-    assert payload["uploadedFiles"] == [{"category": "sartorius", "filename": "shared-notes.txt"}]
+    assert len(payload["uploadedFiles"]) == 1
+    assert payload["uploadedFiles"][0]["category"] == "sartorius"
+    assert payload["uploadedFiles"][0]["filename"] == "shared-notes.txt"
+    assert payload["uploadedFiles"][0]["storage_url"].endswith(version_blob_name)
+    assert payload["uploadedFiles"][0]["replacedExisting"] is False
+    assert payload["uploadedFiles"][0]["uploaded_at"]
     assert version_blob_name in uploaded_blob_names
     assert manifest_blob_name in uploaded_blob_names
     assert len(documents_uploaded) == 1
@@ -475,7 +480,11 @@ async def test_list_chatbot_uploaded_files(client, monkeypatch):
 async def test_list_managed_uploaded_files(client, monkeypatch):
     manager = client.app.config[app.CONFIG_CATEGORY_UPLOAD_MANAGER]
 
-    async def mock_list_entries(category=None):
+    async def mock_list_entries_page(category=None, query=None, page=1, page_size=15):
+        assert category is None
+        assert query is None
+        assert page == 1
+        assert page_size == 15
         entries = [
             CategoryUploadEntry(
                 category="demo",
@@ -490,21 +499,25 @@ async def test_list_managed_uploaded_files(client, monkeypatch):
                 uploaded_at="2026-03-25T11:00:00+00:00",
             ),
         ]
-        if category is None:
-            return entries
-        return [entry for entry in entries if entry.category == category]
+        return SimpleNamespace(entries=entries, total_count=2, page=1, page_size=15)
 
-    async def mock_list_categories():
-        return ["demo", "sartorius"]
+    async def mock_list_category_counts():
+        return {"demo": 1, "sartorius": 1}
 
-    monkeypatch.setattr(manager, "list_entries", mock_list_entries)
-    monkeypatch.setattr(manager, "list_categories", mock_list_categories)
+    monkeypatch.setattr(manager, "list_entries_page", mock_list_entries_page)
+    monkeypatch.setattr(manager, "list_category_counts", mock_list_category_counts)
 
     response = await client.get("/managed_uploads")
     payload = await response.get_json()
 
     assert response.status_code == 200
     assert payload["categories"] == ["demo", "sartorius"]
+    assert payload["categoryCounts"] == {"demo": 1, "sartorius": 1}
+    assert payload["totalCount"] == 2
+    assert payload["totalAllCount"] == 2
+    assert payload["page"] == 1
+    assert payload["pageSize"] == 15
+    assert payload["totalPages"] == 1
     assert payload["files"][0]["category"] == "demo"
     assert payload["files"][1]["category"] == "sartorius"
 

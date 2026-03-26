@@ -1,4 +1,4 @@
-import { ChangeEvent, DragEvent, FormEvent, useEffect, useRef, useState } from "react";
+import { ChangeEvent, DragEvent, FormEvent, startTransition, useEffect, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
 import { Icon } from "@fluentui/react";
@@ -16,6 +16,7 @@ import {
     getInitialInternalAuthenticationState
 } from "./internalToolsAccess";
 import {
+    ManagedUploadCreatedEntry,
     ManagedUploadEntry,
     cancelManagedUploadApi,
     deleteManagedUploadedFileApi,
@@ -97,6 +98,19 @@ const createUniqueId = () => {
     return `upload-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 };
 
+const sortCategories = (categories: string[]) =>
+    Array.from(new Set(categories)).sort((left, right) => left.localeCompare(right));
+
+const matchesLibraryFilters = (entry: ManagedUploadEntry, categoryFilter: string, normalizedQuery: string) => {
+    if (categoryFilter !== allCategoriesValue && entry.category !== categoryFilter) {
+        return false;
+    }
+    if (!normalizedQuery) {
+        return true;
+    }
+    return entry.filename.toLowerCase().includes(normalizedQuery) || entry.category.toLowerCase().includes(normalizedQuery);
+};
+
 const UploadFilesPage = () => {
     const [isAuthenticated, setIsAuthenticated] = useState<boolean>(getInitialInternalAuthenticationState);
     const [password, setPassword] = useState("");
@@ -105,9 +119,13 @@ const UploadFilesPage = () => {
     const [uploadCategory, setUploadCategory] = useState("");
     const [categoryFilter, setCategoryFilter] = useState(allCategoriesValue);
     const [query, setQuery] = useState("");
+    const [debouncedQuery, setDebouncedQuery] = useState("");
     const [queueItems, setQueueItems] = useState<UploadQueueItem[]>([]);
     const [uploadedFiles, setUploadedFiles] = useState<ManagedUploadEntry[]>([]);
     const [availableCategories, setAvailableCategories] = useState<string[]>([]);
+    const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
+    const [filteredFileCount, setFilteredFileCount] = useState(0);
+    const [totalManagedFiles, setTotalManagedFiles] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState<number>(10);
     const [currentPage, setCurrentPage] = useState<number>(1);
     const [isLoading, setIsLoading] = useState(false);
@@ -121,29 +139,23 @@ const UploadFilesPage = () => {
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const queueRef = useRef<UploadQueueItem[]>([]);
     const currentAbortRef = useRef<AbortController | null>(null);
+    const libraryAbortRef = useRef<AbortController | null>(null);
+    const latestLibraryRequestIdRef = useRef(0);
     const currentUploadIdRef = useRef<string | null>(null);
     const currentQueueItemIdRef = useRef<string | null>(null);
     const currentUploadCategoryRef = useRef<string | null>(null);
     const processingRef = useRef(false);
     const stopRequestedRef = useRef(false);
+    const [hasLoadedLibraryMetadata, setHasLoadedLibraryMetadata] = useState(false);
+    const hasLoadedLibraryMetadataRef = useRef(false);
 
-    const normalizedQuery = query.trim().toLowerCase();
-    const filteredFiles = uploadedFiles.filter(file => {
-        if (categoryFilter !== allCategoriesValue && file.category !== categoryFilter) {
-            return false;
-        }
-        if (!normalizedQuery) {
-            return true;
-        }
-        return file.filename.toLowerCase().includes(normalizedQuery) || file.category.toLowerCase().includes(normalizedQuery);
-    });
+    const normalizedQuery = debouncedQuery.trim().toLowerCase();
 
     const hasActiveQueue = queueItems.some(item => activeStatuses.includes(item.status));
     const dismissableQueueItemsCount = queueItems.filter(item => !activeStatuses.includes(item.status)).length;
-    const totalPages = Math.max(1, Math.ceil(filteredFiles.length / rowsPerPage));
+    const totalPages = Math.max(1, Math.ceil(filteredFileCount / rowsPerPage));
     const currentPageSafe = Math.min(currentPage, totalPages);
     const pageStartIndex = (currentPageSafe - 1) * rowsPerPage;
-    const paginatedFiles = filteredFiles.slice(pageStartIndex, pageStartIndex + rowsPerPage);
     const setQueueState = (updater: (current: UploadQueueItem[]) => UploadQueueItem[]) => {
         const nextState = updater(queueRef.current);
         queueRef.current = nextState;
@@ -206,26 +218,79 @@ const UploadFilesPage = () => {
         }
     };
 
-    const loadFiles = async (options?: { suppressErrors?: boolean }) => {
+    const applyLibraryResponse = (
+        response: Awaited<ReturnType<typeof listManagedUploadsApi>>,
+        options?: { includeCategories?: boolean }
+    ) => {
+        startTransition(() => {
+            setUploadedFiles(response.files);
+            setFilteredFileCount(response.totalCount);
+            if (options?.includeCategories !== false) {
+                setAvailableCategories(sortCategories(response.categories));
+                setCategoryCounts(response.categoryCounts);
+                setTotalManagedFiles(typeof response.totalAllCount === "number" ? response.totalAllCount : 0);
+                setHasLoadedLibraryMetadata(true);
+                if (categoryFilter !== allCategoriesValue && !response.categories.includes(categoryFilter)) {
+                    setCategoryFilter(allCategoriesValue);
+                }
+            }
+        });
+    };
+
+    const loadFiles = async (options?: {
+        suppressErrors?: boolean;
+        includeCategories?: boolean;
+        page?: number;
+        pageSize?: number;
+        category?: string | null;
+        query?: string;
+    }) => {
+        const requestId = latestLibraryRequestIdRef.current + 1;
+        latestLibraryRequestIdRef.current = requestId;
+        libraryAbortRef.current?.abort();
+        const controller = new AbortController();
+        libraryAbortRef.current = controller;
+
+        const requestCategory =
+            options?.category === undefined
+                ? categoryFilter !== allCategoriesValue
+                    ? categoryFilter
+                    : undefined
+                : options.category || undefined;
+        const requestQuery = options?.query ?? debouncedQuery.trim();
+        const includeCategories = options?.includeCategories ?? !hasLoadedLibraryMetadataRef.current;
+
         setIsLoading(true);
         try {
-            const response = await listManagedUploadsApi();
-            setUploadedFiles(response.files);
-            setAvailableCategories(response.categories);
-            if (categoryFilter !== allCategoriesValue && !response.categories.includes(categoryFilter)) {
-                setCategoryFilter(allCategoriesValue);
+            const response = await listManagedUploadsApi({
+                category: requestCategory,
+                query: requestQuery,
+                page: options?.page ?? currentPageSafe,
+                pageSize: options?.pageSize ?? rowsPerPage,
+                includeCategories,
+                signal: controller.signal
+            });
+            if (requestId !== latestLibraryRequestIdRef.current) {
+                return null;
             }
-            return response.files;
+            applyLibraryResponse(response, { includeCategories });
+            return response;
         } catch (error) {
+            if (controller.signal.aborted || (error instanceof DOMException && error.name === "AbortError")) {
+                return null;
+            }
             if (!options?.suppressErrors) {
                 setStatus({
                     tone: "error",
                     message: error instanceof Error ? error.message : "Unable to load uploaded files."
                 });
             }
-            return uploadedFiles;
+            return null;
         } finally {
-            setIsLoading(false);
+            if (requestId === latestLibraryRequestIdRef.current) {
+                setIsLoading(false);
+                libraryAbortRef.current = null;
+            }
         }
     };
 
@@ -261,9 +326,44 @@ const UploadFilesPage = () => {
         });
     };
 
+    const mergeUploadedEntry = (entry: ManagedUploadCreatedEntry) => {
+        const matchesCurrentFilters = matchesLibraryFilters(entry, categoryFilter, normalizedQuery);
+
+        startTransition(() => {
+            setAvailableCategories(current => sortCategories([...current, entry.category]));
+            setCategoryCounts(current => {
+                const nextCounts = { ...current };
+                const currentCount = nextCounts[entry.category] ?? 0;
+                nextCounts[entry.category] = entry.replacedExisting ? Math.max(1, currentCount || 1) : currentCount + 1;
+                return nextCounts;
+            });
+            setHasLoadedLibraryMetadata(true);
+            if (!entry.replacedExisting) {
+                setTotalManagedFiles(current => current + 1);
+            }
+            if (matchesCurrentFilters && !entry.replacedExisting) {
+                setFilteredFileCount(current => current + 1);
+            }
+            if (matchesCurrentFilters && currentPageSafe === 1) {
+                setUploadedFiles(current => {
+                    const remainingFiles = current.filter(
+                        file => !(file.category === entry.category && file.filename === entry.filename)
+                    );
+                    return [entry, ...remainingFiles].slice(0, rowsPerPage);
+                });
+            }
+        });
+    };
+
     const reconcileAbortedUpload = async (item: UploadQueueItem) => {
-        const latestFiles = await loadFiles({ suppressErrors: true });
-        const fileFinished = latestFiles.some(file => file.category === item.category && file.filename === item.filename);
+        const response = await listManagedUploadsApi({
+            category: item.category,
+            query: item.filename,
+            page: 1,
+            pageSize: 5,
+            includeCategories: false
+        });
+        const fileFinished = response.files.some(file => file.category === item.category && file.filename === item.filename);
         updateQueueItem(item.id, {
             status: fileFinished ? "completedAfterStop" : "canceled",
             message: fileFinished ? "Upload finished before stop completed." : "Upload canceled."
@@ -277,6 +377,7 @@ const UploadFilesPage = () => {
 
         processingRef.current = true;
         setIsProcessingQueue(true);
+        let shouldRevalidateLibrary = false;
         try {
             while (true) {
                 const nextItem = queueRef.current.find(item => item.status === "queued");
@@ -317,18 +418,25 @@ const UploadFilesPage = () => {
                             message: failedUpload.message
                         });
                     } else {
+                        const uploadedEntry = response.uploadedFiles?.find(
+                            file => file.category === nextItem.category && file.filename === nextItem.filename
+                        );
                         updateQueueItem(nextItem.id, {
                             status: "completed",
                             message: `Stored in ${nextItem.category}`
                         });
+                        if (uploadedEntry) {
+                            mergeUploadedEntry(uploadedEntry);
+                        }
+                        shouldRevalidateLibrary = true;
                     }
-                    await loadFiles({ suppressErrors: true });
                 } catch (error) {
                     const isAbortError =
                         abortController.signal.aborted || (error instanceof DOMException && error.name === "AbortError");
 
                     if (isAbortError) {
                         await reconcileAbortedUpload(nextItem);
+                        shouldRevalidateLibrary = true;
                     } else {
                         updateQueueItem(nextItem.id, {
                             status: stopRequestedRef.current ? "canceled" : "failed",
@@ -350,6 +458,9 @@ const UploadFilesPage = () => {
         } finally {
             processingRef.current = false;
             setIsProcessingQueue(false);
+            if (shouldRevalidateLibrary) {
+                await loadFiles({ suppressErrors: true, includeCategories: false });
+            }
             if (stopRequestedRef.current) {
                 setStopSummary();
             }
@@ -484,7 +595,7 @@ const UploadFilesPage = () => {
                 tone: "success",
                 message: response.message || `Deleted ${file.filename}.`
             });
-            await loadFiles();
+            await loadFiles({ includeCategories: true });
         } catch (error) {
             setStatus({
                 tone: "error",
@@ -503,7 +614,7 @@ const UploadFilesPage = () => {
         if (categoryFilter === allCategoriesValue || deletingCategory || hasActiveQueue || isStopping) {
             return;
         }
-        const count = uploadedFiles.filter(file => file.category === categoryFilter).length;
+        const count = categoryCounts[categoryFilter] ?? 0;
         if (count === 0 || !window.confirm(`Delete all ${count} uploaded files in "${categoryFilter}"?`)) {
             return;
         }
@@ -516,7 +627,7 @@ const UploadFilesPage = () => {
                 tone: response.failedFiles.length > 0 ? "warning" : "success",
                 message: response.message || `Deleted ${count} files from ${categoryFilter}.`
             });
-            await loadFiles();
+            await loadFiles({ includeCategories: true });
         } catch (error) {
             setStatus({
                 tone: "error",
@@ -528,10 +639,10 @@ const UploadFilesPage = () => {
     };
 
     const handleDeleteAll = async () => {
-        if (uploadedFiles.length === 0 || isDeletingAll || hasActiveQueue || isStopping) {
+        if (totalManagedFiles === 0 || isDeletingAll || hasActiveQueue || isStopping) {
             return;
         }
-        if (!window.confirm(`Delete all ${uploadedFiles.length} uploaded files across all categories?`)) {
+        if (!window.confirm(`Delete all ${totalManagedFiles} uploaded files across all categories?`)) {
             return;
         }
 
@@ -541,9 +652,9 @@ const UploadFilesPage = () => {
             const response = await deleteManagedUploadedFilesApi();
             setStatus({
                 tone: response.failedFiles.length > 0 ? "warning" : "success",
-                message: response.message || `Deleted ${uploadedFiles.length} uploaded files.`
+                message: response.message || `Deleted ${totalManagedFiles} uploaded files.`
             });
-            await loadFiles();
+            await loadFiles({ includeCategories: true });
         } catch (error) {
             setStatus({
                 tone: "error",
@@ -582,6 +693,18 @@ const UploadFilesPage = () => {
         setIsPasswordVisible(false);
         setStatus(undefined);
         setQuery("");
+        setDebouncedQuery("");
+        setUploadCategory("");
+        setCategoryFilter(allCategoriesValue);
+        setQueueState(() => []);
+        setUploadedFiles([]);
+        setAvailableCategories([]);
+        setCategoryCounts({});
+        setFilteredFileCount(0);
+        setTotalManagedFiles(0);
+        setCurrentPage(1);
+        setHasLoadedLibraryMetadata(false);
+        libraryAbortRef.current?.abort();
     };
 
     useEffect(() => {
@@ -589,14 +712,22 @@ const UploadFilesPage = () => {
     }, [queueItems]);
 
     useEffect(() => {
-        if (isAuthenticated) {
-            void loadFiles();
-        }
-    }, [isAuthenticated]);
+        hasLoadedLibraryMetadataRef.current = hasLoadedLibraryMetadata;
+    }, [hasLoadedLibraryMetadata]);
 
     useEffect(() => {
-        setCurrentPage(1);
-    }, [categoryFilter, normalizedQuery, rowsPerPage]);
+        const timeoutId = window.setTimeout(() => {
+            setDebouncedQuery(query.trim());
+        }, 250);
+        return () => window.clearTimeout(timeoutId);
+    }, [query]);
+
+    useEffect(() => {
+        if (!isAuthenticated) {
+            return;
+        }
+        void loadFiles();
+    }, [isAuthenticated, categoryFilter, debouncedQuery, currentPage, rowsPerPage]);
 
     useEffect(() => {
         if (currentPage > totalPages) {
@@ -635,6 +766,7 @@ const UploadFilesPage = () => {
                 void cancelManagedUploadApi(activeCategory, activeUploadId).catch(() => undefined);
             }
             currentAbortRef.current?.abort();
+            libraryAbortRef.current?.abort();
         };
     }, []);
 
@@ -666,7 +798,7 @@ const UploadFilesPage = () => {
                     </div>
                     <div className={styles.headerActions}>
                         <span className={styles.countPill}>
-                            {isAuthenticated ? `${uploadedFiles.length} managed files` : "Protected page"}
+                            {isAuthenticated ? `${totalManagedFiles} managed files` : "Protected page"}
                         </span>
                         {isAuthenticated ? (
                             <>
@@ -748,7 +880,12 @@ const UploadFilesPage = () => {
                                         <ArrowUpload24Regular />
                                         <span>Choose files</span>
                                     </button>
-                                    <button className={styles.secondaryButton} type="button" disabled={isProcessingQueue || isStopping} onClick={() => void loadFiles()}>
+                                    <button
+                                        className={styles.secondaryButton}
+                                        type="button"
+                                        disabled={isProcessingQueue || isStopping}
+                                        onClick={() => void loadFiles({ includeCategories: true })}
+                                    >
                                         <ArrowClockwise24Regular />
                                         <span>Refresh</span>
                                     </button>
@@ -883,7 +1020,10 @@ const UploadFilesPage = () => {
                                                 id="rows-per-page"
                                                 className={styles.paginationSelect}
                                                 value={rowsPerPage}
-                                                onChange={event => setRowsPerPage(Number(event.target.value))}
+                                                onChange={event => {
+                                                    setRowsPerPage(Number(event.target.value));
+                                                    setCurrentPage(1);
+                                                }}
                                             >
                                                 {pageSizeOptions.map(option => (
                                                     <option key={option} value={option}>
@@ -892,7 +1032,7 @@ const UploadFilesPage = () => {
                                                 ))}
                                             </select>
                                         </div>
-                                        <span className={styles.fileCount}>{filteredFiles.length}</span>
+                                        <span className={styles.fileCount}>{filteredFileCount}</span>
                                     </div>
                                 </div>
 
@@ -905,7 +1045,10 @@ const UploadFilesPage = () => {
                                             id="category-filter"
                                             className={styles.select}
                                             value={categoryFilter}
-                                            onChange={event => setCategoryFilter(event.target.value)}
+                                            onChange={event => {
+                                                setCategoryFilter(event.target.value);
+                                                setCurrentPage(1);
+                                            }}
                                         >
                                             <option value={allCategoriesValue}>All categories</option>
                                             {availableCategories.map(category => (
@@ -924,7 +1067,10 @@ const UploadFilesPage = () => {
                                             className={styles.input}
                                             type="search"
                                             value={query}
-                                            onChange={event => setQuery(event.target.value)}
+                                            onChange={event => {
+                                                setQuery(event.target.value);
+                                                setCurrentPage(1);
+                                            }}
                                             placeholder="Search by filename or category"
                                         />
                                     </div>
@@ -954,7 +1100,7 @@ const UploadFilesPage = () => {
 
                                 <div className={styles.list}>
                                     {isLoading ? <p className={styles.infoMessage}>Loading uploaded files...</p> : null}
-                                    {!isLoading && filteredFiles.length === 0 ? (
+                                    {!isLoading && filteredFileCount === 0 ? (
                                         <div className={styles.emptyState}>
                                             <Document24Regular />
                                             <div>
@@ -964,7 +1110,7 @@ const UploadFilesPage = () => {
                                         </div>
                                     ) : null}
                                     {!isLoading &&
-                                        paginatedFiles.map(file => {
+                                        uploadedFiles.map(file => {
                                             const key = `${file.category}:${file.filename}`;
                                             return (
                                                 <div className={styles.fileRow} key={key}>
@@ -991,10 +1137,10 @@ const UploadFilesPage = () => {
                                             );
                                         })}
                                 </div>
-                                {filteredFiles.length > 0 ? (
+                                {filteredFileCount > 0 ? (
                                     <div className={styles.paginationBar}>
                                         <span className={styles.paginationSummary}>
-                                            Showing {pageStartIndex + 1}-{Math.min(pageStartIndex + rowsPerPage, filteredFiles.length)} of {filteredFiles.length}
+                                            Showing {pageStartIndex + 1}-{Math.min(pageStartIndex + uploadedFiles.length, filteredFileCount)} of {filteredFileCount}
                                         </span>
                                         <div className={styles.paginationControls}>
                                             <button

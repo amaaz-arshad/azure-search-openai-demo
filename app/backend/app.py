@@ -176,6 +176,21 @@ def get_category_upload_manager() -> CategoryUploadStrategy:
     return cast(CategoryUploadStrategy, manager)
 
 
+def parse_positive_int_query_param(param_name: str, default: int, min_value: int = 1, max_value: int | None = None) -> int:
+    raw_value = (request.args.get(param_name) or "").strip()
+    if not raw_value:
+        return default
+    try:
+        parsed_value = int(raw_value)
+    except ValueError as error:
+        raise ValueError(f"{param_name} must be an integer.") from error
+    if parsed_value < min_value:
+        raise ValueError(f"{param_name} must be at least {min_value}.")
+    if max_value is not None and parsed_value > max_value:
+        raise ValueError(f"{param_name} must be at most {max_value}.")
+    return parsed_value
+
+
 def get_chatbot_name_from_request_json(request_json: dict[str, Any]) -> str | None:
     context = request_json.get("context", {})
     overrides = context.get("overrides", {}) if isinstance(context, dict) else {}
@@ -881,14 +896,34 @@ async def delete_all_chatbot_uploaded(chatbot_name: str):
 @bp.get("/managed_uploads")
 async def list_managed_uploads():
     category = (request.args.get("category") or "").strip() or None
+    query = (request.args.get("query") or "").strip() or None
+    include_categories = (request.args.get("includeCategories") or "true").strip().lower() != "false"
     manager = get_category_upload_manager()
     try:
         normalized_category = manager.normalize_category(category) if category is not None else None
-        files = [dataclasses.asdict(entry) for entry in await manager.list_entries(category=normalized_category)]
-        categories = await manager.list_categories()
+        page = parse_positive_int_query_param("page", default=1)
+        page_size = parse_positive_int_query_param("pageSize", default=15, max_value=100)
+        page_result = await manager.list_entries_page(
+            category=normalized_category,
+            query=query,
+            page=page,
+            page_size=page_size,
+        )
+        category_counts = await manager.list_category_counts() if include_categories else {}
     except ValueError as error:
         return jsonify({"message": str(error)}), 400
-    return jsonify({"files": files, "categories": categories}), 200
+    return jsonify(
+        {
+            "files": [dataclasses.asdict(entry) for entry in page_result.entries],
+            "categories": sorted(category_counts),
+            "categoryCounts": category_counts,
+            "totalCount": page_result.total_count,
+            "totalAllCount": sum(category_counts.values()) if include_categories else None,
+            "page": page_result.page,
+            "pageSize": page_result.page_size,
+            "totalPages": max(1, (page_result.total_count + page_result.page_size - 1) // page_result.page_size),
+        }
+    ), 200
 
 
 @bp.post("/managed_uploads")
@@ -910,7 +945,7 @@ async def upload_managed_files():
     if not uploaded_files:
         return jsonify({"message": "No file part in the request", "uploadedFiles": [], "failedFiles": []}), 400
 
-    succeeded: list[dict[str, str]] = []
+    succeeded: list[dict[str, Any]] = []
     failed: list[dict[str, str]] = []
     upload_id = (request.headers.get("X-Upload-Id") or "").strip() or None
 
@@ -922,12 +957,17 @@ async def upload_managed_files():
                     failed.append({"category": category, "filename": skipped_file.filename, "message": "Upload canceled"})
                 break
             try:
-                entry = await manager.add_file(
+                upload_result = await manager.add_file(
                     File(content=uploaded_file),
                     category=category,
                     upload_id=upload_id,
                 )
-                succeeded.append({"category": entry.category, "filename": entry.filename})
+                succeeded.append(
+                    {
+                        **dataclasses.asdict(upload_result.entry),
+                        "replacedExisting": upload_result.replaced_existing,
+                    }
+                )
             except ChatbotUploadCancelled:
                 failed.append({"category": category, "filename": uploaded_file.filename, "message": "Upload canceled"})
                 for skipped_file in uploaded_files[file_index + 1 :]:

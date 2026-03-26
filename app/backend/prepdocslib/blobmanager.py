@@ -1,6 +1,8 @@
 import io
 import logging
 import os
+from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import IO, Any, Optional, TypedDict
 from urllib.parse import unquote
@@ -18,6 +20,12 @@ from PIL import Image, ImageDraw, ImageFont
 from .listfilestrategy import File
 
 logger = logging.getLogger("scripts")
+
+
+@dataclass(frozen=True)
+class BlobListEntry:
+    name: str
+    last_modified: Optional[datetime] = None
 
 
 class BlobProperties(TypedDict, total=False):
@@ -473,6 +481,41 @@ class BlobManager(BaseBlobManager):
         async for blob in container_client.list_blobs(name_starts_with=prefix):
             blob_names.append(blob.name)
         return blob_names
+
+    async def list_blobs(self, prefix: Optional[str] = None) -> list[BlobListEntry]:
+        container_client = self.blob_service_client.get_container_client(self.container)
+        if not await container_client.exists():
+            return []
+
+        normalized_prefix = self.normalize_blob_prefix(prefix)
+        blobs: list[BlobListEntry] = []
+        async for blob in container_client.list_blobs(name_starts_with=normalized_prefix or ""):
+            blob_name = getattr(blob, "name", None)
+            if not blob_name:
+                continue
+            blobs.append(
+                BlobListEntry(
+                    name=blob_name,
+                    last_modified=getattr(blob, "last_modified", None),
+                )
+            )
+        return blobs
+
+    async def list_blob_prefixes(self, prefix: Optional[str] = None, delimiter: str = "/") -> list[str]:
+        container_client = self.blob_service_client.get_container_client(self.container)
+        if not await container_client.exists():
+            return []
+
+        normalized_prefix = self.normalize_blob_prefix(prefix)
+        prefix_names: list[str] = []
+        async for blob_prefix in container_client.walk_blobs(
+            name_starts_with=normalized_prefix or "",
+            delimiter=delimiter,
+        ):
+            blob_prefix_name = getattr(blob_prefix, "name", None)
+            if blob_prefix_name:
+                prefix_names.append(blob_prefix_name)
+        return prefix_names
 
     async def blob_exists(self, blob_name: str) -> bool:
         container_client = self.blob_service_client.get_container_client(self.container)
