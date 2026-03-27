@@ -11,6 +11,7 @@ import pytest
 
 from document_extractor import function_app as document_extractor
 from figure_processor import function_app as figure_processor
+from moodle_auto_indexer import function_app as moodle_auto_indexer
 from prepdocslib.fileprocessor import FileProcessor
 from prepdocslib.textparser import TextParser
 from prepdocslib.textsplitter import SentenceTextSplitter
@@ -51,6 +52,176 @@ def build_raw_request(body: bytes) -> func.HttpRequest:
         params={},
         body=body,
     )
+
+
+class EventGridEventStub:
+    def __init__(self, subject: str, event_type: str) -> None:
+        self.subject = subject
+        self.event_type = event_type
+
+
+@pytest.mark.asyncio
+async def test_moodle_auto_index_function_indexes_triggered_blob(monkeypatch: pytest.MonkeyPatch) -> None:
+    class MockAutoIndexer:
+        def __init__(self) -> None:
+            self.calls: list[dict[str, Any]] = []
+
+        async def index_blob_from_storage(self, *, blob_name: str):
+            self.calls.append({"blob_name": blob_name})
+            return type(
+                "Result",
+                (),
+                {
+                    "source_blob_name": blob_name,
+                    "status": "indexed",
+                    "indexed_sections": 3,
+                    "target_blob_name": "moodle/test.xml",
+                },
+            )()
+
+    auto_indexer = MockAutoIndexer()
+    monkeypatch.setattr(
+        moodle_auto_indexer,
+        "settings",
+        moodle_auto_indexer.GlobalSettings(auto_indexers={"moodle": auto_indexer}),
+    )
+
+    await moodle_auto_indexer.moodle_auto_index(
+        EventGridEventStub(
+            "/blobServices/default/containers/content/blobs/nerilio/Nerilio-Moodle/test.xml",
+            "Microsoft.Storage.BlobCreated",
+        )
+    )
+
+    assert auto_indexer.calls == [{"blob_name": "content/nerilio/Nerilio-Moodle/test.xml"}]
+
+
+@pytest.mark.asyncio
+async def test_moodle_delete_sync_removes_target_blob_for_delete_event(monkeypatch: pytest.MonkeyPatch) -> None:
+    class MockAutoIndexer:
+        def __init__(self) -> None:
+            self.deleted: list[str] = []
+
+        async def delete_blob(self, *, blob_name: str):
+            self.deleted.append(blob_name)
+            return type(
+                "Result",
+                (),
+                {
+                    "source_blob_name": blob_name,
+                    "status": "deleted",
+                    "target_blob_name": "moodle/test.xml",
+                },
+            )()
+
+    auto_indexer = MockAutoIndexer()
+    monkeypatch.setattr(
+        moodle_auto_indexer,
+        "settings",
+        moodle_auto_indexer.GlobalSettings(auto_indexers={"moodle": auto_indexer}),
+    )
+
+    await moodle_auto_indexer.moodle_delete_sync(
+        EventGridEventStub(
+            "/blobServices/default/containers/content/blobs/nerilio/Nerilio-Moodle/test.xml",
+            "Microsoft.Storage.BlobDeleted",
+        )
+    )
+
+    assert auto_indexer.deleted == ["content/nerilio/Nerilio-Moodle/test.xml"]
+
+
+@pytest.mark.asyncio
+async def test_publishone_auto_index_function_indexes_triggered_blob(monkeypatch: pytest.MonkeyPatch) -> None:
+    class MockAutoIndexer:
+        def __init__(self) -> None:
+            self.calls: list[dict[str, Any]] = []
+
+        async def index_blob_from_storage(self, *, blob_name: str):
+            self.calls.append({"blob_name": blob_name})
+            return type(
+                "Result",
+                (),
+                {
+                    "source_blob_name": blob_name,
+                    "status": "indexed",
+                    "indexed_sections": 2,
+                    "target_blob_name": "publishone/test.xml",
+                },
+            )()
+
+    auto_indexer = MockAutoIndexer()
+    monkeypatch.setattr(
+        moodle_auto_indexer,
+        "settings",
+        moodle_auto_indexer.GlobalSettings(auto_indexers={"publishone": auto_indexer}),
+    )
+
+    await moodle_auto_indexer.publishone_auto_index(
+        EventGridEventStub(
+            "/blobServices/default/containers/content/blobs/nerilio/Nerilio-PublishOne/test.xml",
+            "Microsoft.Storage.BlobCreated",
+        )
+    )
+
+    assert auto_indexer.calls == [{"blob_name": "content/nerilio/Nerilio-PublishOne/test.xml"}]
+
+
+@pytest.mark.asyncio
+async def test_publishone_delete_sync_removes_target_blob_for_delete_event(monkeypatch: pytest.MonkeyPatch) -> None:
+    class MockAutoIndexer:
+        def __init__(self) -> None:
+            self.deleted: list[str] = []
+
+        async def delete_blob(self, *, blob_name: str):
+            self.deleted.append(blob_name)
+            return type(
+                "Result",
+                (),
+                {
+                    "source_blob_name": blob_name,
+                    "status": "deleted",
+                    "target_blob_name": "publishone/test.xml",
+                },
+            )()
+
+    auto_indexer = MockAutoIndexer()
+    monkeypatch.setattr(
+        moodle_auto_indexer,
+        "settings",
+        moodle_auto_indexer.GlobalSettings(auto_indexers={"publishone": auto_indexer}),
+    )
+
+    await moodle_auto_indexer.publishone_delete_sync(
+        EventGridEventStub(
+            "/blobServices/default/containers/content/blobs/nerilio/Nerilio-PublishOne/test.xml",
+            "Microsoft.Storage.BlobDeleted",
+        )
+    )
+
+    assert auto_indexer.deleted == ["content/nerilio/Nerilio-PublishOne/test.xml"]
+
+
+def test_moodle_auto_indexer_warns_when_env_missing(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    import importlib
+
+    saved_env = os.environ.get("PYTEST_CURRENT_TEST")
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+
+    with pytest.MonkeyPatch.context() as context:
+        context.delenv("AZURE_STORAGE_ACCOUNT", raising=False)
+        caplog.set_level(logging.WARNING)
+        reloaded = importlib.reload(moodle_auto_indexer)
+
+    assert "Could not initialize settings at module load time" in caplog.text
+
+    if saved_env is not None:
+        monkeypatch.setenv("PYTEST_CURRENT_TEST", saved_env)
+    else:
+        monkeypatch.setenv("PYTEST_CURRENT_TEST", "pytest")
+
+    importlib.reload(reloaded)
+    reloaded.settings = None
 
 
 @pytest.mark.asyncio

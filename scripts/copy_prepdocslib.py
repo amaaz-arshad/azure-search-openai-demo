@@ -31,6 +31,7 @@ def main() -> None:
     targets = [
         repo_root / "app" / "functions" / "document_extractor" / "prepdocslib",
         repo_root / "app" / "functions" / "figure_processor" / "prepdocslib",
+        repo_root / "app" / "functions" / "moodle_auto_indexer" / "prepdocslib",
         repo_root / "app" / "functions" / "text_processor" / "prepdocslib",
     ]
 

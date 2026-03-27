@@ -752,6 +752,23 @@ module functions 'app/functions.bicep' = if (useCloudIngestion) {
   }
 }
 
+module moodleAutoIndexer 'app/moodle-auto-indexer.bicep' = {
+  name: 'moodle-auto-indexer'
+  scope: resourceGroup
+  params: {
+    location: location
+    tags: tags
+    applicationInsightsName: useApplicationInsights ? monitoring!.outputs.applicationInsightsName : ''
+    storageAccountName: storage.outputs.name
+    storageResourceGroupName: storageResourceGroup.name
+    searchServiceResourceGroupName: searchServiceResourceGroup.name
+    openAiResourceGroupName: openAiResourceGroup.name
+    documentIntelligenceResourceGroupName: documentIntelligenceResourceGroup.name
+    appEnvVariables: appEnvVariables
+    functionName: '${abbrs.webSitesFunctions}moodle-auto-indexer-${resourceToken}'
+  }
+}
+
 var defaultOpenAiDeployments = [
   {
     name: chatGpt.deploymentName
