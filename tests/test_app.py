@@ -295,6 +295,26 @@ async def test_public_test_session_returns_authenticated_user(client, monkeypatc
 
 
 @pytest.mark.asyncio
+async def test_chat_rak_applies_user_filter_from_header(client):
+    response = await client.post(
+        "/chat",
+        headers={"X-Chatbot-User": "12345"},
+        json={
+            "messages": [{"content": "What is the capital of France?", "role": "user"}],
+            "context": {
+                "overrides": {
+                    "retrieval_mode": "text",
+                    "include_category": "rak",
+                }
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    assert client.app.config[app.CONFIG_SEARCH_CLIENT].filter == "(category eq 'rak') and user eq '12345'"
+
+
+@pytest.mark.asyncio
 async def test_chat_handle_exception(client, monkeypatch, snapshot, caplog):
     monkeypatch.setattr(
         "approaches.chatreadretrieveread.ChatReadRetrieveReadApproach.run",

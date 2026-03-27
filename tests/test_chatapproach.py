@@ -532,6 +532,46 @@ async def test_get_sources_content_uses_url_for_fhg_citations(chat_approach):
     ]
 
 
+@pytest.mark.asyncio
+async def test_get_sources_content_includes_document_metadata_for_url_citations(chat_approach):
+    documents = [
+        Document(
+            id="doc1",
+            sourcepage="8786",
+            sourcefile="feed.xml",
+            title="erste_hilfe_elearning",
+            url="https://snap.publishone.nl/document/8786/content",
+            content="Erste Hilfe umfasst alle Massnahmen im Notfall.",
+        ),
+        Document(
+            id="doc2",
+            sourcepage="8786",
+            sourcefile="feed.xml",
+            title="erste_hilfe_elearning",
+            url="https://snap.publishone.nl/document/8786/content",
+            content="Weitere Details",
+        ),
+    ]
+
+    data_points = await chat_approach.get_sources_content(
+        documents,
+        use_semantic_captions=False,
+        include_text_sources=True,
+        download_image_sources=False,
+        document_citation_target="url",
+    )
+
+    assert data_points.external_results_metadata == [
+        {
+            "id": "doc1",
+            "title": "erste_hilfe_elearning",
+            "url": "https://snap.publishone.nl/document/8786/content",
+            "snippet": "Erste Hilfe umfasst alle Massnahmen im Notfall.",
+            "activity": None,
+        }
+    ]
+
+
 def test_replace_all_ref_ids_uses_url_for_fhg_citations(chat_approach):
     answer = "See [ref_id:1] for the source."
     documents = [

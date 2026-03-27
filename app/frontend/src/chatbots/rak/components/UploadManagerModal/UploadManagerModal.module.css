@@ -1,0 +1,412 @@
+.backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1400;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    background: radial-gradient(circle at top, rgba(255, 255, 255, 0.18), transparent 40%), rgba(16, 18, 22, 0.72);
+    backdrop-filter: blur(8px);
+}
+
+.dialog {
+    width: min(760px, 100%);
+    max-height: min(88vh, 900px);
+    overflow: auto;
+    padding: 1.5rem;
+    border: 1px solid rgba(36, 48, 71, 0.12);
+    border-radius: 28px;
+    background: linear-gradient(180deg, rgba(248, 249, 252, 0.96), rgba(255, 255, 255, 0.98)), #ffffff;
+    box-shadow: 0 28px 80px rgba(9, 18, 38, 0.28);
+}
+
+.header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.eyebrow {
+    margin: 0 0 0.35rem;
+    color: #536075;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.title {
+    margin: 0;
+    color: #182033;
+    font-size: 1.85rem;
+    line-height: 1.1;
+}
+
+.description {
+    max-width: 40rem;
+    margin: 0.5rem 0 0;
+    color: #5f6c82;
+    font-size: 0.98rem;
+    line-height: 1.5;
+}
+
+.closeButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(24, 32, 51, 0.06);
+    color: #182033;
+    cursor: pointer;
+    transition:
+        background-color 0.2s ease,
+        transform 0.2s ease;
+}
+
+.closeButton:hover {
+    background: rgba(24, 32, 51, 0.12);
+    transform: translateY(-1px);
+}
+
+.toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.hiddenInput {
+    display: none;
+}
+
+.dropzone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 2rem 1.5rem;
+    border: 1.5px dashed rgba(35, 67, 130, 0.24);
+    border-radius: 24px;
+    background: linear-gradient(135deg, rgba(233, 242, 255, 0.8), rgba(255, 248, 240, 0.88)), #ffffff;
+    color: #182033;
+    cursor: pointer;
+    transition:
+        transform 0.2s ease,
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.dropzone:hover,
+.dropzoneActive {
+    border-color: #2753b5;
+    box-shadow: 0 16px 38px rgba(39, 83, 181, 0.14);
+    transform: translateY(-1px);
+}
+
+.dropzoneDisabled {
+    cursor: not-allowed;
+    opacity: 0.68;
+    box-shadow: none;
+    transform: none;
+}
+
+.dropzoneIcon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 18px;
+    background: rgba(39, 83, 181, 0.12);
+    color: #2753b5;
+}
+
+.dropzoneTitle {
+    margin: 0.4rem 0 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.dropzoneHint,
+.supportedFormats {
+    margin: 0;
+    color: #5f6c82;
+    text-align: center;
+}
+
+.supportedFormats {
+    font-size: 0.92rem;
+}
+
+.status {
+    margin-top: 1rem;
+    padding: 0.85rem 1rem;
+    border-radius: 16px;
+    font-size: 0.95rem;
+    line-height: 1.4;
+}
+
+.statusNeutral {
+    background: #edf2f8;
+    color: #33415c;
+}
+
+.statusSuccess {
+    background: #e7f8ee;
+    color: #17653a;
+}
+
+.statusWarning {
+    background: #fff4dc;
+    color: #8d5a00;
+}
+
+.statusError {
+    background: #fde8ea;
+    color: #a32939;
+}
+
+.sectionHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: 1.5rem 0 1rem;
+}
+
+.sectionHeaderActions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.sectionLabel {
+    margin: 0;
+    color: #536075;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.sectionTitle {
+    margin: 0.25rem 0 0;
+    color: #182033;
+    font-size: 1.15rem;
+}
+
+.fileCount {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.5rem;
+    height: 2.5rem;
+    padding: 0 0.75rem;
+    border-radius: 999px;
+    background: rgba(24, 32, 51, 0.06);
+    color: #182033;
+    font-weight: 700;
+}
+
+.fileList {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.infoMessage {
+    margin: 0;
+    color: #536075;
+}
+
+.emptyState {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.2rem;
+    border: 1px solid rgba(24, 32, 51, 0.08);
+    border-radius: 20px;
+    background: rgba(244, 247, 251, 0.75);
+    color: #536075;
+}
+
+.emptyStateTitle {
+    margin: 0 0 0.25rem;
+    color: #182033;
+    font-weight: 700;
+}
+
+.emptyStateDescription {
+    margin: 0;
+}
+
+.fileRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.1rem;
+    border: 1px solid rgba(24, 32, 51, 0.08);
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.92);
+}
+
+.fileMeta {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    min-width: 0;
+}
+
+.fileBadge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 3rem;
+    height: 3rem;
+    padding: 0 0.65rem;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #20344f, #466f9d);
+    color: #ffffff;
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+}
+
+.fileDetails {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.fileName {
+    overflow: hidden;
+    color: #182033;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.fileSubtext {
+    color: #5f6c82;
+    font-size: 0.9rem;
+}
+
+.deleteAllButton {
+    flex-shrink: 0;
+}
+
+.deleteButton {
+    flex-shrink: 0;
+    border-radius: 16px;
+    color: #7f2531;
+    transition:
+        background-color 0.2s ease,
+        color 0.2s ease,
+        transform 0.2s ease;
+}
+
+.deleteButton:hover:not(:disabled) {
+    /* background: rgba(163, 41, 57, 0.12);
+    color: #a32939; */
+    transform: translateY(-1px);
+}
+
+.deleteButton:disabled {
+    opacity: 0.58;
+}
+
+.queueActions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-shrink: 0;
+}
+
+.queueStatus {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 7.5rem;
+    padding: 0.45rem 0.85rem;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-align: center;
+}
+
+.queueStatusQueued {
+    background: #edf2f8;
+    color: #33415c;
+}
+
+.queueStatusUploading {
+    background: #e6f0ff;
+    color: #234382;
+}
+
+.queueStatusCanceling {
+    background: #fff4dc;
+    color: #8d5a00;
+}
+
+.queueStatusCompleted {
+    background: #e7f8ee;
+    color: #17653a;
+}
+
+.queueStatusFailed {
+    background: #fde8ea;
+    color: #a32939;
+}
+
+.queueStatusCanceled {
+    background: #f3edf9;
+    color: #6f3fa4;
+}
+
+.dismissButton {
+    flex-shrink: 0;
+}
+
+@media (max-width: 720px) {
+    .backdrop {
+        padding: 0.75rem;
+    }
+
+    .dialog {
+        padding: 1rem;
+        border-radius: 24px;
+    }
+
+    .title {
+        font-size: 1.45rem;
+    }
+
+    .fileRow {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .queueActions,
+    .deleteButton {
+        width: 100%;
+    }
+
+    .queueActions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .queueStatus {
+        width: 100%;
+    }
+}

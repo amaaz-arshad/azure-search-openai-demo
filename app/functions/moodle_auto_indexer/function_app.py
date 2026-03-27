@@ -20,6 +20,7 @@ from prepdocslib.blobautoindex import (
     blob_name_from_event_grid_subject,
     parse_allowed_extensions,
 )
+from prepdocslib.publishonefeed import build_publishone_feed_sections
 from prepdocslib.servicesetup import (
     OpenAIHost,
     build_file_processors,
@@ -129,6 +130,7 @@ def build_auto_indexer(
             enforce_access_control=False,
         ),
         file_processors=file_processors,
+        section_builder=build_publishone_feed_sections,
     )
 
 

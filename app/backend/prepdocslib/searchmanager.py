@@ -71,10 +71,28 @@ class Section:
     A section of a page that is stored in a search service. These sections are used as context by Azure OpenAI service
     """
 
-    def __init__(self, chunk: Chunk, content: File, category: Optional[str] = None):
+    def __init__(
+        self,
+        chunk: Chunk,
+        content: File,
+        category: Optional[str] = None,
+        *,
+        id: Optional[str] = None,
+        sourcepage: Optional[str] = None,
+        sourcefile: Optional[str] = None,
+        title: Optional[str] = None,
+        url: Optional[str] = None,
+        tags: Optional[list[str]] = None,
+    ):
         self.chunk = chunk  # content comes from here
         self.content = content  # sourcepage and sourcefile come from here
         self.category = category
+        self.id = id
+        self.sourcepage = sourcepage
+        self.sourcefile = sourcefile
+        self.title = title
+        self.url = url
+        self.tags = tags
         # this also needs images which will become the images field
 
 
@@ -519,11 +537,11 @@ class SearchManager:
                         if (
                             existing_semantic_config.prioritized_fields
                             and existing_semantic_config.prioritized_fields.title_field
-                            and not existing_semantic_config.prioritized_fields.title_field.field_name == "sourcepage"
+                            and not existing_semantic_config.prioritized_fields.title_field.field_name == "title"
                         ):
                             logger.info("Updating semantic configuration for index %s", self.search_info.index_name)
                             existing_semantic_config.prioritized_fields.title_field = SemanticField(
-                                field_name="sourcepage"
+                                field_name="title"
                             )
 
                 if existing_index.vector_search is not None and (
@@ -780,18 +798,28 @@ class SearchManager:
                         }
                     document = {
                         "id": (
-                            f"{section.content.filename_to_id()}-page-{section_index + batch_index * MAX_BATCH_SIZE}"
-                            f"{document_id_suffix}"
+                            section.id
+                            or (
+                                f"{section.content.filename_to_id()}-page-{section_index + batch_index * MAX_BATCH_SIZE}"
+                                f"{document_id_suffix}"
+                            )
                         ),
                         "content": section.chunk.text,
                         "category": section.category,
-                        "sourcepage": BlobManager.sourcepage_from_file_page(
+                        "sourcepage": section.sourcepage
+                        or BlobManager.sourcepage_from_file_page(
                             filename=section.content.filename(), page=section.chunk.page_num
                         ),
-                        "sourcefile": section.content.filename(),
+                        "sourcefile": section.sourcefile or section.content.filename(),
                         **image_fields,
                         **section.content.acls,
                     }
+                    if section.title is not None:
+                        document["title"] = section.title
+                    if section.url is not None:
+                        document["url"] = section.url
+                    if section.tags is not None:
+                        document["tags"] = section.tags
                     if extra_fields:
                         document.update(extra_fields)
                     documents.append(document)

@@ -1059,3 +1059,84 @@ async def test_public_test_upload_indexes_user_and_uses_user_scoped_blob_path(cl
     assert all(document["category"] == "public-test" for document in documents_uploaded)
     assert all(document["user"] == "person@example.com" for document in documents_uploaded)
     assert all(document["storageUrl"].endswith(file_blob_name) for document in documents_uploaded)
+
+
+@pytest.mark.asyncio
+async def test_rak_upload_indexes_username_and_uses_user_scoped_blob_path(client, monkeypatch):
+    existing_blobs = set()
+    uploaded_blob_names = []
+
+    async def mock_exists(*args, **kwargs):
+        return True
+
+    async def mock_upload_blob(self, name, *args, **kwargs):
+        uploaded_blob_names.append(name)
+        existing_blobs.add(name)
+        return None
+
+    class EmptyAsyncSearchResultsIterator:
+        def __aiter__(self):
+            return self
+
+        async def __anext__(self):
+            raise StopAsyncIteration
+
+        async def get_count(self):
+            return 0
+
+    async def mock_search(self, *args, **kwargs):
+        return EmptyAsyncSearchResultsIterator()
+
+    async def mock_parse_file(file, *args, **kwargs):
+        return [Section(chunk=Chunk(page_num=0, text="rak private content"), content=file, category="rak")]
+
+    async def mock_create_embeddings(self, texts):
+        return [[0.0023064255, -0.009327292, -0.0028842222] for _ in texts]
+
+    documents_uploaded = []
+
+    async def mock_upload_documents(self, documents):
+        documents_uploaded.extend(documents)
+
+    monkeypatch.setattr(ContainerClient, "exists", mock_exists)
+    monkeypatch.setattr(ContainerClient, "upload_blob", mock_upload_blob)
+    monkeypatch.setattr(
+        ContainerClient,
+        "get_blob_client",
+        lambda *args, **kwargs: MockBlobClient(args[1], existing_blobs),
+    )
+    monkeypatch.setattr(
+        ContainerClient,
+        "list_blobs",
+        lambda *args, **kwargs: BlobListIterator(
+            [name for name in existing_blobs if name.startswith(kwargs.get("name_starts_with", ""))]
+        ),
+    )
+    monkeypatch.setattr("prepdocslib.filestrategy.parse_file", mock_parse_file)
+    monkeypatch.setattr(OpenAIEmbeddings, "create_embeddings", mock_create_embeddings)
+    monkeypatch.setattr(SearchClient, "search", mock_search)
+    monkeypatch.setattr(SearchClient, "upload_documents", mock_upload_documents)
+
+    response = await client.post(
+        "/chatbot_uploads/rak",
+        headers={
+            "X-Upload-Id": "upload-123",
+            "X-Chatbot-User": "12345",
+        },
+        files={"files": FileStorage(BytesIO(b"rak upload content"), filename="private-notes.txt")},
+    )
+
+    payload = await response.get_json()
+    filename_token = base64.urlsafe_b64encode(b"private-notes.txt").decode("ascii").rstrip("=")
+    user_token = base64.urlsafe_b64encode(b"12345").decode("ascii").rstrip("=")
+    file_blob_name = f"rak/{user_token}/private-notes.txt"
+    manifest_blob_name = f"rak/{user_token}/.manifests/{filename_token}.json"
+
+    assert response.status_code == 200
+    assert payload["uploadedFiles"] == ["private-notes.txt"]
+    assert file_blob_name in uploaded_blob_names
+    assert manifest_blob_name in uploaded_blob_names
+    assert len(documents_uploaded) == 1
+    assert all(document["category"] == "rak" for document in documents_uploaded)
+    assert all(document["user"] == "12345" for document in documents_uploaded)
+    assert all(document["storageUrl"].endswith(file_blob_name) for document in documents_uploaded)

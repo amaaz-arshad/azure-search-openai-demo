@@ -108,6 +108,16 @@ class Document:
             "activity": asdict(self.activity) if self.activity else None,
             "images": self.images,
         }
+        if self.storage_url is not None:
+            result_dict["storageUrl"] = self.storage_url
+        if self.title is not None:
+            result_dict["title"] = self.title
+        if self.url is not None:
+            result_dict["url"] = self.url
+        if self.tags is not None:
+            result_dict["tags"] = self.tags
+        if self.user is not None:
+            result_dict["user"] = self.user
         return result_dict
 
 
@@ -790,6 +800,7 @@ class Approach(ABC):
         text_sources = []
         image_sources = []
         seen_urls = set()
+        seen_external_result_urls = set()
         external_results_metadata: list[dict[str, Any]] = []
         citation_activity_details: dict[str, dict[str, Any]] = {}
 
@@ -820,6 +831,17 @@ class Approach(ABC):
                         image_sources.append(url)
                     image_citation = self.get_image_citation(citation, img["url"])
                     citations.append(image_citation)
+            if document_citation_target == "url" and doc.url and doc.url not in seen_external_result_urls:
+                seen_external_result_urls.add(doc.url)
+                external_results_metadata.append(
+                    {
+                        "id": doc.id,
+                        "title": doc.title or doc.sourcepage or doc.url,
+                        "url": doc.url,
+                        "snippet": clean_source(doc.content or ""),
+                        "activity": asdict(doc.activity) if doc.activity else None,
+                    }
+                )
         if web_results:
             for web in web_results:
                 citation = self.get_citation(web.url)

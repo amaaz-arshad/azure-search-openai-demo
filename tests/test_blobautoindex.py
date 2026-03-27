@@ -275,3 +275,39 @@ async def test_auto_blob_indexer_can_skip_index_schema_management() -> None:
     await indexer.ensure_index()
 
     assert search_manager.created == 0
+
+
+@pytest.mark.asyncio
+async def test_auto_blob_indexer_uses_custom_section_builder() -> None:
+    built_sections = [object()]
+
+    async def custom_section_builder(*, file, file_processors, category):
+        assert file.filename() == "course-export.xml"
+        assert category == "publishone"
+        assert ".xml" in file_processors
+        return built_sections
+
+    blob_manager = MockBlobManager()
+    search_manager = MockSearchManager()
+    indexer = AutoBlobIndexer(
+        config=AutoBlobIndexerConfig(
+            trigger_container="content",
+            source_prefix="nerilio/Nerilio-PublishOne",
+            target_prefix="publishone",
+            category="publishone",
+            allowed_extensions=frozenset({".xml"}),
+        ),
+        blob_manager=blob_manager,
+        search_manager=search_manager,
+        file_processors={".xml": object()},
+        section_builder=custom_section_builder,
+    )
+
+    result = await indexer.index_blob(
+        blob_name="content/nerilio/Nerilio-PublishOne/course-export.xml",
+        content=b"<root />",
+        content_type="application/xml",
+    )
+
+    assert result.status == "indexed"
+    assert search_manager.updates[0]["sections"] == built_sections

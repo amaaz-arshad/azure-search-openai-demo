@@ -4,15 +4,18 @@ import logging
 import mimetypes
 import os
 from dataclasses import dataclass
+from collections.abc import Awaitable, Callable
 from typing import Optional
 
 from .blobmanager import BlobManager
 from .fileprocessor import FileProcessor
 from .filestrategy import parse_file
 from .listfilestrategy import File
-from .searchmanager import SearchManager
+from .searchmanager import SearchManager, Section
 
 logger = logging.getLogger("scripts")
+
+SectionBuilder = Callable[..., Awaitable[list[Section]]]
 
 
 @dataclass(frozen=True)
@@ -79,11 +82,13 @@ class AutoBlobIndexer:
         blob_manager: BlobManager,
         search_manager: SearchManager,
         file_processors: dict[str, FileProcessor],
+        section_builder: Optional[SectionBuilder] = None,
     ):
         self.config = config
         self.blob_manager = blob_manager
         self.search_manager = search_manager
         self.file_processors = file_processors
+        self.section_builder = section_builder
         self.index_ready = False
         self.index_lock = asyncio.Lock()
 
@@ -166,11 +171,18 @@ class AutoBlobIndexer:
         file_wrapper = self.build_file(filename, content)
 
         try:
-            sections = await parse_file(
-                file=file_wrapper,
-                file_processors=self.file_processors,
-                category=self.config.category,
-            )
+            if self.section_builder is not None:
+                sections = await self.section_builder(
+                    file=file_wrapper,
+                    file_processors=self.file_processors,
+                    category=self.config.category,
+                )
+            else:
+                sections = await parse_file(
+                    file=file_wrapper,
+                    file_processors=self.file_processors,
+                    category=self.config.category,
+                )
         finally:
             file_wrapper.close()
 

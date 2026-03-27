@@ -110,6 +110,13 @@ class ChatReadRetrieveReadApproach(Approach):
         except Exception:
             return default_query
 
+    @staticmethod
+    def get_document_citation_target(include_category: Any) -> str:
+        if not isinstance(include_category, str):
+            return "sourcepage"
+        primary_category = include_category.split(",", 1)[0].strip().lower()
+        return "url" if primary_category in {"fhg", "moodle", "publishone"} else "sourcepage"
+
     async def run_without_streaming(
         self,
         messages: list[ChatCompletionMessageParam],
@@ -360,7 +367,7 @@ class ChatReadRetrieveReadApproach(Approach):
         search_image_embeddings = (
             overrides.get("search_image_embeddings", self.multimodal_enabled) and self.multimodal_enabled
         )
-        document_citation_target = "url" if overrides.get("include_category") == "fhg" else "sourcepage"
+        document_citation_target = self.get_document_citation_target(overrides.get("include_category"))
 
         original_user_query = messages[-1]["content"]
         if not isinstance(original_user_query, str):
@@ -468,7 +475,7 @@ class ChatReadRetrieveReadApproach(Approach):
         send_text_sources = overrides.get("send_text_sources", True)
         send_image_sources = overrides.get("send_image_sources", self.multimodal_enabled) and self.multimodal_enabled
         retrieval_reasoning_effort = overrides.get("retrieval_reasoning_effort", self.retrieval_reasoning_effort)
-        document_citation_target = "url" if overrides.get("include_category") == "fhg" else "sourcepage"
+        document_citation_target = self.get_document_citation_target(overrides.get("include_category"))
         # Overrides can only disable web source support configured at construction time.
         use_web_source = self.web_source_enabled
         override_use_web_source = overrides.get("use_web_source")

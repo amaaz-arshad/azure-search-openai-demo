@@ -672,6 +672,51 @@ async def test_update_content_with_embeddings(monkeypatch, search_info):
 
 
 @pytest.mark.asyncio
+async def test_update_content_uses_section_level_metadata(monkeypatch, search_info):
+    documents_uploaded = []
+
+    async def mock_upload_documents(self, documents):
+        documents_uploaded.extend(documents)
+
+    monkeypatch.setattr(SearchClient, "upload_documents", mock_upload_documents)
+
+    manager = SearchManager(search_info)
+
+    test_io = io.BytesIO(b"test content")
+    test_io.name = "test/feed.xml"
+    file = File(test_io)
+
+    await manager.update_content(
+        [
+            Section(
+                chunk=Chunk(page_num=0, text="mapped content"),
+                content=file,
+                category="publishone",
+                id="publishone-6446-chunk-001",
+                sourcepage="6446",
+                sourcefile="feed.xml",
+                title="Liste",
+                url="https://snap.publishone.nl/document/6446/content",
+                tags=["PublishOne", "state:New"],
+            )
+        ]
+    )
+
+    assert documents_uploaded == [
+        {
+            "id": "publishone-6446-chunk-001",
+            "content": "mapped content",
+            "category": "publishone",
+            "sourcepage": "6446",
+            "sourcefile": "feed.xml",
+            "title": "Liste",
+            "url": "https://snap.publishone.nl/document/6446/content",
+            "tags": ["PublishOne", "state:New"],
+        }
+    ]
+
+
+@pytest.mark.asyncio
 async def test_update_content_no_images_when_disabled(monkeypatch, search_info):
     """Ensure no 'images' field is added when search_images is False (baseline case without any images)."""
 

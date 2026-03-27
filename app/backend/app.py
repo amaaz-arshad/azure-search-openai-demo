@@ -123,6 +123,8 @@ mimetypes.add_type("application/javascript", ".js")
 mimetypes.add_type("text/css", ".css")
 STATIC_ROOT = Path(__file__).resolve().parent / "static"
 PUBLIC_TEST_CHATBOT_NAME = "public-test"
+RAK_CHATBOT_NAME = "rak"
+RAK_ALLOWED_USERNAMES = frozenset({"12345", "67890"})
 
 NON_CHATBOT_FRONTEND_PREFIXES = {
     "assets",
@@ -148,6 +150,7 @@ KNOWN_CHATBOT_NAMES = {
     "agindo",
     "nerilio",
     "public-test",
+    "rak",
     "sartorius",
     "steuertipps",
     "knoll",
@@ -211,6 +214,29 @@ def get_public_test_auth_service() -> PublicTestAuthStore:
 async def get_authenticated_public_test_user() -> PublicTestSession | None:
     auth_service = get_public_test_auth_service()
     return await auth_service.load_session(request.cookies.get(auth_service.session_cookie_name))
+
+
+def normalize_rak_username(raw_username: str | None) -> str | None:
+    normalized_username = (raw_username or "").strip()
+    if not normalized_username:
+        return None
+    return normalized_username if normalized_username in RAK_ALLOWED_USERNAMES else None
+
+
+async def get_user_scoped_chatbot_user(chatbot_name: str, *, allow_query_param: bool = False) -> str | None:
+    if chatbot_name == PUBLIC_TEST_CHATBOT_NAME:
+        public_test_user = await get_authenticated_public_test_user()
+        return public_test_user.email if public_test_user is not None else None
+
+    if chatbot_name == RAK_CHATBOT_NAME:
+        rak_username = normalize_rak_username(request.headers.get("X-Chatbot-User"))
+        if rak_username is not None:
+            return rak_username
+        if allow_query_param:
+            return normalize_rak_username(request.args.get("chatbot_user"))
+        return None
+
+    return None
 
 
 def should_set_secure_session_cookie() -> bool:
@@ -315,24 +341,23 @@ async def content_file(path: str, auth_claims: dict[str, Any]):
             referer_first_segment = urlparse(referer).path.strip("/").split("/", 1)[0].strip().lower()
             if referer_first_segment in KNOWN_CHATBOT_NAMES:
                 requested_chatbot_name = referer_first_segment
-    requested_public_test_user_email = None
-    if requested_chatbot_name == PUBLIC_TEST_CHATBOT_NAME:
-        public_test_user = await get_authenticated_public_test_user()
-        if public_test_user is None:
+    requested_user_identifier = None
+    if requested_chatbot_name in {PUBLIC_TEST_CHATBOT_NAME, RAK_CHATBOT_NAME}:
+        requested_user_identifier = await get_user_scoped_chatbot_user(requested_chatbot_name, allow_query_param=True)
+        if requested_user_identifier is None:
             abort(401)
-        requested_public_test_user_email = public_test_user.email
 
     if requested_chatbot_name:
         chatbot_upload_manager = chatbot_upload_managers.get(requested_chatbot_name)
         if chatbot_upload_manager is not None:
             result = await chatbot_upload_manager.download_file(
                 normalized_path,
-                user_identifier=requested_public_test_user_email if requested_chatbot_name == PUBLIC_TEST_CHATBOT_NAME else None,
+                user_identifier=requested_user_identifier if requested_chatbot_name in {PUBLIC_TEST_CHATBOT_NAME, RAK_CHATBOT_NAME} else None,
             )
 
     if result is None and requested_chatbot_name is None:
         for chatbot_name, chatbot_upload_manager in chatbot_upload_managers.items():
-            if chatbot_name == PUBLIC_TEST_CHATBOT_NAME:
+            if chatbot_name in {PUBLIC_TEST_CHATBOT_NAME, RAK_CHATBOT_NAME}:
                 continue
             result = await chatbot_upload_manager.download_file(
                 normalized_path,
@@ -553,12 +578,12 @@ async def chat(auth_claims: dict[str, Any]):
     error_context = get_request_error_context(request_json)
     context = request_json.get("context", {})
     requested_chatbot_name = get_chatbot_name_from_request_json(request_json)
-    if requested_chatbot_name == PUBLIC_TEST_CHATBOT_NAME:
-        public_test_user = await get_authenticated_public_test_user()
-        if public_test_user is None:
-            return jsonify({"error": "public-test requires login"}), 401
+    if requested_chatbot_name in {PUBLIC_TEST_CHATBOT_NAME, RAK_CHATBOT_NAME}:
+        chatbot_user = await get_user_scoped_chatbot_user(requested_chatbot_name)
+        if chatbot_user is None:
+            return jsonify({"error": f"{requested_chatbot_name} requires login"}), 401
         overrides = context.setdefault("overrides", {})
-        overrides["user"] = public_test_user.email
+        overrides["user"] = chatbot_user
     context["auth_claims"] = auth_claims
     try:
         approach: Approach = cast(Approach, current_app.config[CONFIG_CHAT_APPROACH])
@@ -590,12 +615,12 @@ async def chat_stream(auth_claims: dict[str, Any]):
     error_context = get_request_error_context(request_json)
     context = request_json.get("context", {})
     requested_chatbot_name = get_chatbot_name_from_request_json(request_json)
-    if requested_chatbot_name == PUBLIC_TEST_CHATBOT_NAME:
-        public_test_user = await get_authenticated_public_test_user()
-        if public_test_user is None:
-            return jsonify({"error": "public-test requires login"}), 401
+    if requested_chatbot_name in {PUBLIC_TEST_CHATBOT_NAME, RAK_CHATBOT_NAME}:
+        chatbot_user = await get_user_scoped_chatbot_user(requested_chatbot_name)
+        if chatbot_user is None:
+            return jsonify({"error": f"{requested_chatbot_name} requires login"}), 401
         overrides = context.setdefault("overrides", {})
-        overrides["user"] = public_test_user.email
+        overrides["user"] = chatbot_user
     context["auth_claims"] = auth_claims
     try:
         approach: Approach = cast(Approach, current_app.config[CONFIG_CHAT_APPROACH])
@@ -761,13 +786,12 @@ async def list_uploaded(auth_claims: dict[str, Any]):
 @bp.get("/chatbot_uploads/<chatbot_name>")
 async def list_chatbot_uploaded(chatbot_name: str):
     chatbot_upload_manager = get_chatbot_upload_manager(chatbot_name)
-    public_test_user_email = None
-    if chatbot_name == PUBLIC_TEST_CHATBOT_NAME:
-        public_test_user = await get_authenticated_public_test_user()
-        if public_test_user is None:
-            return jsonify({"message": "public-test requires login"}), 401
-        public_test_user_email = public_test_user.email
-    files = await chatbot_upload_manager.list_files(user_identifier=public_test_user_email)
+    user_identifier = None
+    if chatbot_name in {PUBLIC_TEST_CHATBOT_NAME, RAK_CHATBOT_NAME}:
+        user_identifier = await get_user_scoped_chatbot_user(chatbot_name)
+        if user_identifier is None:
+            return jsonify({"message": f"{chatbot_name} requires login"}), 401
+    files = await chatbot_upload_manager.list_files(user_identifier=user_identifier)
     return jsonify(files), 200
 
 
@@ -780,12 +804,11 @@ async def upload_chatbot_files(chatbot_name: str):
         return jsonify({"message": "No file part in the request", "status": "failed"}), 400
 
     chatbot_upload_manager = get_chatbot_upload_manager(chatbot_name)
-    public_test_user_email = None
-    if chatbot_name == PUBLIC_TEST_CHATBOT_NAME:
-        public_test_user = await get_authenticated_public_test_user()
-        if public_test_user is None:
-            return jsonify({"message": "public-test requires login"}), 401
-        public_test_user_email = public_test_user.email
+    user_identifier = None
+    if chatbot_name in {PUBLIC_TEST_CHATBOT_NAME, RAK_CHATBOT_NAME}:
+        user_identifier = await get_user_scoped_chatbot_user(chatbot_name)
+        if user_identifier is None:
+            return jsonify({"message": f"{chatbot_name} requires login"}), 401
     succeeded: list[str] = []
     failed: list[dict[str, str]] = []
     upload_id = (request.headers.get("X-Upload-Id") or "").strip() or None
@@ -794,7 +817,7 @@ async def upload_chatbot_files(chatbot_name: str):
         for file_index, uploaded_file in enumerate(uploaded_files):
             if upload_id and await chatbot_upload_manager.is_cancel_requested(
                 upload_id,
-                user_identifier=public_test_user_email,
+                user_identifier=user_identifier,
             ):
                 failed.append({"filename": uploaded_file.filename, "message": "Upload canceled"})
                 for skipped_file in uploaded_files[file_index + 1 :]:
@@ -804,7 +827,7 @@ async def upload_chatbot_files(chatbot_name: str):
                 await chatbot_upload_manager.add_file(
                     File(content=uploaded_file),
                     upload_id=upload_id,
-                    user_identifier=public_test_user_email,
+                    user_identifier=user_identifier,
                 )
                 succeeded.append(uploaded_file.filename)
             except ChatbotUploadCancelled:
@@ -819,7 +842,7 @@ async def upload_chatbot_files(chatbot_name: str):
                 failed.append({"filename": uploaded_file.filename, "message": "Unexpected upload failure"})
     finally:
         if upload_id:
-            await chatbot_upload_manager.clear_cancel_request(upload_id, user_identifier=public_test_user_email)
+            await chatbot_upload_manager.clear_cancel_request(upload_id, user_identifier=user_identifier)
 
     if succeeded and failed:
         message = f"Uploaded {len(succeeded)} file(s); {len(failed)} file(s) failed."
@@ -843,40 +866,37 @@ async def cancel_chatbot_upload(chatbot_name: str, upload_id: str):
         return jsonify({"message": "Upload id is required"}), 400
 
     chatbot_upload_manager = get_chatbot_upload_manager(chatbot_name)
-    public_test_user_email = None
-    if chatbot_name == PUBLIC_TEST_CHATBOT_NAME:
-        public_test_user = await get_authenticated_public_test_user()
-        if public_test_user is None:
-            return jsonify({"message": "public-test requires login"}), 401
-        public_test_user_email = public_test_user.email
-    await chatbot_upload_manager.request_cancel(upload_id, user_identifier=public_test_user_email)
+    user_identifier = None
+    if chatbot_name in {PUBLIC_TEST_CHATBOT_NAME, RAK_CHATBOT_NAME}:
+        user_identifier = await get_user_scoped_chatbot_user(chatbot_name)
+        if user_identifier is None:
+            return jsonify({"message": f"{chatbot_name} requires login"}), 401
+    await chatbot_upload_manager.request_cancel(upload_id, user_identifier=user_identifier)
     return jsonify({"message": "Upload cancellation requested"}), 202
 
 
 @bp.delete("/chatbot_uploads/<chatbot_name>/<path:filename>")
 async def delete_chatbot_uploaded(chatbot_name: str, filename: str):
     chatbot_upload_manager = get_chatbot_upload_manager(chatbot_name)
-    public_test_user_email = None
-    if chatbot_name == PUBLIC_TEST_CHATBOT_NAME:
-        public_test_user = await get_authenticated_public_test_user()
-        if public_test_user is None:
-            return jsonify({"message": "public-test requires login"}), 401
-        public_test_user_email = public_test_user.email
+    user_identifier = None
+    if chatbot_name in {PUBLIC_TEST_CHATBOT_NAME, RAK_CHATBOT_NAME}:
+        user_identifier = await get_user_scoped_chatbot_user(chatbot_name)
+        if user_identifier is None:
+            return jsonify({"message": f"{chatbot_name} requires login"}), 401
     filename = os.path.basename(filename)
-    await chatbot_upload_manager.remove_file(filename, user_identifier=public_test_user_email)
+    await chatbot_upload_manager.remove_file(filename, user_identifier=user_identifier)
     return jsonify({"message": f"File {filename} deleted successfully"}), 200
 
 
 @bp.delete("/chatbot_uploads/<chatbot_name>")
 async def delete_all_chatbot_uploaded(chatbot_name: str):
     chatbot_upload_manager = get_chatbot_upload_manager(chatbot_name)
-    public_test_user_email = None
-    if chatbot_name == PUBLIC_TEST_CHATBOT_NAME:
-        public_test_user = await get_authenticated_public_test_user()
-        if public_test_user is None:
-            return jsonify({"message": "public-test requires login"}), 401
-        public_test_user_email = public_test_user.email
-    deleted, failed = await chatbot_upload_manager.remove_all_files(user_identifier=public_test_user_email)
+    user_identifier = None
+    if chatbot_name in {PUBLIC_TEST_CHATBOT_NAME, RAK_CHATBOT_NAME}:
+        user_identifier = await get_user_scoped_chatbot_user(chatbot_name)
+        if user_identifier is None:
+            return jsonify({"message": f"{chatbot_name} requires login"}), 401
+    deleted, failed = await chatbot_upload_manager.remove_all_files(user_identifier=user_identifier)
 
     if deleted and failed:
         message = f"Deleted {len(deleted)} file(s); {len(failed)} file(s) failed."
@@ -1330,6 +1350,17 @@ async def setup_clients():
             rules=ChatbotUploadRules(
                 allowed_extensions=frozenset({".pdf"}),
                 max_total_pdf_pages=public_test_upload_page_limit,
+                user_scoped=True,
+            ),
+        ),
+        "rak": ChatbotUploadStrategy(
+            chatbot_name="rak",
+            search_info=chatbot_upload_search_info,
+            file_processors=chatbot_upload_file_processors,
+            embeddings=chatbot_upload_embeddings,
+            search_field_name_embedding=AZURE_SEARCH_FIELD_NAME_EMBEDDING,
+            blob_manager=global_blob_manager,
+            rules=ChatbotUploadRules(
                 user_scoped=True,
             ),
         ),

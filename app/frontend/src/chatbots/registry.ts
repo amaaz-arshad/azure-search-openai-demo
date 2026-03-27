@@ -11,6 +11,7 @@ import { moodleChatbot } from "./moodle";
 import { nerilioChatbot } from "./nerilio";
 import { publicTestChatbot } from "./public-test";
 import { publishoneChatbot } from "./publishone";
+import { rakChatbot } from "./rak";
 import { sartoriusChatbot } from "./sartorius";
 import { steuertippsChatbot } from "./steuertipps";
 import { vjoonk4Chatbot } from "./vjoonk4";
@@ -27,6 +28,7 @@ export const chatbotDefinitions: ChatbotDefinition[] = [
     agindoChatbot,
     nerilioChatbot,
     publicTestChatbot,
+    rakChatbot,
     steuertippsChatbot,
     knollChatbot,
     lemonChatbot,
