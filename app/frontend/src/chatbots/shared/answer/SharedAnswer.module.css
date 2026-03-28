@@ -39,6 +39,17 @@
     flex-shrink: 0;
 }
 
+.assistantWordmark {
+    display: block;
+    width: auto;
+    height: 22px;
+    max-width: min(176px, 54vw);
+    object-fit: contain;
+    background: transparent;
+    border: none;
+    flex-shrink: 0;
+}
+
 .assistantName {
     font-size: 15px;
     font-weight: 600;
@@ -372,5 +383,10 @@
 
     .assistantName {
         font-size: 15px;
+    }
+
+    .assistantWordmark {
+        height: 20px;
+        max-width: min(156px, 58vw);
     }
 }

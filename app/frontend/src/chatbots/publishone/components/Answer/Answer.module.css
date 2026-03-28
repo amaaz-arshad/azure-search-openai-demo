@@ -206,3 +206,8 @@ sup {
     color: #333;
     /* margin-bottom: 10px; */
 }
+
+.wordmarkLogo {
+    height: 28px;
+    max-width: min(210px, 62vw);
+}

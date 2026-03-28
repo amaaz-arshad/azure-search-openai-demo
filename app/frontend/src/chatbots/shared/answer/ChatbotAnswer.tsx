@@ -78,6 +78,8 @@ type Props = {
     showSpeechOutputAzure?: boolean;
     assistantLogoSrc: string;
     assistantLogoAlt: string;
+    assistantLogoVariant?: "avatar" | "wordmark";
+    assistantLogoClassName?: string;
     assistantName?: string;
     showAssistantName?: boolean;
     showCopyButton?: boolean;
@@ -217,6 +219,8 @@ export const ChatbotAnswer = ({
     showSpeechOutputAzure,
     assistantLogoSrc,
     assistantLogoAlt,
+    assistantLogoVariant = "avatar",
+    assistantLogoClassName,
     assistantName,
     showAssistantName = true,
     showCopyButton = true,
@@ -233,6 +237,9 @@ export const ChatbotAnswer = ({
     const followupQuestions = answer.context?.followup_questions;
     const parsedAnswer = useMemo(() => parseAnswerToMarkdown(answer, isStreaming), [answer, isStreaming]);
     const [copied, setCopied] = useState(false);
+    const assistantLogoClasses = [assistantLogoVariant === "wordmark" ? styles.assistantWordmark : styles.assistantAvatar, assistantLogoClassName]
+        .filter(Boolean)
+        .join(" ");
 
     const copyableMarkdown = useMemo(() => stripCitationLinks(parsedAnswer.markdown), [parsedAnswer.markdown]);
     const answerForSpeech = useMemo(() => cleanSpeechText(copyableMarkdown), [copyableMarkdown]);
@@ -340,7 +347,7 @@ export const ChatbotAnswer = ({
             <Stack.Item>
                 <Stack horizontal horizontalAlign="space-between" className={styles.headerRow}>
                     <div className={styles.assistantHeader}>
-                        <img src={assistantLogoSrc} alt={assistantLogoAlt} className={styles.assistantAvatar} />
+                        <img src={assistantLogoSrc} alt={assistantLogoAlt} className={assistantLogoClasses} />
                         {showAssistantName && assistantName && <div className={styles.assistantName}>{assistantName}</div>}
                     </div>
                     <div className={styles.headerActions}>

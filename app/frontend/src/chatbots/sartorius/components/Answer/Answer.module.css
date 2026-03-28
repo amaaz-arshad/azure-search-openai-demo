@@ -194,3 +194,8 @@ sup {
     height: 16px;
     max-width: min(132px, 44vw);
 }
+
+.wordmarkLogo {
+    height: 20px;
+    max-width: min(212px, 62vw);
+}

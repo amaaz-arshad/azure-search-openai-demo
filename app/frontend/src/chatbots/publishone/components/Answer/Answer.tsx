@@ -5,6 +5,7 @@ import { ChatAppResponse, getCitationFilePath, SpeechConfig } from "../../api";
 import { SpeechOutputBrowser } from "./SpeechOutputBrowser";
 import { SpeechOutputAzure } from "./SpeechOutputAzure";
 import publishoneLogo from "../../../../assets/publishone-chat.png";
+import styles from "./Answer.module.css";
 
 interface Props {
     answer: ChatAppResponse;
@@ -36,7 +37,10 @@ export const Answer = (props: Props) => {
             showSpeechOutputAzure={props.showSpeechOutputAzure}
             assistantLogoSrc={publishoneLogo}
             assistantLogoAlt={`${t("headerTitle")} logo`}
+            assistantLogoVariant="wordmark"
+            assistantLogoClassName={styles.wordmarkLogo}
             assistantName={t("headerTitle")}
+            showAssistantName={false}
             copyLabel={t("tooltips.copy")}
             copiedLabel={t("tooltips.copied")}
             citationLabel={t("citationWithColon")}

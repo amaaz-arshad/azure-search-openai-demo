@@ -8,7 +8,7 @@ import { useLogin } from "../../authConfig";
 import { LoginButton } from "../../components/LoginButton";
 import { IconButton } from "@fluentui/react";
 import { MoreHorizontal24Regular, ChatAdd24Regular, ChatDismiss24Regular, History24Regular } from "@fluentui/react-icons";
-import publishoneLogo from "../../../../assets/publishone-chat.png";
+import publishoneNavLogo from "../../../../assets/publishone-nav.svg";
 
 // At the top of the file, outside the component
 let globalClearChat: () => void = () => {};
@@ -75,15 +75,10 @@ const Layout = () => {
         <div className={styles.layout}>
             <header className={styles.header} role={"banner"}>
                 <div className={styles.headerContainer}>
-                    {/* Left: Logo */}
-                    <Link to="/" className={styles.logoContainer}>
-                        <div className={styles.logoCircle}>
-                            <img src={publishoneLogo} alt="PublishOne logo" />
-                        </div>
+                    {/* Left: Brand */}
+                    <Link to="/" className={styles.logoContainer} aria-label="Go to home page">
+                        <img src={publishoneNavLogo} alt="PublishOne logo" className={styles.brandWordmark} />
                     </Link>
-
-                    {/* Center: Title */}
-                    <div className={styles.navbarTitle}>{t("headerTitle")}</div>
 
                     {/* Right: Menu and Login */}
                     <div className={styles.rightSection}>

@@ -29,43 +29,19 @@
     color: var(--chatbot-navbar-text);
 }
 
-/* Circular logo */
+/* Brand wordmark */
 .logoContainer {
     display: flex;
     align-items: center;
     text-decoration: none;
+    min-width: 154px;
 }
 
-.logoCircle {
-    width: 35px;
-    height: 35px;
-    border-radius: 50%;
-    background: var(--chatbot-navbar-logo-background);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-}
-
-.logoCircle img {
-    max-width: 65%;
-    height: auto;
+.brandWordmark {
     display: block;
-}
-
-/* Title centered */
-.navbarTitle {
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    color: var(--chatbot-navbar-text);
-    font-weight: 600;
-    font-size: 1.4rem;
-    pointer-events: none;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 60%; /* so it doesn't overlap with the right section */
+    width: auto;
+    height: 32px;
+    max-width: min(232px, 52vw);
 }
 
 /* Right section with dropdown */
@@ -134,8 +110,11 @@
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
-    .navbarTitle {
-        max-width: 50%;
-        font-size: 1.7rem;
+    .logoContainer {
+        min-width: 126px;
+    }
+
+    .brandWordmark {
+        height: 26px;
     }
 }

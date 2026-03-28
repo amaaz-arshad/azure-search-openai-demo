@@ -82,15 +82,10 @@ const Layout = () => {
         <div className={styles.layout}>
             <header className={styles.header} role={"banner"}>
                 <div className={styles.headerContainer}>
-                    {/* Left: Logo */}
-                    <Link to="/" className={styles.logoContainer}>
-                        <div className={styles.logoCircle}>
-                            <img src={steuertippsLogo} alt="Logo" />
-                        </div>
+                    {/* Left: Brand */}
+                    <Link to="/" className={styles.logoContainer} aria-label="Go to home page">
+                        <img src={steuertippsLogo} alt="Steuertipps logo" className={styles.brandWordmark} />
                     </Link>
-
-                    {/* Center: Title */}
-                    <div className={styles.navbarTitle}>{t("headerTitle")}</div>
 
                     {/* Right: Menu and Login */}
                     <div className={styles.rightSection}>
