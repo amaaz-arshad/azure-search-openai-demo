@@ -1,0 +1,376 @@
+.answerContainer {
+    display: inline-block;
+    width: auto;
+    max-width: 100%;
+    padding: 1em;
+    background: rgb(249, 249, 249);
+    border-radius: 1.5em;
+    box-shadow:
+        0em 0.125em 0.25em rgba(0, 0, 0, 0.14),
+        0em 0em 0.125em rgba(0, 0, 0, 0.12);
+    outline: transparent solid 0.0625em;
+    box-sizing: border-box;
+}
+
+.selected {
+    outline: 0.125em solid rgba(115, 118, 225, 1);
+}
+
+.headerRow {
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.assistantHeader {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    min-width: 0;
+}
+
+.assistantAvatar {
+    width: 25px;
+    height: 25px;
+    border-radius: 50%;
+    object-fit: contain;
+    background-color: white;
+    border: 1px solid #dcdcdc;
+    flex-shrink: 0;
+}
+
+.assistantName {
+    font-size: 15px;
+    font-weight: 600;
+    color: #333;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.headerActions {
+    display: flex;
+    align-items: center;
+    gap: 0.125rem;
+    flex-shrink: 0;
+}
+
+.answerMarkdown {
+    color: #1f2937;
+    font-size: 0.98rem;
+    line-height: 1.72;
+    overflow-wrap: anywhere;
+}
+
+.answerMarkdown > :first-child {
+    margin-top: 0;
+}
+
+.answerMarkdown > :last-child {
+    margin-bottom: 0;
+}
+
+.answerMarkdown p,
+.answerMarkdown ul,
+.answerMarkdown ol,
+.answerMarkdown blockquote,
+.answerMarkdown pre,
+.answerMarkdown table,
+.answerMarkdown hr {
+    margin: 0 0 0.95rem;
+}
+
+.answerMarkdown h1,
+.answerMarkdown h2,
+.answerMarkdown h3,
+.answerMarkdown h4 {
+    margin: 1.25rem 0 0.7rem;
+    line-height: 1.28;
+    color: #0f172a;
+    font-weight: 750;
+}
+
+.answerMarkdown h1 {
+    font-size: 1.45rem;
+}
+
+.answerMarkdown h2 {
+    font-size: 1.22rem;
+}
+
+.answerMarkdown h3 {
+    font-size: 1.08rem;
+}
+
+.answerMarkdown h4 {
+    font-size: 1rem;
+}
+
+.answerMarkdown ul,
+.answerMarkdown ol {
+    padding-left: 1.35rem;
+}
+
+.answerMarkdown li + li {
+    margin-top: 0.34rem;
+}
+
+.answerMarkdown li > ul,
+.answerMarkdown li > ol {
+    margin-top: 0.45rem;
+}
+
+.answerMarkdown blockquote {
+    padding: 0.85rem 1rem;
+    background: #f8fafc;
+    border-left: 0.25rem solid #cbd5e1;
+    border-radius: 0.8rem;
+    color: #334155;
+}
+
+.answerMarkdown hr {
+    border: none;
+    border-top: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.answerMarkdown strong {
+    color: #111827;
+}
+
+.answerMarkdown em {
+    color: #334155;
+}
+
+.answerMarkdown input[type="checkbox"] {
+    accent-color: #2563eb;
+    margin-right: 0.5rem;
+}
+
+.markdownLink {
+    color: #1d4ed8;
+    text-decoration: underline;
+    text-decoration-thickness: 0.08em;
+    text-underline-offset: 0.16em;
+}
+
+.markdownLink:hover {
+    color: #1e40af;
+}
+
+.inlineCode {
+    padding: 0.15rem 0.42rem;
+    background: #eff6ff;
+    border: 1px solid rgba(37, 99, 235, 0.15);
+    border-radius: 0.45rem;
+    font-size: 0.92em;
+    color: #1e3a8a;
+    font-family: Consolas, Monaco, "Courier New", monospace;
+}
+
+.codeBlockShell {
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 1rem;
+    background: #f8fafc;
+    overflow: hidden;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.codeBlockToolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 0.85rem;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(241, 245, 249, 0.95) 100%);
+}
+
+.codeBlockLanguage {
+    font-size: 0.74rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #64748b;
+    font-weight: 700;
+}
+
+.codeBlockCopyButton {
+    border: none;
+    border-radius: 999px;
+    padding: 0.3rem 0.65rem;
+    background: white;
+    color: #334155;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.codeBlockCopyButton:hover {
+    background: #e2e8f0;
+}
+
+.tableScroll {
+    overflow-x: auto;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 1rem;
+    background: white;
+}
+
+.answerTable {
+    width: 100%;
+    min-width: 28rem;
+    border-collapse: collapse;
+}
+
+.answerMarkdown th,
+.answerMarkdown td {
+    padding: 0.72rem 0.9rem;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+    text-align: left;
+    vertical-align: top;
+}
+
+.answerMarkdown th {
+    background: #f8fafc;
+    color: #0f172a;
+    font-weight: 700;
+}
+
+.answerMarkdown tr:last-child td {
+    border-bottom: none;
+}
+
+.answerImage {
+    display: block;
+    max-width: 100%;
+    border-radius: 1rem;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+}
+
+.citationBadgeContainer {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25em;
+    vertical-align: super;
+}
+
+.inlineCitationLink,
+.inlineCitationButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0em 0.125em;
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    text-decoration: none;
+    vertical-align: super;
+}
+
+.inlineCitationSup {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95em;
+    font-weight: 600;
+    vertical-align: top;
+    top: -0.05em;
+    min-width: 0.95em;
+    height: 0.95em;
+    border-radius: 0.1875em;
+    background: #d1dbfa;
+    color: #123bb6;
+    line-height: 1;
+    text-decoration-color: transparent;
+    outline: transparent solid 0.0625em;
+    cursor: pointer;
+}
+
+.footerList {
+    margin-top: 0.625em;
+}
+
+.sectionLabel {
+    margin-right: 0.3125em;
+    font-weight: 600;
+    color: inherit;
+    line-height: 1.5em;
+}
+
+.footerEntry {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375em;
+}
+
+.footerPill,
+.footerPillButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: auto;
+    border-radius: 0.25em;
+    padding: 0em 0.5em;
+    border: none;
+    background: #d1dbfa;
+    color: #123bb6;
+    font-weight: 500;
+    line-height: 1.5em;
+    text-decoration: none;
+    cursor: pointer;
+    text-align: center;
+}
+
+.footerPill:hover,
+.footerPillButton:hover {
+    text-decoration: underline;
+}
+
+.followupPill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: auto;
+    border-radius: 0.25em;
+    padding: 0em 0.5em;
+    border: none;
+    background: #e8ebfa;
+    color: black;
+    font-weight: 600;
+    line-height: 1.5em;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+    font-style: italic;
+}
+
+.followupPill:hover {
+    text-decoration: underline;
+}
+
+.footerPillButton,
+.followupPill {
+    font-family: inherit;
+    font-size: inherit;
+}
+
+@media (max-width: 767px) {
+    .answerContainer {
+        padding: 1em;
+        border-radius: 1.5em;
+    }
+
+    .answerMarkdown {
+        font-size: 0.95rem;
+        line-height: 1.66;
+    }
+
+    .answerTable {
+        min-width: 22rem;
+    }
+
+    .assistantName {
+        font-size: 15px;
+    }
+}

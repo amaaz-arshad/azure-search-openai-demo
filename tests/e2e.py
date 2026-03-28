@@ -193,6 +193,69 @@ def test_chat(sized_page: Page, live_server_url: str):
     expect(page.get_by_role("button", name="Clear chat")).to_be_disabled()
 
 
+def test_shared_answer_renderer_handles_markdown_and_literal_html(page: Page, live_server_url: str):
+    def handle(route: Route):
+        jsonl = "\n".join(
+            [
+                json.dumps(
+                    {
+                        "delta": {"role": "assistant"},
+                        "context": {
+                            "data_points": {
+                                "text": ["manual.txt: Rendering guidance for rich answers."],
+                                "images": [],
+                                "citations": ["manual.txt"],
+                                "external_results_metadata": [],
+                            },
+                            "thoughts": [],
+                            "followup_questions": None,
+                        },
+                        "session_state": None,
+                    }
+                ),
+                json.dumps(
+                    {
+                        "delta": {
+                            "role": None,
+                            "content": (
+                                "Literal tag example: <demo-tag>alpha</demo-tag>. [manual.txt]\n\n"
+                                "- First structured point\n"
+                                "- Second structured point\n\n"
+                                "| Element | Meaning |\n"
+                                "| --- | --- |\n"
+                                "| Keyboard input | Useful shortcut hint |\n\n"
+                                "```html\n"
+                                "<kbd>Ctrl</kbd>\n"
+                                "```"
+                            ),
+                        }
+                    }
+                ),
+            ]
+        )
+        route.fulfill(
+            body=f"{jsonl}\n",
+            status=200,
+            headers={"Transfer-encoding": "Chunked", "Content-Type": "application/x-ndjson"},
+        )
+
+    page.route("*/**/chat/stream", handle)
+
+    page.goto(f"{live_server_url}nerilio")
+
+    question_input = page.get_by_placeholder("Type a new question (e.g. does my plan cover annual eye exams?)")
+    question_input.click()
+    question_input.fill("Show me rich formatting")
+    page.get_by_label("Submit question").click()
+
+    expect(page.get_by_text("Literal tag example: <demo-tag>alpha</demo-tag>.")).to_be_visible()
+    expect(page.locator("demo-tag")).to_have_count(0)
+    expect(page.get_by_role("listitem", name="First structured point")).to_be_visible()
+    expect(page.get_by_role("cell", name="Keyboard input")).to_be_visible()
+    expect(page.get_by_text("<kbd>Ctrl</kbd>")).to_be_visible()
+    expect(page.get_by_text("1. manual.txt")).to_be_visible()
+
+
 def test_chat_stop_button_visibility(page: Page, live_server_url: str):
     """Test that the stop button feature works without breaking the chat flow.
 
