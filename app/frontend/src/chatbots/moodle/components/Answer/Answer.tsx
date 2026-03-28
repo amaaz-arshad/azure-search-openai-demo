@@ -70,6 +70,10 @@ export const Answer = ({
 }: Props) => {
     const followupQuestions = answer.context?.followup_questions;
     const parsedAnswer = useMemo(() => parseAnswerToHtml(answer, isStreaming, onCitationClicked), [answer, isStreaming, onCitationClicked]);
+    const externalResultsByUrl = useMemo(() => {
+        const entries = answer.context?.data_points.external_results_metadata ?? [];
+        return new Map(entries.filter(entry => entry.url).map(entry => [entry.url as string, entry]));
+    }, [answer.context?.data_points.external_results_metadata]);
     const { t } = useTranslation();
     const sanitizedAnswerHtml = DOMPurify.sanitize(parsedAnswer.answerHtml);
     const [copied, setCopied] = useState(false);
@@ -150,12 +154,11 @@ export const Answer = ({
                             const displayIndex = citation.index;
                             const reference = citation.reference;
                             if (isWeb) {
-                                // Attempt to find the matching web data point to retrieve its title
-                                const webEntry = answer.context?.data_points.external_results_metadata?.find(w => w.url === reference);
-                                const titleOrUrl = webEntry?.title?.trim() ? webEntry.title : reference;
+                                const webEntry = externalResultsByUrl.get(reference);
+                                const titleOrUrl = citation.displayLabel?.trim() || webEntry?.title?.trim() || reference;
                                 return (
                                     <span key={`${reference}-${displayIndex}`} className={styles.citationEntry}>
-                                        <a className={styles.citation} title={reference} href={reference} target="_blank" rel="noopener noreferrer">
+                                        <a className={styles.citation} title={titleOrUrl} href={reference} target="_blank" rel="noopener noreferrer">
                                             {`${displayIndex}. ${titleOrUrl}`}
                                         </a>
                                     </span>

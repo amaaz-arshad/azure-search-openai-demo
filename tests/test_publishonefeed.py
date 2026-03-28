@@ -108,3 +108,100 @@ async def test_build_publishone_feed_sections_handles_multiple_outer_documents()
         "https://snap.publishone.nl/document/6446/content",
         "https://snap.publishone.nl/document/6447/content",
     }
+
+
+@pytest.mark.asyncio
+async def test_build_publishone_feed_sections_preserves_direct_metadata_without_duplication() -> None:
+    xml_text = """<?xml version="1.0" encoding="utf-8"?>
+<folder id="9000" documentTypeName="Guide" document-type-key="guide">
+  <naam>Handbook</naam>
+  <document
+      id="9001"
+      documentTypeName="Guide"
+      document-type-key="guide"
+      state-id="7"
+      state="Draft"
+      final="false"
+      custom-attr="custom-value">
+    <naam>Safety handbook</naam>
+    <lastmodified>2026-03-27T12:00:00Z</lastmodified>
+    <language>de</language>
+    <meta>
+      <audience>students</audience>
+      <owner system="moodle">training-team</owner>
+    </meta>
+    <document version="3">
+      <section orientation="portrait">
+        <h1>Intro</h1>
+        <p>Always follow the process.</p>
+      </section>
+    </document>
+  </document>
+</folder>
+"""
+
+    sections = await build_sections(xml_text, category="publishone")
+
+    assert len(sections) == 1
+    section = sections[0]
+    assert section.sourcepage == "9001"
+    assert section.title == "Safety handbook"
+    assert section.url == "https://snap.publishone.nl/document/9001/content"
+    assert section.tags is not None
+    assert "meta-audience:students" in section.tags
+    assert "meta-owner-system:moodle" in section.tags
+    assert "language:de" in section.tags
+    assert "folder-path:Handbook" in section.tags
+    assert "Custom Attr: custom-value" in section.chunk.text
+    assert "Language: de" in section.chunk.text
+    assert "Metadata:" in section.chunk.text
+    assert section.chunk.text.count("audience: students") == 1
+    assert section.chunk.text.count("owner: training-team") == 1
+    assert section.chunk.text.count("owner-system: moodle") == 1
+    assert "# Intro" in section.chunk.text
+
+
+@pytest.mark.asyncio
+async def test_build_publishone_feed_sections_preserves_folder_metadata_and_inline_targets() -> None:
+    xml_text = """<?xml version="1.0" encoding="utf-8"?>
+<folder id="6" documentTypeName="Standard" document-type-key="1_Default">
+  <naam>PublishOne Product</naam>
+  <meta>
+    <template-design key="product">Product Documentation</template-design>
+  </meta>
+  <folder id="217" documentTypeName="Standard" document-type-key="1_Default">
+    <naam>Technical Documentation</naam>
+    <meta>
+      <guidesummary>The PublishOne Technical Architecture</guidesummary>
+      <template-design key="product">Product Documentation</template-design>
+    </meta>
+    <document id="8779" documentTypeName="Standard" document-type-key="1_Default" state-id="2" state="Review">
+      <naam>PublishOne Technical Architecture</naam>
+      <lastmodified>2023-04-14T11:40:00.2205125Z</lastmodified>
+      <meta>
+        <bi_category key="product">Product</bi_category>
+      </meta>
+      <document version="1">
+        <section orientation="portrait">
+          <p><img id="Picture 1" href="https://amsterdam-em.publishone.nl/api/content/5499" width="450" height="189" /></p>
+          <p>Read more at <a href="https://swagger.io/resources/open-api/">Open API docs</a>.</p>
+        </section>
+      </document>
+    </document>
+  </folder>
+</folder>
+"""
+
+    sections = await build_sections(xml_text, category="publishone")
+
+    assert len(sections) == 1
+    section = sections[0]
+    assert section.tags is not None
+    assert "folder-meta-guidesummary:The PublishOne Technical Architecture" in section.tags
+    assert "folder-meta-template-design-key:product" in section.tags
+    assert "folder-document-type:Standard" in section.tags
+    assert "folder-path:PublishOne Product > Technical Documentation" in section.tags
+    assert "Technical Documentation guidesummary: The PublishOne Technical Architecture" in section.chunk.text
+    assert "Technical Documentation template-design-key: product" in section.chunk.text
+    assert "Image: https://amsterdam-em.publishone.nl/api/content/5499 (id: Picture 1, width: 450, height: 189)" in section.chunk.text
+    assert "Open API docs (https://swagger.io/resources/open-api/)." in section.chunk.text

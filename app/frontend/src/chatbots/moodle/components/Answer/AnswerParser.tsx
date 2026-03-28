@@ -6,6 +6,7 @@ export type CitationDetail = {
     reference: string;
     index: number;
     isWeb: boolean;
+    displayLabel?: string;
     activityId?: string;
     stepNumber?: number;
     stepLabel?: string;
@@ -80,6 +81,7 @@ const collectCitations = (answer: ChatAppResponse, isStreaming: boolean): { frag
     const citationActivityDetails = answer.context?.data_points.citation_activity_details ?? {};
     const activitySteps = buildActivityStepMap(answer);
     const externalResults = answer.context?.data_points.external_results_metadata || [];
+    const externalResultsByUrl = new Map(externalResults.filter(result => result.url).map(result => [result.url as string, result]));
     const parsedAnswer = normalizeAnswerText(answer, isStreaming);
     const parts = parsedAnswer.split(/\[([^\]]+)\]/g);
 
@@ -136,6 +138,7 @@ const collectCitations = (answer: ChatAppResponse, isStreaming: boolean): { frag
         const backendDetail = citationActivityDetails?.[part];
         const activityId = backendDetail?.id;
         const stepMeta = activityId ? activitySteps[String(activityId)] : undefined;
+        const externalResult = externalResultsByUrl.get(resolvedReference);
 
         // Get label from backend type using our mapping, or fallback to stepMeta
         const activityLabel = backendDetail?.type ? activityTypeLabels[backendDetail.type] || backendDetail.type : undefined;
@@ -144,6 +147,7 @@ const collectCitations = (answer: ChatAppResponse, isStreaming: boolean): { frag
             reference: resolvedReference,
             index: citationList.length + 1,
             isWeb: isWebCitation(resolvedReference),
+            displayLabel: externalResult?.title?.trim() || undefined,
             activityId: activityId !== undefined ? String(activityId) : undefined,
             stepNumber: backendDetail?.number ?? stepMeta?.stepNumber,
             stepLabel: activityLabel ?? stepMeta?.stepLabel,
@@ -169,11 +173,12 @@ const renderCitation = (detail: CitationDetail, onCitationClicked: (citationFile
     const supElement = <sup title={stepBadgeTitle ?? undefined}>{detail.index}</sup>;
 
     if (detail.isWeb) {
+        const citationTitle = detail.displayLabel ?? detail.reference;
         return renderToStaticMarkup(
             <span className="citationBadgeContainer">
                 <a
                     className="supContainer"
-                    title={detail.reference}
+                    title={citationTitle}
                     href={detail.reference}
                     target="_blank"
                     rel="noopener noreferrer"

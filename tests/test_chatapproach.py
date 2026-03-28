@@ -124,6 +124,13 @@ def test_get_search_query_returns_default_on_error(chat_approach, monkeypatch):
     assert chat_approach.get_search_query(chatcompletions, "default") == "default"
 
 
+def test_get_document_citation_target_uses_url_for_external_feed_categories() -> None:
+    assert ChatReadRetrieveReadApproach.get_document_citation_target("moodle") == "url"
+    assert ChatReadRetrieveReadApproach.get_document_citation_target("publishone") == "url"
+    assert ChatReadRetrieveReadApproach.get_document_citation_target("fhg") == "url"
+    assert ChatReadRetrieveReadApproach.get_document_citation_target("demo") == "sourcepage"
+
+
 def test_extract_rewritten_query_invalid_json(chat_approach):
     payload = {
         "id": "chatcmpl-2",

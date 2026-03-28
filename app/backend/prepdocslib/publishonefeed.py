@@ -16,14 +16,18 @@ logger = logging.getLogger("scripts")
 PUBLISHONE_DOCUMENT_URL_TEMPLATE = "https://snap.publishone.nl/document/{document_id}/content"
 HEADING_LEVELS = {f"h{level}": level for level in range(1, 7)}
 INLINE_BREAK_TAGS = {"br"}
-SKIPPED_CONTENT_TAGS = {"naam", "lastmodified"}
+SKIPPED_CONTENT_TAGS = {"naam", "lastmodified", "meta"}
 BLOCK_RENDER_TAGS = {"document", "section", "meta", "p", "list", "li", *HEADING_LEVELS.keys()}
+DIRECT_VALUE_SKIP_TAGS = {"naam", "lastmodified", "meta", "document"}
 
 
 @dataclass(frozen=True)
 class FolderContext:
     name: Optional[str]
     id: Optional[str]
+    document_type: Optional[str] = None
+    document_type_key: Optional[str] = None
+    meta_fields: tuple[tuple[str, str], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -61,6 +65,28 @@ def sanitize_identifier(value: str) -> str:
     return re.sub(r"[^0-9A-Za-z_-]+", "-", value).strip("-") or "document"
 
 
+def format_field_label(value: str) -> str:
+    normalized_value = normalize_tag(value).replace("-", " ").replace("_", " ").strip()
+    return " ".join(part.capitalize() for part in normalized_value.split()) or "Field"
+
+
+def collect_meta_fields(meta_element: Optional[ET.Element]) -> list[tuple[str, str]]:
+    if meta_element is None:
+        return []
+
+    values: list[tuple[str, str]] = []
+    for child in iter_child_elements(meta_element):
+        key = normalize_tag(child.tag)
+        value = normalize_text("".join(child.itertext()))
+        if value:
+            values.append((key, value))
+        for attribute_name, attribute_value in child.attrib.items():
+            normalized_attribute_value = normalize_text(attribute_value)
+            if normalized_attribute_value:
+                values.append((f"{key}-{normalize_tag(attribute_name)}", normalized_attribute_value))
+    return values
+
+
 def collect_logical_documents(root: ET.Element) -> list[tuple[ET.Element, list[FolderContext]]]:
     logical_documents: list[tuple[ET.Element, list[FolderContext]]] = []
 
@@ -71,6 +97,9 @@ def collect_logical_documents(root: ET.Element) -> list[tuple[ET.Element, list[F
             current_folder = FolderContext(
                 name=get_direct_child_text(element, "naam") or None,
                 id=normalize_text(element.attrib.get("id")) or None,
+                document_type=normalize_text(element.attrib.get("documentTypeName")) or None,
+                document_type_key=normalize_text(element.attrib.get("document-type-key")) or None,
+                meta_fields=tuple(collect_meta_fields(get_direct_child(element, "meta"))),
             )
             next_folder_path = folder_path + [current_folder]
             for child in iter_child_elements(element):
@@ -107,6 +136,10 @@ def join_inline_fragments(fragments: list[str]) -> str:
 
 
 def extract_inline_text(element: ET.Element) -> str:
+    tag = normalize_tag(element.tag)
+    if tag == "img":
+        return describe_image_element(element)
+
     fragments: list[str] = []
     text = normalize_text(element.text)
     if text:
@@ -124,7 +157,35 @@ def extract_inline_text(element: ET.Element) -> str:
         if tail:
             fragments.append(tail)
 
-    return join_inline_fragments(fragments)
+    joined_text = join_inline_fragments(fragments)
+    if tag == "a":
+        href = normalize_text(element.attrib.get("href") or element.attrib.get("url"))
+        if href:
+            if joined_text and joined_text != href:
+                return f"{joined_text} ({href})"
+            return href
+    return joined_text
+
+
+def describe_image_element(element: ET.Element) -> str:
+    href = normalize_text(element.attrib.get("href") or element.attrib.get("src"))
+    image_id = normalize_text(element.attrib.get("id"))
+    width = normalize_text(element.attrib.get("width"))
+    height = normalize_text(element.attrib.get("height"))
+
+    primary_value = href or image_id or "embedded image"
+    details: list[str] = []
+    if image_id and image_id != primary_value:
+        details.append(f"id: {image_id}")
+    if width:
+        details.append(f"width: {width}")
+    if height:
+        details.append(f"height: {height}")
+
+    image_text = f"Image: {primary_value}"
+    if details:
+        image_text += f" ({', '.join(details)})"
+    return image_text
 
 
 def render_lines_from_text(text: str, *, prefix: str = "") -> list[str]:
@@ -134,13 +195,7 @@ def render_lines_from_text(text: str, *, prefix: str = "") -> list[str]:
 
 
 def render_meta_lines(element: ET.Element) -> list[str]:
-    lines: list[str] = []
-    for child in iter_child_elements(element):
-        key = normalize_tag(child.tag)
-        value = normalize_text("".join(child.itertext()))
-        if value:
-            lines.append(f"{key}: {value}")
-    return lines
+    return [f"{key}: {value}" for key, value in collect_meta_fields(element)]
 
 
 def render_document_body_lines(element: ET.Element, indent: int = 0) -> list[str]:
@@ -247,12 +302,32 @@ def collect_unique_descendant_attribute_values(element: ET.Element, tag_name: st
     return values
 
 
-def append_tag(tags: list[str], seen: set[str], value: Optional[str], label: Optional[str] = None) -> None:
+def collect_direct_value_fields(element: ET.Element) -> list[tuple[str, str]]:
+    values: list[tuple[str, str]] = []
+    for child in iter_child_elements(element):
+        key = normalize_tag(child.tag)
+        if key in DIRECT_VALUE_SKIP_TAGS:
+            continue
+        if iter_child_elements(child):
+            continue
+        value = normalize_text("".join(child.itertext()))
+        if value:
+            values.append((key, value))
+    return values
+
+
+def collect_direct_meta_fields(element: ET.Element) -> list[tuple[str, str]]:
+    return collect_meta_fields(get_direct_child(element, "meta"))
+
+
+def append_tag(
+    tags: list[str], seen: set[str], value: Optional[str], label: Optional[str] = None, *, include_raw: bool = True
+) -> None:
     normalized_value = normalize_text(value)
     if not normalized_value:
         return
     raw_tag = normalized_value
-    if raw_tag not in seen:
+    if include_raw and raw_tag not in seen:
         tags.append(raw_tag)
         seen.add(raw_tag)
     if label:
@@ -278,9 +353,23 @@ def build_tags(element: ET.Element, folder_path: list[FolderContext]) -> list[st
     for orientation in collect_unique_descendant_attribute_values(element, "section", "orientation"):
         append_tag(tags, seen, orientation, "orientation")
 
+    for field_name, field_value in collect_direct_value_fields(element):
+        append_tag(tags, seen, field_value, field_name)
+
+    for field_name, field_value in collect_direct_meta_fields(element):
+        append_tag(tags, seen, field_value, f"meta-{field_name}")
+
     for folder in folder_path:
         append_tag(tags, seen, folder.name, "folder")
         append_tag(tags, seen, folder.id, "folder-id")
+        append_tag(tags, seen, folder.document_type, "folder-document-type")
+        append_tag(tags, seen, folder.document_type_key, "folder-document-type-key")
+        for field_name, field_value in folder.meta_fields:
+            append_tag(tags, seen, field_value, f"folder-meta-{field_name}")
+
+    folder_names = [folder.name for folder in folder_path if folder.name]
+    if folder_names:
+        append_tag(tags, seen, " > ".join(folder_names), "folder-path", include_raw=False)
 
     return tags
 
@@ -315,9 +404,24 @@ def build_document_content(element: ET.Element, folder_path: list[FolderContext]
     if last_modified:
         lines.append(f"Last modified: {last_modified}")
 
+    known_attribute_names = {"id", "documentTypeName", "document-type-key", "state", "state-id", "final"}
+    for attribute_name, attribute_value in element.attrib.items():
+        if attribute_name in known_attribute_names:
+            continue
+        normalized_attribute_value = normalize_text(attribute_value)
+        if normalized_attribute_value:
+            lines.append(f"{format_field_label(attribute_name)}: {normalized_attribute_value}")
+
+    for field_name, field_value in collect_direct_value_fields(element):
+        lines.append(f"{format_field_label(field_name)}: {field_value}")
+
     folder_names = [folder.name for folder in folder_path if folder.name]
     if folder_names:
         lines.append(f"Folder path: {' > '.join(folder_names)}")
+    folder_context_lines = build_folder_context_lines(folder_path)
+    if folder_context_lines:
+        lines.append("Folder metadata:")
+        lines.extend(f"- {line}" for line in folder_context_lines)
 
     versions = collect_unique_descendant_attribute_values(element, "document", "version")
     if versions:
@@ -327,10 +431,7 @@ def build_document_content(element: ET.Element, folder_path: list[FolderContext]
     if orientations:
         lines.append(f"Section orientations: {', '.join(orientations)}")
 
-    meta_lines: list[str] = []
-    meta_element = get_direct_child(element, "meta")
-    if meta_element is not None:
-        meta_lines = render_meta_lines(meta_element)
+    meta_lines = render_meta_lines(meta_element) if (meta_element := get_direct_child(element, "meta")) is not None else []
     if meta_lines:
         lines.append("Metadata:")
         lines.extend(f"- {line}" for line in meta_lines)
@@ -348,6 +449,21 @@ def build_document_content(element: ET.Element, folder_path: list[FolderContext]
             lines.extend(render_lines_from_text(fallback_text))
 
     return cleanup_xml_text("\n".join(line for line in lines if line is not None))
+
+
+def build_folder_context_lines(folder_path: list[FolderContext]) -> list[str]:
+    lines: list[str] = []
+    for folder in folder_path:
+        folder_label = folder.name or folder.id or "Folder"
+        if folder.id:
+            lines.append(f"{folder_label} id: {folder.id}")
+        if folder.document_type:
+            lines.append(f"{folder_label} document type: {folder.document_type}")
+        if folder.document_type_key:
+            lines.append(f"{folder_label} document type key: {folder.document_type_key}")
+        for field_name, field_value in folder.meta_fields:
+            lines.append(f"{folder_label} {field_name}: {field_value}")
+    return lines
 
 
 def build_feed_document(element: ET.Element, folder_path: list[FolderContext]) -> FeedDocument:
