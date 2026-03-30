@@ -18,6 +18,7 @@
     "history": {
         "chatHistory": "Chat history",
         "openChatHistory": "Open chat history",
+        "viewRecentChats": "View recent chats",
         "noHistory": "No chat history",
         "deleteModalTitle": "Delete chat history",
         "deleteModalDescription": "This action cannot be undone. Delete this chat history?",

@@ -26,7 +26,8 @@
         "today": "BugÃ¼n",
         "yesterday": "DÃ¼n",
         "last7days": "Son 7 gÃ¼n",
-        "last30days": "Son 30 gÃ¼n"
+        "last30days": "Son 30 gÃ¼n",
+        "viewRecentChats": "Son sohbetleri g?r?nt?le"
     },
     "upload": {
         "fileLabel": "Dosya yÃ¼kle:",
@@ -173,5 +174,6 @@
     },
     "overallSettings": "Genel ayarlar",
     "searchSettings": "Arama ayarlarÄ±",
-    "llmSettings": "LLM ayarlarÄ±"
+    "llmSettings": "LLM ayarlarÄ±",
+    "newChat": "Yeni sohbet"
 }

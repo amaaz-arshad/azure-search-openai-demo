@@ -25,7 +25,8 @@
         "today": "Today",
         "yesterday": "Yesterday",
         "last7days": "Last 7 days",
-        "last30days": "Last 30 days"
+        "last30days": "Last 30 days",
+        "viewRecentChats": "View recent chats"
     },
     "upload": {
         "fileLabel": "Upload file:",
@@ -172,5 +173,6 @@
     },
     "overallSettings": "Overall settings",
     "searchSettings": "Search settings",
-    "llmSettings": "LLM settings"
+    "llmSettings": "LLM settings",
+    "newChat": "New chat"
 }

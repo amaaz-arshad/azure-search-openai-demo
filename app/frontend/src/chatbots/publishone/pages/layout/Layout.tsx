@@ -1,115 +1,82 @@
-import React, { useState, useEffect, useRef, RefObject } from "react";
-import { Outlet, Link } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { Link, Outlet } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import styles from "./Layout.module.css";
+import { IconButton } from "@fluentui/react";
+import { ChatAdd24Regular, History24Regular } from "@fluentui/react-icons";
 
 import { useLogin } from "../../authConfig";
-
 import { LoginButton } from "../../components/LoginButton";
-import { IconButton } from "@fluentui/react";
-import { MoreHorizontal24Regular, ChatAdd24Regular, ChatDismiss24Regular, History24Regular } from "@fluentui/react-icons";
 import publishoneNavLogo from "../../../../assets/publishone-nav.svg";
+import styles from "./Layout.module.css";
 
-// At the top of the file, outside the component
 let globalClearChat: () => void = () => {};
 
-// Function to set the clear chat callback
 export const setGlobalClearChat = (fn: () => void) => {
     globalClearChat = fn;
 };
 
 const Layout = () => {
     const { t } = useTranslation();
-    const [menuOpen, setMenuOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement | null>(null);
     const [dropdownOpen, setDropdownOpen] = useState(false);
-    const menuRef: RefObject<HTMLDivElement> = useRef(null);
-    const dropdownRef: RefObject<HTMLDivElement> = useRef(null);
-
-    const toggleMenu = () => {
-        setMenuOpen(!menuOpen);
-    };
-
-    const toggleDropdown = () => {
-        setDropdownOpen(!dropdownOpen);
-    };
-
-    const handleClickOutside = (event: MouseEvent) => {
-        if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-            setMenuOpen(false);
-        }
-        if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-            setDropdownOpen(false);
-        }
-    };
+    const [recentChatsAction, setRecentChatsAction] = useState<{ run: () => void } | null>(null);
 
     useEffect(() => {
-        if (menuOpen || dropdownOpen) {
-            document.addEventListener("mousedown", handleClickOutside);
-        } else {
-            document.removeEventListener("mousedown", handleClickOutside);
+        if (!dropdownOpen) {
+            return;
         }
-        return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
+
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setDropdownOpen(false);
+            }
         };
-    }, [menuOpen, dropdownOpen]);
+
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [dropdownOpen]);
 
     const handleStartNewChat = () => {
-        setDropdownOpen(false);
-        // Add your start new chat logic here
-        console.log("Start new chat");
-    };
-
-    // Inside the Layout component:
-    const handleEndChat = () => {
         setDropdownOpen(false);
         globalClearChat();
     };
 
-    const handleViewRecentChats = () => {
+    const handleOpenRecentChats = () => {
         setDropdownOpen(false);
-        // Add your view recent chats logic here
-        console.log("View recent chats");
+        recentChatsAction?.run();
     };
 
     return (
         <div className={styles.layout}>
-            <header className={styles.header} role={"banner"}>
+            <header className={styles.header} role="banner">
                 <div className={styles.headerContainer}>
-                    {/* Left: Brand */}
-                    <Link to="/" className={styles.logoContainer} aria-label="Go to home page">
-                        <img src={publishoneNavLogo} alt="PublishOne logo" className={styles.brandWordmark} />
+                    <Link aria-label="Go to home page" className={styles.logoContainer} to="/">
+                        <img alt="PublishOne logo" className={styles.brandWordmark} src={publishoneNavLogo} />
                     </Link>
 
-                    {/* Right: Menu and Login */}
                     <div className={styles.rightSection}>
                         {useLogin && <LoginButton />}
                         <div className={styles.dropdown} ref={dropdownRef}>
                             <IconButton
-                                iconProps={{ iconName: "More", styles: { root: { fontSize: "25px", color: "var(--chatbot-navbar-text)" } } }} // Increase from default 16px
-                                className={styles.menuButton}
-                                onClick={toggleDropdown}
                                 ariaLabel={t("labels.openMenu")}
+                                className={styles.menuButton}
+                                iconProps={{ iconName: "More", styles: { root: { fontSize: "25px", color: "var(--chatbot-navbar-text)" } } }}
+                                onClick={() => setDropdownOpen(open => !open)}
                             />
                             {dropdownOpen && (
                                 <ul className={styles.dropdownMenu}>
-                                    {/* <li>
-                                        <button className={styles.dropdownItem} style={{ opacity: 0.5, cursor: "not-allowed" }} onClick={() => {}} disabled>
-                                            <ChatAdd24Regular />
-                                            <span>Start a new chat</span>
-                                        </button>
-                                    </li> */}
                                     <li>
-                                        <button className={styles.dropdownItem} onClick={handleEndChat}>
-                                            <ChatDismiss24Regular />
-                                            <span>{t("clearChat")}</span>
+                                        <button className={styles.dropdownItem} onClick={handleStartNewChat}>
+                                            <ChatAdd24Regular />
+                                            <span>{t("newChat")}</span>
                                         </button>
                                     </li>
-                                    {/* <li>
-                                        <button className={styles.dropdownItem} style={{ opacity: 0.5, cursor: "not-allowed" }} onClick={() => {}} disabled>
+                                    <li>
+                                        <button className={styles.dropdownItem} onClick={handleOpenRecentChats}>
                                             <History24Regular />
-                                            <span>View recent chats</span>
+                                            <span>{t("history.viewRecentChats")}</span>
                                         </button>
-                                    </li> */}
+                                    </li>
                                 </ul>
                             )}
                         </div>
@@ -118,7 +85,7 @@ const Layout = () => {
             </header>
 
             <main className={styles.main} id="main-content">
-                <Outlet />
+                <Outlet context={{ setRecentChatsAction }} />
             </main>
         </div>
     );

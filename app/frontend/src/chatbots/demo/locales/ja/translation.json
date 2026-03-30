@@ -8,6 +8,7 @@
     "history": {
         "chatHistory": "チャット履歴",
         "openChatHistory": "チャット履歴を開く",
+        "viewRecentChats": "??????????",
         "noHistory": "チャット履歴がありません",
         "deleteModalTitle": "チャット履歴の削除",
         "deleteModalDescription": "この操作は取り消せません。このチャット履歴を削除しますか？",
@@ -164,5 +165,6 @@
     },
     "overallSettings": "全体設定",
     "searchSettings": "検索設定",
-    "llmSettings": "LLM設定"
+    "llmSettings": "LLM設定",
+    "newChat": "???????"
 }

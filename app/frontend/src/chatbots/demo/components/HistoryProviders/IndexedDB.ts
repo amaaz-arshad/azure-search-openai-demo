@@ -76,13 +76,14 @@ export class IndexedDBProvider implements IHistoryProvider {
 
     async addItem(id: string, answers: Answers): Promise<void> {
         const timestamp = new Date().getTime();
-        const db = await this.init(); // 自動的に初期化
+        const firstQuestion = answers[0]?.[0] ?? "Untitled";
+        const title = firstQuestion.length > 50 ? firstQuestion.substring(0, 50) + "..." : firstQuestion;
+        const db = await this.init();
         const tx = db.transaction(this.storeName, "readwrite");
         const current = await tx.objectStore(this.storeName).get(id);
         if (current) {
-            await tx.objectStore(this.storeName).put({ ...current, id, timestamp, answers });
+            await tx.objectStore(this.storeName).put({ ...current, id, title, timestamp, answers });
         } else {
-            const title = answers[0][0].length > 50 ? answers[0][0].substring(0, 50) + "..." : answers[0][0];
             await tx.objectStore(this.storeName).add({ id, title, timestamp, answers });
         }
         await tx.done;

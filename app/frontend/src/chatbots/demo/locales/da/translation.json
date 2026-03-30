@@ -8,6 +8,7 @@
     "history": {
         "chatHistory": "Chathistorik",
         "openChatHistory": "Åbn chathistorik",
+        "viewRecentChats": "Vis seneste chats",
         "noHistory": "Ingen chathistorik",
         "deleteModalTitle": "Slet chathistorik",
         "deleteModalDescription": "Denne handling kan ikke fortrydes. Slet denne chathistorik?",
@@ -164,5 +165,6 @@
     },
     "overallSettings": "Overordnede indstillinger",
     "searchSettings": "Søgeindstillinger",
-    "llmSettings": "LLM-indstillinger"
+    "llmSettings": "LLM-indstillinger",
+    "newChat": "Ny chat"
 }

@@ -8,6 +8,7 @@
     "history": {
         "chatHistory": "Sohbet geçmişi",
         "openChatHistory": "Sohbet geçmişini aç",
+        "viewRecentChats": "Son sohbetleri g?r?nt?le",
         "noHistory": "Sohbet geçmişi yok",
         "deleteModalTitle": "Sohbet geçmişini sil",
         "deleteModalDescription": "Bu işlem geri alınamaz. Bu sohbet geçmişini silmek istiyor musunuz?",
@@ -164,5 +165,6 @@
     },
     "overallSettings": "Genel ayarlar",
     "searchSettings": "Arama ayarları",
-    "llmSettings": "LLM ayarları"
+    "llmSettings": "LLM ayarları",
+    "newChat": "Yeni sohbet"
 }

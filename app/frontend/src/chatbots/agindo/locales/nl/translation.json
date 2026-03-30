@@ -25,7 +25,8 @@
         "today": "Vandaag",
         "yesterday": "Gisteren",
         "last7days": "Laatste 7 dagen",
-        "last30days": "Laatste 30 dagen"
+        "last30days": "Laatste 30 dagen",
+        "viewRecentChats": "Recente chats bekijken"
     },
     "upload": {
         "fileLabel": "Bestand uploaden:",
@@ -173,9 +174,6 @@
     },
     "overallSettings": "Algemene instellingen",
     "searchSettings": "Zoekinstellingen",
-    "llmSettings": "LLM-instellingen"
+    "llmSettings": "LLM-instellingen",
+    "newChat": "Nieuwe chat"
 }
-
-
-
-

@@ -16,7 +16,8 @@
         "today": "Hoje",
         "yesterday": "Ontem",
         "last7days": "Últimos 7 dias",
-        "last30days": "Últimos 30 dias"
+        "last30days": "Últimos 30 dias",
+        "viewRecentChats": "Ver chats recentes"
     },
     "upload": {
         "fileLabel": "Carregar arquivo:",
@@ -221,5 +222,6 @@
         "verificationEmailFailed": "Nao foi possivel enviar o e-mail de verificacao. Tente novamente.",
         "verificationTooManyAttempts": "Muitas tentativas incorretas de verificacao. Inicie o cadastro novamente.",
         "verificationSessionNotFound": "Nenhuma verificacao de cadastro ativa foi encontrada para este e-mail."
-    }
+    },
+    "newChat": "Novo chat"
 }

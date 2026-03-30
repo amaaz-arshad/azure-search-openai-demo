@@ -16,7 +16,8 @@
         "today": "Dziś",
         "yesterday": "Wczoraj",
         "last7days": "Ostatnie 7 dni",
-        "last30days": "Ostatnie 30 dni"
+        "last30days": "Ostatnie 30 dni",
+        "viewRecentChats": "Poka? ostatnie czaty"
     },
     "upload": {
         "fileLabel": "Prześlij plik:",
@@ -222,5 +223,6 @@
         "verificationEmailFailed": "Nie udalo sie wyslac wiadomosci weryfikacyjnej. Sprobuj ponownie.",
         "verificationTooManyAttempts": "Zbyt wiele blednych prob weryfikacji. Rozpocznij rejestracje ponownie.",
         "verificationSessionNotFound": "Nie znaleziono aktywnej weryfikacji rejestracji dla tego adresu e-mail."
-    }
+    },
+    "newChat": "Nowy czat"
 }

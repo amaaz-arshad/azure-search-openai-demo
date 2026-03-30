@@ -27,7 +27,8 @@
         "today": "Heute",
         "yesterday": "Gestern",
         "last7days": "Letzte 7 Tage",
-        "last30days": "Letzte 30 Tage"
+        "last30days": "Letzte 30 Tage",
+        "viewRecentChats": "Letzte Chats anzeigen"
     },
     "upload": {
         "fileLabel": "Datei hochladen:",

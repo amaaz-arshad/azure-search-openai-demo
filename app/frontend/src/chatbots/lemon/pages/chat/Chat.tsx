@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { Helmet } from "react-helmet-async";
+import { useOutletContext } from "react-router-dom";
 import { Panel, DefaultButton } from "@fluentui/react";
 import appLogo from "../../assets/applogo.svg";
 import styles from "./Chat.module.css";
@@ -27,10 +28,20 @@ import { setGlobalClearChat } from "../layout/Layout";
 import { applyChatbotSpeechFeatureFlags } from "../../../shared/speech/chatbotSpeechFeatureFlags";
 import { ChatbotDisclaimerBanner } from "../../../shared/disclaimer/ChatbotDisclaimerBanner";
 
+const INITIAL_ASSISTANT_SENTINEL_USER_MESSAGE = "__initial_assistant__";
+
+const createClientSessionId = () => {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+        return crypto.randomUUID();
+    }
+
+    return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+};
+
 const Chat = () => {
     const { t, i18n } = useTranslation();
     const chatbotCategory = "lemon";
-    const initialUserMessage: string = t("initialUserMsg");
+    const legacyInitialUserMessage: string = t("initialUserMsg");
     const initialAssistantMessageContent: string = t("initialAssistantMsg");
     const initialAssistantResponse: ChatAppResponse = {
         message: {
@@ -43,6 +54,10 @@ const Chat = () => {
         },
         session_state: null
     };
+    const initialAssistantPair: [user: string, response: ChatAppResponse] = [
+        INITIAL_ASSISTANT_SENTINEL_USER_MESSAGE,
+        initialAssistantResponse
+    ];
     const [isConfigPanelOpen, setIsConfigPanelOpen] = useState(false);
     const [isHistoryPanelOpen, setIsHistoryPanelOpen] = useState(false);
     const [promptTemplate, setPromptTemplate] = useState<string>("");
@@ -71,6 +86,7 @@ const Chat = () => {
 
     const lastQuestionRef = useRef<string>("");
     const chatMessageStreamEnd = useRef<HTMLDivElement | null>(null);
+    const localHistorySessionIdRef = useRef<string | null>(null);
 
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [isStreaming, setIsStreaming] = useState<boolean>(false);
@@ -82,8 +98,8 @@ const Chat = () => {
     const [activeAnalysisPanelTab, setActiveAnalysisPanelTab] = useState<AnalysisPanelTabs | undefined>(undefined);
 
     const [selectedAnswer, setSelectedAnswer] = useState<number>(0);
-    const [answers, setAnswers] = useState<[user: string, response: ChatAppResponse][]>([[initialUserMessage, initialAssistantResponse]]);
-    const [streamedAnswers, setStreamedAnswers] = useState<[user: string, response: ChatAppResponse][]>([[initialUserMessage, initialAssistantResponse]]);
+    const [answers, setAnswers] = useState<[user: string, response: ChatAppResponse][]>([initialAssistantPair]);
+    const [streamedAnswers, setStreamedAnswers] = useState<[user: string, response: ChatAppResponse][]>([initialAssistantPair]);
     const [speechUrls, setSpeechUrls] = useState<(string | null)[]>([]);
 
     const [showMultimodalOptions, setShowMultimodalOptions] = useState<boolean>(false);
@@ -259,6 +275,56 @@ const Chat = () => {
         return HistoryProviderOptions.None;
     })();
     const historyManager = useHistoryManager(historyProvider);
+    const { setRecentChatsAction } = useOutletContext<{ setRecentChatsAction: (action: { run: () => void } | null) => void }>();
+
+    useEffect(() => {
+        setRecentChatsAction({
+            run: () => setIsHistoryPanelOpen(true)
+        });
+
+        return () => {
+            setRecentChatsAction(null);
+        };
+    }, [setRecentChatsAction]);
+
+    const isSyntheticInitialPair = ([user, response]: [user: string, response: ChatAppResponse]) =>
+        response.message.role === "assistant" &&
+        response.message.content === initialAssistantMessageContent &&
+        (user === INITIAL_ASSISTANT_SENTINEL_USER_MESSAGE || user === legacyInitialUserMessage);
+
+    const stripLeadingSyntheticInitialPairs = (chatAnswers: [user: string, response: ChatAppResponse][]) => {
+        let startIndex = 0;
+
+        while (startIndex < chatAnswers.length && isSyntheticInitialPair(chatAnswers[startIndex])) {
+            startIndex += 1;
+        }
+
+        return chatAnswers.slice(startIndex);
+    };
+
+    const getLastRealQuestion = (chatAnswers: [user: string, response: ChatAppResponse][]) => {
+        const conversationAnswers = stripLeadingSyntheticInitialPairs(chatAnswers);
+        return conversationAnswers.length > 0 ? conversationAnswers[conversationAnswers.length - 1][0] : "";
+    };
+
+    const getCurrentSessionState = () => {
+        const latestSessionState = answers.length ? answers[answers.length - 1][1].session_state : null;
+
+        if (typeof latestSessionState === "string" && latestSessionState !== "") {
+            localHistorySessionIdRef.current = latestSessionState;
+            return latestSessionState;
+        }
+
+        if (historyProvider === HistoryProviderOptions.IndexedDB) {
+            if (!localHistorySessionIdRef.current) {
+                localHistorySessionIdRef.current = createClientSessionId();
+            }
+
+            return localHistorySessionIdRef.current;
+        }
+
+        return null;
+    };
 
     const updateStreamingPreference = (isStreamingEnabledOverride: boolean, disablesStreamingOverride: boolean) => {
         if (!isStreamingEnabledOverride) {
@@ -304,7 +370,8 @@ const Chat = () => {
         const token = client ? await getToken(client) : undefined;
 
         try {
-            const messages: ResponseMessage[] = answers.flatMap(a => [
+            const conversationAnswers = stripLeadingSyntheticInitialPairs(answers);
+            const messages: ResponseMessage[] = conversationAnswers.flatMap(a => [
                 { content: a[0], role: "user" },
                 { content: a[1].message.content, role: "assistant" }
             ]);
@@ -339,7 +406,7 @@ const Chat = () => {
                     }
                 },
                 // AI Chat Protocol: Client must pass on any session state received from the server
-                session_state: answers.length ? answers[answers.length - 1][1].session_state : null
+                session_state: getCurrentSessionState()
             };
 
             const response = await chatApi(request, shouldStream, token, controller.signal);
@@ -354,14 +421,22 @@ const Chat = () => {
                 const parsedResponse: ChatAppResponse = await handleAsyncRequest(question, answers, response.body, controller.signal);
                 // Only add to answers if we got content, otherwise restore question to input
                 if (parsedResponse.message.content) {
-                    setAnswers([...answers, [question, parsedResponse]]);
-                    if (typeof parsedResponse.session_state === "string" && parsedResponse.session_state !== "") {
+                    const sessionState =
+                        typeof parsedResponse.session_state === "string" && parsedResponse.session_state !== ""
+                            ? parsedResponse.session_state
+                            : localHistorySessionIdRef.current;
+                    const normalizedResponse =
+                        typeof sessionState === "string" && sessionState !== ""
+                            ? { ...parsedResponse, session_state: sessionState }
+                            : parsedResponse;
+                    setAnswers([...answers, [question, normalizedResponse]]);
+                    if (typeof sessionState === "string" && sessionState !== "") {
                         const token = client ? await getToken(client) : undefined;
-                        historyManager.addItem(parsedResponse.session_state, [...answers, [question, parsedResponse]], token);
+                        historyManager.addItem(sessionState, [...conversationAnswers, [question, normalizedResponse]], token);
                     }
                 } else {
                     // Stopped before any content arrived - restore question to input
-                    lastQuestionRef.current = answers.length > 0 ? answers[answers.length - 1][0] : "";
+                    lastQuestionRef.current = getLastRealQuestion(answers);
                     setRestoredQuestion(question);
                 }
             } else {
@@ -369,17 +444,26 @@ const Chat = () => {
                 if (parsedResponse.error) {
                     throw Error(parsedResponse.error);
                 }
-                setAnswers([...answers, [question, parsedResponse as ChatAppResponse]]);
-                if (typeof parsedResponse.session_state === "string" && parsedResponse.session_state !== "") {
+                const chatResponse = parsedResponse as ChatAppResponse;
+                const sessionState =
+                    typeof chatResponse.session_state === "string" && chatResponse.session_state !== ""
+                        ? chatResponse.session_state
+                        : localHistorySessionIdRef.current;
+                const normalizedResponse =
+                    typeof sessionState === "string" && sessionState !== ""
+                        ? { ...chatResponse, session_state: sessionState }
+                        : chatResponse;
+                setAnswers([...answers, [question, normalizedResponse]]);
+                if (typeof sessionState === "string" && sessionState !== "") {
                     const token = client ? await getToken(client) : undefined;
-                    historyManager.addItem(parsedResponse.session_state, [...answers, [question, parsedResponse as ChatAppResponse]], token);
+                    historyManager.addItem(sessionState, [...conversationAnswers, [question, normalizedResponse]], token);
                 }
             }
             setSpeechUrls([...speechUrls, null]);
         } catch (e) {
             if (e instanceof DOMException && e.name === "AbortError") {
                 // Stopped during loading - restore question to input
-                lastQuestionRef.current = answers.length > 0 ? answers[answers.length - 1][0] : "";
+                lastQuestionRef.current = getLastRealQuestion(answers);
                 setRestoredQuestion(question);
             } else {
                 setError(e);
@@ -391,12 +475,13 @@ const Chat = () => {
     };
 
     const clearChat = () => {
+        localHistorySessionIdRef.current = null;
         lastQuestionRef.current = "";
         error && setError(undefined);
         setActiveCitation(undefined);
         setActiveAnalysisPanelTab(undefined);
-        setAnswers([[initialUserMessage, initialAssistantResponse]]); // Reset to welcome message
-        setStreamedAnswers([[initialUserMessage, initialAssistantResponse]]); // Reset to welcome message
+        setAnswers([initialAssistantPair]); // Reset to welcome message
+        setStreamedAnswers([initialAssistantPair]); // Reset to welcome message
         setSpeechUrls([null]);
         setIsLoading(false);
         setIsStreaming(false);
@@ -414,11 +499,11 @@ const Chat = () => {
     useEffect(() => {
         // Ensure welcome message is shown on initial load
         if (answers.length === 0) {
-            setAnswers([[initialUserMessage, initialAssistantResponse]]);
-            setStreamedAnswers([[initialUserMessage, initialAssistantResponse]]);
+            setAnswers([initialAssistantPair]);
+            setStreamedAnswers([initialAssistantPair]);
             setSpeechUrls([null]);
         }
-    }, []);
+    }, [answers.length, initialAssistantPair]);
 
     useEffect(() => chatMessageStreamEnd.current?.scrollIntoView({ behavior: "smooth" }), [isLoading]);
     useEffect(() => chatMessageStreamEnd.current?.scrollIntoView({ behavior: "auto" }), [streamedAnswers]);
@@ -625,7 +710,7 @@ const Chat = () => {
                         {isStreaming &&
                             streamedAnswers.map((streamedAnswer, index) => (
                                 <div key={index}>
-                                    {streamedAnswer[0] !== initialUserMessage && <UserChatMessage message={streamedAnswer[0]} />}
+                                    {!isSyntheticInitialPair(streamedAnswer) && <UserChatMessage message={streamedAnswer[0]} />}
                                     <div className={styles.chatMessageGpt}>
                                         <Answer
                                             isStreaming={true}
@@ -648,7 +733,7 @@ const Chat = () => {
                         {!isStreaming &&
                             answers.map((answer, index) => (
                                 <div key={index}>
-                                    {answer[0] !== initialUserMessage && <UserChatMessage message={answer[0]} />}
+                                    {!isSyntheticInitialPair(answer) && <UserChatMessage message={answer[0]} />}
                                     <div className={styles.chatMessageGpt}>
                                         <Answer
                                             isStreaming={false}
@@ -721,11 +806,17 @@ const Chat = () => {
                         isOpen={isHistoryPanelOpen}
                         notify={!isStreaming && !isLoading}
                         onClose={() => setIsHistoryPanelOpen(false)}
-                        onChatSelected={answers => {
-                            if (answers.length === 0) return;
+                        onChatSelected={historyAnswers => {
+                            const restoredAnswers = stripLeadingSyntheticInitialPairs(historyAnswers);
+                            if (restoredAnswers.length === 0) return;
                             // Add welcome message at the beginning of the loaded history
-                            setAnswers([[initialUserMessage, initialAssistantResponse], ...answers]);
-                            lastQuestionRef.current = answers[answers.length - 1][0];
+                            const restoredConversation = [initialAssistantPair, ...restoredAnswers];
+                            setAnswers(restoredConversation);
+                            setStreamedAnswers(restoredConversation);
+                            lastQuestionRef.current = getLastRealQuestion(restoredAnswers);
+                            const restoredSessionState = restoredAnswers[restoredAnswers.length - 1][1].session_state;
+                            localHistorySessionIdRef.current =
+                                typeof restoredSessionState === "string" && restoredSessionState !== "" ? restoredSessionState : null;
                         }}
                     />
                 )}

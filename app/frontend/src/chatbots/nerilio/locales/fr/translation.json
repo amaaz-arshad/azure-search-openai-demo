@@ -26,7 +26,8 @@
         "today": "Aujourd'hui",
         "yesterday": "Hier",
         "last7days": "7 derniers jours",
-        "last30days": "30 derniers jours"
+        "last30days": "30 derniers jours",
+        "viewRecentChats": "Voir les chats r?cents"
     },
     "upload": {
         "fileLabel": "TÃ©lÃ©charger le fichier:",
@@ -173,5 +174,6 @@
     },
     "overallSettings": "ParamÃ¨tres gÃ©nÃ©raux",
     "searchSettings": "ParamÃ¨tres de recherche",
-    "llmSettings": "ParamÃ¨tres LLM"
+    "llmSettings": "ParamÃ¨tres LLM",
+    "newChat": "Nouveau chat"
 }

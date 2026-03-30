@@ -18,6 +18,7 @@
     "history": {
         "chatHistory": "Chatgeschiedenis",
         "openChatHistory": "Open chatgeschiedenis",
+        "viewRecentChats": "Recente chats bekijken",
         "noHistory": "Geen chatgeschiedenis",
         "deleteModalTitle": "Chatgeschiedenis verwijderen",
         "deleteModalDescription": "Deze actie kan niet ongedaan worden gemaakt. Deze chatgeschiedenis verwijderen?",

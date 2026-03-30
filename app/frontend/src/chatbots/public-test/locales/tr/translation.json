@@ -16,7 +16,8 @@
         "today": "Bugün",
         "yesterday": "Dün",
         "last7days": "Son 7 gün",
-        "last30days": "Son 30 gün"
+        "last30days": "Son 30 gün",
+        "viewRecentChats": "Son sohbetleri g?r?nt?le"
     },
     "upload": {
         "fileLabel": "Dosya yükle:",
@@ -221,5 +222,6 @@
         "verificationEmailFailed": "Dogrulama e-postasi gonderilemedi. Lutfen tekrar dene.",
         "verificationTooManyAttempts": "Cok fazla hatali dogrulama denemesi yapildi. Kaydi yeniden baslat.",
         "verificationSessionNotFound": "Bu e-posta icin etkin bir kayit dogrulamasi bulunamadi."
-    }
+    },
+    "newChat": "Yeni sohbet"
 }

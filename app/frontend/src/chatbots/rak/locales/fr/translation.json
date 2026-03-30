@@ -16,7 +16,8 @@
         "today": "Aujourd'hui",
         "yesterday": "Hier",
         "last7days": "7 derniers jours",
-        "last30days": "30 derniers jours"
+        "last30days": "30 derniers jours",
+        "viewRecentChats": "Voir les chats r?cents"
     },
     "upload": {
         "fileLabel": "Télécharger le fichier:",
@@ -169,5 +170,6 @@
     "initialAssistantMessages": {
         "user12345": "Bonjour M. Maier,\n\nles cours suivants seront bient?t disponibles pour vous :\n\n- Einf?hrung in das Insolvenzrecht\n- Greenwashing\n- Praxistaugliche Kommunikationstipps\n- Unionsrecht ? Impulsgeber oder St?rfaktor?",
         "user67890": "Bonjour Mme Moser,\n\nque diriez-vous de ces ?v?nements ?\n\n- Das Zivilverfahren\n- Gesellschaftsrecht I\n- Arbeitsrecht Seminar\n- Aufsichtsrat Herausforderungen\n- Raumordnungsrecht im Fokus\n- Perspektivenwechsel in der Mediation\n- Aussage gegen Aussage"
-    }
+    },
+    "newChat": "Nouveau chat"
 }

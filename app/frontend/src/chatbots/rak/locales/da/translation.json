@@ -16,7 +16,8 @@
         "today": "I dag",
         "yesterday": "I går",
         "last7days": "Sidste 7 dage",
-        "last30days": "Sidste 30 dage"
+        "last30days": "Sidste 30 dage",
+        "viewRecentChats": "Vis seneste chats"
     },
     "upload": {
         "fileLabel": "Upload fil:",
@@ -169,5 +170,6 @@
     "initialAssistantMessages": {
         "user12345": "Hej hr. Maier,\n\nf?lgende kurser vil v?re tilg?ngelige for dig i den n?rmeste fremtid:\n\n- Einf?hrung in das Insolvenzrecht\n- Greenwashing\n- Praxistaugliche Kommunikationstipps\n- Unionsrecht ? Impulsgeber oder St?rfaktor?",
         "user67890": "Hej fru Moser,\n\nhvad med disse arrangementer?\n\n- Das Zivilverfahren\n- Gesellschaftsrecht I\n- Arbeitsrecht Seminar\n- Aufsichtsrat Herausforderungen\n- Raumordnungsrecht im Fokus\n- Perspektivenwechsel in der Mediation\n- Aussage gegen Aussage"
-    }
+    },
+    "newChat": "Ny chat"
 }

@@ -8,6 +8,7 @@
     "history": {
         "chatHistory": "Historial de chat",
         "openChatHistory": "Abrir historial de chat",
+        "viewRecentChats": "Ver chats recientes",
         "noHistory": "No hay historial de chat",
         "deleteModalTitle": "Eliminar historial de chat",
         "deleteModalDescription": "Esta acción no se puede deshacer. ¿Eliminar este historial de chat?",
@@ -164,5 +165,6 @@
     },
     "overallSettings": "Configuración general",
     "searchSettings": "Configuración de búsqueda",
-    "llmSettings": "Configuración de LLM"
+    "llmSettings": "Configuración de LLM",
+    "newChat": "Nuevo chat"
 }

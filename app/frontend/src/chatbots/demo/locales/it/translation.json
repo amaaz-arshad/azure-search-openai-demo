@@ -9,6 +9,7 @@
     "history": {
         "chatHistory": "Cronologia chat",
         "openChatHistory": "Apri cronologia chat",
+        "viewRecentChats": "Visualizza chat recenti",
         "noHistory": "Nessuna cronologia in questa chat",
         "deleteModalTitle": "Elimina cronologia chat",
         "deleteModalDescription": "Questa azione è irreversibile. Eliminare la cronologia di questa chat?",

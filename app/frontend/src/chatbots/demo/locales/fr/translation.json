@@ -8,6 +8,7 @@
     "history": {
         "chatHistory": "Historique du chat",
         "openChatHistory": "Ouvrir l'historique du chat",
+        "viewRecentChats": "Voir les chats r?cents",
         "noHistory": "Pas d'historique dans ce chat",
         "deleteModalTitle": "Supprimer l'historique du chat",
         "deleteModalDescription": "Cette action est irréversible. Supprimer l'historique de ce chat ?",
@@ -164,5 +165,6 @@
     },
     "overallSettings": "Paramètres généraux",
     "searchSettings": "Paramètres de recherche",
-    "llmSettings": "Paramètres LLM"
+    "llmSettings": "Paramètres LLM",
+    "newChat": "Nouveau chat"
 }

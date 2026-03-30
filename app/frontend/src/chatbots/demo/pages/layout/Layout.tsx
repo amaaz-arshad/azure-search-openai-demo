@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, Outlet } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { IconButton } from "@fluentui/react";
-import { ArrowUpload24Regular, ChatAdd24Regular, SignOut24Regular } from "@fluentui/react-icons";
+import { ArrowUpload24Regular, ChatAdd24Regular, History24Regular, SignOut24Regular } from "@fluentui/react-icons";
 
 import { useLogin } from "../../authConfig";
 import { UploadManagerModal } from "../../components/UploadManagerModal/UploadManagerModal";
@@ -17,11 +17,16 @@ export const setGlobalClearChat = (fn: () => void) => {
     globalClearChat = fn;
 };
 
+export interface DemoLayoutOutletContext {
+    setRecentChatsAction: (action: { run: () => void } | null) => void;
+}
+
 const Layout = () => {
     const { t } = useTranslation();
     const dropdownRef = useRef<HTMLDivElement | null>(null);
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [isUploadManagerOpen, setIsUploadManagerOpen] = useState(false);
+    const [recentChatsAction, setRecentChatsAction] = useState<{ run: () => void } | null>(null);
 
     useEffect(() => {
         if (!dropdownOpen) {
@@ -46,6 +51,11 @@ const Layout = () => {
     const handleOpenUploadManager = () => {
         setDropdownOpen(false);
         setIsUploadManagerOpen(true);
+    };
+
+    const handleOpenRecentChats = () => {
+        setDropdownOpen(false);
+        recentChatsAction?.run();
     };
 
     const handleBasicLogout = () => {
@@ -84,6 +94,12 @@ const Layout = () => {
                                         </button>
                                     </li>
                                     <li>
+                                        <button className={styles.dropdownItem} onClick={handleOpenRecentChats}>
+                                            <History24Regular />
+                                            <span>{t("history.viewRecentChats")}</span>
+                                        </button>
+                                    </li>
+                                    <li>
                                         <button className={styles.dropdownItem} onClick={handleOpenUploadManager}>
                                             <ArrowUpload24Regular />
                                             <span>{t("upload.menuLabel")}</span>
@@ -103,7 +119,7 @@ const Layout = () => {
             </header>
 
             <main className={styles.main} id="main-content">
-                <Outlet />
+                <Outlet context={{ setRecentChatsAction }} />
             </main>
 
             <UploadManagerModal chatbotName="demo" isOpen={isUploadManagerOpen} onClose={() => setIsUploadManagerOpen(false)} />

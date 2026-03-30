@@ -19,6 +19,7 @@
     "history": {
         "chatHistory": "Chatverlauf",
         "openChatHistory": "Chatverlauf öffnen",
+        "viewRecentChats": "Letzte Chats anzeigen",
         "noHistory": "Kein Chatverlauf",
         "deleteModalTitle": "Chatverlauf löschen",
         "deleteModalDescription": "Diese Aktion kann nicht rückgängig gemacht werden. Diesen Chatverlauf löschen?",

@@ -8,6 +8,7 @@
     "history": {
         "chatHistory": "Historia czatu",
         "openChatHistory": "Otwórz historię czatu",
+        "viewRecentChats": "Poka? ostatnie czaty",
         "noHistory": "Brak historii czatu",
         "deleteModalTitle": "Usuń historię czatu",
         "deleteModalDescription": "Tej akcji nie można cofnąć. Usunąć tę historię czatu?",
@@ -165,5 +166,6 @@
     },
     "overallSettings": "Overall settings",
     "searchSettings": "Search settings",
-    "llmSettings": "LLM settings"
+    "llmSettings": "LLM settings",
+    "newChat": "Nowy czat"
 }

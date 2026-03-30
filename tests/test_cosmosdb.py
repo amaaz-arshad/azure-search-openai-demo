@@ -1,5 +1,7 @@
 import copy
+import hashlib
 import json
+from types import SimpleNamespace
 
 import pytest
 from azure.cosmos.aio import ContainerProxy
@@ -111,11 +113,13 @@ async def test_chathistory_newitem(auth_public_documents_client, monkeypatch):
         assert session["id"] == "123"
         assert session["session_id"] == "123"
         assert session["entra_oid"] == "OID_X"
+        assert session["chatbot_name"] == "demo"
         assert session["title"] == "This is a test message"
         message = operations[1][1][0]
         assert message["id"] == "123-0"
         assert message["session_id"] == "123"
         assert message["entra_oid"] == "OID_X"
+        assert message["chatbot_name"] == "demo"
         assert message["question"] == "This is a test message"
         assert message["response"] == "This is a test answer"
 
@@ -126,6 +130,72 @@ async def test_chathistory_newitem(auth_public_documents_client, monkeypatch):
         headers={"Authorization": "Bearer MockToken"},
         json={
             "id": "123",
+            "chatbot_name": "demo",
+            "answers": [["This is a test message", "This is a test answer"]],
+        },
+    )
+    assert response.status_code == 201
+
+
+@pytest.mark.asyncio
+async def test_chathistory_newitem_public_test_user_scope(auth_public_documents_client, monkeypatch):
+    public_test_history_user_id = f"public-test:{hashlib.sha256('person@example.com'.encode('utf-8')).hexdigest()}"
+
+    class FakePublicTestAuthService:
+        session_cookie_name = "public_test_session"
+
+        async def load_session(self, _session_token):
+            return SimpleNamespace(email="person@example.com")
+
+    auth_public_documents_client.app.config["public_test_auth_service"] = FakePublicTestAuthService()
+
+    async def mock_execute_item_batch(container_proxy, **kwargs):
+        partition_key = kwargs["partition_key"]
+        assert partition_key == [public_test_history_user_id, "123"]
+        operations = kwargs["batch_operations"]
+        session = operations[0][1][0]
+        assert session["entra_oid"] == public_test_history_user_id
+        assert session["chatbot_name"] == "public-test"
+        message = operations[1][1][0]
+        assert message["entra_oid"] == public_test_history_user_id
+        assert message["chatbot_name"] == "public-test"
+
+    monkeypatch.setattr(ContainerProxy, "execute_item_batch", mock_execute_item_batch)
+
+    response = await auth_public_documents_client.post(
+        "/chat_history",
+        json={
+            "id": "123",
+            "chatbot_name": "public-test",
+            "answers": [["This is a test message", "This is a test answer"]],
+        },
+    )
+    assert response.status_code == 201
+
+
+@pytest.mark.asyncio
+async def test_chathistory_newitem_rak_user_scope(auth_public_documents_client, monkeypatch):
+    rak_history_user_id = "rak:12345"
+
+    async def mock_execute_item_batch(container_proxy, **kwargs):
+        partition_key = kwargs["partition_key"]
+        assert partition_key == [rak_history_user_id, "123"]
+        operations = kwargs["batch_operations"]
+        session = operations[0][1][0]
+        assert session["entra_oid"] == rak_history_user_id
+        assert session["chatbot_name"] == "rak"
+        message = operations[1][1][0]
+        assert message["entra_oid"] == rak_history_user_id
+        assert message["chatbot_name"] == "rak"
+
+    monkeypatch.setattr(ContainerProxy, "execute_item_batch", mock_execute_item_batch)
+
+    response = await auth_public_documents_client.post(
+        "/chat_history",
+        headers={"Authorization": "Bearer MockToken", "X-Chatbot-User": "12345"},
+        json={
+            "id": "123",
+            "chatbot_name": "rak",
             "answers": [["This is a test message", "This is a test answer"]],
         },
     )
@@ -198,12 +268,15 @@ async def test_chathistory_newitem_error_runtime(auth_public_documents_client, m
 async def test_chathistory_query(auth_public_documents_client, monkeypatch, snapshot):
 
     def mock_query_items(container_proxy, query, **kwargs):
+        assert "c.chatbot_name = @chatbot_name" in query
+        assert kwargs["parameters"][2]["name"] == "@chatbot_name"
+        assert kwargs["parameters"][2]["value"] == "demo"
         return MockCosmosDBResultsIterator(for_sessions_query)
 
     monkeypatch.setattr(ContainerProxy, "query_items", mock_query_items)
 
     response = await auth_public_documents_client.get(
-        "/chat_history/sessions?count=20", headers={"Authorization": "Bearer MockToken"}
+        "/chat_history/sessions?count=20&chatbot_name=demo", headers={"Authorization": "Bearer MockToken"}
     )
     assert response.status_code == 200
     result = await response.get_json()
@@ -211,15 +284,63 @@ async def test_chathistory_query(auth_public_documents_client, monkeypatch, snap
 
 
 @pytest.mark.asyncio
+async def test_chathistory_query_public_test_user_scope(auth_public_documents_client, monkeypatch):
+    public_test_history_user_id = f"public-test:{hashlib.sha256('person@example.com'.encode('utf-8')).hexdigest()}"
+
+    class FakePublicTestAuthService:
+        session_cookie_name = "public_test_session"
+
+        async def load_session(self, _session_token):
+            return SimpleNamespace(email="person@example.com")
+
+    auth_public_documents_client.app.config["public_test_auth_service"] = FakePublicTestAuthService()
+
+    def mock_query_items(container_proxy, query, **kwargs):
+        assert "c.chatbot_name = @chatbot_name" in query
+        assert kwargs["parameters"][0]["value"] == public_test_history_user_id
+        assert kwargs["parameters"][2]["value"] == "public-test"
+        assert kwargs["partition_key"] == [public_test_history_user_id]
+        return MockCosmosDBResultsIterator(for_sessions_query)
+
+    monkeypatch.setattr(ContainerProxy, "query_items", mock_query_items)
+
+    response = await auth_public_documents_client.get("/chat_history/sessions?count=20&chatbot_name=public-test")
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_chathistory_query_rak_user_scope(auth_public_documents_client, monkeypatch):
+    rak_history_user_id = "rak:12345"
+
+    def mock_query_items(container_proxy, query, **kwargs):
+        assert "c.chatbot_name = @chatbot_name" in query
+        assert kwargs["parameters"][0]["value"] == rak_history_user_id
+        assert kwargs["parameters"][2]["value"] == "rak"
+        assert kwargs["partition_key"] == [rak_history_user_id]
+        return MockCosmosDBResultsIterator(for_sessions_query)
+
+    monkeypatch.setattr(ContainerProxy, "query_items", mock_query_items)
+
+    response = await auth_public_documents_client.get(
+        "/chat_history/sessions?count=20&chatbot_name=rak&chatbot_user=12345",
+        headers={"Authorization": "Bearer MockToken", "X-Chatbot-User": "12345"},
+    )
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
 async def test_chathistory_query_continuation(auth_public_documents_client, monkeypatch, snapshot):
 
     def mock_query_items(container_proxy, query, **kwargs):
+        assert "c.chatbot_name = @chatbot_name" in query
+        assert kwargs["parameters"][2]["value"] == "demo"
         return MockCosmosDBResultsIterator()
 
     monkeypatch.setattr(ContainerProxy, "query_items", mock_query_items)
 
     response = await auth_public_documents_client.get(
-        "/chat_history/sessions?count=20&continuation_token=123", headers={"Authorization": "Bearer MockToken"}
+        "/chat_history/sessions?count=20&continuation_token=123&chatbot_name=demo",
+        headers={"Authorization": "Bearer MockToken"},
     )
     assert response.status_code == 200
     result = await response.get_json()
@@ -270,12 +391,14 @@ async def test_chathistory_query_error_runtime(auth_public_documents_client, mon
 async def test_chathistory_getitem(auth_public_documents_client, monkeypatch, snapshot):
 
     def mock_query_items(container_proxy, query, **kwargs):
+        assert "c.chatbot_name = @chatbot_name" in query
+        assert kwargs["parameters"][2]["value"] == "demo"
         return MockCosmosDBResultsIterator(for_message_pairs_query)
 
     monkeypatch.setattr(ContainerProxy, "query_items", mock_query_items)
 
     response = await auth_public_documents_client.get(
-        "/chat_history/sessions/123",
+        "/chat_history/sessions/123?chatbot_name=demo",
         headers={"Authorization": "Bearer MockToken"},
     )
     assert response.status_code == 200
@@ -332,6 +455,8 @@ async def test_chathistory_getitem_error_runtime(auth_public_documents_client, m
 async def test_chathistory_deleteitem(auth_public_documents_client, monkeypatch):
 
     def mock_query_items(container_proxy, query, **kwargs):
+        assert "c.chatbot_name = @chatbot_name" in query
+        assert kwargs["parameters"][1]["value"] == "demo"
         return MockCosmosDBResultsIterator(for_deletion_query)
 
     monkeypatch.setattr(ContainerProxy, "query_items", mock_query_items)
@@ -350,7 +475,7 @@ async def test_chathistory_deleteitem(auth_public_documents_client, monkeypatch)
     monkeypatch.setattr(ContainerProxy, "execute_item_batch", mock_execute_item_batch)
 
     response = await auth_public_documents_client.delete(
-        "/chat_history/sessions/123",
+        "/chat_history/sessions/123?chatbot_name=demo",
         headers={"Authorization": "Bearer MockToken"},
     )
     assert response.status_code == 204

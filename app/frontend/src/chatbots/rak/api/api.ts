@@ -12,9 +12,16 @@ import {
     ChatbotBulkDeleteResponse
 } from "./models";
 import { useLogin, getToken, isUsingAppServicesLogin } from "../authConfig";
+import { getCurrentChatbotName } from "../../../chatHistoryScope";
+import { getAuthenticatedUser } from "../pages/basicauth/basicAuth";
 
 type ChatbotUserOptions = {
     chatbotUser?: string;
+};
+
+const getRakHistoryUser = (): string | undefined => {
+    const username = getAuthenticatedUser()?.username?.trim();
+    return username || undefined;
 };
 
 export async function getHeaders(idToken: string | undefined): Promise<Record<string, string>> {
@@ -264,10 +271,15 @@ export async function deleteAllChatbotUploadedFilesApi(
 
 export async function postChatHistoryApi(item: any, idToken: string): Promise<any> {
     const headers = await getHeaders(idToken);
+    const chatbotName = getCurrentChatbotName();
+    const chatbotUser = getRakHistoryUser();
+    if (chatbotUser) {
+        headers["X-Chatbot-User"] = chatbotUser;
+    }
     const response = await fetch("/chat_history", {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify(item)
+        body: JSON.stringify({ ...item, chatbot_name: chatbotName })
     });
 
     if (!response.ok) {
@@ -280,12 +292,23 @@ export async function postChatHistoryApi(item: any, idToken: string): Promise<an
 
 export async function getChatHistoryListApi(count: number, continuationToken: string | undefined, idToken: string): Promise<HistoryListApiResponse> {
     const headers = await getHeaders(idToken);
-    let url = `${BACKEND_URI}/chat_history/sessions?count=${count}`;
+    const chatbotName = getCurrentChatbotName();
+    const chatbotUser = getRakHistoryUser();
+    if (chatbotUser) {
+        headers["X-Chatbot-User"] = chatbotUser;
+    }
+    const searchParams = new URLSearchParams({ count: count.toString() });
     if (continuationToken) {
-        url += `&continuationToken=${continuationToken}`;
+        searchParams.set("continuation_token", continuationToken);
+    }
+    if (chatbotName) {
+        searchParams.set("chatbot_name", chatbotName);
+    }
+    if (chatbotUser) {
+        searchParams.set("chatbot_user", chatbotUser);
     }
 
-    const response = await fetch(url.toString(), {
+    const response = await fetch(`${BACKEND_URI}/chat_history/sessions?${searchParams.toString()}`, {
         method: "GET",
         headers: { ...headers, "Content-Type": "application/json" }
     });
@@ -300,7 +323,20 @@ export async function getChatHistoryListApi(count: number, continuationToken: st
 
 export async function getChatHistoryApi(id: string, idToken: string): Promise<HistoryApiResponse> {
     const headers = await getHeaders(idToken);
-    const response = await fetch(`/chat_history/sessions/${id}`, {
+    const chatbotName = getCurrentChatbotName();
+    const chatbotUser = getRakHistoryUser();
+    if (chatbotUser) {
+        headers["X-Chatbot-User"] = chatbotUser;
+    }
+    const searchParams = new URLSearchParams();
+    if (chatbotName) {
+        searchParams.set("chatbot_name", chatbotName);
+    }
+    if (chatbotUser) {
+        searchParams.set("chatbot_user", chatbotUser);
+    }
+    const query = searchParams.toString();
+    const response = await fetch(`/chat_history/sessions/${id}${query ? `?${query}` : ""}`, {
         method: "GET",
         headers: { ...headers, "Content-Type": "application/json" }
     });
@@ -315,7 +351,20 @@ export async function getChatHistoryApi(id: string, idToken: string): Promise<Hi
 
 export async function deleteChatHistoryApi(id: string, idToken: string): Promise<any> {
     const headers = await getHeaders(idToken);
-    const response = await fetch(`/chat_history/sessions/${id}`, {
+    const chatbotName = getCurrentChatbotName();
+    const chatbotUser = getRakHistoryUser();
+    if (chatbotUser) {
+        headers["X-Chatbot-User"] = chatbotUser;
+    }
+    const searchParams = new URLSearchParams();
+    if (chatbotName) {
+        searchParams.set("chatbot_name", chatbotName);
+    }
+    if (chatbotUser) {
+        searchParams.set("chatbot_user", chatbotUser);
+    }
+    const query = searchParams.toString();
+    const response = await fetch(`/chat_history/sessions/${id}${query ? `?${query}` : ""}`, {
         method: "DELETE",
         headers: { ...headers, "Content-Type": "application/json" }
     });

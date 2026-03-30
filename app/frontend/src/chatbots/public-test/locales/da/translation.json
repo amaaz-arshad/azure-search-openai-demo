@@ -16,7 +16,8 @@
         "today": "I dag",
         "yesterday": "I går",
         "last7days": "Sidste 7 dage",
-        "last30days": "Sidste 30 dage"
+        "last30days": "Sidste 30 dage",
+        "viewRecentChats": "Vis seneste chats"
     },
     "upload": {
         "fileLabel": "Upload fil:",
@@ -221,5 +222,6 @@
         "verificationEmailFailed": "Vi kunne ikke sende bekraeftelsesmailen. Proev igen.",
         "verificationTooManyAttempts": "For mange forkerte bekraeftelsesforsoeg. Start tilmeldingen igen.",
         "verificationSessionNotFound": "Der blev ikke fundet en aktiv tilmeldingsbekraeftelse for denne e-mail."
-    }
+    },
+    "newChat": "Ny chat"
 }

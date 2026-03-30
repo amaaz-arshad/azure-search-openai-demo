@@ -16,7 +16,8 @@
         "today": "Aujourd'hui",
         "yesterday": "Hier",
         "last7days": "7 derniers jours",
-        "last30days": "30 derniers jours"
+        "last30days": "30 derniers jours",
+        "viewRecentChats": "Voir les chats r?cents"
     },
     "upload": {
         "fileLabel": "Télécharger le fichier:",
@@ -221,5 +222,6 @@
         "verificationEmailFailed": "Nous n avons pas pu envoyer l e-mail de verification. Veuillez reessayer.",
         "verificationTooManyAttempts": "Trop de tentatives de verification incorrectes. Recommencez l inscription.",
         "verificationSessionNotFound": "Aucune verification d inscription active n a ete trouvee pour cette adresse e-mail."
-    }
+    },
+    "newChat": "Nouveau chat"
 }

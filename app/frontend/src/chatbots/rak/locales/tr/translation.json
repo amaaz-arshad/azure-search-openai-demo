@@ -16,7 +16,8 @@
         "today": "Bugün",
         "yesterday": "Dün",
         "last7days": "Son 7 gün",
-        "last30days": "Son 30 gün"
+        "last30days": "Son 30 gün",
+        "viewRecentChats": "Son sohbetleri g?r?nt?le"
     },
     "upload": {
         "fileLabel": "Dosya yükle:",
@@ -169,5 +170,6 @@
     "initialAssistantMessages": {
         "user12345": "Merhaba Bay Maier,\n\na?a??daki kurslar yak?nda sizin i?in eri?ilebilir olacak:\n\n- Einf?hrung in das Insolvenzrecht\n- Greenwashing\n- Praxistaugliche Kommunikationstipps\n- Unionsrecht ? Impulsgeber oder St?rfaktor?",
         "user67890": "Merhaba Bayan Moser,\n\nbu etkinliklere ne dersiniz?\n\n- Das Zivilverfahren\n- Gesellschaftsrecht I\n- Arbeitsrecht Seminar\n- Aufsichtsrat Herausforderungen\n- Raumordnungsrecht im Fokus\n- Perspektivenwechsel in der Mediation\n- Aussage gegen Aussage"
-    }
+    },
+    "newChat": "Yeni sohbet"
 }

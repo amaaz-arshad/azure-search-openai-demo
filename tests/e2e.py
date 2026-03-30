@@ -120,6 +120,55 @@ def test_demo_disclaimer_visible_after_login(page: Page, live_server_url: str):
     expect(page.get_by_test_id("chatbot-disclaimer")).to_have_count(0)
 
 
+def test_demo_recent_chats_dropdown_opens_history_panel(page: Page, live_server_url: str):
+    def handle_config(route: Route):
+        route.fulfill(
+            body=json.dumps(
+                {
+                    "defaultReasoningEffort": "",
+                    "defaultRetrievalReasoningEffort": "minimal",
+                    "showMultimodalOptions": False,
+                    "showSemanticRankerOption": True,
+                    "showQueryRewritingOption": False,
+                    "showReasoningEffortOption": False,
+                    "streamingEnabled": True,
+                    "showVectorOption": True,
+                    "showUserUpload": False,
+                    "showLanguagePicker": False,
+                    "showSpeechInput": False,
+                    "showSpeechOutputBrowser": False,
+                    "showSpeechOutputAzure": False,
+                    "showChatHistoryBrowser": True,
+                    "showChatHistoryCosmos": False,
+                    "showAgenticRetrievalOption": False,
+                    "ragSearchImageEmbeddings": False,
+                    "ragSearchTextEmbeddings": True,
+                    "ragSendImageSources": False,
+                    "ragSendTextSources": True,
+                    "webSourceEnabled": False,
+                    "sharepointSourceEnabled": False,
+                }
+            ),
+            status=200,
+        )
+
+    page.route("*/**/config", handle_config)
+
+    page.goto(f"{live_server_url}demo")
+
+    page.get_by_label("Username").fill("demouser")
+    page.get_by_label("Password").fill("demo@123")
+    page.get_by_role("button", name="Login").click()
+
+    page.get_by_role("button", name="Toggle menu").click()
+    recent_chats_button = page.get_by_role("button", name="View recent chats")
+    expect(recent_chats_button).to_be_visible()
+    recent_chats_button.click()
+
+    expect(page.get_by_text("Chat history")).to_be_visible()
+    expect(page.get_by_text("No chat history")).to_be_visible()
+
+
 def test_chat(sized_page: Page, live_server_url: str):
     page = sized_page
 
