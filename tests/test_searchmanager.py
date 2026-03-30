@@ -698,6 +698,7 @@ async def test_update_content_uses_section_level_metadata(monkeypatch, search_in
                 title="Liste",
                 url="https://snap.publishone.nl/document/6446/content",
                 tags=["PublishOne", "state:New"],
+                user="12345",
             )
         ]
     )
@@ -712,6 +713,7 @@ async def test_update_content_uses_section_level_metadata(monkeypatch, search_in
             "title": "Liste",
             "url": "https://snap.publishone.nl/document/6446/content",
             "tags": ["PublishOne", "state:New"],
+            "user": "12345",
         }
     ]
 

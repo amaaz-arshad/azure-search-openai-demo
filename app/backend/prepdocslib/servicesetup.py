@@ -22,7 +22,7 @@ from .parser import Parser
 from .pdfparser import DocumentAnalysisParser, LocalPdfParser
 from .strategy import SearchInfo
 from .textparser import TextParser
-from .textsplitter import SentenceTextSplitter, SimpleTextSplitter
+from .textsplitter import CsvTextSplitter, SentenceTextSplitter, SimpleTextSplitter
 from .xmlparser import XmlParser
 
 logger = logging.getLogger("scripts")
@@ -290,7 +290,7 @@ def build_file_processors(
         ".json": FileProcessor(JsonParser(), SimpleTextSplitter()),
         ".md": FileProcessor(TextParser(), sentence_text_splitter),
         ".txt": FileProcessor(TextParser(), sentence_text_splitter),
-        ".csv": FileProcessor(CsvParser(), sentence_text_splitter),
+        ".csv": FileProcessor(CsvParser(), CsvTextSplitter()),
         ".xml": FileProcessor(XmlParser(), sentence_text_splitter),
     }
     # These require either a Python package or Document Intelligence

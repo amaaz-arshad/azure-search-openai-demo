@@ -104,6 +104,11 @@ class Page:
     text: str
     images: list[ImageOnPage] = field(default_factory=list)
     tables: list[str] = field(default_factory=list)
+    sourcepage: Optional[str] = None
+    title: Optional[str] = None
+    url: Optional[str] = None
+    tags: list[str] = field(default_factory=list)
+    user: Optional[str] = None
 
 
 @dataclass

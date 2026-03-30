@@ -215,7 +215,7 @@
     "searchSettings": "Zoekinstellingen",
     "llmSettings": "LLM-instellingen",
     "initialAssistantMessages": {
-        "user12345": "Hallo meneer Maier,\n\nde volgende cursussen zijn binnenkort voor u beschikbaar:\n\n- Einf?hrung in das Insolvenzrecht\n- Greenwashing\n- Praxistaugliche Kommunikationstipps\n- Unionsrecht ? Impulsgeber oder St?rfaktor?",
-        "user67890": "Hallo mevrouw Moser,\n\nwat vindt u van deze evenementen?\n\n- Das Zivilverfahren\n- Gesellschaftsrecht I\n- Arbeitsrecht Seminar\n- Aufsichtsrat Herausforderungen\n- Raumordnungsrecht im Fokus\n- Perspektivenwechsel in der Mediation\n- Aussage gegen Aussage"
+        "user12345": "Hallo dhr. Maier,\n\nWelkom terug!\n\nVoor het lopende jaar heeft u nog 12 uur verplichte bijscholing openstaan.\n\nOp basis van uw vakgebieden heb ik de volgende evenementen voor u geselecteerd, die inhoudelijk goed passen en kunnen bijdragen aan het vervullen van uw bijscholingsverplichting:\n\n- Inleiding tot het insolventierecht\n- Greenwashing\n- Praktische communicatietips\n- Unierecht – impulsgever of storende factor?",
+        "user67890": "Hallo mevr. Moser,\n\nWat vindt u van deze evenementen?\n\n- De civiele procedure\n- Ondernemingsrecht I\n- Seminar arbeidsrecht\n- Uitdagingen voor de raad van toezicht\n- Ruimtelijkeordeningsrecht in beeld\n- Perspectiefwisseling in mediation\n- Verklaring tegen verklaring"
     }
 }

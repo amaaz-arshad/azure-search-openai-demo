@@ -40,7 +40,22 @@ def process_text(
 
     # Step 2: Split combined text into chunks
     logger.info("Splitting '%s' into sections", file.filename())
-    sections = [Section(chunk, content=file, category=category) for chunk in splitter.split_pages(pages)]
+    page_by_number = {page.page_num: page for page in pages}
+    sections = []
+    for chunk in splitter.split_pages(pages):
+        source_page = page_by_number.get(chunk.page_num)
+        sections.append(
+            Section(
+                chunk,
+                content=file,
+                category=category,
+                sourcepage=source_page.sourcepage if source_page else None,
+                title=source_page.title if source_page else None,
+                url=source_page.url if source_page else None,
+                tags=source_page.tags if source_page else None,
+                user=source_page.user if source_page else None,
+            )
+        )
 
     # Step 3: Add images back to each section based on page number
     for section in sections:

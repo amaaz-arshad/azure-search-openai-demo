@@ -216,7 +216,7 @@
     "searchSettings": "Such-Einstellungen",
     "llmSettings": "LLM-Einstellungen",
     "initialAssistantMessages": {
-        "user12345": "Hallo Hr. Maier,\n\nfolgende Kurse w?ren in n?chster Zeit f?r Sie verf?gbar:\n\n- Einf?hrung in das Insolvenzrecht\n- Greenwashing\n- Praxistaugliche Kommunikationstipps\n- Unionsrecht ? Impulsgeber oder St?rfaktor?",
-        "user67890": "Hallo Fr. Moser,\n\nwie w?re es mit diesen Veranstaltungen?\n\n- Das Zivilverfahren\n- Gesellschaftsrecht I\n- Arbeitsrecht Seminar\n- Aufsichtsrat Herausforderungen\n- Raumordnungsrecht im Fokus\n- Perspektivenwechsel in der Mediation\n- Aussage gegen Aussage"
+        "user12345": "Hallo Hr. Maier,\n\nWillkommen zurück!\n\nFür das laufende Jahr stehen für Sie noch 12 Stunden Fortbildungspflicht aus.\n\nBasierend auf Ihren Fachgebieten habe ich folgende Veranstaltungen für Sie ausgewählt, die fachlich gut passen und zur Erfüllung Ihrer Fortbildung beitragen können:\n\n- Einführung in das Insolvenzrecht\n- Greenwashing\n- Praxistaugliche Kommunikationstipps\n- Unionsrecht – Impulsgeber oder Störfaktor?",
+        "user67890": "Hallo Fr. Moser,\n\nwie wäre es mit diesen Veranstaltungen?\n\n- Das Zivilverfahren\n- Gesellschaftsrecht I\n- Arbeitsrecht Seminar\n- Aufsichtsrat Herausforderungen\n- Raumordnungsrecht im Fokus\n- Perspektivenwechsel in der Mediation\n- Aussage gegen Aussage"
     }
 }

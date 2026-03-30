@@ -83,6 +83,7 @@ class Section:
         title: Optional[str] = None,
         url: Optional[str] = None,
         tags: Optional[list[str]] = None,
+        user: Optional[str] = None,
     ):
         self.chunk = chunk  # content comes from here
         self.content = content  # sourcepage and sourcefile come from here
@@ -93,6 +94,7 @@ class Section:
         self.title = title
         self.url = url
         self.tags = tags
+        self.user = user
         # this also needs images which will become the images field
 
 
@@ -820,6 +822,8 @@ class SearchManager:
                         document["url"] = section.url
                     if section.tags is not None:
                         document["tags"] = section.tags
+                    if section.user is not None:
+                        document["user"] = section.user
                     if extra_fields:
                         document.update(extra_fields)
                     documents.append(document)

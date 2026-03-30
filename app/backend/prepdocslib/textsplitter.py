@@ -583,6 +583,62 @@ class SentenceTextSplitter(TextSplitter):
             yield previous_chunk
 
 
+class CsvTextSplitter(TextSplitter):
+    """
+    Row-aware splitter for CSV records.
+
+    Each parsed CSV row is already structured as one logical record. We therefore avoid
+    cross-row merging and only split within a single row when the row becomes very large.
+    When a row must be split, later chunks repeat a compact record prefix so retrieval can
+    still associate follow-on details such as prices or notes with the correct row title.
+    """
+
+    def __init__(self, max_tokens_per_section: int = 1200):
+        self.max_tokens_per_section = max_tokens_per_section
+        self.minimum_tokens_for_body = 150
+
+    def split_pages(self, pages: list[Page]) -> Generator[Chunk, None, None]:
+        for page in pages:
+            text = (page.text or "").strip()
+            if not text:
+                continue
+
+            if len(bpe.encode(text)) <= self.max_tokens_per_section:
+                yield Chunk(page_num=page.page_num, text=text)
+                continue
+
+            record_prefix = self.build_record_prefix(page)
+            prefix_tokens = len(bpe.encode(record_prefix)) if record_prefix else 0
+            available_body_tokens = max(
+                self.minimum_tokens_for_body,
+                self.max_tokens_per_section - prefix_tokens,
+            )
+            row_splitter = SentenceTextSplitter(max_tokens_per_section=available_body_tokens)
+            row_pages = [Page(page_num=page.page_num, offset=page.offset, text=text)]
+
+            for chunk_index, chunk in enumerate(row_splitter.split_pages(row_pages)):
+                chunk_text = chunk.text.strip()
+                if not chunk_text:
+                    continue
+
+                if chunk_index == 0 or not record_prefix:
+                    yield Chunk(page_num=page.page_num, text=chunk_text)
+                else:
+                    yield Chunk(page_num=page.page_num, text=f"{record_prefix}\n\n{chunk_text}")
+
+    def build_record_prefix(self, page: Page) -> str:
+        lines: list[str] = []
+        if page.title:
+            lines.append(f"Title: {page.title}")
+        if page.sourcepage:
+            lines.append(f"Source Row: {page.sourcepage}")
+        if page.user:
+            lines.append(f"User: {page.user}")
+        if page.url:
+            lines.append(f"URL: {page.url}")
+        return "\n".join(lines)
+
+
 class SimpleTextSplitter(TextSplitter):
     """
     Class that splits pages into smaller chunks based on a max object length. It is not aware of the content of the page.

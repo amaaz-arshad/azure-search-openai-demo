@@ -5,6 +5,7 @@ from openai.types.create_embedding_response import Usage
 from prepdocslib.embeddings import OpenAIEmbeddings
 from prepdocslib.figureprocessor import FigureProcessor, MediaDescriptionStrategy
 from prepdocslib.fileprocessor import FileProcessor
+from prepdocslib.csvparser import CsvParser
 from prepdocslib.pdfparser import DocumentAnalysisParser
 from prepdocslib.servicesetup import (
     OpenAIHost,
@@ -19,6 +20,7 @@ from prepdocslib.servicesetup import (
     setup_search_info,
 )
 from prepdocslib.textparser import TextParser
+from prepdocslib.textsplitter import CsvTextSplitter
 from prepdocslib.xmlparser import XmlParser
 
 from .mocks import (
@@ -298,6 +300,9 @@ def test_build_file_processors_text_files():
     assert isinstance(file_processors[".md"].parser, TextParser)
     assert ".xml" in file_processors
     assert isinstance(file_processors[".xml"].parser, XmlParser)
+    assert ".csv" in file_processors
+    assert isinstance(file_processors[".csv"].parser, CsvParser)
+    assert isinstance(file_processors[".csv"].splitter, CsvTextSplitter)
 
 
 def test_build_file_processors_with_di_enables_office_formats():
