@@ -248,5 +248,16 @@
         "codeResent": "Nowy kod resetowania has?a zosta? wys?any na adres {{email}}.",
         "verificationHint": "Wpisz 6-cyfrowy kod z wiadomosci e-mail.",
         "backToLogin": "Powr?t do logowania"
+    },
+    "profile": {
+        "menuLabel": "Zobacz profil",
+        "title": "Tw?j profil",
+        "subtitle": "Tutaj mo?esz zobaczy? szczeg??y swojego konta Public Test.",
+        "displayName": "Nazwa wy?wietlana",
+        "email": "E-mail",
+        "createdAt": "Cz?onek od",
+        "updatedAt": "Ostatnia zmiana has?a",
+        "loading": "?adowanie profilu...",
+        "loadError": "Nie uda?o si? teraz za?adowa? Twojego profilu."
     }
 }

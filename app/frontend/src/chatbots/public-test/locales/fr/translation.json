@@ -247,5 +247,16 @@
         "codeResent": "Un nouveau code de r?initialisation du mot de passe a ?t? envoy? ? {{email}}.",
         "verificationHint": "Saisissez le code a 6 chiffres recu par e-mail.",
         "backToLogin": "Retour ? la connexion"
+    },
+    "profile": {
+        "menuLabel": "Voir le profil",
+        "title": "Votre profil",
+        "subtitle": "Voici les informations de votre compte Public Test.",
+        "displayName": "Nom affich?",
+        "email": "E-mail",
+        "createdAt": "Membre depuis",
+        "updatedAt": "Dernier changement de mot de passe",
+        "loading": "Chargement du profil...",
+        "loadError": "Votre profil ne peut pas ?tre charg? pour le moment."
     }
 }

@@ -284,5 +284,16 @@
         "codeResent": "A new password reset code was sent to {{email}}.",
         "verificationHint": "Enter the 6-digit code from your email.",
         "backToLogin": "Back to log in"
+    },
+    "profile": {
+        "menuLabel": "View profile",
+        "title": "Your profile",
+        "subtitle": "Here are the details for your Public Test account.",
+        "displayName": "Display name",
+        "email": "Email",
+        "createdAt": "Member since",
+        "updatedAt": "Last password update",
+        "loading": "Loading profile...",
+        "loadError": "Could not load your profile right now."
     }
 }

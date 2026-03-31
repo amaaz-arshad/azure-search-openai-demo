@@ -286,5 +286,16 @@
         "codeResent": "Ein neuer Code zum Zur?cksetzen des Passworts wurde an {{email}} gesendet.",
         "verificationHint": "Gib den 6-stelligen Code aus deiner E-Mail ein.",
         "backToLogin": "Zur?ck zur Anmeldung"
+    },
+    "profile": {
+        "menuLabel": "Profil anzeigen",
+        "title": "Dein Profil",
+        "subtitle": "Hier siehst du die Details deines Public-Test-Kontos.",
+        "displayName": "Anzeigename",
+        "email": "E-Mail",
+        "createdAt": "Mitglied seit",
+        "updatedAt": "Letzte Passwort-?nderung",
+        "loading": "Profil wird geladen...",
+        "loadError": "Dein Profil konnte gerade nicht geladen werden."
     }
 }

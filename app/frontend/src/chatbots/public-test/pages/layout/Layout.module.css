@@ -127,6 +127,106 @@
     background-color: var(--chatbot-dropdown-item-hover-background);
 }
 
+.profileOverlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(6px);
+    z-index: 1200;
+}
+
+.profileModal {
+    width: min(100%, 520px);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 24px;
+    padding: 24px;
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 24px 80px rgba(15, 23, 42, 0.2);
+}
+
+.profileHeader {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.profileTitle {
+    margin: 0;
+    color: #132238;
+    font-size: 1.35rem;
+    font-weight: 700;
+}
+
+.profileSubtitle {
+    margin: 6px 0 0;
+    color: #4f617a;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.profileCloseButton {
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 999px;
+    padding: 8px 14px;
+    font: inherit;
+    font-weight: 600;
+    color: #22364d;
+    background: #f4f7fb;
+    cursor: pointer;
+}
+
+.profileCloseButton:hover {
+    background: #ebf1f8;
+}
+
+.profileLoading,
+.profileError {
+    margin: 0;
+    color: #4f617a;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.profileError {
+    color: #b42318;
+}
+
+.profileDetails {
+    display: grid;
+    gap: 12px;
+    margin: 0;
+}
+
+.profileRow {
+    display: grid;
+    grid-template-columns: minmax(120px, 160px) 1fr;
+    gap: 12px;
+    padding: 14px 16px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 18px;
+    background: #f9fbfd;
+}
+
+.profileRow dt {
+    color: #4f617a;
+    font-size: 0.92rem;
+    font-weight: 600;
+}
+
+.profileRow dd {
+    margin: 0;
+    color: #132238;
+    font-size: 0.96rem;
+    font-weight: 600;
+    word-break: break-word;
+}
+
 /* Remove old navbar styles */
 .headerTitleContainer,
 .headerNavList,
@@ -141,5 +241,13 @@
     .navbarTitle {
         max-width: 50%;
         font-size: 1.7rem;
+    }
+
+    .profileModal {
+        padding: 20px;
+    }
+
+    .profileRow {
+        grid-template-columns: 1fr;
     }
 }

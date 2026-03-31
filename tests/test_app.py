@@ -371,6 +371,39 @@ async def test_public_test_session_returns_authenticated_user(client, monkeypatc
 
 
 @pytest.mark.asyncio
+async def test_public_test_profile_returns_account_details(client, monkeypatch):
+    auth_service = client.app.config[app.CONFIG_PUBLIC_TEST_AUTH_SERVICE]
+
+    async def mock_get_authenticated_public_test_user():
+        return app.PublicTestSession(display_name="Stored User", email="stored@example.com")
+
+    async def mock_load_account(email: str):
+        assert email == "stored@example.com"
+        return SimpleNamespace(
+            display_name="Stored User",
+            email="stored@example.com",
+            created_at="2026-03-31T10:00:00+00:00",
+            updated_at="2026-03-31T11:00:00+00:00",
+        )
+
+    monkeypatch.setattr(app, "get_authenticated_public_test_user", mock_get_authenticated_public_test_user)
+    monkeypatch.setattr(auth_service, "load_account", mock_load_account)
+
+    response = await client.get("/public-test-auth/profile")
+
+    payload = await response.get_json()
+    assert response.status_code == 200
+    assert payload == {
+        "profile": {
+            "displayName": "Stored User",
+            "email": "stored@example.com",
+            "createdAt": "2026-03-31T10:00:00+00:00",
+            "updatedAt": "2026-03-31T11:00:00+00:00",
+        }
+    }
+
+
+@pytest.mark.asyncio
 async def test_public_test_admin_users_lists_accounts(client, monkeypatch):
     auth_service = client.app.config[app.CONFIG_PUBLIC_TEST_AUTH_SERVICE]
 

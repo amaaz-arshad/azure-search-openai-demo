@@ -247,5 +247,16 @@
         "codeResent": "Se ha enviado un nuevo c?digo para restablecer la contrase?a a {{email}}.",
         "verificationHint": "Introduce el codigo de 6 digitos de tu correo.",
         "backToLogin": "Volver al inicio de sesi?n"
+    },
+    "profile": {
+        "menuLabel": "Ver perfil",
+        "title": "Tu perfil",
+        "subtitle": "Aqu? puedes ver los datos de tu cuenta de Public Test.",
+        "displayName": "Nombre para mostrar",
+        "email": "Correo electr?nico",
+        "createdAt": "Miembro desde",
+        "updatedAt": "?ltimo cambio de contrase?a",
+        "loading": "Cargando perfil...",
+        "loadError": "No se ha podido cargar tu perfil ahora mismo."
     }
 }

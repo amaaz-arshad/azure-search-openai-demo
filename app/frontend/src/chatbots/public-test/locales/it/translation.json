@@ -281,5 +281,16 @@
         "codeResent": "Un nuovo codice per reimpostare la password ? stato inviato a {{email}}.",
         "verificationHint": "Inserisci il codice di 6 cifre ricevuto via e-mail.",
         "backToLogin": "Torna al login"
+    },
+    "profile": {
+        "menuLabel": "Visualizza profilo",
+        "title": "Il tuo profilo",
+        "subtitle": "Qui puoi vedere i dettagli del tuo account Public Test.",
+        "displayName": "Nome visualizzato",
+        "email": "E-mail",
+        "createdAt": "Membro dal",
+        "updatedAt": "Ultimo aggiornamento password",
+        "loading": "Caricamento profilo...",
+        "loadError": "Impossibile caricare il tuo profilo in questo momento."
     }
 }

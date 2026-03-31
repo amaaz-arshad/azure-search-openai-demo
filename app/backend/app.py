@@ -650,6 +650,36 @@ async def public_test_session():
     return jsonify({"session": {"displayName": session.display_name, "email": session.email}}), 200
 
 
+@bp.get("/public-test-auth/profile")
+async def public_test_profile():
+    auth_service = get_public_test_auth_service()
+    session = await get_authenticated_public_test_user()
+    if session is None:
+        response = jsonify({"errorKey": "authErrors.invalidCredentials"})
+        auth_service.clear_session_cookie(response)
+        return response, 401
+
+    account = await auth_service.load_account(session.email)
+    if account is None:
+        response = jsonify({"errorKey": "authErrors.accountNotFound"})
+        auth_service.clear_session_cookie(response)
+        return response, 404
+
+    return (
+        jsonify(
+            {
+                "profile": {
+                    "displayName": account.display_name,
+                    "email": account.email,
+                    "createdAt": account.created_at,
+                    "updatedAt": account.updated_at,
+                }
+            }
+        ),
+        200,
+    )
+
+
 @bp.post("/public-test-auth/logout")
 async def public_test_logout():
     auth_service = get_public_test_auth_service()

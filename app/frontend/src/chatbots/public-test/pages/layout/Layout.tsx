@@ -1,14 +1,15 @@
-import { useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { Link, Outlet } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { IconButton } from "@fluentui/react";
-import { ArrowUpload24Regular, ChatAdd24Regular, History24Regular, SignOut24Regular } from "@fluentui/react-icons";
+import { ArrowUpload24Regular, ChatAdd24Regular, History24Regular, Person24Regular, SignOut24Regular } from "@fluentui/react-icons";
 
 import { useLogin } from "../../authConfig";
 import { UploadManagerModal } from "../../components/UploadManagerModal/UploadManagerModal";
 import { LoginButton } from "../../components/LoginButton";
 import publicTestLogo from "../../assets/applogo.svg";
-import { logout } from "../basicauth/basicAuth";
+import { LoginContext } from "../../loginContext";
+import { getCurrentProfile, logout, PublicTestProfile } from "../basicauth/basicAuth";
 import styles from "./Layout.module.css";
 
 let globalClearChat: () => void = () => {};
@@ -18,10 +19,15 @@ export const setGlobalClearChat = (fn: () => void) => {
 };
 
 const Layout = () => {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
+    const { currentUser } = useContext(LoginContext);
     const dropdownRef = useRef<HTMLDivElement | null>(null);
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [isUploadManagerOpen, setIsUploadManagerOpen] = useState(false);
+    const [isProfileOpen, setIsProfileOpen] = useState(false);
+    const [isProfileLoading, setIsProfileLoading] = useState(false);
+    const [profileError, setProfileError] = useState("");
+    const [profile, setProfile] = useState<PublicTestProfile | null>(null);
     const [recentChatsAction, setRecentChatsAction] = useState<{ run: () => void } | null>(null);
 
     useEffect(() => {
@@ -54,10 +60,60 @@ const Layout = () => {
         setIsUploadManagerOpen(true);
     };
 
+    const handleOpenProfile = () => {
+        setDropdownOpen(false);
+        setIsProfileOpen(true);
+    };
+
     const handleBasicLogout = async () => {
         setDropdownOpen(false);
         await logout();
         window.location.reload();
+    };
+
+    useEffect(() => {
+        if (!isProfileOpen || !currentUser) {
+            return;
+        }
+
+        let isMounted = true;
+        setIsProfileLoading(true);
+        setProfileError("");
+
+        void getCurrentProfile()
+            .then(profileResult => {
+                if (!isMounted) {
+                    return;
+                }
+                setProfile(profileResult);
+            })
+            .catch(error => {
+                console.error("Public Test profile load failed", error);
+                if (!isMounted) {
+                    return;
+                }
+                setProfileError(t("profile.loadError"));
+            })
+            .finally(() => {
+                if (isMounted) {
+                    setIsProfileLoading(false);
+                }
+            });
+
+        return () => {
+            isMounted = false;
+        };
+    }, [currentUser, isProfileOpen, t]);
+
+    const formatProfileDate = (value: string) => {
+        try {
+            return new Intl.DateTimeFormat(i18n.language || undefined, {
+                dateStyle: "medium",
+                timeStyle: "short"
+            }).format(new Date(value));
+        } catch {
+            return value;
+        }
     };
 
     return (
@@ -102,6 +158,12 @@ const Layout = () => {
                                         </button>
                                     </li>
                                     <li>
+                                        <button className={styles.dropdownItem} onClick={handleOpenProfile}>
+                                            <Person24Regular />
+                                            <span>{t("profile.menuLabel")}</span>
+                                        </button>
+                                    </li>
+                                    <li>
                                         <button className={styles.dropdownItem} onClick={() => void handleBasicLogout()}>
                                             <SignOut24Regular />
                                             <span>{t("logout")}</span>
@@ -119,6 +181,57 @@ const Layout = () => {
             </main>
 
             <UploadManagerModal chatbotName="public-test" isOpen={isUploadManagerOpen} onClose={() => setIsUploadManagerOpen(false)} />
+
+            {isProfileOpen && (
+                <div className={styles.profileOverlay} onClick={() => setIsProfileOpen(false)} role="presentation">
+                    <section
+                        aria-labelledby="public-test-profile-title"
+                        className={styles.profileModal}
+                        onClick={event => event.stopPropagation()}
+                    >
+                        <div className={styles.profileHeader}>
+                            <div>
+                                <h2 className={styles.profileTitle} id="public-test-profile-title">
+                                    {t("profile.title")}
+                                </h2>
+                                <p className={styles.profileSubtitle}>{t("profile.subtitle")}</p>
+                            </div>
+                            <button
+                                className={styles.profileCloseButton}
+                                onClick={() => setIsProfileOpen(false)}
+                                type="button"
+                            >
+                                {t("labels.closeButton")}
+                            </button>
+                        </div>
+
+                        {isProfileLoading ? (
+                            <p className={styles.profileLoading}>{t("profile.loading")}</p>
+                        ) : profileError ? (
+                            <p className={styles.profileError}>{profileError}</p>
+                        ) : (
+                            <dl className={styles.profileDetails}>
+                                <div className={styles.profileRow}>
+                                    <dt>{t("profile.displayName")}</dt>
+                                    <dd>{profile?.displayName ?? currentUser?.displayName ?? "-"}</dd>
+                                </div>
+                                <div className={styles.profileRow}>
+                                    <dt>{t("profile.email")}</dt>
+                                    <dd>{profile?.email ?? currentUser?.email ?? "-"}</dd>
+                                </div>
+                                <div className={styles.profileRow}>
+                                    <dt>{t("profile.createdAt")}</dt>
+                                    <dd>{profile?.createdAt ? formatProfileDate(profile.createdAt) : "-"}</dd>
+                                </div>
+                                <div className={styles.profileRow}>
+                                    <dt>{t("profile.updatedAt")}</dt>
+                                    <dd>{profile?.updatedAt ? formatProfileDate(profile.updatedAt) : "-"}</dd>
+                                </div>
+                            </dl>
+                        )}
+                    </section>
+                </div>
+            )}
         </div>
     );
 };

@@ -247,5 +247,16 @@
         "codeResent": "Um novo c?digo de redefini??o de senha foi enviado para {{email}}.",
         "verificationHint": "Digite o codigo de 6 digitos recebido por e-mail.",
         "backToLogin": "Voltar para entrar"
+    },
+    "profile": {
+        "menuLabel": "Ver perfil",
+        "title": "Seu perfil",
+        "subtitle": "Aqui est?o os detalhes da sua conta do Public Test.",
+        "displayName": "Nome de exibi??o",
+        "email": "E-mail",
+        "createdAt": "Membro desde",
+        "updatedAt": "?ltima atualiza??o de senha",
+        "loading": "Carregando perfil...",
+        "loadError": "N?o foi poss?vel carregar seu perfil agora."
     }
 }

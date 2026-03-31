@@ -3,6 +3,11 @@ export type PublicTestSession = {
     email: string;
 };
 
+export type PublicTestProfile = PublicTestSession & {
+    createdAt: string;
+    updatedAt: string;
+};
+
 type AuthResult =
     | {
           ok: true;
@@ -55,6 +60,26 @@ const parseSession = (payload: unknown): PublicTestSession | null => {
     };
 };
 
+const parseProfile = (payload: unknown): PublicTestProfile | null => {
+    if (
+        !payload ||
+        typeof payload !== "object" ||
+        typeof (payload as { displayName?: unknown }).displayName !== "string" ||
+        typeof (payload as { email?: unknown }).email !== "string" ||
+        typeof (payload as { createdAt?: unknown }).createdAt !== "string" ||
+        typeof (payload as { updatedAt?: unknown }).updatedAt !== "string"
+    ) {
+        return null;
+    }
+
+    return {
+        displayName: (payload as { displayName: string }).displayName.trim(),
+        email: normalizeEmail((payload as { email: string }).email),
+        createdAt: (payload as { createdAt: string }).createdAt,
+        updatedAt: (payload as { updatedAt: string }).updatedAt
+    };
+};
+
 const readErrorKey = async (response: Response, fallbackErrorKey: string) => {
     const payload = (await response.json().catch(() => null)) as { errorKey?: string } | null;
     return payload?.errorKey ?? fallbackErrorKey;
@@ -96,6 +121,25 @@ export const logout = async () => {
         method: "POST",
         credentials: "include"
     }).catch(() => undefined);
+};
+
+export const getCurrentProfile = async (): Promise<PublicTestProfile> => {
+    const response = await fetch("/public-test-auth/profile", {
+        method: "GET",
+        credentials: "include"
+    });
+
+    if (!response.ok) {
+        throw new Error(`Public Test profile request failed: ${response.status}`);
+    }
+
+    const payload = (await response.json()) as { profile?: unknown };
+    const profile = parseProfile(payload.profile);
+    if (!profile) {
+        throw new Error("Public Test profile payload was invalid");
+    }
+
+    return profile;
 };
 
 export const signUp = async ({ displayName, email, password, confirmPassword }: SignUpInput): Promise<VerificationStartResult> => {

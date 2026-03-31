@@ -247,5 +247,16 @@
         "codeResent": "En ny kode til nulstilling af adgangskode blev sendt til {{email}}.",
         "verificationHint": "Indtast den 6-cifrede kode fra din e-mail.",
         "backToLogin": "Tilbage til log ind"
+    },
+    "profile": {
+        "menuLabel": "Se profil",
+        "title": "Din profil",
+        "subtitle": "Her kan du se oplysningerne for din Public Test-konto.",
+        "displayName": "Vist navn",
+        "email": "E-mail",
+        "createdAt": "Medlem siden",
+        "updatedAt": "Seneste ?ndring af adgangskode",
+        "loading": "Indl?ser profil...",
+        "loadError": "Din profil kunne ikke indl?ses lige nu."
     }
 }

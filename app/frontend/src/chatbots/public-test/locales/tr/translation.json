@@ -247,5 +247,16 @@
         "codeResent": "{{email}} adresine yeni bir ?ifre s?f?rlama kodu g?nderdik.",
         "verificationHint": "E-postandaki 6 haneli kodu gir.",
         "backToLogin": "Giri?e d?n"
+    },
+    "profile": {
+        "menuLabel": "Profili g?r?nt?le",
+        "title": "Profiliniz",
+        "subtitle": "Public Test hesab?n?z?n ayr?nt?lar?n? burada g?rebilirsiniz.",
+        "displayName": "G?r?nen ad",
+        "email": "E-posta",
+        "createdAt": "?yelik ba?lang?c?",
+        "updatedAt": "Son parola g?ncellemesi",
+        "loading": "Profil y?kleniyor...",
+        "loadError": "Profiliniz ?u anda y?klenemedi."
     }
 }

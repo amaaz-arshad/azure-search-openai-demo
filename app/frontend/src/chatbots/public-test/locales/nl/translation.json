@@ -285,5 +285,16 @@
         "codeResent": "Er is een nieuwe code om je wachtwoord opnieuw in te stellen naar {{email}} gestuurd.",
         "verificationHint": "Voer de 6-cijferige code uit je e-mail in.",
         "backToLogin": "Terug naar inloggen"
+    },
+    "profile": {
+        "menuLabel": "Profiel bekijken",
+        "title": "Jouw profiel",
+        "subtitle": "Hier zie je de gegevens van je Public Test-account.",
+        "displayName": "Weergavenaam",
+        "email": "E-mail",
+        "createdAt": "Lid sinds",
+        "updatedAt": "Laatste wachtwoordwijziging",
+        "loading": "Profiel wordt geladen...",
+        "loadError": "Je profiel kon nu niet worden geladen."
     }
 }
