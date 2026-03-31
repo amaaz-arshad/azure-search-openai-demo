@@ -178,7 +178,8 @@
         "login": "Iniciar sesión",
         "noAccount": "¿Necesitas una cuenta?",
         "switchToSignup": "Registrarse",
-        "loggingIn": "Iniciando sesión..."
+        "loggingIn": "Iniciando sesión...",
+        "forgotPassword": "?Has olvidado tu contrase?a?"
     },
     "signupPage": {
         "title": "Crea tu cuenta",
@@ -221,7 +222,30 @@
         "verificationEmailUnavailable": "La verificacion por correo no esta disponible en este momento.",
         "verificationEmailFailed": "No pudimos enviar el correo de verificacion. Intentalo de nuevo.",
         "verificationTooManyAttempts": "Demasiados intentos de verificacion incorrectos. Vuelve a iniciar el registro.",
-        "verificationSessionNotFound": "No se encontro una verificacion de registro activa para este correo."
+        "verificationSessionNotFound": "No se encontro una verificacion de registro activa para este correo.",
+        "accountNotFound": "No se ha encontrado ninguna cuenta para este correo electr?nico.",
+        "passwordResetSessionNotFound": "No se ha encontrado un restablecimiento de contrase?a activo para este correo electr?nico."
     },
-    "newChat": "Nuevo chat"
+    "newChat": "Nuevo chat",
+    "passwordResetPage": {
+        "title": "Restablece tu contrase?a",
+        "subtitle": "Introduce tu correo electr?nico y te enviaremos un c?digo de 6 d?gitos para definir una nueva contrase?a.",
+        "email": "Correo electrónico",
+        "password": "Contraseña",
+        "confirmPassword": "Confirmar contraseña",
+        "requestCode": "Enviar c?digo",
+        "sendingCode": "Enviando c?digo...",
+        "verifyTitle": "Define una nueva contrase?a",
+        "verifySubtitle": "Hemos enviado un c?digo de 6 d?gitos a {{email}}. Introd?celo abajo y elige una nueva contrase?a.",
+        "verificationCode": "Codigo de verificacion",
+        "resetPassword": "Restablecer contrase?a",
+        "resettingPassword": "Restableciendo contrase?a...",
+        "resendCode": "Reenviar codigo",
+        "resendingCode": "Reenviando codigo...",
+        "changeEmail": "Cambiar correo",
+        "codeSent": "Hemos enviado un c?digo para restablecer la contrase?a a {{email}}.",
+        "codeResent": "Se ha enviado un nuevo c?digo para restablecer la contrase?a a {{email}}.",
+        "verificationHint": "Introduce el codigo de 6 digitos de tu correo.",
+        "backToLogin": "Volver al inicio de sesi?n"
+    }
 }

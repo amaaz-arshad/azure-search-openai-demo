@@ -241,6 +241,143 @@ export const resendSignUpCode = async (email: string): Promise<VerificationStart
     };
 };
 
+export const requestPasswordReset = async (email: string): Promise<VerificationStartResult> => {
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail) {
+        return { ok: false, errorKey: "authErrors.emailRequired" };
+    }
+    if (!isEmailValid(normalizedEmail)) {
+        return { ok: false, errorKey: "authErrors.invalidEmail" };
+    }
+
+    const response = await fetch("/public-test-auth/password-reset", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            email: normalizedEmail
+        })
+    });
+
+    if (!response.ok) {
+        return {
+            ok: false,
+            errorKey: await readErrorKey(response, "authErrors.unexpected")
+        };
+    }
+
+    const payload = (await response.json()) as {
+        verificationRequired?: boolean;
+        email?: string;
+        expiresInSeconds?: number;
+    };
+    if (!payload.verificationRequired || typeof payload.email !== "string") {
+        return { ok: false, errorKey: "authErrors.unexpected" };
+    }
+
+    return {
+        ok: true,
+        email: normalizeEmail(payload.email),
+        expiresInSeconds: typeof payload.expiresInSeconds === "number" ? payload.expiresInSeconds : 0
+    };
+};
+
+export const resendPasswordResetCode = async (email: string): Promise<VerificationStartResult> => {
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail) {
+        return { ok: false, errorKey: "authErrors.emailRequired" };
+    }
+
+    const response = await fetch("/public-test-auth/password-reset/resend", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            email: normalizedEmail
+        })
+    });
+
+    if (!response.ok) {
+        return {
+            ok: false,
+            errorKey: await readErrorKey(response, "authErrors.unexpected")
+        };
+    }
+
+    const payload = (await response.json()) as {
+        verificationRequired?: boolean;
+        email?: string;
+        expiresInSeconds?: number;
+    };
+    if (!payload.verificationRequired || typeof payload.email !== "string") {
+        return { ok: false, errorKey: "authErrors.unexpected" };
+    }
+
+    return {
+        ok: true,
+        email: normalizeEmail(payload.email),
+        expiresInSeconds: typeof payload.expiresInSeconds === "number" ? payload.expiresInSeconds : 0
+    };
+};
+
+export const verifyPasswordReset = async (
+    email: string,
+    verificationCode: string,
+    password: string,
+    confirmPassword: string
+): Promise<AuthResult> => {
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail) {
+        return { ok: false, errorKey: "authErrors.emailRequired" };
+    }
+    if (!verificationCode.trim()) {
+        return { ok: false, errorKey: "authErrors.verificationCodeRequired" };
+    }
+    if (!password) {
+        return { ok: false, errorKey: "authErrors.passwordRequired" };
+    }
+    if (!confirmPassword) {
+        return { ok: false, errorKey: "authErrors.confirmPasswordRequired" };
+    }
+    if (password !== confirmPassword) {
+        return { ok: false, errorKey: "authErrors.passwordMismatch" };
+    }
+
+    const response = await fetch("/public-test-auth/password-reset/verify", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            email: normalizedEmail,
+            verificationCode: verificationCode.trim(),
+            password,
+            confirmPassword
+        })
+    });
+
+    if (!response.ok) {
+        return {
+            ok: false,
+            errorKey: await readErrorKey(response, "authErrors.unexpected")
+        };
+    }
+
+    const payload = (await response.json()) as { session?: unknown };
+    const session = parseSession(payload.session);
+    if (!session) {
+        return { ok: false, errorKey: "authErrors.unexpected" };
+    }
+
+    cachedSession = session;
+    return { ok: true, session };
+};
+
 export const login = async (email: string, password: string): Promise<AuthResult> => {
     const normalizedEmail = normalizeEmail(email);
     if (!normalizedEmail || !password) {

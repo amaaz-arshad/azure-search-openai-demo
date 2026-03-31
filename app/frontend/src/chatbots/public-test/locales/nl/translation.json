@@ -18,7 +18,8 @@
         "email": "E-mailadres",
         "noAccount": "Heb je een account nodig?",
         "switchToSignup": "Registreren",
-        "loggingIn": "Bezig met inloggen..."
+        "loggingIn": "Bezig met inloggen...",
+        "forgotPassword": "Wachtwoord vergeten?"
     },
     "history": {
         "chatHistory": "Chatgeschiedenis",
@@ -260,6 +261,29 @@
         "verificationEmailUnavailable": "E-mailverificatie is momenteel niet beschikbaar.",
         "verificationEmailFailed": "We konden de verificatie-e-mail niet verzenden. Probeer het opnieuw.",
         "verificationTooManyAttempts": "Te veel onjuiste verificatiepogingen. Start de registratie opnieuw.",
-        "verificationSessionNotFound": "Er is geen actieve verificatiesessie gevonden voor dit e-mailadres."
+        "verificationSessionNotFound": "Er is geen actieve verificatiesessie gevonden voor dit e-mailadres.",
+        "accountNotFound": "Er is geen account gevonden voor dit e-mailadres.",
+        "passwordResetSessionNotFound": "Er is geen actieve wachtwoordreset gevonden voor dit e-mailadres."
+    },
+    "passwordResetPage": {
+        "title": "Wachtwoord opnieuw instellen",
+        "subtitle": "Voer je e-mailadres in. We sturen je dan een 6-cijferige code om een nieuw wachtwoord in te stellen.",
+        "email": "E-mailadres",
+        "password": "Wachtwoord",
+        "confirmPassword": "Bevestig wachtwoord",
+        "requestCode": "Code verzenden",
+        "sendingCode": "Code wordt verzonden...",
+        "verifyTitle": "Nieuw wachtwoord instellen",
+        "verifySubtitle": "We hebben een 6-cijferige code naar {{email}} gestuurd. Voer die hieronder in en kies een nieuw wachtwoord.",
+        "verificationCode": "Verificatiecode",
+        "resetPassword": "Wachtwoord opnieuw instellen",
+        "resettingPassword": "Wachtwoord wordt opnieuw ingesteld...",
+        "resendCode": "Code opnieuw verzenden",
+        "resendingCode": "Code wordt opnieuw verzonden...",
+        "changeEmail": "E-mail wijzigen",
+        "codeSent": "We hebben een code om je wachtwoord opnieuw in te stellen naar {{email}} gestuurd.",
+        "codeResent": "Er is een nieuwe code om je wachtwoord opnieuw in te stellen naar {{email}} gestuurd.",
+        "verificationHint": "Voer de 6-cijferige code uit je e-mail in.",
+        "backToLogin": "Terug naar inloggen"
     }
 }

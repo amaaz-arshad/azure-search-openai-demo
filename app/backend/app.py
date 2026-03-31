@@ -536,6 +536,86 @@ async def public_test_signup_resend():
     )
 
 
+@bp.post("/public-test-auth/password-reset")
+async def public_test_password_reset_start():
+    if not request.is_json:
+        return jsonify({"errorKey": "authErrors.unexpected"}), 415
+
+    request_json = await request.get_json()
+    if not isinstance(request_json, dict):
+        return jsonify({"errorKey": "authErrors.unexpected"}), 400
+    auth_service = get_public_test_auth_service()
+    try:
+        verification_challenge = await auth_service.start_password_reset(
+            email=str(request_json.get("email", "")),
+        )
+    except PublicTestAuthError as auth_error:
+        return jsonify({"errorKey": auth_error.error_key}), auth_error.status_code
+
+    return (
+        jsonify(
+            {
+                "verificationRequired": True,
+                "email": verification_challenge.email,
+                "expiresInSeconds": verification_challenge.expires_in_seconds,
+            }
+        ),
+        200,
+    )
+
+
+@bp.post("/public-test-auth/password-reset/resend")
+async def public_test_password_reset_resend():
+    if not request.is_json:
+        return jsonify({"errorKey": "authErrors.unexpected"}), 415
+
+    request_json = await request.get_json()
+    if not isinstance(request_json, dict):
+        return jsonify({"errorKey": "authErrors.unexpected"}), 400
+    auth_service = get_public_test_auth_service()
+    try:
+        verification_challenge = await auth_service.resend_password_reset_code(
+            email=str(request_json.get("email", "")),
+        )
+    except PublicTestAuthError as auth_error:
+        return jsonify({"errorKey": auth_error.error_key}), auth_error.status_code
+
+    return (
+        jsonify(
+            {
+                "verificationRequired": True,
+                "email": verification_challenge.email,
+                "expiresInSeconds": verification_challenge.expires_in_seconds,
+            }
+        ),
+        200,
+    )
+
+
+@bp.post("/public-test-auth/password-reset/verify")
+async def public_test_password_reset_verify():
+    if not request.is_json:
+        return jsonify({"errorKey": "authErrors.unexpected"}), 415
+
+    request_json = await request.get_json()
+    if not isinstance(request_json, dict):
+        return jsonify({"errorKey": "authErrors.unexpected"}), 400
+    auth_service = get_public_test_auth_service()
+    try:
+        session = await auth_service.verify_password_reset(
+            email=str(request_json.get("email", "")),
+            verification_code=str(request_json.get("verificationCode", "")),
+            password=str(request_json.get("password", "")),
+            confirm_password=str(request_json.get("confirmPassword", "")),
+        )
+    except PublicTestAuthError as auth_error:
+        return jsonify({"errorKey": auth_error.error_key}), auth_error.status_code
+
+    response = jsonify({"session": {"displayName": session.display_name, "email": session.email}})
+    auth_service.set_session_cookie(response, session, secure=should_set_secure_session_cookie())
+    return response, 200
+
+
 @bp.post("/public-test-auth/login")
 async def public_test_login():
     if not request.is_json:

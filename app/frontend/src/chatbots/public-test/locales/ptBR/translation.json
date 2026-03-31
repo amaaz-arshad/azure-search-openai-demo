@@ -178,7 +178,8 @@
         "login": "Entrar",
         "noAccount": "Precisa de uma conta?",
         "switchToSignup": "Cadastrar-se",
-        "loggingIn": "Entrando..."
+        "loggingIn": "Entrando...",
+        "forgotPassword": "Esqueceu a senha?"
     },
     "signupPage": {
         "title": "Crie sua conta",
@@ -221,7 +222,30 @@
         "verificationEmailUnavailable": "A verificacao por e-mail nao esta disponivel no momento.",
         "verificationEmailFailed": "Nao foi possivel enviar o e-mail de verificacao. Tente novamente.",
         "verificationTooManyAttempts": "Muitas tentativas incorretas de verificacao. Inicie o cadastro novamente.",
-        "verificationSessionNotFound": "Nenhuma verificacao de cadastro ativa foi encontrada para este e-mail."
+        "verificationSessionNotFound": "Nenhuma verificacao de cadastro ativa foi encontrada para este e-mail.",
+        "accountNotFound": "Nenhuma conta foi encontrada para este e-mail.",
+        "passwordResetSessionNotFound": "Nenhuma redefini??o de senha ativa foi encontrada para este e-mail."
     },
-    "newChat": "Novo chat"
+    "newChat": "Novo chat",
+    "passwordResetPage": {
+        "title": "Redefina sua senha",
+        "subtitle": "Digite seu e-mail e enviaremos um c?digo de 6 d?gitos para definir uma nova senha.",
+        "email": "E-mail",
+        "password": "Senha",
+        "confirmPassword": "Confirmar senha",
+        "requestCode": "Enviar c?digo",
+        "sendingCode": "Enviando c?digo...",
+        "verifyTitle": "Defina uma nova senha",
+        "verifySubtitle": "Enviamos um c?digo de 6 d?gitos para {{email}}. Digite-o abaixo e escolha uma nova senha.",
+        "verificationCode": "Codigo de verificacao",
+        "resetPassword": "Redefinir senha",
+        "resettingPassword": "Redefinindo senha...",
+        "resendCode": "Reenviar codigo",
+        "resendingCode": "Reenviando codigo...",
+        "changeEmail": "Alterar e-mail",
+        "codeSent": "Enviamos um c?digo de redefini??o de senha para {{email}}.",
+        "codeResent": "Um novo c?digo de redefini??o de senha foi enviado para {{email}}.",
+        "verificationHint": "Digite o codigo de 6 digitos recebido por e-mail.",
+        "backToLogin": "Voltar para entrar"
+    }
 }

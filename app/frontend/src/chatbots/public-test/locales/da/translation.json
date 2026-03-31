@@ -178,7 +178,8 @@
         "login": "Log ind",
         "noAccount": "Har du brug for en konto?",
         "switchToSignup": "Opret konto",
-        "loggingIn": "Logger ind..."
+        "loggingIn": "Logger ind...",
+        "forgotPassword": "Glemt adgangskode?"
     },
     "signupPage": {
         "title": "Opret din konto",
@@ -221,7 +222,30 @@
         "verificationEmailUnavailable": "E-mailbekraeftelse er ikke tilgaengelig lige nu.",
         "verificationEmailFailed": "Vi kunne ikke sende bekraeftelsesmailen. Proev igen.",
         "verificationTooManyAttempts": "For mange forkerte bekraeftelsesforsoeg. Start tilmeldingen igen.",
-        "verificationSessionNotFound": "Der blev ikke fundet en aktiv tilmeldingsbekraeftelse for denne e-mail."
+        "verificationSessionNotFound": "Der blev ikke fundet en aktiv tilmeldingsbekraeftelse for denne e-mail.",
+        "accountNotFound": "Der blev ikke fundet en konto med denne e-mailadresse.",
+        "passwordResetSessionNotFound": "Der blev ikke fundet en aktiv nulstilling af adgangskode for denne e-mailadresse."
     },
-    "newChat": "Ny chat"
+    "newChat": "Ny chat",
+    "passwordResetPage": {
+        "title": "Nulstil din adgangskode",
+        "subtitle": "Indtast din e-mailadresse, s? sender vi dig en 6-cifret kode, s? du kan oprette en ny adgangskode.",
+        "email": "E-mail",
+        "password": "Adgangskode",
+        "confirmPassword": "Bekræft adgangskode",
+        "requestCode": "Send kode",
+        "sendingCode": "Sender kode...",
+        "verifyTitle": "V?lg en ny adgangskode",
+        "verifySubtitle": "Vi har sendt en 6-cifret kode til {{email}}. Indtast den nedenfor, og v?lg en ny adgangskode.",
+        "verificationCode": "Bekraeftelseskode",
+        "resetPassword": "Nulstil adgangskode",
+        "resettingPassword": "Nulstiller adgangskode...",
+        "resendCode": "Send kode igen",
+        "resendingCode": "Sender kode igen...",
+        "changeEmail": "Aendr e-mail",
+        "codeSent": "Vi har sendt en kode til nulstilling af adgangskode til {{email}}.",
+        "codeResent": "En ny kode til nulstilling af adgangskode blev sendt til {{email}}.",
+        "verificationHint": "Indtast den 6-cifrede kode fra din e-mail.",
+        "backToLogin": "Tilbage til log ind"
+    }
 }

@@ -179,7 +179,8 @@
         "login": "Zaloguj się",
         "noAccount": "Potrzebujesz konta?",
         "switchToSignup": "Zarejestruj się",
-        "loggingIn": "Logowanie..."
+        "loggingIn": "Logowanie...",
+        "forgotPassword": "Nie pami?tasz has?a?"
     },
     "signupPage": {
         "title": "Utwórz konto",
@@ -222,7 +223,30 @@
         "verificationEmailUnavailable": "Weryfikacja e-mail jest obecnie niedostepna.",
         "verificationEmailFailed": "Nie udalo sie wyslac wiadomosci weryfikacyjnej. Sprobuj ponownie.",
         "verificationTooManyAttempts": "Zbyt wiele blednych prob weryfikacji. Rozpocznij rejestracje ponownie.",
-        "verificationSessionNotFound": "Nie znaleziono aktywnej weryfikacji rejestracji dla tego adresu e-mail."
+        "verificationSessionNotFound": "Nie znaleziono aktywnej weryfikacji rejestracji dla tego adresu e-mail.",
+        "accountNotFound": "Nie znaleziono konta dla tego adresu e-mail.",
+        "passwordResetSessionNotFound": "Nie znaleziono aktywnego resetowania has?a dla tego adresu e-mail."
     },
-    "newChat": "Nowy czat"
+    "newChat": "Nowy czat",
+    "passwordResetPage": {
+        "title": "Zresetuj has?o",
+        "subtitle": "Wpisz sw?j adres e-mail, a wy?lemy Ci 6-cyfrowy kod do ustawienia nowego has?a.",
+        "email": "E-mail",
+        "password": "Hasło",
+        "confirmPassword": "Potwierdź hasło",
+        "requestCode": "Wy?lij kod",
+        "sendingCode": "Wysy?anie kodu...",
+        "verifyTitle": "Ustaw nowe has?o",
+        "verifySubtitle": "Wys?ali?my 6-cyfrowy kod na adres {{email}}. Wpisz go poni?ej i ustaw nowe has?o.",
+        "verificationCode": "Kod weryfikacyjny",
+        "resetPassword": "Zresetuj has?o",
+        "resettingPassword": "Resetowanie has?a...",
+        "resendCode": "Wyslij kod ponownie",
+        "resendingCode": "Ponowne wysylanie kodu...",
+        "changeEmail": "Zmien adres e-mail",
+        "codeSent": "Wys?ali?my kod resetowania has?a na adres {{email}}.",
+        "codeResent": "Nowy kod resetowania has?a zosta? wys?any na adres {{email}}.",
+        "verificationHint": "Wpisz 6-cyfrowy kod z wiadomosci e-mail.",
+        "backToLogin": "Powr?t do logowania"
+    }
 }

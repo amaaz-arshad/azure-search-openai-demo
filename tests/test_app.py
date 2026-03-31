@@ -259,6 +259,82 @@ async def test_public_test_signup_verify_sets_session_cookie(client, monkeypatch
 
 
 @pytest.mark.asyncio
+async def test_public_test_password_reset_starts_verification(client, monkeypatch):
+    auth_service = client.app.config[app.CONFIG_PUBLIC_TEST_AUTH_SERVICE]
+
+    async def mock_start_password_reset(**kwargs):
+        assert kwargs["email"] == "user@example.com"
+        return SimpleNamespace(email="user@example.com", expires_in_seconds=900)
+
+    monkeypatch.setattr(auth_service, "start_password_reset", mock_start_password_reset)
+
+    response = await client.post(
+        "/public-test-auth/password-reset",
+        json={
+            "email": "user@example.com",
+        },
+    )
+
+    payload = await response.get_json()
+    assert response.status_code == 200
+    assert payload == {
+        "verificationRequired": True,
+        "email": "user@example.com",
+        "expiresInSeconds": 900,
+    }
+
+
+@pytest.mark.asyncio
+async def test_public_test_password_reset_verify_sets_session_cookie(client, monkeypatch):
+    auth_service = client.app.config[app.CONFIG_PUBLIC_TEST_AUTH_SERVICE]
+
+    async def mock_verify_password_reset(**kwargs):
+        assert kwargs["email"] == "user@example.com"
+        assert kwargs["verification_code"] == "123456"
+        assert kwargs["password"] == "new-secret"
+        assert kwargs["confirm_password"] == "new-secret"
+        return app.PublicTestSession(display_name="Test User", email="user@example.com")
+
+    monkeypatch.setattr(auth_service, "verify_password_reset", mock_verify_password_reset)
+
+    response = await client.post(
+        "/public-test-auth/password-reset/verify",
+        json={
+            "email": "user@example.com",
+            "verificationCode": "123456",
+            "password": "new-secret",
+            "confirmPassword": "new-secret",
+        },
+    )
+
+    payload = await response.get_json()
+    assert response.status_code == 200
+    assert payload["session"] == {"displayName": "Test User", "email": "user@example.com"}
+    assert auth_service.session_cookie_name in response.headers["Set-Cookie"]
+
+
+@pytest.mark.asyncio
+async def test_public_test_password_reset_resend_returns_error_key(client, monkeypatch):
+    auth_service = client.app.config[app.CONFIG_PUBLIC_TEST_AUTH_SERVICE]
+
+    async def mock_resend_password_reset_code(**kwargs):
+        raise app.PublicTestAuthError("authErrors.passwordResetSessionNotFound", status_code=404)
+
+    monkeypatch.setattr(auth_service, "resend_password_reset_code", mock_resend_password_reset_code)
+
+    response = await client.post(
+        "/public-test-auth/password-reset/resend",
+        json={
+            "email": "user@example.com",
+        },
+    )
+
+    payload = await response.get_json()
+    assert response.status_code == 404
+    assert payload == {"errorKey": "authErrors.passwordResetSessionNotFound"}
+
+
+@pytest.mark.asyncio
 async def test_public_test_login_returns_error_key(client, monkeypatch):
     auth_service = client.app.config[app.CONFIG_PUBLIC_TEST_AUTH_SERVICE]
 

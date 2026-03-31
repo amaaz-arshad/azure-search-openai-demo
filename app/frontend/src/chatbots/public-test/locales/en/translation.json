@@ -18,7 +18,8 @@
         "email": "Email",
         "noAccount": "Need an account?",
         "switchToSignup": "Sign up",
-        "loggingIn": "Logging in..."
+        "loggingIn": "Logging in...",
+        "forgotPassword": "Forgot password?"
     },
     "history": {
         "chatHistory": "Chat history",
@@ -259,6 +260,29 @@
         "verificationEmailUnavailable": "Email verification is currently unavailable.",
         "verificationEmailFailed": "We could not send the verification email. Please try again.",
         "verificationTooManyAttempts": "Too many incorrect verification attempts. Start signup again.",
-        "verificationSessionNotFound": "No active signup verification was found for this email."
+        "verificationSessionNotFound": "No active signup verification was found for this email.",
+        "accountNotFound": "No account was found for this email.",
+        "passwordResetSessionNotFound": "No active password reset was found for this email."
+    },
+    "passwordResetPage": {
+        "title": "Reset your password",
+        "subtitle": "Enter your email and we'll send you a 6-digit code to set a new password.",
+        "email": "Email",
+        "password": "Password",
+        "confirmPassword": "Confirm password",
+        "requestCode": "Send reset code",
+        "sendingCode": "Sending reset code...",
+        "verifyTitle": "Set a new password",
+        "verifySubtitle": "We sent a 6-digit code to {{email}}. Enter it below and choose a new password.",
+        "verificationCode": "Verification code",
+        "resetPassword": "Reset password",
+        "resettingPassword": "Resetting password...",
+        "resendCode": "Resend code",
+        "resendingCode": "Resending code...",
+        "changeEmail": "Change email",
+        "codeSent": "We sent a password reset code to {{email}}.",
+        "codeResent": "A new password reset code was sent to {{email}}.",
+        "verificationHint": "Enter the 6-digit code from your email.",
+        "backToLogin": "Back to log in"
     }
 }

@@ -178,7 +178,8 @@
         "login": "Se connecter",
         "noAccount": "Vous avez besoin d’un compte ?",
         "switchToSignup": "Créer un compte",
-        "loggingIn": "Connexion..."
+        "loggingIn": "Connexion...",
+        "forgotPassword": "Mot de passe oubli? ?"
     },
     "signupPage": {
         "title": "Créez votre compte",
@@ -221,7 +222,30 @@
         "verificationEmailUnavailable": "La verification par e-mail est actuellement indisponible.",
         "verificationEmailFailed": "Nous n avons pas pu envoyer l e-mail de verification. Veuillez reessayer.",
         "verificationTooManyAttempts": "Trop de tentatives de verification incorrectes. Recommencez l inscription.",
-        "verificationSessionNotFound": "Aucune verification d inscription active n a ete trouvee pour cette adresse e-mail."
+        "verificationSessionNotFound": "Aucune verification d inscription active n a ete trouvee pour cette adresse e-mail.",
+        "accountNotFound": "Aucun compte n?a ?t? trouv? pour cette adresse e-mail.",
+        "passwordResetSessionNotFound": "Aucune r?initialisation de mot de passe active n?a ?t? trouv?e pour cette adresse e-mail."
     },
-    "newChat": "Nouveau chat"
+    "newChat": "Nouveau chat",
+    "passwordResetPage": {
+        "title": "R?initialisez votre mot de passe",
+        "subtitle": "Saisissez votre adresse e-mail et nous vous enverrons un code ? 6 chiffres pour d?finir un nouveau mot de passe.",
+        "email": "E-mail",
+        "password": "Mot de passe",
+        "confirmPassword": "Confirmer le mot de passe",
+        "requestCode": "Envoyer le code",
+        "sendingCode": "Envoi du code...",
+        "verifyTitle": "D?finissez un nouveau mot de passe",
+        "verifySubtitle": "Nous avons envoy? un code ? 6 chiffres ? {{email}}. Saisissez-le ci-dessous et choisissez un nouveau mot de passe.",
+        "verificationCode": "Code de verification",
+        "resetPassword": "R?initialiser le mot de passe",
+        "resettingPassword": "R?initialisation du mot de passe...",
+        "resendCode": "Renvoyer le code",
+        "resendingCode": "Renvoi du code...",
+        "changeEmail": "Changer d e-mail",
+        "codeSent": "Nous avons envoy? un code de r?initialisation du mot de passe ? {{email}}.",
+        "codeResent": "Un nouveau code de r?initialisation du mot de passe a ?t? envoy? ? {{email}}.",
+        "verificationHint": "Saisissez le code a 6 chiffres recu par e-mail.",
+        "backToLogin": "Retour ? la connexion"
+    }
 }

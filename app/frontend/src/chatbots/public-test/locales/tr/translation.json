@@ -178,7 +178,8 @@
         "login": "Giriş yap",
         "noAccount": "Bir hesaba mı ihtiyacınız var?",
         "switchToSignup": "Kayıt ol",
-        "loggingIn": "Giriş yapılıyor..."
+        "loggingIn": "Giriş yapılıyor...",
+        "forgotPassword": "?ifrenizi mi unuttunuz?"
     },
     "signupPage": {
         "title": "Hesabınızı oluşturun",
@@ -221,7 +222,30 @@
         "verificationEmailUnavailable": "E-posta dogrulamasi su anda kullanilamiyor.",
         "verificationEmailFailed": "Dogrulama e-postasi gonderilemedi. Lutfen tekrar dene.",
         "verificationTooManyAttempts": "Cok fazla hatali dogrulama denemesi yapildi. Kaydi yeniden baslat.",
-        "verificationSessionNotFound": "Bu e-posta icin etkin bir kayit dogrulamasi bulunamadi."
+        "verificationSessionNotFound": "Bu e-posta icin etkin bir kayit dogrulamasi bulunamadi.",
+        "accountNotFound": "Bu e-posta adresi i?in bir hesap bulunamad?.",
+        "passwordResetSessionNotFound": "Bu e-posta adresi i?in etkin bir ?ifre s?f?rlama iste?i bulunamad?."
     },
-    "newChat": "Yeni sohbet"
+    "newChat": "Yeni sohbet",
+    "passwordResetPage": {
+        "title": "?ifrenizi s?f?rlay?n",
+        "subtitle": "E-posta adresinizi girin. Yeni bir ?ifre belirlemeniz i?in size 6 haneli bir kod g?nderece?iz.",
+        "email": "E-posta",
+        "password": "Parola",
+        "confirmPassword": "Parolayı doğrula",
+        "requestCode": "Kodu g?nder",
+        "sendingCode": "Kod g?nderiliyor...",
+        "verifyTitle": "Yeni bir ?ifre belirleyin",
+        "verifySubtitle": "{{email}} adresine 6 haneli bir kod g?nderdik. A?a??ya girin ve yeni bir ?ifre se?in.",
+        "verificationCode": "Dogrulama kodu",
+        "resetPassword": "?ifreyi s?f?rla",
+        "resettingPassword": "?ifre s?f?rlan?yor...",
+        "resendCode": "Kodu tekrar gonder",
+        "resendingCode": "Kod tekrar gonderiliyor...",
+        "changeEmail": "E-postayi degistir",
+        "codeSent": "{{email}} adresine bir ?ifre s?f?rlama kodu g?nderdik.",
+        "codeResent": "{{email}} adresine yeni bir ?ifre s?f?rlama kodu g?nderdik.",
+        "verificationHint": "E-postandaki 6 haneli kodu gir.",
+        "backToLogin": "Giri?e d?n"
+    }
 }

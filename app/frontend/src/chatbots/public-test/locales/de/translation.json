@@ -19,7 +19,8 @@
         "email": "E-Mail",
         "noAccount": "Noch kein Konto?",
         "switchToSignup": "Registrieren",
-        "loggingIn": "Anmeldung läuft..."
+        "loggingIn": "Anmeldung läuft...",
+        "forgotPassword": "Passwort vergessen?"
     },
     "history": {
         "chatHistory": "Chatverlauf",
@@ -261,6 +262,29 @@
         "verificationEmailUnavailable": "Die E-Mail-Bestaetigung ist derzeit nicht verfuegbar.",
         "verificationEmailFailed": "Die Bestaetigungs-E-Mail konnte nicht gesendet werden. Bitte versuche es erneut.",
         "verificationTooManyAttempts": "Zu viele falsche Bestaetigungsversuche. Bitte starte die Registrierung erneut.",
-        "verificationSessionNotFound": "Fuer diese E-Mail wurde keine aktive Registrierungsbestaetigung gefunden."
+        "verificationSessionNotFound": "Fuer diese E-Mail wurde keine aktive Registrierungsbestaetigung gefunden.",
+        "accountNotFound": "F?r diese E-Mail-Adresse wurde kein Konto gefunden.",
+        "passwordResetSessionNotFound": "F?r diese E-Mail-Adresse wurde keine aktive Passwort-Zur?cksetzung gefunden."
+    },
+    "passwordResetPage": {
+        "title": "Passwort zur?cksetzen",
+        "subtitle": "Gib deine E-Mail-Adresse ein. Wir senden dir dann einen 6-stelligen Code, mit dem du ein neues Passwort festlegen kannst.",
+        "email": "E-Mail",
+        "password": "Passwort",
+        "confirmPassword": "Passwort bestätigen",
+        "requestCode": "Code senden",
+        "sendingCode": "Code wird gesendet...",
+        "verifyTitle": "Neues Passwort festlegen",
+        "verifySubtitle": "Wir haben einen 6-stelligen Code an {{email}} gesendet. Gib ihn unten ein und w?hle ein neues Passwort.",
+        "verificationCode": "Bestaetigungscode",
+        "resetPassword": "Passwort zur?cksetzen",
+        "resettingPassword": "Passwort wird zur?ckgesetzt...",
+        "resendCode": "Code erneut senden",
+        "resendingCode": "Code wird erneut gesendet...",
+        "changeEmail": "E-Mail aendern",
+        "codeSent": "Wir haben einen Code zum Zur?cksetzen des Passworts an {{email}} gesendet.",
+        "codeResent": "Ein neuer Code zum Zur?cksetzen des Passworts wurde an {{email}} gesendet.",
+        "verificationHint": "Gib den 6-stelligen Code aus deiner E-Mail ein.",
+        "backToLogin": "Zur?ck zur Anmeldung"
     }
 }

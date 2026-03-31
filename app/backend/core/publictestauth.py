@@ -58,6 +58,19 @@ class PendingPublicTestSignup:
 
 
 @dataclass(frozen=True)
+class PendingPublicTestPasswordReset:
+    email: str
+    verification_salt: str
+    verification_hash: str
+    created_at: str
+    updated_at: str
+    expires_at: str
+    last_sent_at: str
+    send_count: int
+    failed_attempts: int
+
+
+@dataclass(frozen=True)
 class PublicTestSession:
     display_name: str
     email: str
@@ -164,6 +177,9 @@ class PublicTestAuthStore:
 
     def get_pending_signup_blob_name(self, email: str) -> str:
         return f"pending-signups/{self.hash_email(email)}.json"
+
+    def get_pending_password_reset_blob_name(self, email: str) -> str:
+        return f"password-resets/{self.hash_email(email)}.json"
 
     async def ensure_container_exists(self):
         container_client = self.blob_manager.blob_service_client.get_container_client(self.auth_container)
@@ -330,6 +346,54 @@ class PublicTestAuthStore:
             return
         await self.delete_blob_if_exists(self.get_pending_signup_blob_name(normalized_email))
 
+    async def load_pending_password_reset(self, email: str) -> PendingPublicTestPasswordReset | None:
+        normalized_email = normalize_public_test_email(email)
+        if normalized_email is None:
+            return None
+
+        payload = await self.load_json_blob(self.get_pending_password_reset_blob_name(normalized_email))
+        if payload is None:
+            return None
+
+        required_fields = {
+            "email",
+            "verification_salt",
+            "verification_hash",
+            "created_at",
+            "updated_at",
+            "expires_at",
+            "last_sent_at",
+            "send_count",
+            "failed_attempts",
+        }
+        if not required_fields.issubset(payload):
+            logger.warning("Incomplete pending password reset payload for email %s", normalized_email)
+            return None
+
+        return PendingPublicTestPasswordReset(
+            email=str(payload["email"]).strip().lower(),
+            verification_salt=str(payload["verification_salt"]),
+            verification_hash=str(payload["verification_hash"]),
+            created_at=str(payload["created_at"]),
+            updated_at=str(payload["updated_at"]),
+            expires_at=str(payload["expires_at"]),
+            last_sent_at=str(payload["last_sent_at"]),
+            send_count=int(payload["send_count"]),
+            failed_attempts=int(payload["failed_attempts"]),
+        )
+
+    async def save_pending_password_reset(self, pending_password_reset: PendingPublicTestPasswordReset) -> None:
+        await self.save_json_blob(
+            self.get_pending_password_reset_blob_name(pending_password_reset.email),
+            asdict(pending_password_reset),
+        )
+
+    async def delete_pending_password_reset(self, email: str) -> None:
+        normalized_email = normalize_public_test_email(email)
+        if normalized_email is None:
+            return
+        await self.delete_blob_if_exists(self.get_pending_password_reset_blob_name(normalized_email))
+
     async def save_account(self, account: PublicTestAccount) -> None:
         container_client = await self.ensure_container_exists()
         try:
@@ -386,6 +450,7 @@ class PublicTestAuthStore:
         existing_account = await self.load_account(normalized_email)
         await self.delete_blob_if_exists(self.get_account_blob_name(normalized_email))
         await self.delete_pending_signup(normalized_email)
+        await self.delete_pending_password_reset(normalized_email)
         return existing_account is not None
 
     async def reset_account_password(
@@ -419,6 +484,7 @@ class PublicTestAuthStore:
             updated_at=format_utc(datetime.now(timezone.utc)),
         )
         await self.save_json_blob(self.get_account_blob_name(updated_account.email), asdict(updated_account))
+        await self.delete_pending_password_reset(updated_account.email)
         return updated_account
 
     def generate_verification_code(self) -> str:
@@ -469,6 +535,47 @@ class PublicTestAuthStore:
             raise
         except Exception as error:
             logger.exception("Failed to send public-test verification email to %s", email)
+            raise PublicTestAuthError("authErrors.verificationEmailFailed", status_code=503) from error
+
+    async def send_password_reset_email(self, email: str, verification_code: str) -> None:
+        if not self.smtp_host or not self.email_from:
+            message = (
+                "Public-test password reset email requested, but SMTP is not configured."
+                if self.running_in_production
+                else f"Public-test password reset code for {email}: {verification_code}"
+            )
+            if self.running_in_production:
+                logger.error(message)
+                raise PublicTestAuthError("authErrors.verificationEmailUnavailable", status_code=503)
+            logger.warning(message)
+            return
+
+        email_message = EmailMessage()
+        email_message["Subject"] = "Your Nerilio AI public test password reset code"
+        email_message["From"] = formataddr((self.email_from_name, self.email_from))
+        email_message["To"] = email
+        email_message.set_content(
+            "\n".join(
+                [
+                    "Dear User,",
+                    "",
+                    "Use the verification code below to reset your password:",
+                    "",
+                    verification_code,
+                    "",
+                    "This code expires in 15 minutes.",
+                    "",
+                    "If you did not request this password reset, you can ignore it.",
+                ]
+            )
+        )
+
+        try:
+            await asyncio.to_thread(self.send_email_sync, email_message)
+        except PublicTestAuthError:
+            raise
+        except Exception as error:
+            logger.exception("Failed to send public-test password reset email to %s", email)
             raise PublicTestAuthError("authErrors.verificationEmailFailed", status_code=503) from error
 
     def send_email_sync(self, email_message: EmailMessage) -> None:
@@ -630,6 +737,151 @@ class PublicTestAuthStore:
         await self.save_account(account)
         await self.delete_pending_signup(account.email)
         return PublicTestSession(display_name=account.display_name, email=account.email)
+
+    async def start_password_reset(self, *, email: str) -> PublicTestVerificationChallenge:
+        normalized_email = normalize_public_test_email(email)
+        if normalized_email is None:
+            if not (email or "").strip():
+                raise PublicTestAuthError("authErrors.emailRequired")
+            raise PublicTestAuthError("authErrors.invalidEmail")
+
+        account = await self.load_account(normalized_email)
+        if account is None:
+            raise PublicTestAuthError("authErrors.accountNotFound", status_code=404)
+
+        now = datetime.now(timezone.utc)
+        existing_pending_password_reset = await self.load_pending_password_reset(normalized_email)
+        if existing_pending_password_reset is not None and parse_utc(
+            existing_pending_password_reset.last_sent_at
+        ) + timedelta(seconds=PUBLIC_TEST_VERIFICATION_RESEND_INTERVAL_SECONDS) > now:
+            raise PublicTestAuthError("authErrors.verificationResendTooSoon", status_code=429)
+
+        verification_code = self.generate_verification_code()
+        verification_salt, verification_hash = self.build_secret_hash(verification_code)
+        pending_password_reset = PendingPublicTestPasswordReset(
+            email=normalized_email,
+            verification_salt=verification_salt,
+            verification_hash=verification_hash,
+            created_at=existing_pending_password_reset.created_at if existing_pending_password_reset else format_utc(now),
+            updated_at=format_utc(now),
+            expires_at=format_utc(now + timedelta(seconds=PUBLIC_TEST_VERIFICATION_CODE_TTL_SECONDS)),
+            last_sent_at=format_utc(now),
+            send_count=(existing_pending_password_reset.send_count + 1) if existing_pending_password_reset else 1,
+            failed_attempts=0,
+        )
+        await self.save_pending_password_reset(pending_password_reset)
+        await self.send_password_reset_email(normalized_email, verification_code)
+        return self.build_verification_challenge(normalized_email)
+
+    async def resend_password_reset_code(self, *, email: str) -> PublicTestVerificationChallenge:
+        normalized_email = normalize_public_test_email(email)
+        if normalized_email is None:
+            raise PublicTestAuthError("authErrors.invalidEmail")
+
+        pending_password_reset = await self.load_pending_password_reset(normalized_email)
+        if pending_password_reset is None:
+            raise PublicTestAuthError("authErrors.passwordResetSessionNotFound", status_code=404)
+
+        account = await self.load_account(normalized_email)
+        if account is None:
+            await self.delete_pending_password_reset(normalized_email)
+            raise PublicTestAuthError("authErrors.accountNotFound", status_code=404)
+
+        now = datetime.now(timezone.utc)
+        if parse_utc(pending_password_reset.last_sent_at) + timedelta(
+            seconds=PUBLIC_TEST_VERIFICATION_RESEND_INTERVAL_SECONDS
+        ) > now:
+            raise PublicTestAuthError("authErrors.verificationResendTooSoon", status_code=429)
+
+        verification_code = self.generate_verification_code()
+        verification_salt, verification_hash = self.build_secret_hash(verification_code)
+        refreshed_pending_password_reset = PendingPublicTestPasswordReset(
+            email=pending_password_reset.email,
+            verification_salt=verification_salt,
+            verification_hash=verification_hash,
+            created_at=pending_password_reset.created_at,
+            updated_at=format_utc(now),
+            expires_at=format_utc(now + timedelta(seconds=PUBLIC_TEST_VERIFICATION_CODE_TTL_SECONDS)),
+            last_sent_at=format_utc(now),
+            send_count=pending_password_reset.send_count + 1,
+            failed_attempts=0,
+        )
+        await self.save_pending_password_reset(refreshed_pending_password_reset)
+        await self.send_password_reset_email(normalized_email, verification_code)
+        return self.build_verification_challenge(normalized_email)
+
+    async def verify_password_reset(
+        self,
+        *,
+        email: str,
+        verification_code: str,
+        password: str,
+        confirm_password: str,
+    ) -> PublicTestSession:
+        normalized_email = normalize_public_test_email(email)
+        normalized_code = (verification_code or "").strip()
+        if normalized_email is None:
+            if not (email or "").strip():
+                raise PublicTestAuthError("authErrors.emailRequired")
+            raise PublicTestAuthError("authErrors.invalidEmail")
+        if not normalized_code:
+            raise PublicTestAuthError("authErrors.verificationCodeRequired")
+        if not password:
+            raise PublicTestAuthError("authErrors.passwordRequired")
+        if not confirm_password:
+            raise PublicTestAuthError("authErrors.confirmPasswordRequired")
+        if password != confirm_password:
+            raise PublicTestAuthError("authErrors.passwordMismatch")
+
+        pending_password_reset = await self.load_pending_password_reset(normalized_email)
+        if pending_password_reset is None:
+            raise PublicTestAuthError("authErrors.passwordResetSessionNotFound", status_code=404)
+
+        account = await self.load_account(normalized_email)
+        if account is None:
+            await self.delete_pending_password_reset(normalized_email)
+            raise PublicTestAuthError("authErrors.accountNotFound", status_code=404)
+
+        now = datetime.now(timezone.utc)
+        if parse_utc(pending_password_reset.expires_at) < now:
+            await self.delete_pending_password_reset(normalized_email)
+            raise PublicTestAuthError("authErrors.verificationCodeExpired")
+
+        if pending_password_reset.failed_attempts >= PUBLIC_TEST_VERIFICATION_MAX_ATTEMPTS:
+            await self.delete_pending_password_reset(normalized_email)
+            raise PublicTestAuthError("authErrors.verificationTooManyAttempts", status_code=429)
+
+        if not self.verify_secret_value(
+            normalized_code,
+            pending_password_reset.verification_salt,
+            pending_password_reset.verification_hash,
+        ):
+            updated_pending_password_reset = PendingPublicTestPasswordReset(
+                email=pending_password_reset.email,
+                verification_salt=pending_password_reset.verification_salt,
+                verification_hash=pending_password_reset.verification_hash,
+                created_at=pending_password_reset.created_at,
+                updated_at=format_utc(now),
+                expires_at=pending_password_reset.expires_at,
+                last_sent_at=pending_password_reset.last_sent_at,
+                send_count=pending_password_reset.send_count,
+                failed_attempts=pending_password_reset.failed_attempts + 1,
+            )
+            await self.save_pending_password_reset(updated_pending_password_reset)
+            raise PublicTestAuthError("authErrors.invalidVerificationCode")
+
+        password_salt, password_hash = self.build_secret_hash(password)
+        updated_account = PublicTestAccount(
+            display_name=account.display_name,
+            email=account.email,
+            password_salt=password_salt,
+            password_hash=password_hash,
+            created_at=account.created_at,
+            updated_at=format_utc(now),
+        )
+        await self.save_json_blob(self.get_account_blob_name(updated_account.email), asdict(updated_account))
+        await self.delete_pending_password_reset(updated_account.email)
+        return PublicTestSession(display_name=updated_account.display_name, email=updated_account.email)
 
     async def login_user(self, *, email: str, password: str) -> PublicTestSession:
         normalized_email = normalize_public_test_email(email)

@@ -213,7 +213,8 @@
         "login": "Accedi",
         "noAccount": "Hai bisogno di un account?",
         "switchToSignup": "Registrati",
-        "loggingIn": "Accesso in corso..."
+        "loggingIn": "Accesso in corso...",
+        "forgotPassword": "Password dimenticata?"
     },
     "signupPage": {
         "title": "Crea il tuo account",
@@ -256,6 +257,29 @@
         "verificationEmailUnavailable": "La verifica e-mail non e attualmente disponibile.",
         "verificationEmailFailed": "Non siamo riusciti a inviare l e-mail di verifica. Riprova.",
         "verificationTooManyAttempts": "Troppi tentativi di verifica errati. Riavvia la registrazione.",
-        "verificationSessionNotFound": "Non e stata trovata una verifica di registrazione attiva per questa e-mail."
+        "verificationSessionNotFound": "Non e stata trovata una verifica di registrazione attiva per questa e-mail.",
+        "accountNotFound": "Nessun account trovato per questa e-mail.",
+        "passwordResetSessionNotFound": "Nessuna reimpostazione della password attiva trovata per questa e-mail."
+    },
+    "passwordResetPage": {
+        "title": "Reimposta la password",
+        "subtitle": "Inserisci la tua e-mail e ti invieremo un codice a 6 cifre per impostare una nuova password.",
+        "email": "E-mail",
+        "password": "Password",
+        "confirmPassword": "Conferma password",
+        "requestCode": "Invia codice",
+        "sendingCode": "Invio del codice...",
+        "verifyTitle": "Imposta una nuova password",
+        "verifySubtitle": "Abbiamo inviato un codice a 6 cifre a {{email}}. Inseriscilo qui sotto e scegli una nuova password.",
+        "verificationCode": "Codice di verifica",
+        "resetPassword": "Reimposta password",
+        "resettingPassword": "Reimpostazione della password...",
+        "resendCode": "Invia di nuovo il codice",
+        "resendingCode": "Invio del codice in corso...",
+        "changeEmail": "Cambia e-mail",
+        "codeSent": "Abbiamo inviato un codice per reimpostare la password a {{email}}.",
+        "codeResent": "Un nuovo codice per reimpostare la password ? stato inviato a {{email}}.",
+        "verificationHint": "Inserisci il codice di 6 cifre ricevuto via e-mail.",
+        "backToLogin": "Torna al login"
     }
 }
