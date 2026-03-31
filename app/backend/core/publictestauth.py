@@ -389,10 +389,17 @@ class PublicTestAuthStore:
             raise PublicTestAuthError("authErrors.verificationEmailFailed", status_code=503) from error
 
     def send_email_sync(self, email_message: EmailMessage) -> None:
-        with smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=20) as smtp_client:
+        ssl_context = ssl.create_default_context()
+        if self.smtp_port == 465:
+            smtp_client_context = smtplib.SMTP_SSL(self.smtp_host, self.smtp_port, timeout=20, context=ssl_context)
+        else:
+            smtp_client_context = smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=20)
+
+        with smtp_client_context as smtp_client:
             smtp_client.ehlo()
-            smtp_client.starttls(context=ssl.create_default_context())
-            smtp_client.ehlo()
+            if self.smtp_port != 465:
+                smtp_client.starttls(context=ssl_context)
+                smtp_client.ehlo()
             if self.smtp_username:
                 smtp_client.login(self.smtp_username, self.smtp_password)
             smtp_client.send_message(email_message)
