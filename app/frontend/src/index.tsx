@@ -13,6 +13,7 @@ import { chatbotDefinitions } from "./chatbots/registry";
 import { ChatbotThemeRoot } from "./chatbots/shared/theme/ChatbotThemeRoot";
 import i18n from "./chatbots/nerilio/i18n/config";
 import ChatbotDirectory from "./pages/ChatbotDirectory";
+import PublicTestUsersPage from "./pages/PublicTestUsersPage";
 import RootLanding from "./pages/RootLanding";
 import UploadFilesPage from "./pages/UploadFilesPage";
 import { msalConfig, useLogin } from "./authConfig";
@@ -56,6 +57,10 @@ const router = createBrowserRouter([
     {
         path: "/upload-files",
         element: <UploadFilesPage />
+    },
+    {
+        path: "/public-test-users",
+        element: <PublicTestUsersPage />
     },
     ...chatbotRoutes,
     {

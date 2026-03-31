@@ -805,6 +805,9 @@ const UploadFilesPage = () => {
                                 <Link className={styles.secondaryButton} to="/chatbots">
                                     Back to directory
                                 </Link>
+                                <Link className={styles.secondaryButton} to="/public-test-users">
+                                    Public-test users
+                                </Link>
                                 <button className={styles.secondaryButton} type="button" onClick={handleLockPage}>
                                     Lock page
                                 </button>

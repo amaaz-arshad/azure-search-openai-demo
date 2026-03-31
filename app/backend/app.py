@@ -94,7 +94,7 @@ from config import (
     CONFIG_WEB_SOURCE_ENABLED,
 )
 from core.authentication import AuthenticationHelper
-from core.publictestauth import PublicTestAuthError, PublicTestAuthStore, PublicTestSession
+from core.publictestauth import PublicTestAuthError, PublicTestAuthStore, PublicTestSession, normalize_public_test_email
 from core.sessionhelper import create_session_id
 from decorators import authenticated, authenticated_path
 from error import ErrorContext, error_dict, error_response, get_request_error_context
@@ -139,6 +139,8 @@ NON_CHATBOT_FRONTEND_PREFIXES = {
     "favicon.ico",
     "list_uploaded",
     "managed_uploads",
+    "public-test-admin",
+    "public-test-users",
     "redirect",
     "speech",
     "upload",
@@ -292,6 +294,13 @@ async def chatbot_directory(subpath: str | None = None):
 @bp.route("/upload-files/")
 @bp.route("/upload-files/<path:subpath>")
 async def upload_files_page(subpath: str | None = None):
+    return await serve_spa_index()
+
+
+@bp.route("/public-test-users")
+@bp.route("/public-test-users/")
+@bp.route("/public-test-users/<path:subpath>")
+async def public_test_users_page(subpath: str | None = None):
     return await serve_spa_index()
 
 
@@ -567,6 +576,87 @@ async def public_test_logout():
     response = jsonify({"ok": True})
     auth_service.clear_session_cookie(response)
     return response, 200
+
+
+@bp.get("/public-test-admin/users")
+async def list_public_test_admin_users():
+    auth_service = get_public_test_auth_service()
+    upload_manager = get_chatbot_upload_manager(PUBLIC_TEST_CHATBOT_NAME)
+    users_payload: list[dict[str, Any]] = []
+
+    for account in await auth_service.list_accounts():
+        uploaded_files = await upload_manager.list_files(user_identifier=account.email)
+        users_payload.append(
+            {
+                "displayName": account.display_name,
+                "email": account.email,
+                "createdAt": account.created_at,
+                "updatedAt": account.updated_at,
+                "uploadCount": len(uploaded_files),
+                "uploadedFiles": uploaded_files,
+            }
+        )
+
+    return jsonify({"users": users_payload}), 200
+
+
+@bp.delete("/public-test-admin/users/<path:email>")
+async def delete_public_test_admin_user(email: str):
+    normalized_email = normalize_public_test_email(email)
+    if normalized_email is None:
+        return jsonify({"message": "Valid email is required."}), 400
+
+    upload_manager = get_chatbot_upload_manager(PUBLIC_TEST_CHATBOT_NAME)
+    deleted_uploads, failed_uploads = await upload_manager.remove_all_files(user_identifier=normalized_email)
+    if failed_uploads:
+        return (
+            jsonify(
+                {
+                    "message": "Unable to delete the user's uploaded files.",
+                    "deletedUploadCount": len(deleted_uploads),
+                    "failedUploads": failed_uploads,
+                }
+            ),
+            500,
+        )
+
+    auth_service = get_public_test_auth_service()
+    deleted_account = await auth_service.delete_account(normalized_email)
+    if not deleted_account:
+        return jsonify({"message": "Public-test user not found.", "deletedUploadCount": len(deleted_uploads)}), 404
+
+    return jsonify({"message": "Public-test user deleted successfully.", "deletedUploadCount": len(deleted_uploads)}), 200
+
+
+@bp.post("/public-test-admin/users/<path:email>/password")
+async def reset_public_test_admin_user_password(email: str):
+    if not request.is_json:
+        return jsonify({"message": "Request must be JSON."}), 415
+
+    request_json = await request.get_json()
+    if not isinstance(request_json, dict):
+        return jsonify({"message": "Request payload must be an object."}), 400
+
+    auth_service = get_public_test_auth_service()
+    try:
+        updated_account = await auth_service.reset_account_password(
+            email=email,
+            password=str(request_json.get("password", "")),
+            confirm_password=str(request_json.get("confirmPassword", "")),
+        )
+    except PublicTestAuthError as auth_error:
+        return jsonify({"message": auth_error.error_key}), auth_error.status_code
+
+    return (
+        jsonify(
+            {
+                "message": "Public-test user password updated successfully.",
+                "email": updated_account.email,
+                "updatedAt": updated_account.updated_at,
+            }
+        ),
+        200,
+    )
 
 
 @bp.route("/chat", methods=["POST"])

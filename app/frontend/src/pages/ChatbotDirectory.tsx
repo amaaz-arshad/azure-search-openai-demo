@@ -74,6 +74,9 @@ const ChatbotDirectory = () => {
 
                         {isAuthenticated ? (
                             <>
+                                <Link className={styles.secondaryButton} to="/public-test-users">
+                                    Public-test users
+                                </Link>
                                 <Link className={styles.secondaryButton} to="/upload-files">
                                     Manage uploads
                                 </Link>

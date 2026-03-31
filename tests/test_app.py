@@ -295,6 +295,94 @@ async def test_public_test_session_returns_authenticated_user(client, monkeypatc
 
 
 @pytest.mark.asyncio
+async def test_public_test_admin_users_lists_accounts(client, monkeypatch):
+    auth_service = client.app.config[app.CONFIG_PUBLIC_TEST_AUTH_SERVICE]
+
+    async def mock_list_accounts():
+        return [
+            SimpleNamespace(
+                display_name="Test User",
+                email="user@example.com",
+                created_at="2026-03-31T10:00:00+00:00",
+                updated_at="2026-03-31T11:00:00+00:00",
+            )
+        ]
+
+    upload_manager = mock.AsyncMock()
+    upload_manager.list_files.return_value = ["sample.pdf"]
+
+    monkeypatch.setattr(auth_service, "list_accounts", mock_list_accounts)
+    monkeypatch.setattr(app, "get_chatbot_upload_manager", lambda chatbot_name: upload_manager)
+
+    response = await client.get("/public-test-admin/users")
+
+    payload = await response.get_json()
+    assert response.status_code == 200
+    assert payload == {
+        "users": [
+            {
+                "displayName": "Test User",
+                "email": "user@example.com",
+                "createdAt": "2026-03-31T10:00:00+00:00",
+                "updatedAt": "2026-03-31T11:00:00+00:00",
+                "uploadCount": 1,
+                "uploadedFiles": ["sample.pdf"],
+            }
+        ]
+    }
+
+
+@pytest.mark.asyncio
+async def test_public_test_admin_user_delete_removes_uploads_and_account(client, monkeypatch):
+    auth_service = client.app.config[app.CONFIG_PUBLIC_TEST_AUTH_SERVICE]
+    upload_manager = mock.AsyncMock()
+    upload_manager.remove_all_files.return_value = (["deleted.pdf"], [])
+
+    async def mock_delete_account(email: str):
+        assert email == "user@example.com"
+        return True
+
+    monkeypatch.setattr(app, "get_chatbot_upload_manager", lambda chatbot_name: upload_manager)
+    monkeypatch.setattr(auth_service, "delete_account", mock_delete_account)
+
+    response = await client.delete("/public-test-admin/users/user%40example.com")
+
+    payload = await response.get_json()
+    assert response.status_code == 200
+    assert payload == {
+        "message": "Public-test user deleted successfully.",
+        "deletedUploadCount": 1,
+    }
+    upload_manager.remove_all_files.assert_awaited_once_with(user_identifier="user@example.com")
+
+
+@pytest.mark.asyncio
+async def test_public_test_admin_user_password_reset_updates_account(client, monkeypatch):
+    auth_service = client.app.config[app.CONFIG_PUBLIC_TEST_AUTH_SERVICE]
+
+    async def mock_reset_account_password(**kwargs):
+        assert kwargs["email"] == "user@example.com"
+        assert kwargs["password"] == "new-secret"
+        assert kwargs["confirm_password"] == "new-secret"
+        return SimpleNamespace(email="user@example.com", updated_at="2026-03-31T12:00:00+00:00")
+
+    monkeypatch.setattr(auth_service, "reset_account_password", mock_reset_account_password)
+
+    response = await client.post(
+        "/public-test-admin/users/user%40example.com/password",
+        json={"password": "new-secret", "confirmPassword": "new-secret"},
+    )
+
+    payload = await response.get_json()
+    assert response.status_code == 200
+    assert payload == {
+        "message": "Public-test user password updated successfully.",
+        "email": "user@example.com",
+        "updatedAt": "2026-03-31T12:00:00+00:00",
+    }
+
+
+@pytest.mark.asyncio
 async def test_chat_rak_applies_user_filter_from_header(client):
     response = await client.post(
         "/chat",

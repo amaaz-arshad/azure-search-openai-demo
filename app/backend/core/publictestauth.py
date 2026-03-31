@@ -13,7 +13,7 @@ from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
 from email.utils import formataddr
 
-from azure.core.exceptions import ResourceExistsError
+from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
 from azure.storage.blob import ContentSettings
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
@@ -243,7 +243,11 @@ class PublicTestAuthStore:
         )
 
     async def delete_blob_if_exists(self, blob_name: str) -> None:
-        await self.blob_manager.remove_blob_name(blob_name)
+        container_client = await self.ensure_container_exists()
+        try:
+            await container_client.delete_blob(blob_name, delete_snapshots="include")
+        except ResourceNotFoundError:
+            logger.debug("Blob already removed from %s: %s", self.auth_container, blob_name)
 
     async def load_account(self, email: str) -> PublicTestAccount | None:
         normalized_email = normalize_public_test_email(email)
@@ -337,6 +341,85 @@ class PublicTestAuthStore:
             )
         except ResourceExistsError as resource_exists_error:
             raise PublicTestAuthError("authErrors.accountExists") from resource_exists_error
+
+    async def list_accounts(self) -> list[PublicTestAccount]:
+        container_client = await self.ensure_container_exists()
+        accounts: list[PublicTestAccount] = []
+        async for blob in container_client.list_blobs(name_starts_with="accounts/"):
+            blob_name = getattr(blob, "name", None)
+            if not blob_name:
+                continue
+            payload = await self.load_json_blob(blob_name)
+            if payload is None:
+                continue
+
+            required_fields = {
+                "display_name",
+                "email",
+                "password_salt",
+                "password_hash",
+                "created_at",
+                "updated_at",
+            }
+            if not required_fields.issubset(payload):
+                logger.warning("Incomplete public-test account payload in blob %s", blob_name)
+                continue
+
+            accounts.append(
+                PublicTestAccount(
+                    display_name=str(payload["display_name"]).strip(),
+                    email=str(payload["email"]).strip().lower(),
+                    password_salt=str(payload["password_salt"]),
+                    password_hash=str(payload["password_hash"]),
+                    created_at=str(payload["created_at"]),
+                    updated_at=str(payload["updated_at"]),
+                )
+            )
+
+        return sorted(accounts, key=lambda account: account.updated_at, reverse=True)
+
+    async def delete_account(self, email: str) -> bool:
+        normalized_email = normalize_public_test_email(email)
+        if normalized_email is None:
+            return False
+
+        existing_account = await self.load_account(normalized_email)
+        await self.delete_blob_if_exists(self.get_account_blob_name(normalized_email))
+        await self.delete_pending_signup(normalized_email)
+        return existing_account is not None
+
+    async def reset_account_password(
+        self,
+        *,
+        email: str,
+        password: str,
+        confirm_password: str,
+    ) -> PublicTestAccount:
+        normalized_email = normalize_public_test_email(email)
+        if normalized_email is None:
+            raise PublicTestAuthError("authErrors.invalidEmail")
+        if not password:
+            raise PublicTestAuthError("authErrors.passwordRequired")
+        if not confirm_password:
+            raise PublicTestAuthError("authErrors.confirmPasswordRequired")
+        if password != confirm_password:
+            raise PublicTestAuthError("authErrors.passwordMismatch")
+
+        account = await self.load_account(normalized_email)
+        if account is None:
+            raise PublicTestAuthError("authErrors.invalidCredentials", status_code=404)
+
+        password_salt, password_hash = self.build_secret_hash(password)
+        updated_account = PublicTestAccount(
+            display_name=account.display_name,
+            email=account.email,
+            password_salt=password_salt,
+            password_hash=password_hash,
+            created_at=account.created_at,
+            updated_at=format_utc(datetime.now(timezone.utc)),
+        )
+        await self.save_json_blob(self.get_account_blob_name(updated_account.email), asdict(updated_account))
+        return updated_account
 
     def generate_verification_code(self) -> str:
         return f"{secrets.randbelow(1_000_000):06d}"
