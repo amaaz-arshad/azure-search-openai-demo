@@ -30,7 +30,8 @@
         "deleteFile": "Excluir arquivo",
         "deletingFile": "Excluindo arquivo...",
         "errorDeleting": "Erro ao excluir.",
-        "fileDeleted": "Arquivo excluído"
+        "fileDeleted": "Arquivo excluído",
+        "dismissAllQueueItems": "Ocultar todos os concluídos"
     },
     "developerSettings": "Configurações do desenvolvedor",
     "disclaimer": {

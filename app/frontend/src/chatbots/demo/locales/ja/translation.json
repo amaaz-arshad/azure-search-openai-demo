@@ -30,7 +30,8 @@
         "deleteFile": "ファイルを削除",
         "deletingFile": "ファイルを削除中...",
         "errorDeleting": "削除エラー。",
-        "fileDeleted": "ファイル削除済み"
+        "fileDeleted": "ファイル削除済み",
+        "dismissAllQueueItems": "完了した項目をすべて非表示"
     },
     "developerSettings": "高度な設定",
     "disclaimer": {

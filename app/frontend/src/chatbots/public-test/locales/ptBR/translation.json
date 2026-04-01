@@ -31,6 +31,7 @@
         "deletingFile": "Excluindo arquivo...",
         "errorDeleting": "Erro ao excluir.",
         "fileDeleted": "Arquivo excluído",
+        "dismissAllQueueItems": "Ocultar todos os concluídos",
         "modalTitle": "Enviar arquivos PDF para o Public Test",
         "modalDescription": "Somente arquivos PDF são permitidos. O limite total de upload é de 30 páginas PDF somando todos os arquivos.",
         "supportedFormats": "Formato suportado: apenas PDF. Limite total de upload: 30 páginas.",

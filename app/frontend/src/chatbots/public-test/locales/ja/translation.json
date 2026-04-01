@@ -31,6 +31,7 @@
         "deletingFile": "ファイルを削除中...",
         "errorDeleting": "削除エラー。",
         "fileDeleted": "ファイル削除済み",
+        "dismissAllQueueItems": "完了した項目をすべて非表示",
         "modalTitle": "Public Test に PDF ファイルをアップロード",
         "modalDescription": "アップロードできるのは PDF ファイルのみです。すべてのファイルを合わせた上限は PDF 30 ページです。",
         "supportedFormats": "対応形式: PDF のみ。アップロード上限: 合計 30 ページ。",

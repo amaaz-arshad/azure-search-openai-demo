@@ -81,6 +81,62 @@
     margin-bottom: 1rem;
 }
 
+.primaryButton,
+.secondaryButton,
+.dangerButton {
+    appearance: none;
+    min-height: 48px;
+    padding: 0 18px;
+    border-radius: 16px;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+        transform 160ms ease,
+        box-shadow 160ms ease,
+        background-color 160ms ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    text-decoration: none;
+}
+
+.primaryButton {
+    border: 0;
+    background: linear-gradient(135deg, #0e596e 0%, #2c8299 100%);
+    color: #ffffff;
+    box-shadow: 0 16px 28px rgba(14, 89, 110, 0.22);
+}
+
+.secondaryButton,
+.dangerButton {
+    border: 1px solid rgba(14, 89, 110, 0.14);
+    background: rgba(255, 255, 255, 0.78);
+    color: #1d2730;
+}
+
+.dangerButton {
+    min-height: 40px;
+    padding: 0 14px;
+    color: #9b2f2f;
+}
+
+.primaryButton:hover:not(:disabled),
+.secondaryButton:hover:not(:disabled),
+.dangerButton:hover:not(:disabled) {
+    transform: translateY(-2px);
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled,
+.dangerButton:disabled {
+    cursor: not-allowed;
+    opacity: 0.58;
+    transform: none;
+    box-shadow: none;
+}
+
 .hiddenInput {
     display: none;
 }
@@ -306,22 +362,6 @@
 
 .deleteButton {
     flex-shrink: 0;
-    border-radius: 16px;
-    color: #7f2531;
-    transition:
-        background-color 0.2s ease,
-        color 0.2s ease,
-        transform 0.2s ease;
-}
-
-.deleteButton:hover:not(:disabled) {
-    /* background: rgba(163, 41, 57, 0.12);
-    color: #a32939; */
-    transform: translateY(-1px);
-}
-
-.deleteButton:disabled {
-    opacity: 0.58;
 }
 
 .queueActions {
@@ -385,6 +425,14 @@
     .dialog {
         padding: 1rem;
         border-radius: 24px;
+    }
+
+    .primaryButton,
+    .secondaryButton,
+    .dangerButton,
+    .deleteAllButton,
+    .dismissButton {
+        width: 100%;
     }
 
     .title {

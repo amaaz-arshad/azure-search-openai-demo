@@ -31,6 +31,7 @@
         "deletingFile": "Usuwanie pliku...",
         "errorDeleting": "Błąd podczas usuwania.",
         "fileDeleted": "Plik usunięty",
+        "dismissAllQueueItems": "Ukryj wszystkie zakończone",
         "modalTitle": "Prześlij pliki PDF do Public Test",
         "modalDescription": "Obsługiwane są tylko pliki PDF. Łączny limit przesyłania to 30 stron PDF we wszystkich plikach.",
         "supportedFormats": "Obsługiwany format: tylko PDF. Łączny limit przesyłania: 30 stron.",

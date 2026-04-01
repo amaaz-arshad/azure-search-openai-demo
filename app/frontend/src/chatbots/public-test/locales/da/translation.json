@@ -31,6 +31,7 @@
         "deletingFile": "Sletter fil...",
         "errorDeleting": "Fejl ved sletning.",
         "fileDeleted": "Fil slettet",
+        "dismissAllQueueItems": "Skjul alle afsluttede",
         "modalTitle": "Upload PDF-filer til Public Test",
         "modalDescription": "Kun PDF-filer understøttes. Den samlede uploadgrænse er 30 PDF-sider på tværs af alle filer.",
         "supportedFormats": "Understøttet format: kun PDF. Samlet uploadgrænse: 30 sider.",

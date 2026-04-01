@@ -31,6 +31,7 @@
         "deletingFile": "Suppression du fichier...",
         "errorDeleting": "Erreur lors de la suppression.",
         "fileDeleted": "Fichier supprimé",
+        "dismissAllQueueItems": "Masquer tous les terminés",
         "modalTitle": "Téléverser des fichiers PDF vers Public Test",
         "modalDescription": "Seuls les fichiers PDF sont pris en charge. La limite totale de téléversement est de 30 pages PDF pour l'ensemble des fichiers.",
         "supportedFormats": "Format pris en charge : PDF uniquement. Limite totale de téléversement : 30 pages.",

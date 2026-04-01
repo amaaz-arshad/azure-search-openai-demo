@@ -31,6 +31,7 @@
         "deletingFile": "Eliminando archivo...",
         "errorDeleting": "Error eliminando.",
         "fileDeleted": "Archivo eliminado",
+        "dismissAllQueueItems": "Ocultar todos los finalizados",
         "modalTitle": "Sube archivos PDF a Public Test",
         "modalDescription": "Solo se admiten archivos PDF. El límite total de carga es de 30 páginas PDF entre todos los archivos.",
         "supportedFormats": "Formato admitido: solo PDF. Límite total de carga: 30 páginas.",

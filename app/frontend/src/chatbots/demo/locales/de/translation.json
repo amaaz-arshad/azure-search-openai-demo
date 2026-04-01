@@ -67,6 +67,7 @@
         "fileReady": "Im Chat verfügbar",
         "listError": "Hochgeladene Dateien konnten nicht geladen werden.",
         "dismissQueueItem": "Ausblenden",
+        "dismissAllQueueItems": "Alle abgeschlossenen ausblenden",
         "closeBlocked": "Stoppen Sie die aktive Upload-Warteschlange, bevor Sie dieses Fenster schließen.",
         "waitForStop": "Warten Sie, bis die aktuelle Stop-Anfrage abgeschlossen ist, bevor Sie weitere Dateien hinzufügen.",
         "stopRequested": "Der aktuelle Upload wird gestoppt und die verbleibende Warteschlange wird abgebrochen.",

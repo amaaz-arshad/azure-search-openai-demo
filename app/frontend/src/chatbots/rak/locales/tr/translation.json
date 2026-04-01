@@ -30,7 +30,8 @@
         "deleteFile": "Dosyayı sil",
         "deletingFile": "Dosya siliniyor...",
         "errorDeleting": "Silme hatası.",
-        "fileDeleted": "Dosya silindi"
+        "fileDeleted": "Dosya silindi",
+        "dismissAllQueueItems": "Tamamlananların tümünü gizle"
     },
     "developerSettings": "Geliştirici ayarları",
     "disclaimer": {

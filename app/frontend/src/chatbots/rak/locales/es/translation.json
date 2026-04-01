@@ -30,7 +30,8 @@
         "deleteFile": "Eliminar archivo",
         "deletingFile": "Eliminando archivo...",
         "errorDeleting": "Error eliminando.",
-        "fileDeleted": "Archivo eliminado"
+        "fileDeleted": "Archivo eliminado",
+        "dismissAllQueueItems": "Ocultar todos los finalizados"
     },
     "developerSettings": "Configuración del desarrollador",
     "disclaimer": {

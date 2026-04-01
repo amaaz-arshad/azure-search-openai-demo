@@ -30,7 +30,8 @@
         "deleteFile": "Usuń plik",
         "deletingFile": "Usuwanie pliku...",
         "errorDeleting": "Błąd podczas usuwania.",
-        "fileDeleted": "Plik usunięty"
+        "fileDeleted": "Plik usunięty",
+        "dismissAllQueueItems": "Ukryj wszystkie zakończone"
     },
     "developerSettings": "Ustawienia deweloperskie",
     "disclaimer": {

@@ -66,6 +66,7 @@
         "fileReady": "Ready for chat",
         "listError": "Could not load uploaded files.",
         "dismissQueueItem": "Dismiss",
+        "dismissAllQueueItems": "Dismiss all finished",
         "closeBlocked": "Stop the active upload queue before closing this window.",
         "waitForStop": "Wait for the current stop request to finish before adding more files.",
         "stopRequested": "Stopping the current upload and canceling the remaining queue.",

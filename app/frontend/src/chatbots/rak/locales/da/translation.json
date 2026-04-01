@@ -30,7 +30,8 @@
         "deleteFile": "Slet fil",
         "deletingFile": "Sletter fil...",
         "errorDeleting": "Fejl ved sletning.",
-        "fileDeleted": "Fil slettet"
+        "fileDeleted": "Fil slettet",
+        "dismissAllQueueItems": "Skjul alle afsluttede"
     },
     "developerSettings": "Udviklerindstillinger",
     "disclaimer": {

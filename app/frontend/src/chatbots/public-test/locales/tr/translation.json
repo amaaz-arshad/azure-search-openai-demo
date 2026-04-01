@@ -31,6 +31,7 @@
         "deletingFile": "Dosya siliniyor...",
         "errorDeleting": "Silme hatası.",
         "fileDeleted": "Dosya silindi",
+        "dismissAllQueueItems": "Tamamlananların tümünü gizle",
         "modalTitle": "PDF dosyalarını Public Test'e yükle",
         "modalDescription": "Yalnızca PDF dosyaları desteklenir. Tüm dosyalar için toplam yükleme sınırı 30 PDF sayfasıdır.",
         "supportedFormats": "Desteklenen format: yalnızca PDF. Toplam yükleme sınırı: 30 sayfa.",

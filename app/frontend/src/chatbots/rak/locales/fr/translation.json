@@ -30,7 +30,8 @@
         "deleteFile": "Supprimer le fichier",
         "deletingFile": "Suppression du fichier...",
         "errorDeleting": "Erreur lors de la suppression.",
-        "fileDeleted": "Fichier supprimé"
+        "fileDeleted": "Fichier supprimé",
+        "dismissAllQueueItems": "Masquer tous les terminés"
     },
     "developerSettings": "Paramètres développeur",
     "disclaimer": {

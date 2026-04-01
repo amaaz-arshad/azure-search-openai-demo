@@ -1,6 +1,5 @@
 import { ChangeEvent, DragEvent, useContext, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Button } from "@fluentui/react-components";
 import {
     ArrowClockwise24Regular,
     ArrowUpload24Regular,
@@ -88,6 +87,7 @@ export const UploadManagerModal = ({ chatbotName, isOpen, onClose }: Props) => {
     const [status, setStatus] = useState<StatusState>();
 
     const hasActiveQueue = queueItems.some(item => activeStatuses.includes(item.status));
+    const dismissableQueueItemsCount = queueItems.filter(item => !activeStatuses.includes(item.status)).length;
     const hasPendingDelete = isDeletingAll || Object.keys(deletingFiles).length > 0;
 
     const setQueueState = (updater: (current: UploadQueueItem[]) => UploadQueueItem[]) => {
@@ -109,6 +109,10 @@ export const UploadManagerModal = ({ chatbotName, isOpen, onClose }: Props) => {
 
     const removeQueueItem = (itemId: string) => {
         setQueueState(current => current.filter(item => item.id !== itemId));
+    };
+
+    const dismissAllQueueItems = () => {
+        setQueueState(current => current.filter(item => activeStatuses.includes(item.status)));
     };
 
     const loadFiles = async (options?: { suppressErrors?: boolean }) => {
@@ -561,26 +565,19 @@ export const UploadManagerModal = ({ chatbotName, isOpen, onClose }: Props) => {
                 </div>
 
                 <div className={styles.toolbar}>
-                    <Button
-                        appearance="primary"
-                        disabled={isStopping}
-                        icon={<ArrowUpload24Regular />}
-                        onClick={() => fileInputRef.current?.click()}
-                    >
-                        {t("upload.chooseFiles")}
-                    </Button>
-                    <Button appearance="secondary" icon={<ArrowClockwise24Regular />} onClick={() => void loadFiles()}>
-                        {t("upload.refreshList")}
-                    </Button>
+                    <button className={styles.primaryButton} disabled={isStopping} onClick={() => fileInputRef.current?.click()} type="button">
+                        <ArrowUpload24Regular />
+                        <span>{t("upload.chooseFiles")}</span>
+                    </button>
+                    <button className={styles.secondaryButton} onClick={() => void loadFiles()} type="button">
+                        <ArrowClockwise24Regular />
+                        <span>{t("upload.refreshList")}</span>
+                    </button>
                     {hasActiveQueue && (
-                        <Button
-                            appearance="secondary"
-                            disabled={isStopping}
-                            icon={<Stop24Regular />}
-                            onClick={() => void requestStopUploads()}
-                        >
-                            {t("upload.stopUploads")}
-                        </Button>
+                        <button className={styles.secondaryButton} disabled={isStopping} onClick={() => void requestStopUploads()} type="button">
+                            <Stop24Regular />
+                            <span>{t("upload.stopUploads")}</span>
+                        </button>
                     )}
                 </div>
 
@@ -643,7 +640,14 @@ export const UploadManagerModal = ({ chatbotName, isOpen, onClose }: Props) => {
                         <p className={styles.sectionLabel}>{t("upload.queueSectionTitle")}</p>
                         <h3 className={styles.sectionTitle}>{t("upload.uploadQueueLabel")}</h3>
                     </div>
-                    <span className={styles.fileCount}>{queueItems.length}</span>
+                    <div className={styles.sectionHeaderActions}>
+                        {dismissableQueueItemsCount > 1 && (
+                            <button className={`${styles.secondaryButton} ${styles.dismissButton}`} onClick={dismissAllQueueItems} type="button">
+                                {t("upload.dismissAllQueueItems")}
+                            </button>
+                        )}
+                        <span className={styles.fileCount}>{queueItems.length}</span>
+                    </div>
                 </div>
 
                 <div className={styles.fileList}>
@@ -670,13 +674,9 @@ export const UploadManagerModal = ({ chatbotName, isOpen, onClose }: Props) => {
                                     {queueStatusLabel(item.status)}
                                 </span>
                                 {!activeStatuses.includes(item.status) && (
-                                    <Button
-                                        appearance="subtle"
-                                        className={styles.dismissButton}
-                                        onClick={() => removeQueueItem(item.id)}
-                                    >
+                                    <button className={`${styles.secondaryButton} ${styles.dismissButton}`} onClick={() => removeQueueItem(item.id)} type="button">
                                         {t("upload.dismissQueueItem")}
-                                    </Button>
+                                    </button>
                                 )}
                             </div>
                         </div>
@@ -690,15 +690,15 @@ export const UploadManagerModal = ({ chatbotName, isOpen, onClose }: Props) => {
                     </div>
                     <div className={styles.sectionHeaderActions}>
                         {uploadedFiles.length > 0 && (
-                            <Button
-                                appearance="secondary"
-                                className={styles.deleteAllButton}
+                            <button
+                                className={`${styles.secondaryButton} ${styles.deleteAllButton}`}
                                 disabled={hasActiveQueue || isStopping || isLoading || hasPendingDelete}
-                                icon={<Delete24Regular />}
                                 onClick={() => void handleDeleteAll()}
+                                type="button"
                             >
-                                {isDeletingAll ? t("upload.deletingAllFiles") : t("upload.deleteAllFiles")}
-                            </Button>
+                                <Delete24Regular />
+                                <span>{isDeletingAll ? t("upload.deletingAllFiles") : t("upload.deleteAllFiles")}</span>
+                            </button>
                         )}
                         <span className={styles.fileCount}>{uploadedFiles.length}</span>
                     </div>
@@ -725,17 +725,17 @@ export const UploadManagerModal = ({ chatbotName, isOpen, onClose }: Props) => {
                                         <span className={styles.fileSubtext}>{t("upload.fileReady")}</span>
                                     </div>
                                 </div>
-                                <Button
-                                    appearance="subtle"
+                                <button
                                     aria-label={deletingFiles[filename] ? t("upload.deletingFile") : t("upload.deleteFile")}
-                                    className={styles.deleteButton}
+                                    className={`${styles.dangerButton} ${styles.deleteButton}`}
                                     disabled={Boolean(deletingFiles[filename]) || hasActiveQueue || isStopping || isDeletingAll}
-                                    icon={deletingFiles[filename] ? <ArrowClockwise24Regular /> : <Delete24Regular />}
                                     onClick={() => void handleDelete(filename)}
                                     title={deletingFiles[filename] ? t("upload.deletingFile") : t("upload.deleteFile")}
+                                    type="button"
                                 >
-                                    {deletingFiles[filename] ? t("upload.deletingFile") : t("upload.deleteFile")}
-                                </Button>
+                                    {deletingFiles[filename] ? <ArrowClockwise24Regular /> : <Delete24Regular />}
+                                    <span>{deletingFiles[filename] ? t("upload.deletingFile") : t("upload.deleteFile")}</span>
+                                </button>
                             </div>
                         ))}
                 </div>

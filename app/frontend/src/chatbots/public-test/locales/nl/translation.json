@@ -72,6 +72,7 @@
         "fileReady": "Klaar voor chat",
         "listError": "Geüploade bestanden konden niet worden geladen.",
         "dismissQueueItem": "Verbergen",
+        "dismissAllQueueItems": "Alle afgeronde verbergen",
         "closeBlocked": "Stop eerst de actieve uploadwachtrij voordat je dit venster sluit.",
         "waitForStop": "Wacht tot het huidige stopverzoek is afgerond voordat je meer bestanden toevoegt.",
         "stopRequested": "De huidige upload wordt gestopt en de resterende wachtrij wordt geannuleerd.",

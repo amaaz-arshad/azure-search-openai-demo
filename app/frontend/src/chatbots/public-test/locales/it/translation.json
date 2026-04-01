@@ -57,6 +57,7 @@
         "fileReady": "Pronto per la chat",
         "listError": "Impossibile caricare l'elenco dei file.",
         "dismissQueueItem": "Nascondi",
+        "dismissAllQueueItems": "Nascondi tutti quelli conclusi",
         "closeBlocked": "Ferma la coda di caricamento attiva prima di chiudere questa finestra.",
         "waitForStop": "Attendi che l'attuale richiesta di arresto termini prima di aggiungere altri file.",
         "stopRequested": "Il caricamento corrente viene fermato e la coda rimanente viene annullata.",
