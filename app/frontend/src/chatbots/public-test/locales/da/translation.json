@@ -1,6 +1,8 @@
 {
     "pageTitle": "Public Test",
     "headerTitle": "Public Test",
+    "initialUserMsg": "Hej",
+    "initialAssistantMsg": "Hej! Skriv bare dit spørgsmål i chatten.",
     "chat": "Chat",
     "login": "Log ind",
     "logout": "Log ud",

@@ -1,6 +1,8 @@
 {
     "pageTitle": "Public Test",
     "headerTitle": "Public Test",
+    "initialUserMsg": "Bonjour",
+    "initialAssistantMsg": "Bonjour ! Écrivez simplement votre question dans le chat.",
     "chat": "Chat",
     "login": "Connexion",
     "logout": "Déconnexion",

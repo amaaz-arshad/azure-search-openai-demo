@@ -1,6 +1,8 @@
 {
     "pageTitle": "Public Test",
     "headerTitle": "Public Test",
+    "initialUserMsg": "こんにちは",
+    "initialAssistantMsg": "こんにちは！ チャットに質問を入力してください。",
     "chat": "チャット",
     "login": "ログイン",
     "logout": "ログアウト",

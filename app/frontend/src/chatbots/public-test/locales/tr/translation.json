@@ -1,6 +1,8 @@
 {
     "pageTitle": "Public Test",
     "headerTitle": "Public Test",
+    "initialUserMsg": "Merhaba",
+    "initialAssistantMsg": "Merhaba! Sorunuzu sohbet alanına yazmanız yeterli.",
     "chat": "Sohbet",
     "login": "Giriş yap",
     "logout": "Çıkış yap",
