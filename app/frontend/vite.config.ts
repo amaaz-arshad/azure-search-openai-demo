@@ -38,7 +38,8 @@ export default defineConfig(({ mode }) => {
         define: {
             "import.meta.env.VITE_AZURE_SPEECH_SERVICE_LOCATION": JSON.stringify(azdEnv.AZURE_SPEECH_SERVICE_LOCATION ?? ""),
             "import.meta.env.VITE_AZURE_SPEECH_SERVICE_VOICE": JSON.stringify(azdEnv.AZURE_SPEECH_SERVICE_VOICE ?? ""),
-            "import.meta.env.VITE_AZURE_SPEECH_SERVICE_API_KEY": JSON.stringify(azdEnv.AZURE_SPEECH_SERVICE_API_KEY ?? "")
+            "import.meta.env.VITE_AZURE_SPEECH_SERVICE_API_KEY": JSON.stringify(azdEnv.AZURE_SPEECH_SERVICE_API_KEY ?? ""),
+            "import.meta.env.VITE_CHATBOT_DIRECTORY_PASSWORD": JSON.stringify(azdEnv.CHATBOT_DIRECTORY_PASSWORD ?? "")
         },
         resolve: {
             preserveSymlinks: true
