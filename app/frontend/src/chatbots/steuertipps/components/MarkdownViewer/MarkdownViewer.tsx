@@ -28,6 +28,10 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ src }) => {
     useEffect(() => {
         const fetchMarkdown = async () => {
             try {
+                setIsLoading(true);
+                setError(null);
+                setContent("");
+
                 const response = await fetch(src);
 
                 if (!response.ok) {
@@ -48,7 +52,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ src }) => {
     }, [src]);
 
     return (
-        <div>
+        <div className={styles.viewerShell}>
             {isLoading ? (
                 <div className={`${styles.loading} ${styles.markdownViewer}`}>
                     <Spinner size={SpinnerSize.large} label="Loading file" />
@@ -63,17 +67,21 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ src }) => {
                     </MessageBar>
                 </div>
             ) : (
-                <div>
-                    <IconButton
-                        className={styles.downloadButton}
-                        style={{ color: "black" }}
-                        iconProps={{ iconName: "Save" }}
-                        title={t("tooltips.save")}
-                        ariaLabel={t("tooltips.save")}
-                        href={src}
-                        download
-                    />
-                    <ReactMarkdown children={content} remarkPlugins={[remarkGfm]} className={`${styles.markdown} ${styles.markdownViewer}`} />
+                <div className={`${styles.markdownViewer} ${styles.markdownContent}`}>
+                    <div className={styles.viewerToolbar}>
+                        <IconButton
+                            className={styles.downloadButton}
+                            style={{ color: "black" }}
+                            iconProps={{ iconName: "Save" }}
+                            title={t("tooltips.save")}
+                            ariaLabel={t("tooltips.save")}
+                            href={src}
+                            download
+                        />
+                    </div>
+                    <div className={styles.markdownScroll}>
+                        <ReactMarkdown children={content} remarkPlugins={[remarkGfm]} className={styles.markdown} />
+                    </div>
                 </div>
             )}
         </div>

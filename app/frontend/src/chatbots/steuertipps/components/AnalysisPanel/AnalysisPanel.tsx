@@ -1,15 +1,11 @@
 import { useMsal } from "@azure/msal-react";
-import { Pivot, PivotItem } from "@fluentui/react";
 import { useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
 
 import { ChatAppResponse, getHeaders } from "../../api";
 import { getToken, useLogin } from "../../authConfig";
 import { MarkdownViewer } from "../MarkdownViewer";
-import { SupportingContent } from "../SupportingContent";
 import styles from "./AnalysisPanel.module.css";
 import { AnalysisPanelTabs } from "./AnalysisPanelTabs";
-import { ThoughtProcess } from "./ThoughtProcess";
 
 interface Props {
     className: string;
@@ -21,27 +17,24 @@ interface Props {
     onCitationClicked?: (citationFilePath: string) => void;
 }
 
-const pivotItemDisabledStyle = { disabled: true, style: { color: "grey" } };
-
-export const AnalysisPanel = ({ answer, activeTab, activeCitation, citationHeight, className, onActiveTabChanged, onCitationClicked }: Props) => {
-    const isDisabledThoughtProcessTab: boolean = !answer.context?.thoughts;
-    const dataPoints = answer.context?.data_points;
-    const hasSupportingContent = Boolean(
-        dataPoints &&
-            ((dataPoints.text && dataPoints.text.length > 0) ||
-                (dataPoints.images && dataPoints.images.length > 0) ||
-                (dataPoints.external_results_metadata && dataPoints.external_results_metadata.length > 0))
-    );
-    const isDisabledSupportingContentTab: boolean = !hasSupportingContent;
-    const isDisabledCitationTab: boolean = !activeCitation;
+export const AnalysisPanel = ({ activeCitation, citationHeight, className }: Props) => {
     const [citation, setCitation] = useState("");
 
     const client = useLogin ? useMsal().instance : undefined;
-    const { t } = useTranslation();
 
-    const fetchCitation = async () => {
-        const token = client ? await getToken(client) : undefined;
-        if (activeCitation) {
+    useEffect(() => {
+        let citationObjectUrl: string | null = null;
+        let isCancelled = false;
+
+        const fetchCitation = async () => {
+            if (!activeCitation) {
+                setCitation("");
+                return;
+            }
+
+            setCitation("");
+
+            const token = client ? await getToken(client) : undefined;
             // Get hash from the URL as it may contain #page=N
             // which helps browser PDF renderer jump to correct page N
             const hashIndex = activeCitation.indexOf("#");
@@ -51,61 +44,53 @@ export const AnalysisPanel = ({ answer, activeTab, activeCitation, citationHeigh
                 headers: await getHeaders(token)
             });
             const citationContent = await response.blob();
-            let citationObjectUrl = URL.createObjectURL(citationContent);
-            // Add hash back to the new blob URL
-            if (originalHash) {
-                citationObjectUrl += "#" + originalHash;
+            citationObjectUrl = URL.createObjectURL(citationContent);
+            const nextCitation = originalHash ? `${citationObjectUrl}#${originalHash}` : citationObjectUrl;
+
+            if (!isCancelled) {
+                setCitation(nextCitation);
             }
-            setCitation(citationObjectUrl);
-        }
-    };
-    useEffect(() => {
+        };
+
         fetchCitation();
-    }, []);
+
+        return () => {
+            isCancelled = true;
+            if (citationObjectUrl) {
+                URL.revokeObjectURL(citationObjectUrl);
+            }
+        };
+    }, [activeCitation, client]);
 
     const renderFileViewer = () => {
         if (!activeCitation) {
             return null;
         }
 
-        const fileExtension = activeCitation.split(".").pop()?.toLowerCase();
+        const fileExtension = activeCitation.split("#")[0].split(".").pop()?.toLowerCase();
         switch (fileExtension) {
             case "png":
-                return <img src={citation} className={styles.citationImg} alt="Citation Image" />;
+                return (
+                    <div className={styles.citationContent}>
+                        <img src={citation || activeCitation} className={styles.citationImg} alt="Citation Image" />
+                    </div>
+                );
             case "md":
-                return <MarkdownViewer src={activeCitation} />;
+                return (
+                    <div className={styles.citationContent}>
+                        <MarkdownViewer src={citation || activeCitation} />
+                    </div>
+                );
             default:
-                return <iframe title="Citation" src={citation} width="100%" height={citationHeight} />;
+                return (
+                    <div className={styles.citationContent}>
+                        <iframe title="Citation" src={citation || activeCitation} className={styles.citationFrame} width="100%" height={citationHeight} />
+                    </div>
+                );
         }
     };
 
-    return (
-        <Pivot
-            className={className}
-            selectedKey={activeTab}
-            onLinkClick={pivotItem => pivotItem && onActiveTabChanged(pivotItem.props.itemKey! as AnalysisPanelTabs)}
-        >
-            <PivotItem
-                itemKey={AnalysisPanelTabs.ThoughtProcessTab}
-                headerText={t("headerTexts.thoughtProcess")}
-                headerButtonProps={isDisabledThoughtProcessTab ? pivotItemDisabledStyle : undefined}
-            >
-                <ThoughtProcess thoughts={answer.context?.thoughts || []} onCitationClicked={onCitationClicked} />
-            </PivotItem>
-            <PivotItem
-                itemKey={AnalysisPanelTabs.SupportingContentTab}
-                headerText={t("headerTexts.supportingContent")}
-                headerButtonProps={isDisabledSupportingContentTab ? pivotItemDisabledStyle : undefined}
-            >
-                <SupportingContent supportingContent={answer.context?.data_points} />
-            </PivotItem>
-            <PivotItem
-                itemKey={AnalysisPanelTabs.CitationTab}
-                headerText={t("headerTexts.citation")}
-                headerButtonProps={isDisabledCitationTab ? pivotItemDisabledStyle : undefined}
-            >
-                {renderFileViewer()}
-            </PivotItem>
-        </Pivot>
-    );
+    const panelClassName = [styles.analysisPanel, className].filter(Boolean).join(" ");
+
+    return <div className={panelClassName}>{renderFileViewer()}</div>;
 };

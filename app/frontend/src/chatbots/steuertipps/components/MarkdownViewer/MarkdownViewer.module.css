@@ -1,6 +1,15 @@
+.viewerShell {
+    width: 100%;
+}
+
+.viewerToolbar {
+    display: flex;
+    justify-content: flex-end;
+    padding: 0.75rem 0.75rem 0;
+}
+
 .downloadButton {
-    position: relative;
-    float: right;
+    flex-shrink: 0;
 }
 
 .markdownViewer {
@@ -9,41 +18,71 @@
         #0000000d 0 0 0 0.0625em,
         #0000001a 0 0.125em 0.1875em;
     background-color: white;
-    margin: 1.25em 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.markdownContent {
+    display: block;
 }
 
 .loading {
-    padding: 6.25em;
-    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 12rem;
+    padding: 1.5rem;
     background-color: white;
 }
 
 .error {
-    height: 100vh;
+    min-height: 12rem;
+    padding: 1.5rem;
     background-color: white;
 }
 
-.markdown {
-    padding: 1.875em;
+.markdownScroll {
+    overflow: visible;
+    padding: 0 1.25rem 1.25rem;
 }
 
-table {
+.markdown {
+    width: 100%;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.markdown :global(table) {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
     border-collapse: collapse;
 }
 
-th,
-td {
+.markdown :global(th),
+.markdown :global(td) {
     border: 0.0625em solid #ddd;
     padding: 0.5em;
 }
 
-tr:nth-child(even) {
+.markdown :global(tr:nth-child(even)) {
     background-color: #f6f8fa;
 }
 
-code {
-    display: block;
-    font-family: monospace;
+.markdown :global(pre) {
+    overflow: auto;
     padding: 0.625em;
     background-color: #f6f8fa;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+.markdown :global(code) {
+    font-family: monospace;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
 }

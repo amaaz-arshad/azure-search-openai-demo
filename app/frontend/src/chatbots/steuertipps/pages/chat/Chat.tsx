@@ -2,7 +2,7 @@ import { useRef, useState, useEffect, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { Helmet } from "react-helmet-async";
 import { useOutletContext } from "react-router-dom";
-import { Panel, DefaultButton } from "@fluentui/react";
+import { Panel, DefaultButton, PanelType } from "@fluentui/react";
 import appLogo from "../../assets/applogo.svg";
 import styles from "./Chat.module.css";
 
@@ -29,6 +29,7 @@ import { applyChatbotSpeechFeatureFlags } from "../../../shared/speech/chatbotSp
 import { ChatbotDisclaimerBanner } from "../../../shared/disclaimer/ChatbotDisclaimerBanner";
 
 const INITIAL_ASSISTANT_SENTINEL_USER_MESSAGE = "__initial_assistant__";
+const ANALYSIS_PANEL_FULLSCREEN_BREAKPOINT = 1024;
 
 const createClientSessionId = () => {
     if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -60,6 +61,9 @@ const Chat = () => {
     ];
     const [isConfigPanelOpen, setIsConfigPanelOpen] = useState(false);
     const [isHistoryPanelOpen, setIsHistoryPanelOpen] = useState(false);
+    const [isAnalysisPanelFullScreen, setIsAnalysisPanelFullScreen] = useState<boolean>(() =>
+        typeof window !== "undefined" ? window.innerWidth <= ANALYSIS_PANEL_FULLSCREEN_BREAKPOINT : false
+    );
     const [promptTemplate, setPromptTemplate] = useState<string>("");
     const [temperature, setTemperature] = useState<number>(0);
     const [seed, setSeed] = useState<number | null>(null);
@@ -511,6 +515,33 @@ const Chat = () => {
         getConfig();
     }, []);
 
+    useEffect(() => {
+        if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+            return;
+        }
+
+        const mediaQuery = window.matchMedia(`(max-width: ${ANALYSIS_PANEL_FULLSCREEN_BREAKPOINT}px)`);
+        const handleViewportChange = (event: MediaQueryListEvent) => {
+            setIsAnalysisPanelFullScreen(event.matches);
+        };
+
+        setIsAnalysisPanelFullScreen(mediaQuery.matches);
+
+        if (typeof mediaQuery.addEventListener === "function") {
+            mediaQuery.addEventListener("change", handleViewportChange);
+
+            return () => {
+                mediaQuery.removeEventListener("change", handleViewportChange);
+            };
+        }
+
+        mediaQuery.addListener(handleViewportChange);
+
+        return () => {
+            mediaQuery.removeListener(handleViewportChange);
+        };
+    }, []);
+
     // Preserve streaming preference when agentic retrieval forces streaming off.
     useEffect(() => {
         updateStreamingPreference(streamingEnabled, streamingDisabledByOverrides);
@@ -657,6 +688,10 @@ const Chat = () => {
     };
 
     const onToggleTab = (tab: AnalysisPanelTabs, index: number) => {
+        if (tab !== AnalysisPanelTabs.CitationTab) {
+            return;
+        }
+
         if (activeAnalysisPanelTab === tab && selectedAnswer === index) {
             setActiveAnalysisPanelTab(undefined);
         } else {
@@ -675,6 +710,18 @@ const Chat = () => {
             console.log("An error occurred trying to stop the stream: ", e);
         }
     };
+
+    const closeAnalysisPanel = () => {
+        setActiveAnalysisPanelTab(undefined);
+    };
+
+    const isAnalysisPanelOpen = answers.length > 0 && activeAnalysisPanelTab !== undefined;
+    const analysisPanelHeaderText =
+        activeAnalysisPanelTab === AnalysisPanelTabs.ThoughtProcessTab
+            ? t("headerTexts.thoughtProcess")
+            : activeAnalysisPanelTab === AnalysisPanelTabs.SupportingContentTab
+              ? t("headerTexts.supportingContent")
+              : t("headerTexts.citation");
 
     return (
         <div className={styles.container}>
@@ -788,17 +835,55 @@ const Chat = () => {
                     </div>
                 </div>
 
-                {answers.length > 0 && activeAnalysisPanelTab && (
-                    <AnalysisPanel
-                        className={styles.chatAnalysisPanel}
-                        activeCitation={activeCitation}
-                        onActiveTabChanged={x => onToggleTab(x, selectedAnswer)}
-                        citationHeight="810px"
-                        answer={answers[selectedAnswer][1]}
-                        activeTab={activeAnalysisPanelTab}
-                        onCitationClicked={c => onShowCitation(c, selectedAnswer)}
-                    />
-                )}
+                <Panel
+                    type={isAnalysisPanelFullScreen ? PanelType.smallFluid : PanelType.custom}
+                    customWidth="50vw"
+                    headerText={analysisPanelHeaderText}
+                    isOpen={isAnalysisPanelOpen}
+                    isBlocking={false}
+                    isLightDismiss={!isAnalysisPanelFullScreen}
+                    onDismiss={closeAnalysisPanel}
+                    closeButtonAriaLabel={t("labels.closeButton")}
+                    styles={{
+                        main: {
+                            width: isAnalysisPanelFullScreen ? "100vw" : "50vw",
+                            maxWidth: "100vw"
+                        },
+                        content: {
+                            display: "flex",
+                            flexDirection: "column",
+                            height: "100%",
+                            paddingLeft: 0,
+                            paddingRight: 0
+                        },
+                        scrollableContent: {
+                            display: "flex",
+                            flexDirection: "column",
+                            height: "100%",
+                            overflowY: "hidden"
+                        },
+                        contentInner: {
+                            display: "flex",
+                            flexDirection: "column",
+                            flex: 1,
+                            minHeight: 0,
+                            overflow: "hidden",
+                            padding: "0 1.25rem 1.25rem"
+                        }
+                    }}
+                >
+                    {isAnalysisPanelOpen && (
+                        <AnalysisPanel
+                            className={styles.chatAnalysisPanel}
+                            activeCitation={activeCitation}
+                            onActiveTabChanged={x => onToggleTab(x, selectedAnswer)}
+                            citationHeight={isAnalysisPanelFullScreen ? "calc(100vh - 7rem)" : "calc(100vh - 8rem)"}
+                            answer={answers[selectedAnswer][1]}
+                            activeTab={activeAnalysisPanelTab}
+                            onCitationClicked={c => onShowCitation(c, selectedAnswer)}
+                        />
+                    )}
+                </Panel>
 
                 {((useLogin && showChatHistoryCosmos) || showChatHistoryBrowser) && (
                     <HistoryPanel
