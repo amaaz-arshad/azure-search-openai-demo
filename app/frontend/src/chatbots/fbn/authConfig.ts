@@ -2,9 +2,9 @@
 
 import { IPublicClientApplication } from "@azure/msal-browser";
 
-const appServicesAuthTokenUrl = ".auth/me";
-const appServicesAuthTokenRefreshUrl = ".auth/refresh";
-const appServicesAuthLogoutUrl = ".auth/logout?post_logout_redirect_uri=/";
+const appServicesAuthTokenUrl = "/.auth/me";
+const appServicesAuthTokenRefreshUrl = "/.auth/refresh";
+const appServicesAuthLogoutUrl = "/.auth/logout?post_logout_redirect_uri=/";
 
 interface AppServicesToken {
     id_token: string;

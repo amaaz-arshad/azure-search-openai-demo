@@ -13,7 +13,17 @@
         "topbarAriaLabel": "Topbar",
         "homeAriaLabel": "Go to homepage",
         "title": "Please use your specific chat URL.",
-        "backToHome": "→ Or click here to return to the homepage."
+        "backToHome": "â†’ Or click here to return to the homepage."
+    },
+    "noPage": {
+        "title": "This page does not exist",
+        "info": "You landed on <strong>chat.nerilio.ai</strong> without your personal chatbot URL.<br/><br/>Please use the <strong>specific URL</strong> that you received from nerilio.",
+        "primaryAction": "Go to nerilio website",
+        "secondaryAction": "Contact us",
+        "divider": "Questions?",
+        "contactLine": "Just write to <email>hallo@nerilio.ai</email> and we will help you.",
+        "impressum": "Legal notice",
+        "privacy": "Privacy policy"
     },
     "history": {
         "chatHistory": "Chat history",
