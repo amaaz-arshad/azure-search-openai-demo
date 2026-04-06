@@ -20,26 +20,28 @@ import { msalConfig, useLogin } from "./authConfig";
 
 initializeIcons();
 
-const chatbotRoutes = chatbotDefinitions.map(chatbot => ({
-    path: chatbot.name,
-    element: (
-        <ChatbotThemeRoot chatbotName={chatbot.name}>
-            <I18nextProvider i18n={chatbot.i18n}>
-                <chatbot.LayoutWrapper />
-            </I18nextProvider>
-        </ChatbotThemeRoot>
-    ),
-    children: [
-        {
-            index: true,
-            element: <chatbot.Chat />
-        },
-        {
-            path: "*",
-            element: <chatbot.NoPage />
-        }
-    ]
-}));
+const wrapChatbotElement = (chatbot: (typeof chatbotDefinitions)[number], element: React.ReactNode) => (
+    <ChatbotThemeRoot chatbotName={chatbot.name}>
+        <I18nextProvider i18n={chatbot.i18n}>{element}</I18nextProvider>
+    </ChatbotThemeRoot>
+);
+
+const chatbotRoutes = chatbotDefinitions.flatMap(chatbot => [
+    {
+        path: chatbot.name,
+        element: wrapChatbotElement(chatbot, <chatbot.LayoutWrapper />),
+        children: [
+            {
+                index: true,
+                element: <chatbot.Chat />
+            }
+        ]
+    },
+    {
+        path: `${chatbot.name}/*`,
+        element: wrapChatbotElement(chatbot, <chatbot.NoPage />)
+    }
+]);
 
 const router = createBrowserRouter([
     {
