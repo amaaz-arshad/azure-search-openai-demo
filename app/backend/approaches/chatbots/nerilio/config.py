@@ -5,4 +5,5 @@ config = ChatbotConfig(
     chatgpt_model="gpt-4.1-nano",
     chatgpt_deployment="gpt-4.1-nano",
     reasoning_effort=None,
+    support_email="hallo@nerilio.ai",
 )

@@ -131,6 +131,15 @@ def test_get_document_citation_target_uses_url_for_external_feed_categories() ->
     assert ChatReadRetrieveReadApproach.get_document_citation_target("demo") == "sourcepage"
 
 
+def test_get_system_prompt_variables_renders_support_email_and_preserves_literal_prompt_placeholders(chat_approach):
+    variables = chat_approach.get_system_prompt_variables(None, chatbot_name="demo")
+    override_prompt = variables["override_prompt"]
+
+    assert "SUPPORT_EMAIL = info@snap.de" in override_prompt
+    assert "{{SUPPORT_EMAIL}}" not in override_prompt
+    assert "{{N}}" in override_prompt
+
+
 def test_extract_rewritten_query_invalid_json(chat_approach):
     payload = {
         "id": "chatcmpl-2",

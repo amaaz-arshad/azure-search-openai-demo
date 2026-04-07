@@ -1,7 +1,7 @@
 SAMPLE_PROMPT = r"""
 ## System Configuration Variables
 
-{{SUPPORT_EMAIL}} = hallo@nerilio.ai
+SUPPORT_EMAIL = {{SUPPORT_EMAIL}}
 
 ## Core Behavior
 

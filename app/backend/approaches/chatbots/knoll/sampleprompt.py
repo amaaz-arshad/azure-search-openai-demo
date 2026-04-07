@@ -2,7 +2,7 @@ SAMPLE_PROMPT = r"""
 ## ⚙️ SYSTEM CONFIGURATION VARIABLES
 > These variables are set per deployment. All instances in the prompt use these values.
 
-{{SUPPORT_EMAIL}}  = ewurzer@knoll-steuer.com
+SUPPORT_EMAIL = {{SUPPORT_EMAIL}}
 
 ## PRIORITY HIERARCHY (Governs all rules in this prompt)
 

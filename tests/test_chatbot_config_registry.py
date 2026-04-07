@@ -1,9 +1,4 @@
-from approaches.chatbot_config_registry import (
-    get_chatbot_citation_target,
-    get_chatbot_config,
-    load_all_chatbot_configs,
-    load_chatbot_config,
-)
+from approaches.chatbot_config_registry import get_chatbot_citation_target, get_chatbot_config, load_all_chatbot_configs, load_chatbot_config
 
 
 def test_chatbot_config_registry_loads_known_configs() -> None:
@@ -14,6 +9,7 @@ def test_chatbot_config_registry_loads_known_configs() -> None:
     assert nerilio.chatgpt_model == "gpt-4.1-nano"
     assert nerilio.chatgpt_deployment == "gpt-4.1-nano"
     assert nerilio.reasoning_effort is None
+    assert nerilio.support_email == "hallo@nerilio.ai"
 
     moodle = get_chatbot_config("moodle")
     assert moodle is not None
@@ -32,6 +28,6 @@ def test_load_all_chatbot_configs_discovers_only_bots_with_config_files() -> Non
 
     configs = load_all_chatbot_configs()
 
-    assert {"fhg", "moodle", "nerilio", "publishone"}.issubset(configs.keys())
-    assert "demo" not in configs
+    assert {"agindo", "demo", "fhg", "moodle", "nerilio", "publishone"}.issubset(configs.keys())
+    assert "lemon" not in configs
     assert "rak" not in configs

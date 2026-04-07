@@ -46,6 +46,7 @@ from openai.types.chat import (
 )
 from quart import has_request_context, request
 
+from approaches.chatbot_config_registry import render_chatbot_prompt
 from approaches.chatbot_prompt_registry import get_chatbot_prompt, normalize_chatbot_name
 from approaches.promptmanager import PromptManager
 from prepdocslib.blobmanager import AdlsBlobManager, BlobManager
@@ -989,7 +990,7 @@ class Approach(ABC):
                         normalized_chatbot_name = normalize_chatbot_name(referer_first_segment)
             chatbot_prompt = get_chatbot_prompt(normalized_chatbot_name)
             if chatbot_prompt:
-                return {"override_prompt": chatbot_prompt}
+                return {"override_prompt": render_chatbot_prompt(chatbot_prompt, normalized_chatbot_name)}
             return {}
         elif override_prompt.startswith(">>>"):
             return {"injected_prompt": override_prompt[3:]}

@@ -9,5 +9,7 @@ class ChatbotConfig:
     chatgpt_model: Optional[str] = None
     chatgpt_deployment: Optional[str] = None  # defaults to chatgpt_model if None
     reasoning_effort: Optional[str] = None
+    # Prompt configuration
+    support_email: Optional[str] = None
     # Retrieval
     citation_target: Literal["sourcepage", "url"] = "sourcepage"

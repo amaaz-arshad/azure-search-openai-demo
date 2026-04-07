@@ -17,8 +17,8 @@ If necessary, edit this file to ensure it accurately reflects the current state 
       * app/backend/approaches/chatbot_config_registry.py: Loads optional chatbot backend config modules from `app/backend/approaches/chatbots/<chatbot_name>/config.py`, normalizes chatbot names, exposes `get_chatbot_config()` / `get_chatbot_citation_target()`, and auto-discovers which bots need backend-specific settings.
       * app/backend/approaches/chatbot_content_filter_registry.py: Provides localized default content-filter messages plus optional chatbot-specific overrides loaded from `app/backend/approaches/chatbots/<chatbot_name>/contentfilter.py`.
       * app/backend/approaches/chatbot_prompt_registry.py: Maps chatbot names to chatbot-specific prompt modules
-      * app/backend/approaches/chatbots/chatbot_config.py: Shared `ChatbotConfig` dataclass for per-bot backend overrides such as `chatgpt_model`, `chatgpt_deployment`, `reasoning_effort`, and citation target behavior.
-      * app/backend/approaches/chatbots/<chatbot_name>/config.py: Optional chatbot-specific backend config. Add one when a bot needs a different LLM model/deployment, a different default reasoning effort, or a non-default citation target such as direct URL citations.
+      * app/backend/approaches/chatbots/chatbot_config.py: Shared `ChatbotConfig` dataclass for per-bot backend overrides such as `chatgpt_model`, `chatgpt_deployment`, `reasoning_effort`, support-contact prompt values like `support_email`, and citation target behavior.
+      * app/backend/approaches/chatbots/<chatbot_name>/config.py: Optional chatbot-specific backend config. Add one when a bot needs a different LLM model/deployment, a different default reasoning effort, prompt-time contact/config values such as `support_email`, or a non-default citation target such as direct URL citations.
       * app/backend/approaches/chatbots/<chatbot_name>/sampleprompt.py: Chatbot-specific `SAMPLE_PROMPT` definitions used by `get_system_prompt_variables`. The FHG prompt assumes the frontend's initial assistant message has already been shown, so it answers the user's next message directly instead of sending a second welcome.
       * app/backend/approaches/chatbots/<chatbot_name>/contentfilter.py: Optional chatbot-specific `CONTENT_FILTER_MESSAGES` dictionaries keyed by locale/language code for overriding the default OpenAI content-filter error text.
       * app/backend/approaches/promptmanager.py: Manages loading and rendering of Jinja2 prompt templates
@@ -130,7 +130,7 @@ If the chatbot also needs backend-specific behavior, add the matching backend mo
 
 1. Add `sampleprompt.py` for chatbot-specific prompt variables.
 1. Add `contentfilter.py` only if the default localized content-filter copy is not enough.
-1. Add `config.py` when the bot needs a different `chatgpt_model`, `chatgpt_deployment`, `reasoning_effort`, or citation target. Startup auto-discovers these files; you do not need to register them manually anywhere else.
+1. Add `config.py` when the bot needs a different `chatgpt_model`, `chatgpt_deployment`, `reasoning_effort`, prompt-time values such as `support_email`, or citation target. Startup auto-discovers these files; you do not need to register them manually anywhere else.
 
 ## Adding a new azd environment variable
 

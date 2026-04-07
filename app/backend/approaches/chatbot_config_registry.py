@@ -1,4 +1,5 @@
 import logging
+import re
 from functools import lru_cache
 from importlib import import_module
 from typing import Optional
@@ -7,6 +8,7 @@ from approaches.chatbot_prompt_registry import CHATBOT_PROMPT_MODULES, normalize
 from approaches.chatbots.chatbot_config import ChatbotConfig
 
 logger = logging.getLogger(__name__)
+SUPPORT_EMAIL_PLACEHOLDER_PATTERN = re.compile(r"\{\{\s*SUPPORT_EMAIL\s*\}\}")
 
 
 @lru_cache(maxsize=None)
@@ -43,6 +45,25 @@ def get_chatbot_config(chatbot_name: Optional[str]) -> Optional[ChatbotConfig]:
 def get_chatbot_citation_target(chatbot_name: Optional[str]) -> str:
     cfg = get_chatbot_config(chatbot_name)
     return cfg.citation_target if cfg else "sourcepage"
+
+
+def render_chatbot_prompt(prompt: str, chatbot_name: Optional[str]) -> str:
+    normalized = normalize_chatbot_name(chatbot_name)
+    if not prompt or not normalized:
+        return prompt
+
+    rendered_prompt = prompt
+    cfg = get_chatbot_config(normalized)
+    if SUPPORT_EMAIL_PLACEHOLDER_PATTERN.search(rendered_prompt):
+        if cfg and cfg.support_email:
+            rendered_prompt = SUPPORT_EMAIL_PLACEHOLDER_PATTERN.sub(cfg.support_email, rendered_prompt)
+        else:
+            logger.warning(
+                "Chatbot prompt for %s references SUPPORT_EMAIL but chatbot config does not provide support_email",
+                normalized,
+            )
+
+    return rendered_prompt
 
 
 def load_all_chatbot_configs() -> dict[str, ChatbotConfig]:
