@@ -132,9 +132,12 @@ A related option is VS Code Dev Containers, which will open the project in your 
 1. Install the required tools:
 
     - [Azure Developer CLI](https://aka.ms/azure-dev/install)
+    - [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli)
+      - **Important**: Ensure you can run `az` from the same terminal. This repo's `moodle_auto_indexer` post-deploy hook configures Event Grid subscriptions by shelling out to Azure CLI.
     - [Python 3.10, 3.11, 3.12, 3.13, or 3.14](https://www.python.org/downloads/)
       - **Important**: Python and the pip package manager must be in the path in Windows for the setup scripts to work.
       - **Important**: Ensure you can run `python --version` from console. On Ubuntu, you might need to run `sudo apt install python-is-python3` to link `python` to `python3`.
+      - **Important**: This repo's Windows helper scripts default to Python `3.11` to match Azure, and the current pinned backend dependencies are safest with a repo `.venv` on Python `3.11` or `3.12`.
     - [Node.js 20+](https://nodejs.org/download/)
     - [Git](https://git-scm.com/downloads)
     - [Powershell 7+ (pwsh)](https://github.com/powershell/powershell) - For Windows users only.
