@@ -64,14 +64,14 @@
         "1": "Wer hat HYROX gegründet?",
         "2": "Welche körperlichen Eigenschaften sind für eine starke HYROX-Leistung erforderlich?",
         "3": "Worauf sollten Trainer bei der Planung des HYROX-Trainings achten?",
-        "placeholder": "Geben Sie Ihre Nachricht ein"
+        "placeholder": "Gib deine Nachricht ein"
     },
     "askTitle": "Fragen Sie Ihre Daten",
     "multimodalExamples": {
         "1": "Vergleichen Sie die Auswirkungen von Zinssätzen und BIP auf die Finanzmärkte.",
         "2": "Wie wird sich der S&P 500 Index in den nächsten fünf Jahren voraussichtlich entwickeln? Vergleichen Sie dies mit der bisherigen S&P 500-Performance.",
         "3": "Können Sie eine Korrelation zwischen Ölpreisen und Börsentrends erkennen?",
-        "placeholder": "Geben Sie Ihre Nachricht ein"
+        "placeholder": "Gib deine Nachricht ein"
     },
     "generatingAnswer": "Antwort wird generiert",
     "citationWithColon": "Quelle:",

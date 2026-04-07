@@ -56,6 +56,7 @@ from config import (
     CONFIG_CATEGORY_UPLOAD_MANAGER,
     CONFIG_CHATBOT_UPLOAD_MANAGERS,
     CONFIG_CHAT_APPROACH,
+    CONFIG_CHATBOT_CHAT_APPROACHES,
     CONFIG_CHAT_HISTORY_BROWSER_ENABLED,
     CONFIG_CHAT_HISTORY_COSMOS_ENABLED,
     CONFIG_CREDENTIAL,
@@ -786,7 +787,8 @@ async def chat(auth_claims: dict[str, Any]):
         overrides["user"] = chatbot_user
     context["auth_claims"] = auth_claims
     try:
-        approach: Approach = cast(Approach, current_app.config[CONFIG_CHAT_APPROACH])
+        chatbot_approaches: dict[str, Approach] = current_app.config.get(CONFIG_CHATBOT_CHAT_APPROACHES, {})
+        approach: Approach = chatbot_approaches.get(requested_chatbot_name, current_app.config[CONFIG_CHAT_APPROACH]) if requested_chatbot_name else current_app.config[CONFIG_CHAT_APPROACH]
 
         # If session state is provided, persists the session state,
         # else creates a new session_id depending on the chat history options enabled.
@@ -823,7 +825,8 @@ async def chat_stream(auth_claims: dict[str, Any]):
         overrides["user"] = chatbot_user
     context["auth_claims"] = auth_claims
     try:
-        approach: Approach = cast(Approach, current_app.config[CONFIG_CHAT_APPROACH])
+        chatbot_approaches: dict[str, Approach] = current_app.config.get(CONFIG_CHATBOT_CHAT_APPROACHES, {})
+        approach: Approach = chatbot_approaches.get(requested_chatbot_name, current_app.config[CONFIG_CHAT_APPROACH]) if requested_chatbot_name else current_app.config[CONFIG_CHAT_APPROACH]
 
         # If session state is provided, persists the session state,
         # else creates a new session_id depending on the chat history options enabled.
@@ -1717,6 +1720,42 @@ async def setup_clients():
         use_sharepoint_source=current_app.config[CONFIG_SHAREPOINT_SOURCE_ENABLED],
         retrieval_reasoning_effort=AGENTIC_KNOWLEDGEBASE_REASONING_EFFORT,
     )
+
+    # Per-chatbot approach overrides (different LLM model per chatbot)
+    NERILIO_CHATGPT_MODEL = os.getenv("NERILIO_OPENAI_CHATGPT_MODEL", "gpt-4.1-nano")
+    NERILIO_CHATGPT_DEPLOYMENT = os.getenv("NERILIO_OPENAI_CHATGPT_DEPLOYMENT", NERILIO_CHATGPT_MODEL)
+    current_app.config[CONFIG_CHATBOT_CHAT_APPROACHES] = {
+        "nerilio": ChatReadRetrieveReadApproach(
+            search_client=search_client,
+            search_index_name=AZURE_SEARCH_INDEX,
+            knowledgebase_model=AZURE_OPENAI_KNOWLEDGEBASE_MODEL,
+            knowledgebase_deployment=AZURE_OPENAI_KNOWLEDGEBASE_DEPLOYMENT,
+            knowledgebase_client=knowledgebase_client,
+            knowledgebase_client_with_web=knowledgebase_client_with_web,
+            knowledgebase_client_with_sharepoint=knowledgebase_client_with_sharepoint,
+            knowledgebase_client_with_web_and_sharepoint=knowledgebase_client_with_web_and_sharepoint,
+            openai_client=openai_client,
+            chatgpt_model=NERILIO_CHATGPT_MODEL,
+            chatgpt_deployment=NERILIO_CHATGPT_DEPLOYMENT if OPENAI_HOST == OpenAIHost.AZURE else None,
+            embedding_model=OPENAI_EMB_MODEL,
+            embedding_deployment=AZURE_OPENAI_EMB_DEPLOYMENT,
+            embedding_dimensions=OPENAI_EMB_DIMENSIONS,
+            embedding_field=AZURE_SEARCH_FIELD_NAME_EMBEDDING,
+            sourcepage_field=KB_FIELDS_SOURCEPAGE,
+            content_field=KB_FIELDS_CONTENT,
+            query_language=AZURE_SEARCH_QUERY_LANGUAGE,
+            query_speller=AZURE_SEARCH_QUERY_SPELLER,
+            prompt_manager=prompt_manager,
+            reasoning_effort=None,
+            multimodal_enabled=USE_MULTIMODAL,
+            image_embeddings_client=image_embeddings_client,
+            global_blob_manager=global_blob_manager,
+            user_blob_manager=user_blob_manager,
+            use_web_source=current_app.config[CONFIG_WEB_SOURCE_ENABLED],
+            use_sharepoint_source=current_app.config[CONFIG_SHAREPOINT_SOURCE_ENABLED],
+            retrieval_reasoning_effort=AGENTIC_KNOWLEDGEBASE_REASONING_EFFORT,
+        ),
+    }
 
 
 @bp.after_app_serving

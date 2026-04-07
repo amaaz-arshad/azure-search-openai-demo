@@ -53,7 +53,7 @@ const Layout = () => {
 
     return (
         <div className={styles.layout}>
-            <header className={styles.header} role="banner">
+            {/* <header className={styles.header} role="banner">
                 <div className={styles.headerContainer}>
                     <Link className={styles.logoContainer} to=".">
                         <div className={styles.logoCircle}>
@@ -97,7 +97,7 @@ const Layout = () => {
                         </div>
                     </div>
                 </div>
-            </header>
+            </header> */}
 
             <main className={styles.main} id="main-content">
                 <Outlet context={{ setRecentChatsAction }} />
