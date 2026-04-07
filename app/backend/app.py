@@ -47,6 +47,7 @@ from quart import (
 from quart_cors import cors
 
 from approaches.approach import Approach, DataPoints
+from approaches.chatbot_config_registry import load_all_chatbot_configs
 from approaches.chatreadretrieveread import ChatReadRetrieveReadApproach
 from approaches.promptmanager import PromptManager
 from chat_history.cosmosdb import chat_history_cosmosdb_bp
@@ -1721,41 +1722,50 @@ async def setup_clients():
         retrieval_reasoning_effort=AGENTIC_KNOWLEDGEBASE_REASONING_EFFORT,
     )
 
-    # Per-chatbot approach overrides (different LLM model per chatbot)
-    NERILIO_CHATGPT_MODEL = os.getenv("NERILIO_OPENAI_CHATGPT_MODEL", "gpt-4.1-nano")
-    NERILIO_CHATGPT_DEPLOYMENT = os.getenv("NERILIO_OPENAI_CHATGPT_DEPLOYMENT", NERILIO_CHATGPT_MODEL)
-    current_app.config[CONFIG_CHATBOT_CHAT_APPROACHES] = {
-        "nerilio": ChatReadRetrieveReadApproach(
-            search_client=search_client,
-            search_index_name=AZURE_SEARCH_INDEX,
-            knowledgebase_model=AZURE_OPENAI_KNOWLEDGEBASE_MODEL,
-            knowledgebase_deployment=AZURE_OPENAI_KNOWLEDGEBASE_DEPLOYMENT,
-            knowledgebase_client=knowledgebase_client,
-            knowledgebase_client_with_web=knowledgebase_client_with_web,
-            knowledgebase_client_with_sharepoint=knowledgebase_client_with_sharepoint,
-            knowledgebase_client_with_web_and_sharepoint=knowledgebase_client_with_web_and_sharepoint,
-            openai_client=openai_client,
-            chatgpt_model=NERILIO_CHATGPT_MODEL,
-            chatgpt_deployment=NERILIO_CHATGPT_DEPLOYMENT if OPENAI_HOST == OpenAIHost.AZURE else None,
-            embedding_model=OPENAI_EMB_MODEL,
-            embedding_deployment=AZURE_OPENAI_EMB_DEPLOYMENT,
-            embedding_dimensions=OPENAI_EMB_DIMENSIONS,
-            embedding_field=AZURE_SEARCH_FIELD_NAME_EMBEDDING,
-            sourcepage_field=KB_FIELDS_SOURCEPAGE,
-            content_field=KB_FIELDS_CONTENT,
-            query_language=AZURE_SEARCH_QUERY_LANGUAGE,
-            query_speller=AZURE_SEARCH_QUERY_SPELLER,
-            prompt_manager=prompt_manager,
-            reasoning_effort=None,
-            multimodal_enabled=USE_MULTIMODAL,
-            image_embeddings_client=image_embeddings_client,
-            global_blob_manager=global_blob_manager,
-            user_blob_manager=user_blob_manager,
-            use_web_source=current_app.config[CONFIG_WEB_SOURCE_ENABLED],
-            use_sharepoint_source=current_app.config[CONFIG_SHAREPOINT_SOURCE_ENABLED],
-            retrieval_reasoning_effort=AGENTIC_KNOWLEDGEBASE_REASONING_EFFORT,
-        ),
-    }
+    # Per-chatbot approach overrides — auto-discovered from each chatbot's config.py.
+    # An override is needed when the bot's model, deployment, or reasoning_effort differs from global defaults.
+    shared_approach_kwargs = dict(
+        search_client=search_client,
+        search_index_name=AZURE_SEARCH_INDEX,
+        knowledgebase_model=AZURE_OPENAI_KNOWLEDGEBASE_MODEL,
+        knowledgebase_deployment=AZURE_OPENAI_KNOWLEDGEBASE_DEPLOYMENT,
+        knowledgebase_client=knowledgebase_client,
+        knowledgebase_client_with_web=knowledgebase_client_with_web,
+        knowledgebase_client_with_sharepoint=knowledgebase_client_with_sharepoint,
+        knowledgebase_client_with_web_and_sharepoint=knowledgebase_client_with_web_and_sharepoint,
+        openai_client=openai_client,
+        embedding_model=OPENAI_EMB_MODEL,
+        embedding_deployment=AZURE_OPENAI_EMB_DEPLOYMENT,
+        embedding_dimensions=OPENAI_EMB_DIMENSIONS,
+        embedding_field=AZURE_SEARCH_FIELD_NAME_EMBEDDING,
+        sourcepage_field=KB_FIELDS_SOURCEPAGE,
+        content_field=KB_FIELDS_CONTENT,
+        query_language=AZURE_SEARCH_QUERY_LANGUAGE,
+        query_speller=AZURE_SEARCH_QUERY_SPELLER,
+        prompt_manager=prompt_manager,
+        multimodal_enabled=USE_MULTIMODAL,
+        image_embeddings_client=image_embeddings_client,
+        global_blob_manager=global_blob_manager,
+        user_blob_manager=user_blob_manager,
+        use_web_source=current_app.config[CONFIG_WEB_SOURCE_ENABLED],
+        use_sharepoint_source=current_app.config[CONFIG_SHAREPOINT_SOURCE_ENABLED],
+        retrieval_reasoning_effort=AGENTIC_KNOWLEDGEBASE_REASONING_EFFORT,
+    )
+    chatbot_approaches: dict[str, ChatReadRetrieveReadApproach] = {}
+    for bot_name, bot_cfg in load_all_chatbot_configs().items():
+        model_differs = bot_cfg.chatgpt_model and bot_cfg.chatgpt_model != OPENAI_CHATGPT_MODEL
+        deployment_differs = bot_cfg.chatgpt_deployment and bot_cfg.chatgpt_deployment != AZURE_OPENAI_CHATGPT_DEPLOYMENT
+        reasoning_differs = bot_cfg.reasoning_effort is not None and bot_cfg.reasoning_effort != OPENAI_REASONING_EFFORT
+        if model_differs or deployment_differs or reasoning_differs:
+            model = bot_cfg.chatgpt_model or OPENAI_CHATGPT_MODEL
+            deployment = bot_cfg.chatgpt_deployment or AZURE_OPENAI_CHATGPT_DEPLOYMENT
+            chatbot_approaches[bot_name] = ChatReadRetrieveReadApproach(
+                chatgpt_model=model,
+                chatgpt_deployment=deployment if OPENAI_HOST == OpenAIHost.AZURE else None,
+                reasoning_effort=bot_cfg.reasoning_effort if bot_cfg.reasoning_effort is not None else OPENAI_REASONING_EFFORT,
+                **shared_approach_kwargs,
+            )
+    current_app.config[CONFIG_CHATBOT_CHAT_APPROACHES] = chatbot_approaches
 
 
 @bp.after_app_serving

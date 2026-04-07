@@ -5,6 +5,7 @@ import pytest
 import quart
 
 import app
+from approaches.chatbots.chatbot_config import ChatbotConfig
 
 
 @pytest.fixture
@@ -369,6 +370,50 @@ async def test_app_config_for_reasoning_override_effort(monkeypatch, minimal_env
         assert result["streamingEnabled"] is True
         assert result["showReasoningEffortOption"] is True
         assert result["defaultReasoningEffort"] == "low"
+
+
+@pytest.mark.asyncio
+async def test_app_creates_chatbot_override_for_nerilio_config(monkeypatch, minimal_env):
+    monkeypatch.setenv("AZURE_SERVER_APP_SECRET", "test-server-secret")
+    quart_app = app.create_app()
+
+    async with quart_app.test_app():
+        chatbot_approaches = quart_app.config[app.CONFIG_CHATBOT_CHAT_APPROACHES]
+
+        assert "nerilio" in chatbot_approaches
+        assert "moodle" not in chatbot_approaches
+        assert "publishone" not in chatbot_approaches
+        assert "fhg" not in chatbot_approaches
+
+        nerilio_approach = chatbot_approaches["nerilio"]
+        assert nerilio_approach.chatgpt_model == "gpt-4.1-nano"
+        assert nerilio_approach.chatgpt_deployment == "gpt-4.1-nano"
+
+
+@pytest.mark.asyncio
+async def test_app_creates_chatbot_overrides_for_deployment_and_reasoning_only_differences(monkeypatch, minimal_env):
+    monkeypatch.setenv("AZURE_SERVER_APP_SECRET", "test-server-secret")
+    monkeypatch.setattr(
+        app,
+        "load_all_chatbot_configs",
+        lambda: {
+            "deploy-only": ChatbotConfig(name="deploy-only", chatgpt_deployment="bot-deploy"),
+            "reasoning-only": ChatbotConfig(name="reasoning-only", reasoning_effort="low"),
+            "same-as-default": ChatbotConfig(name="same-as-default"),
+        },
+    )
+
+    quart_app = app.create_app()
+
+    async with quart_app.test_app():
+        chatbot_approaches = quart_app.config[app.CONFIG_CHATBOT_CHAT_APPROACHES]
+
+        assert set(chatbot_approaches.keys()) == {"deploy-only", "reasoning-only"}
+        assert chatbot_approaches["deploy-only"].chatgpt_model == "gpt-4.1-mini"
+        assert chatbot_approaches["deploy-only"].chatgpt_deployment == "bot-deploy"
+        assert chatbot_approaches["reasoning-only"].chatgpt_model == "gpt-4.1-mini"
+        assert chatbot_approaches["reasoning-only"].chatgpt_deployment == "test-chat-deployment"
+        assert chatbot_approaches["reasoning-only"].reasoning_effort == "low"
 
 
 def test_app_enables_azure_monitor_when_connection_string_set(monkeypatch):

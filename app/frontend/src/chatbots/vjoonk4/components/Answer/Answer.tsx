@@ -1,49 +1,6 @@
-import { useTranslation } from "react-i18next";
-
-import { ChatbotAnswer } from "../../../shared/answer";
-import { ChatAppResponse, getCitationFilePath, SpeechConfig } from "../../api";
+import vjoonk4Logo from "../../../../assets/Snap.svg";
+import { createBotAnswer } from "../../../shared/answer";
 import { SpeechOutputBrowser } from "./SpeechOutputBrowser";
 import { SpeechOutputAzure } from "./SpeechOutputAzure";
-import vjoonk4Logo from "../../../../assets/Snap.svg";
 
-interface Props {
-    answer: ChatAppResponse;
-    index: number;
-    speechConfig: SpeechConfig;
-    isSelected?: boolean;
-    isStreaming: boolean;
-    onCitationClicked: (filePath: string) => void;
-    onThoughtProcessClicked: () => void;
-    onSupportingContentClicked: () => void;
-    onFollowupQuestionClicked?: (question: string) => void;
-    showFollowupQuestions?: boolean;
-    showSpeechOutputBrowser?: boolean;
-    showSpeechOutputAzure?: boolean;
-}
-
-export const Answer = (props: Props) => {
-    const { t } = useTranslation();
-
-    return (
-        <ChatbotAnswer
-            answer={props.answer}
-            isSelected={props.isSelected}
-            isStreaming={props.isStreaming}
-            onCitationClicked={props.onCitationClicked}
-            onFollowupQuestionClicked={props.onFollowupQuestionClicked}
-            showFollowupQuestions={props.showFollowupQuestions}
-            showSpeechOutputBrowser={props.showSpeechOutputBrowser}
-            showSpeechOutputAzure={props.showSpeechOutputAzure}
-            assistantLogoSrc={vjoonk4Logo}
-            assistantLogoAlt={`${t("headerTitle")} logo`}
-            assistantName={t("headerTitle")}
-            copyLabel={t("tooltips.copy")}
-            copiedLabel={t("tooltips.copied")}
-            citationLabel={t("citationWithColon")}
-            followupQuestionsLabel={t("followupQuestions")}
-            buildCitationPath={reference => getCitationFilePath(reference)}
-            SpeechOutputBrowserComponent={SpeechOutputBrowser}
-            SpeechOutputAzureComponent={SpeechOutputAzure}
-        />
-    );
-};
+export const Answer = createBotAnswer(vjoonk4Logo, SpeechOutputBrowser, SpeechOutputAzure);

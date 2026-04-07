@@ -32,6 +32,15 @@ def wait_for_server_ready(url: str, timeout: float = 10.0, check_interval: float
     raise RuntimeError(conn_error)
 
 
+def fulfill_chat_stream_snapshot(route: Route, snapshot_path: str) -> None:
+    with open(snapshot_path, encoding="utf-8") as snapshot_file:
+        route.fulfill(
+            body=snapshot_file.read(),
+            status=200,
+            headers={"Transfer-encoding": "Chunked", "Content-Type": "application/x-ndjson"},
+        )
+
+
 @pytest.fixture(scope="session")
 def free_port() -> int:
     """Returns a free port for the test server to bind."""
@@ -303,6 +312,75 @@ def test_shared_answer_renderer_handles_markdown_and_literal_html(page: Page, li
     expect(page.get_by_role("cell", name="Keyboard input")).to_be_visible()
     expect(page.get_by_text("<kbd>Ctrl</kbd>")).to_be_visible()
     expect(page.get_by_text("1. manual.txt")).to_be_visible()
+
+
+def test_publishone_answer_keeps_wordmark_logo_wrapper(page: Page, live_server_url: str):
+    page.route(
+        "*/**/chat/stream",
+        lambda route: fulfill_chat_stream_snapshot(
+            route, "tests/snapshots/test_app/test_chat_stream_text/client0/result.jsonlines"
+        ),
+    )
+
+    page.goto(f"{live_server_url}publishone")
+
+    question_input = page.get_by_placeholder("Type a new question (e.g. does my plan cover annual eye exams?)")
+    question_input.click()
+    question_input.fill("Whats the dental plan?")
+    page.get_by_label("Submit question").click()
+
+    expect(page.get_by_text("The capital of France is Paris.")).to_be_visible()
+
+    publishone_answer_logo_classes = page.locator('img[src*="publishone-chat"]').evaluate_all(
+        "nodes => nodes.map(node => String(node.className))"
+    )
+    assert publishone_answer_logo_classes
+    assert any(
+        "assistantWordmark" in class_name and "wordmarkLogo" in class_name
+        for class_name in publishone_answer_logo_classes
+    )
+
+
+def test_rak_answer_citation_keeps_logged_in_user_scope(page: Page, live_server_url: str):
+    page.route(
+        "*/**/chat/stream",
+        lambda route: fulfill_chat_stream_snapshot(
+            route, "tests/snapshots/test_app/test_chat_stream_text/client0/result.jsonlines"
+        ),
+    )
+    page.add_init_script(
+        """
+        () => {
+            window.__openedUrls = [];
+            window.open = url => {
+                window.__openedUrls.push(String(url));
+                return null;
+            };
+        }
+        """
+    )
+
+    page.goto(f"{live_server_url}rak")
+
+    page.get_by_placeholder("Username").fill("12345")
+    page.get_by_placeholder("Password").fill("rak99#")
+    page.get_by_role("button", name="Login").click()
+
+    question_input = page.get_by_placeholder("Type a new question (e.g. does my plan cover annual eye exams?)")
+    expect(question_input).to_be_visible()
+    question_input.click()
+    question_input.fill("Whats the dental plan?")
+    page.get_by_label("Submit question").click()
+
+    citation_button = page.get_by_text("1. Benefit_Options-2.pdf")
+    expect(citation_button).to_be_visible()
+    citation_button.click()
+
+    page.wait_for_function("window.__openedUrls.length > 0")
+    opened_urls = page.evaluate("window.__openedUrls")
+    assert opened_urls[-1].endswith(
+        "/content/rak/Benefit_Options-2.pdf?chatbot_name=rak&chatbot_user=12345"
+    )
 
 
 def test_chat_stop_button_visibility(page: Page, live_server_url: str):

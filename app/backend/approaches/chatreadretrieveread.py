@@ -20,6 +20,7 @@ from approaches.approach import (
     ExtraInfo,
     ThoughtStep,
 )
+from approaches.chatbot_config_registry import get_chatbot_citation_target
 from approaches.promptmanager import PromptManager
 from prepdocslib.blobmanager import AdlsBlobManager, BlobManager
 from prepdocslib.embeddings import ImageEmbeddings
@@ -115,7 +116,7 @@ class ChatReadRetrieveReadApproach(Approach):
         if not isinstance(include_category, str):
             return "sourcepage"
         primary_category = include_category.split(",", 1)[0].strip().lower()
-        return "url" if primary_category in {"fhg", "moodle", "publishone"} else "sourcepage"
+        return get_chatbot_citation_target(primary_category)
 
     async def run_without_streaming(
         self,

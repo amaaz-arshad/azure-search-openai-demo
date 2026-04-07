@@ -86,6 +86,23 @@ async def test_redirect(client):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("path", "expected_location"),
+    [
+        ("/nerilio/.auth/me", "/.auth/me"),
+        (
+            "/nerilio/.auth/logout?post_logout_redirect_uri=/",
+            "/.auth/logout?post_logout_redirect_uri=/",
+        ),
+    ],
+)
+async def test_chatbot_auth_subpath_redirects_to_root_auth_endpoint(client, path, expected_location):
+    response = await client.get(path)
+    assert response.status_code == 302
+    assert response.headers["Location"] == expected_location
+
+
+@pytest.mark.asyncio
 async def test_favicon(client):
     response = await client.get("/favicon.ico")
     assert response.status_code == 200

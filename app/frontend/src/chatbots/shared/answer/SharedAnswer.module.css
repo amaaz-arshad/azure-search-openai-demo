@@ -283,12 +283,12 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.95em;
+    font-size: 0.8em;
     font-weight: 600;
     vertical-align: top;
     top: -0.05em;
-    min-width: 0.95em;
-    height: 0.95em;
+    min-width: 0.8em;
+    height: 0.8em;
     border-radius: 0.1875em;
     background: #d1dbfa;
     color: #123bb6;
