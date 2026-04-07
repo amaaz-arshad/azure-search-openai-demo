@@ -10,11 +10,11 @@ import { I18nextProvider } from "react-i18next";
 import "./index.css";
 
 import { chatbotDefinitions } from "./chatbots/registry";
+import { Component as SharedNoPage } from "./chatbots/shared/noPage/NoPage";
 import { ChatbotThemeRoot } from "./chatbots/shared/theme/ChatbotThemeRoot";
 import i18n from "./chatbots/nerilio/i18n/config";
 import ChatbotDirectory from "./pages/ChatbotDirectory";
 import PublicTestUsersPage from "./pages/PublicTestUsersPage";
-import RootLanding from "./pages/RootLanding";
 import UploadFilesPage from "./pages/UploadFilesPage";
 import { msalConfig, useLogin } from "./authConfig";
 
@@ -48,7 +48,7 @@ const router = createBrowserRouter([
         path: "/",
         element: (
             <I18nextProvider i18n={i18n}>
-                <RootLanding />
+                <SharedNoPage />
             </I18nextProvider>
         )
     },

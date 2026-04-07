@@ -1,3 +1,4 @@
+import { Helmet } from "react-helmet-async";
 import { Trans, useTranslation } from "react-i18next";
 
 import robotImage from "./nerilioRobot.webp";
@@ -30,6 +31,10 @@ export function Component(): JSX.Element {
 
     return (
         <div className={styles.page}>
+            <Helmet>
+                <title>{t("rootLanding.pageTitle", { lng: noPageLanguage, defaultValue: "Page not found | nerilio" })}</title>
+            </Helmet>
+
             <div aria-hidden="true" className={`${styles.blob} ${styles.blobOne}`} />
             <div aria-hidden="true" className={`${styles.blob} ${styles.blobTwo}`} />
 
