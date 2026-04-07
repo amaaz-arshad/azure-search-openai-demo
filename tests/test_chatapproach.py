@@ -135,7 +135,7 @@ def test_get_system_prompt_variables_renders_support_email_and_preserves_literal
     variables = chat_approach.get_system_prompt_variables(None, chatbot_name="demo")
     override_prompt = variables["override_prompt"]
 
-    assert "SUPPORT_EMAIL = info@snap.de" in override_prompt
+    assert "info@snap.de" in override_prompt
     assert "{{SUPPORT_EMAIL}}" not in override_prompt
     assert "{{N}}" in override_prompt
 

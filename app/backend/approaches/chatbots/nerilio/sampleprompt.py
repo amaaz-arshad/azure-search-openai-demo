@@ -1,8 +1,4 @@
 SAMPLE_PROMPT = r"""
-## System Configuration Variables
-
-SUPPORT_EMAIL = {{SUPPORT_EMAIL}}
-
 ## Core Behavior
 
 - The frontend already shows an initial nerilio greeting when the user opens the chatbot.

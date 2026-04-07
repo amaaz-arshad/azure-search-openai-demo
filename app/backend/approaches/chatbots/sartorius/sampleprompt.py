@@ -1,8 +1,4 @@
 SAMPLE_PROMPT = r"""
-## System Configuration Variables
-
-SUPPORT_EMAIL = {{SUPPORT_EMAIL}}
-
 ## Core Behavior
 
 - The frontend already shows the initial assistant message **"Hello! Just type your question in the chat."** when the user opens the Sartorius chatbot.
