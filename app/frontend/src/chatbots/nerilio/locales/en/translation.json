@@ -13,7 +13,7 @@
         "topbarAriaLabel": "Topbar",
         "homeAriaLabel": "Go to homepage",
         "title": "Please use your specific chat URL.",
-        "backToHome": "â†’ Or click here to return to the homepage."
+        "backToHome": "→ Or click here to return to the homepage."
     },
     "noPage": {
         "title": "This page does not exist",

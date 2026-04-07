@@ -225,7 +225,7 @@
     "searchSettings": "Search settings",
     "llmSettings": "LLM settings",
     "initialAssistantMessages": {
-        "user12345": "Hello Mr. Maier,\n\nWelcome back!\n\nYou still have 12 hours of mandatory continuing education remaining for the current year.\n\nBased on your areas of expertise, I have selected the following events for you, which are a good professional match and can help you fulfill your continuing education requirements:\n\n- Introduction to Insolvency Law\n- Greenwashing\n- Practical Communication Tips\n- Union Law â€“ Impetus or Disruptive Factor?",
+        "user12345": "Hello Mr. Maier,\n\nWelcome back!\n\nYou still have 12 hours of mandatory continuing education remaining for the current year.\n\nBased on your areas of expertise, I have selected the following events for you, which are a good professional match and can help you fulfill your continuing education requirements:\n\n- Introduction to Insolvency Law\n- Greenwashing\n- Practical Communication Tips\n- Union Law – Impetus or Disruptive Factor?",
         "user67890": "Hello Ms. Moser,\n\nHow about these events?\n\n- Civil Procedure\n- Company Law I\n- Employment Law Seminar\n- Supervisory Board Challenges\n- Spatial Planning Law in Focus\n- Changing Perspectives in Mediation\n- Statement Against Statement"
     }
 }
