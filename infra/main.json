@@ -4,8 +4,8 @@
   "metadata": {
     "_generator": {
       "name": "bicep",
-      "version": "0.40.2.10011",
-      "templateHash": "5540468255788245576"
+      "version": "0.42.1.51946",
+      "templateHash": "17362403114387190165"
     }
   },
   "parameters": {
@@ -540,6 +540,14 @@
       "type": "securestring",
       "defaultValue": ""
     },
+    "internalToolsPassword": {
+      "type": "securestring",
+      "defaultValue": ""
+    },
+    "chatbotDirectoryPassword": {
+      "type": "securestring",
+      "defaultValue": ""
+    },
     "publicTestSmtpHost": {
       "type": "string",
       "defaultValue": ""
@@ -1016,6 +1024,9 @@
     "allMsftAllowedOrigins": "[if(not(empty(parameters('clientAppId'))), union(variables('msftAllowedOrigins'), createArray(variables('loginEndpointFixed'))), variables('msftAllowedOrigins'))]",
     "allowedOrigins": "[reduce(filter(union(split(parameters('allowedOrigin'), ';'), variables('allMsftAllowedOrigins')), lambda('o', greater(length(trim(lambdaVariables('o'))), 0))), createArray(), lambda('cur', 'next', union(lambdaVariables('cur'), createArray(lambdaVariables('next')))))]",
     "containerAppCustomDomains": "[if(and(not(empty(parameters('containerAppCustomDomainName'))), not(empty(parameters('containerAppCustomDomainCertificateId')))), createArray(createObject('name', parameters('containerAppCustomDomainName'), 'bindingType', 'SniEnabled', 'certificateId', parameters('containerAppCustomDomainCertificateId'))), createArray())]",
+    "effectiveInternalToolsPassword": "[if(not(empty(parameters('internalToolsPassword'))), parameters('internalToolsPassword'), parameters('chatbotDirectoryPassword'))]",
+    "acaBackendSecrets": "[union(if(parameters('useAuthentication'), createObject('azureclientappsecret', parameters('clientAppSecret'), 'azureserverappsecret', parameters('serverAppSecret')), createObject()), if(not(empty(variables('effectiveInternalToolsPassword'))), createObject('internaltoolspassword', variables('effectiveInternalToolsPassword')), createObject()), if(not(empty(parameters('publicTestSmtpUsername'))), createObject('publictestsmtpusername', parameters('publicTestSmtpUsername')), createObject()), if(not(empty(parameters('publicTestSmtpPassword'))), createObject('publictestsmtppassword', parameters('publicTestSmtpPassword')), createObject()))]",
+    "acaBackendEnvSecrets": "[concat(if(parameters('useAuthentication'), createArray(createObject('name', 'AZURE_CLIENT_APP_SECRET', 'secretRef', 'azureclientappsecret'), createObject('name', 'AZURE_SERVER_APP_SECRET', 'secretRef', 'azureserverappsecret')), createArray()), if(not(empty(variables('effectiveInternalToolsPassword'))), createArray(createObject('name', 'INTERNAL_TOOLS_PASSWORD', 'secretRef', 'internaltoolspassword')), createArray()), if(not(empty(parameters('publicTestSmtpUsername'))), createArray(createObject('name', 'PUBLIC_TEST_SMTP_USERNAME', 'secretRef', 'publictestsmtpusername')), createArray()), if(not(empty(parameters('publicTestSmtpPassword'))), createArray(createObject('name', 'PUBLIC_TEST_SMTP_PASSWORD', 'secretRef', 'publictestsmtppassword')), createArray()))]",
     "defaultOpenAiDeployments": [
       {
         "name": "[variables('chatGpt').deploymentName]",
@@ -1084,8 +1095,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "14065281616238216595"
+              "version": "0.42.1.51946",
+              "templateHash": "3360459644098187701"
             },
             "description": "Creates an Application Insights instance and a Log Analytics workspace."
           },
@@ -3880,8 +3891,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "13646641890422359170"
+              "version": "0.42.1.51946",
+              "templateHash": "9778996025277759677"
             },
             "description": "Creates a dashboard for an Application Insights instance."
           },
@@ -4321,8 +4332,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "173670268442107227"
+              "version": "0.42.1.51946",
+              "templateHash": "12598838718090983292"
             },
             "description": "Creates an Azure App Service plan."
           },
@@ -4445,7 +4456,7 @@
             "value": "[not(equals(parameters('appServiceSkuName'), 'F1'))]"
           },
           "appSettings": {
-            "value": "[union(createObject('AZURE_STORAGE_ACCOUNT', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('storageResourceGroupName'))), parameters('storageResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'storage'), '2025-04-01').outputs.name.value, 'AZURE_STORAGE_CONTAINER', parameters('storageContainerName'), 'AZURE_STORAGE_RESOURCE_GROUP', if(not(empty(parameters('storageResourceGroupName'))), parameters('storageResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName')))), 'AZURE_CLOUD_INGESTION_STORAGE_ACCOUNT', if(parameters('useCloudIngestionAcls'), if(parameters('useExistingAdlsStorage'), parameters('adlsStorageAccountName'), if(parameters('useCloudIngestionAcls'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('storageResourceGroupName'))), parameters('storageResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'adls-storage'), '2025-04-01').outputs.name.value, '')), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('storageResourceGroupName'))), parameters('storageResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'storage'), '2025-04-01').outputs.name.value), 'USE_CLOUD_INGESTION_ACLS', string(parameters('useCloudIngestionAcls')), 'AZURE_SUBSCRIPTION_ID', subscription().subscriptionId, 'AZURE_SEARCH_INDEX', parameters('searchIndexName'), 'AZURE_SEARCH_KNOWLEDGEBASE_NAME', parameters('knowledgeBaseName'), 'AZURE_SEARCH_SERVICE', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('searchServiceResourceGroupName'))), parameters('searchServiceResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'search-service'), '2025-04-01').outputs.name.value, 'AZURE_SEARCH_SEMANTIC_RANKER', variables('actualSearchServiceSemanticRankerLevel'), 'AZURE_SEARCH_QUERY_REWRITING', parameters('searchServiceQueryRewriting'), 'AZURE_VISION_ENDPOINT', if(parameters('useMultimodal'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('visionResourceGroupName'))), parameters('visionResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'vision'), '2025-04-01').outputs.endpoint.value, ''), 'AZURE_SEARCH_QUERY_LANGUAGE', parameters('searchQueryLanguage'), 'AZURE_SEARCH_QUERY_SPELLER', parameters('searchQuerySpeller'), 'AZURE_SEARCH_FIELD_NAME_EMBEDDING', parameters('searchFieldNameEmbedding'), 'APPLICATIONINSIGHTS_CONNECTION_STRING', if(parameters('useApplicationInsights'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName')))), 'Microsoft.Resources/deployments', 'monitoring'), '2025-04-01').outputs.applicationInsightsConnectionString.value, ''), 'AZURE_SPEECH_SERVICE_ID', if(parameters('useSpeechOutputAzure'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('speechServiceResourceGroupName'))), parameters('speechServiceResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'speech-service'), '2025-04-01').outputs.resourceId.value, ''), 'AZURE_SPEECH_SERVICE_LOCATION', if(parameters('useSpeechOutputAzure'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('speechServiceResourceGroupName'))), parameters('speechServiceResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'speech-service'), '2025-04-01').outputs.location.value, ''), 'AZURE_SPEECH_SERVICE_VOICE', if(parameters('useSpeechOutputAzure'), parameters('speechServiceVoice'), ''), 'ENABLE_LANGUAGE_PICKER', parameters('enableLanguagePicker'), 'USE_SPEECH_INPUT_BROWSER', parameters('useSpeechInputBrowser'), 'USE_SPEECH_OUTPUT_BROWSER', parameters('useSpeechOutputBrowser'), 'USE_SPEECH_OUTPUT_AZURE', parameters('useSpeechOutputAzure'), 'USE_AGENTIC_KNOWLEDGEBASE', parameters('useAgenticKnowledgeBase'), 'USE_CHAT_HISTORY_BROWSER', parameters('useChatHistoryBrowser'), 'USE_CHAT_HISTORY_COSMOS', parameters('useChatHistoryCosmos'), 'AZURE_COSMOSDB_ACCOUNT', if(and(parameters('useAuthentication'), parameters('useChatHistoryCosmos')), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('cosmodDbResourceGroupName'))), parameters('cosmodDbResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'cosmosdb'), '2025-04-01').outputs.name.value, ''), 'AZURE_CHAT_HISTORY_DATABASE', parameters('chatHistoryDatabaseName'), 'AZURE_CHAT_HISTORY_CONTAINER', parameters('chatHistoryContainerName'), 'AZURE_CHAT_HISTORY_VERSION', parameters('chatHistoryVersion'), 'OPENAI_HOST', parameters('openAiHost'), 'AZURE_OPENAI_EMB_MODEL_NAME', variables('embedding').modelName, 'AZURE_OPENAI_EMB_DIMENSIONS', variables('embedding').dimensions, 'AZURE_OPENAI_CHATGPT_MODEL', variables('chatGpt').modelName, 'AZURE_OPENAI_REASONING_EFFORT', parameters('defaultReasoningEffort'), 'AGENTIC_KNOWLEDGEBASE_REASONING_EFFORT', parameters('defaultRetrievalReasoningEffort'), 'AZURE_OPENAI_SERVICE', if(and(parameters('isAzureOpenAiHost'), parameters('deployAzureOpenAi')), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('openAiResourceGroupName'))), parameters('openAiResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'openai'), '2025-04-01').outputs.name.value, ''), 'AZURE_OPENAI_CHATGPT_DEPLOYMENT', variables('chatGpt').deploymentName, 'AZURE_OPENAI_EMB_DEPLOYMENT', variables('embedding').deploymentName, 'AZURE_OPENAI_knowledgeBase_MODEL', variables('knowledgeBase').modelName, 'AZURE_OPENAI_knowledgeBase_DEPLOYMENT', variables('knowledgeBase').deploymentName, 'AZURE_OPENAI_API_KEY_OVERRIDE', parameters('azureOpenAiApiKey'), 'AZURE_OPENAI_CUSTOM_URL', parameters('azureOpenAiCustomUrl'), 'OPENAI_API_KEY', parameters('openAiApiKey'), 'OPENAI_ORGANIZATION', parameters('openAiApiOrganization'), 'AZURE_USE_AUTHENTICATION', parameters('useAuthentication'), 'AZURE_ENFORCE_ACCESS_CONTROL', parameters('enforceAccessControl'), 'AZURE_ENABLE_GLOBAL_DOCUMENT_ACCESS', parameters('enableGlobalDocuments'), 'AZURE_ENABLE_UNAUTHENTICATED_ACCESS', parameters('enableUnauthenticatedAccess'), 'AZURE_SERVER_APP_ID', parameters('serverAppId'), 'AZURE_CLIENT_APP_ID', parameters('clientAppId'), 'AZURE_TENANT_ID', parameters('tenantId'), 'AZURE_AUTH_TENANT_ID', variables('tenantIdForAuth'), 'AZURE_AUTHENTICATION_ISSUER_URI', variables('authenticationIssuerUri'), 'ALLOWED_ORIGIN', join(variables('allowedOrigins'), ';'), 'USE_VECTORS', parameters('useVectors'), 'USE_MULTIMODAL', parameters('useMultimodal'), 'USE_USER_UPLOAD', parameters('useUserUpload'), 'AZURE_USERSTORAGE_ACCOUNT', if(parameters('useUserUpload'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('storageResourceGroupName'))), parameters('storageResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'user-storage'), '2025-04-01').outputs.name.value, ''), 'AZURE_USERSTORAGE_CONTAINER', if(parameters('useUserUpload'), parameters('userStorageContainerName'), ''), 'AZURE_IMAGESTORAGE_CONTAINER', if(parameters('useMultimodal'), parameters('imageStorageContainerName'), ''), 'AZURE_DOCUMENTINTELLIGENCE_SERVICE', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('documentIntelligenceResourceGroupName'))), parameters('documentIntelligenceResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'documentintelligence'), '2025-04-01').outputs.name.value, 'USE_LOCAL_PDF_PARSER', parameters('useLocalPdfParser'), 'USE_LOCAL_HTML_PARSER', parameters('useLocalHtmlParser'), 'USE_MEDIA_DESCRIBER_AZURE_CU', parameters('useMediaDescriberAzureCU'), 'AZURE_CONTENTUNDERSTANDING_ENDPOINT', if(parameters('useMediaDescriberAzureCU'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('contentUnderstandingResourceGroupName'))), parameters('contentUnderstandingResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'content-understanding'), '2025-04-01').outputs.endpoint.value, ''), 'RUNNING_IN_PRODUCTION', 'true', 'RAG_SEARCH_TEXT_EMBEDDINGS', parameters('ragSearchTextEmbeddings'), 'RAG_SEARCH_IMAGE_EMBEDDINGS', parameters('ragSearchImageEmbeddings'), 'RAG_SEND_TEXT_SOURCES', parameters('ragSendTextSources'), 'RAG_SEND_IMAGE_SOURCES', parameters('ragSendImageSources'), 'USE_WEB_SOURCE', parameters('useWebSource'), 'USE_SHAREPOINT_SOURCE', parameters('useSharePointSource'), 'PUBLIC_TEST_SMTP_HOST', parameters('publicTestSmtpHost'), 'PUBLIC_TEST_SMTP_PORT', parameters('publicTestSmtpPort'), 'PUBLIC_TEST_EMAIL_FROM', parameters('publicTestEmailFrom'), 'PUBLIC_TEST_EMAIL_FROM_NAME', parameters('publicTestEmailFromName')), createObject('AZURE_SERVER_APP_SECRET', parameters('serverAppSecret'), 'AZURE_CLIENT_APP_SECRET', parameters('clientAppSecret'), 'PUBLIC_TEST_SMTP_USERNAME', parameters('publicTestSmtpUsername'), 'PUBLIC_TEST_SMTP_PASSWORD', parameters('publicTestSmtpPassword')))]"
+            "value": "[union(createObject('AZURE_STORAGE_ACCOUNT', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('storageResourceGroupName'))), parameters('storageResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'storage'), '2025-04-01').outputs.name.value, 'AZURE_STORAGE_CONTAINER', parameters('storageContainerName'), 'AZURE_STORAGE_RESOURCE_GROUP', if(not(empty(parameters('storageResourceGroupName'))), parameters('storageResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName')))), 'AZURE_CLOUD_INGESTION_STORAGE_ACCOUNT', if(parameters('useCloudIngestionAcls'), if(parameters('useExistingAdlsStorage'), parameters('adlsStorageAccountName'), if(parameters('useCloudIngestionAcls'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('storageResourceGroupName'))), parameters('storageResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'adls-storage'), '2025-04-01').outputs.name.value, '')), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('storageResourceGroupName'))), parameters('storageResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'storage'), '2025-04-01').outputs.name.value), 'USE_CLOUD_INGESTION_ACLS', string(parameters('useCloudIngestionAcls')), 'AZURE_SUBSCRIPTION_ID', subscription().subscriptionId, 'AZURE_SEARCH_INDEX', parameters('searchIndexName'), 'AZURE_SEARCH_KNOWLEDGEBASE_NAME', parameters('knowledgeBaseName'), 'AZURE_SEARCH_SERVICE', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('searchServiceResourceGroupName'))), parameters('searchServiceResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'search-service'), '2025-04-01').outputs.name.value, 'AZURE_SEARCH_SEMANTIC_RANKER', variables('actualSearchServiceSemanticRankerLevel'), 'AZURE_SEARCH_QUERY_REWRITING', parameters('searchServiceQueryRewriting'), 'AZURE_VISION_ENDPOINT', if(parameters('useMultimodal'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('visionResourceGroupName'))), parameters('visionResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'vision'), '2025-04-01').outputs.endpoint.value, ''), 'AZURE_SEARCH_QUERY_LANGUAGE', parameters('searchQueryLanguage'), 'AZURE_SEARCH_QUERY_SPELLER', parameters('searchQuerySpeller'), 'AZURE_SEARCH_FIELD_NAME_EMBEDDING', parameters('searchFieldNameEmbedding'), 'APPLICATIONINSIGHTS_CONNECTION_STRING', if(parameters('useApplicationInsights'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName')))), 'Microsoft.Resources/deployments', 'monitoring'), '2025-04-01').outputs.applicationInsightsConnectionString.value, ''), 'AZURE_SPEECH_SERVICE_ID', if(parameters('useSpeechOutputAzure'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('speechServiceResourceGroupName'))), parameters('speechServiceResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'speech-service'), '2025-04-01').outputs.resourceId.value, ''), 'AZURE_SPEECH_SERVICE_LOCATION', if(parameters('useSpeechOutputAzure'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('speechServiceResourceGroupName'))), parameters('speechServiceResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'speech-service'), '2025-04-01').outputs.location.value, ''), 'AZURE_SPEECH_SERVICE_VOICE', if(parameters('useSpeechOutputAzure'), parameters('speechServiceVoice'), ''), 'ENABLE_LANGUAGE_PICKER', parameters('enableLanguagePicker'), 'USE_SPEECH_INPUT_BROWSER', parameters('useSpeechInputBrowser'), 'USE_SPEECH_OUTPUT_BROWSER', parameters('useSpeechOutputBrowser'), 'USE_SPEECH_OUTPUT_AZURE', parameters('useSpeechOutputAzure'), 'USE_AGENTIC_KNOWLEDGEBASE', parameters('useAgenticKnowledgeBase'), 'USE_CHAT_HISTORY_BROWSER', parameters('useChatHistoryBrowser'), 'USE_CHAT_HISTORY_COSMOS', parameters('useChatHistoryCosmos'), 'AZURE_COSMOSDB_ACCOUNT', if(and(parameters('useAuthentication'), parameters('useChatHistoryCosmos')), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('cosmodDbResourceGroupName'))), parameters('cosmodDbResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'cosmosdb'), '2025-04-01').outputs.name.value, ''), 'AZURE_CHAT_HISTORY_DATABASE', parameters('chatHistoryDatabaseName'), 'AZURE_CHAT_HISTORY_CONTAINER', parameters('chatHistoryContainerName'), 'AZURE_CHAT_HISTORY_VERSION', parameters('chatHistoryVersion'), 'OPENAI_HOST', parameters('openAiHost'), 'AZURE_OPENAI_EMB_MODEL_NAME', variables('embedding').modelName, 'AZURE_OPENAI_EMB_DIMENSIONS', variables('embedding').dimensions, 'AZURE_OPENAI_CHATGPT_MODEL', variables('chatGpt').modelName, 'AZURE_OPENAI_REASONING_EFFORT', parameters('defaultReasoningEffort'), 'AGENTIC_KNOWLEDGEBASE_REASONING_EFFORT', parameters('defaultRetrievalReasoningEffort'), 'AZURE_OPENAI_SERVICE', if(and(parameters('isAzureOpenAiHost'), parameters('deployAzureOpenAi')), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('openAiResourceGroupName'))), parameters('openAiResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'openai'), '2025-04-01').outputs.name.value, ''), 'AZURE_OPENAI_CHATGPT_DEPLOYMENT', variables('chatGpt').deploymentName, 'AZURE_OPENAI_EMB_DEPLOYMENT', variables('embedding').deploymentName, 'AZURE_OPENAI_knowledgeBase_MODEL', variables('knowledgeBase').modelName, 'AZURE_OPENAI_knowledgeBase_DEPLOYMENT', variables('knowledgeBase').deploymentName, 'AZURE_OPENAI_API_KEY_OVERRIDE', parameters('azureOpenAiApiKey'), 'AZURE_OPENAI_CUSTOM_URL', parameters('azureOpenAiCustomUrl'), 'OPENAI_API_KEY', parameters('openAiApiKey'), 'OPENAI_ORGANIZATION', parameters('openAiApiOrganization'), 'AZURE_USE_AUTHENTICATION', parameters('useAuthentication'), 'AZURE_ENFORCE_ACCESS_CONTROL', parameters('enforceAccessControl'), 'AZURE_ENABLE_GLOBAL_DOCUMENT_ACCESS', parameters('enableGlobalDocuments'), 'AZURE_ENABLE_UNAUTHENTICATED_ACCESS', parameters('enableUnauthenticatedAccess'), 'AZURE_SERVER_APP_ID', parameters('serverAppId'), 'AZURE_CLIENT_APP_ID', parameters('clientAppId'), 'AZURE_TENANT_ID', parameters('tenantId'), 'AZURE_AUTH_TENANT_ID', variables('tenantIdForAuth'), 'AZURE_AUTHENTICATION_ISSUER_URI', variables('authenticationIssuerUri'), 'ALLOWED_ORIGIN', join(variables('allowedOrigins'), ';'), 'USE_VECTORS', parameters('useVectors'), 'USE_MULTIMODAL', parameters('useMultimodal'), 'USE_USER_UPLOAD', parameters('useUserUpload'), 'AZURE_USERSTORAGE_ACCOUNT', if(parameters('useUserUpload'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('storageResourceGroupName'))), parameters('storageResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'user-storage'), '2025-04-01').outputs.name.value, ''), 'AZURE_USERSTORAGE_CONTAINER', if(parameters('useUserUpload'), parameters('userStorageContainerName'), ''), 'AZURE_IMAGESTORAGE_CONTAINER', if(parameters('useMultimodal'), parameters('imageStorageContainerName'), ''), 'AZURE_DOCUMENTINTELLIGENCE_SERVICE', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('documentIntelligenceResourceGroupName'))), parameters('documentIntelligenceResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'documentintelligence'), '2025-04-01').outputs.name.value, 'USE_LOCAL_PDF_PARSER', parameters('useLocalPdfParser'), 'USE_LOCAL_HTML_PARSER', parameters('useLocalHtmlParser'), 'USE_MEDIA_DESCRIBER_AZURE_CU', parameters('useMediaDescriberAzureCU'), 'AZURE_CONTENTUNDERSTANDING_ENDPOINT', if(parameters('useMediaDescriberAzureCU'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('contentUnderstandingResourceGroupName'))), parameters('contentUnderstandingResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'content-understanding'), '2025-04-01').outputs.endpoint.value, ''), 'RUNNING_IN_PRODUCTION', 'true', 'RAG_SEARCH_TEXT_EMBEDDINGS', parameters('ragSearchTextEmbeddings'), 'RAG_SEARCH_IMAGE_EMBEDDINGS', parameters('ragSearchImageEmbeddings'), 'RAG_SEND_TEXT_SOURCES', parameters('ragSendTextSources'), 'RAG_SEND_IMAGE_SOURCES', parameters('ragSendImageSources'), 'USE_WEB_SOURCE', parameters('useWebSource'), 'USE_SHAREPOINT_SOURCE', parameters('useSharePointSource'), 'PUBLIC_TEST_SMTP_HOST', parameters('publicTestSmtpHost'), 'PUBLIC_TEST_SMTP_PORT', parameters('publicTestSmtpPort'), 'PUBLIC_TEST_EMAIL_FROM', parameters('publicTestEmailFrom'), 'PUBLIC_TEST_EMAIL_FROM_NAME', parameters('publicTestEmailFromName')), createObject('AZURE_SERVER_APP_SECRET', parameters('serverAppSecret'), 'INTERNAL_TOOLS_PASSWORD', variables('effectiveInternalToolsPassword'), 'AZURE_CLIENT_APP_SECRET', parameters('clientAppSecret'), 'PUBLIC_TEST_SMTP_USERNAME', parameters('publicTestSmtpUsername'), 'PUBLIC_TEST_SMTP_PASSWORD', parameters('publicTestSmtpPassword')))]"
           }
         },
         "template": {
@@ -4454,8 +4465,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "16314402885779308720"
+              "version": "0.42.1.51946",
+              "templateHash": "6097519158359323251"
             },
             "description": "Creates an Azure App Service in an existing Azure App Service plan."
           },
@@ -4829,8 +4840,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "13838863163974584886"
+              "version": "0.42.1.51946",
+              "templateHash": "102617508000074085"
             }
           },
           "parameters": {
@@ -4907,8 +4918,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "3809509979999932772"
+              "version": "0.42.1.51946",
+              "templateHash": "16498476842188120469"
             }
           },
           "parameters": {
@@ -5012,8 +5023,8 @@
                   "metadata": {
                     "_generator": {
                       "name": "bicep",
-                      "version": "0.40.2.10011",
-                      "templateHash": "13028413807195615557"
+                      "version": "0.42.1.51946",
+                      "templateHash": "1454444448391302384"
                     }
                   },
                   "parameters": {
@@ -5138,8 +5149,8 @@
                   "metadata": {
                     "_generator": {
                       "name": "bicep",
-                      "version": "0.40.2.10011",
-                      "templateHash": "2865669939056383778"
+                      "version": "0.42.1.51946",
+                      "templateHash": "9298757192199385985"
                     }
                   },
                   "parameters": {
@@ -5296,7 +5307,9 @@
           "containerMemory": {
             "value": "2Gi"
           },
-          "containerMinReplicas": "[if(parameters('usePrivateEndpoint'), createObject('value', 1), createObject('value', 0))]",
+          "containerMinReplicas": {
+            "value": 1
+          },
           "allowedOrigins": {
             "value": "[variables('allowedOrigins')]"
           },
@@ -5306,9 +5319,11 @@
           "env": {
             "value": "[union(createObject('AZURE_STORAGE_ACCOUNT', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('storageResourceGroupName'))), parameters('storageResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'storage'), '2025-04-01').outputs.name.value, 'AZURE_STORAGE_CONTAINER', parameters('storageContainerName'), 'AZURE_STORAGE_RESOURCE_GROUP', if(not(empty(parameters('storageResourceGroupName'))), parameters('storageResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName')))), 'AZURE_CLOUD_INGESTION_STORAGE_ACCOUNT', if(parameters('useCloudIngestionAcls'), if(parameters('useExistingAdlsStorage'), parameters('adlsStorageAccountName'), if(parameters('useCloudIngestionAcls'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('storageResourceGroupName'))), parameters('storageResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'adls-storage'), '2025-04-01').outputs.name.value, '')), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('storageResourceGroupName'))), parameters('storageResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'storage'), '2025-04-01').outputs.name.value), 'USE_CLOUD_INGESTION_ACLS', string(parameters('useCloudIngestionAcls')), 'AZURE_SUBSCRIPTION_ID', subscription().subscriptionId, 'AZURE_SEARCH_INDEX', parameters('searchIndexName'), 'AZURE_SEARCH_KNOWLEDGEBASE_NAME', parameters('knowledgeBaseName'), 'AZURE_SEARCH_SERVICE', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('searchServiceResourceGroupName'))), parameters('searchServiceResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'search-service'), '2025-04-01').outputs.name.value, 'AZURE_SEARCH_SEMANTIC_RANKER', variables('actualSearchServiceSemanticRankerLevel'), 'AZURE_SEARCH_QUERY_REWRITING', parameters('searchServiceQueryRewriting'), 'AZURE_VISION_ENDPOINT', if(parameters('useMultimodal'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('visionResourceGroupName'))), parameters('visionResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'vision'), '2025-04-01').outputs.endpoint.value, ''), 'AZURE_SEARCH_QUERY_LANGUAGE', parameters('searchQueryLanguage'), 'AZURE_SEARCH_QUERY_SPELLER', parameters('searchQuerySpeller'), 'AZURE_SEARCH_FIELD_NAME_EMBEDDING', parameters('searchFieldNameEmbedding'), 'APPLICATIONINSIGHTS_CONNECTION_STRING', if(parameters('useApplicationInsights'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName')))), 'Microsoft.Resources/deployments', 'monitoring'), '2025-04-01').outputs.applicationInsightsConnectionString.value, ''), 'AZURE_SPEECH_SERVICE_ID', if(parameters('useSpeechOutputAzure'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('speechServiceResourceGroupName'))), parameters('speechServiceResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'speech-service'), '2025-04-01').outputs.resourceId.value, ''), 'AZURE_SPEECH_SERVICE_LOCATION', if(parameters('useSpeechOutputAzure'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('speechServiceResourceGroupName'))), parameters('speechServiceResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'speech-service'), '2025-04-01').outputs.location.value, ''), 'AZURE_SPEECH_SERVICE_VOICE', if(parameters('useSpeechOutputAzure'), parameters('speechServiceVoice'), ''), 'ENABLE_LANGUAGE_PICKER', parameters('enableLanguagePicker'), 'USE_SPEECH_INPUT_BROWSER', parameters('useSpeechInputBrowser'), 'USE_SPEECH_OUTPUT_BROWSER', parameters('useSpeechOutputBrowser'), 'USE_SPEECH_OUTPUT_AZURE', parameters('useSpeechOutputAzure'), 'USE_AGENTIC_KNOWLEDGEBASE', parameters('useAgenticKnowledgeBase'), 'USE_CHAT_HISTORY_BROWSER', parameters('useChatHistoryBrowser'), 'USE_CHAT_HISTORY_COSMOS', parameters('useChatHistoryCosmos'), 'AZURE_COSMOSDB_ACCOUNT', if(and(parameters('useAuthentication'), parameters('useChatHistoryCosmos')), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('cosmodDbResourceGroupName'))), parameters('cosmodDbResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'cosmosdb'), '2025-04-01').outputs.name.value, ''), 'AZURE_CHAT_HISTORY_DATABASE', parameters('chatHistoryDatabaseName'), 'AZURE_CHAT_HISTORY_CONTAINER', parameters('chatHistoryContainerName'), 'AZURE_CHAT_HISTORY_VERSION', parameters('chatHistoryVersion'), 'OPENAI_HOST', parameters('openAiHost'), 'AZURE_OPENAI_EMB_MODEL_NAME', variables('embedding').modelName, 'AZURE_OPENAI_EMB_DIMENSIONS', variables('embedding').dimensions, 'AZURE_OPENAI_CHATGPT_MODEL', variables('chatGpt').modelName, 'AZURE_OPENAI_REASONING_EFFORT', parameters('defaultReasoningEffort'), 'AGENTIC_KNOWLEDGEBASE_REASONING_EFFORT', parameters('defaultRetrievalReasoningEffort'), 'AZURE_OPENAI_SERVICE', if(and(parameters('isAzureOpenAiHost'), parameters('deployAzureOpenAi')), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('openAiResourceGroupName'))), parameters('openAiResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'openai'), '2025-04-01').outputs.name.value, ''), 'AZURE_OPENAI_CHATGPT_DEPLOYMENT', variables('chatGpt').deploymentName, 'AZURE_OPENAI_EMB_DEPLOYMENT', variables('embedding').deploymentName, 'AZURE_OPENAI_knowledgeBase_MODEL', variables('knowledgeBase').modelName, 'AZURE_OPENAI_knowledgeBase_DEPLOYMENT', variables('knowledgeBase').deploymentName, 'AZURE_OPENAI_API_KEY_OVERRIDE', parameters('azureOpenAiApiKey'), 'AZURE_OPENAI_CUSTOM_URL', parameters('azureOpenAiCustomUrl'), 'OPENAI_API_KEY', parameters('openAiApiKey'), 'OPENAI_ORGANIZATION', parameters('openAiApiOrganization'), 'AZURE_USE_AUTHENTICATION', parameters('useAuthentication'), 'AZURE_ENFORCE_ACCESS_CONTROL', parameters('enforceAccessControl'), 'AZURE_ENABLE_GLOBAL_DOCUMENT_ACCESS', parameters('enableGlobalDocuments'), 'AZURE_ENABLE_UNAUTHENTICATED_ACCESS', parameters('enableUnauthenticatedAccess'), 'AZURE_SERVER_APP_ID', parameters('serverAppId'), 'AZURE_CLIENT_APP_ID', parameters('clientAppId'), 'AZURE_TENANT_ID', parameters('tenantId'), 'AZURE_AUTH_TENANT_ID', variables('tenantIdForAuth'), 'AZURE_AUTHENTICATION_ISSUER_URI', variables('authenticationIssuerUri'), 'ALLOWED_ORIGIN', join(variables('allowedOrigins'), ';'), 'USE_VECTORS', parameters('useVectors'), 'USE_MULTIMODAL', parameters('useMultimodal'), 'USE_USER_UPLOAD', parameters('useUserUpload'), 'AZURE_USERSTORAGE_ACCOUNT', if(parameters('useUserUpload'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('storageResourceGroupName'))), parameters('storageResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'user-storage'), '2025-04-01').outputs.name.value, ''), 'AZURE_USERSTORAGE_CONTAINER', if(parameters('useUserUpload'), parameters('userStorageContainerName'), ''), 'AZURE_IMAGESTORAGE_CONTAINER', if(parameters('useMultimodal'), parameters('imageStorageContainerName'), ''), 'AZURE_DOCUMENTINTELLIGENCE_SERVICE', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('documentIntelligenceResourceGroupName'))), parameters('documentIntelligenceResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'documentintelligence'), '2025-04-01').outputs.name.value, 'USE_LOCAL_PDF_PARSER', parameters('useLocalPdfParser'), 'USE_LOCAL_HTML_PARSER', parameters('useLocalHtmlParser'), 'USE_MEDIA_DESCRIBER_AZURE_CU', parameters('useMediaDescriberAzureCU'), 'AZURE_CONTENTUNDERSTANDING_ENDPOINT', if(parameters('useMediaDescriberAzureCU'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('contentUnderstandingResourceGroupName'))), parameters('contentUnderstandingResourceGroupName'), if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName'))))), 'Microsoft.Resources/deployments', 'content-understanding'), '2025-04-01').outputs.endpoint.value, ''), 'RUNNING_IN_PRODUCTION', 'true', 'RAG_SEARCH_TEXT_EMBEDDINGS', parameters('ragSearchTextEmbeddings'), 'RAG_SEARCH_IMAGE_EMBEDDINGS', parameters('ragSearchImageEmbeddings'), 'RAG_SEND_TEXT_SOURCES', parameters('ragSendTextSources'), 'RAG_SEND_IMAGE_SOURCES', parameters('ragSendImageSources'), 'USE_WEB_SOURCE', parameters('useWebSource'), 'USE_SHAREPOINT_SOURCE', parameters('useSharePointSource'), 'PUBLIC_TEST_SMTP_HOST', parameters('publicTestSmtpHost'), 'PUBLIC_TEST_SMTP_PORT', parameters('publicTestSmtpPort'), 'PUBLIC_TEST_EMAIL_FROM', parameters('publicTestEmailFrom'), 'PUBLIC_TEST_EMAIL_FROM_NAME', parameters('publicTestEmailFromName')), createObject('AZURE_CLIENT_ID', if(equals(parameters('deploymentTarget'), 'containerapps'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, if(not(empty(parameters('resourceGroupName'))), parameters('resourceGroupName'), format('{0}{1}', variables('abbrs').resourcesResourceGroups, parameters('environmentName')))), 'Microsoft.Resources/deployments', 'aca-identity'), '2025-04-01').outputs.clientId.value, '')))]"
           },
-          "secrets": "[if(parameters('useAuthentication'), createObject('value', createObject('azureclientappsecret', parameters('clientAppSecret'), 'azureserverappsecret', parameters('serverAppSecret'), 'publictestsmtpusername', parameters('publicTestSmtpUsername'), 'publictestsmtppassword', parameters('publicTestSmtpPassword'))), createObject('value', createObject('publictestsmtpusername', parameters('publicTestSmtpUsername'), 'publictestsmtppassword', parameters('publicTestSmtpPassword'))))]",
+          "secrets": {
+            "value": "[variables('acaBackendSecrets')]"
+          },
           "envSecrets": {
-            "value": "[concat(if(parameters('useAuthentication'), createArray(createObject('name', 'AZURE_CLIENT_APP_SECRET', 'secretRef', 'azureclientappsecret'), createObject('name', 'AZURE_SERVER_APP_SECRET', 'secretRef', 'azureserverappsecret')), createArray()), createArray(createObject('name', 'PUBLIC_TEST_SMTP_USERNAME', 'secretRef', 'publictestsmtpusername'), createObject('name', 'PUBLIC_TEST_SMTP_PASSWORD', 'secretRef', 'publictestsmtppassword')))]"
+            "value": "[variables('acaBackendEnvSecrets')]"
           }
         },
         "template": {
@@ -5317,8 +5332,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "5786795025910215008"
+              "version": "0.42.1.51946",
+              "templateHash": "15320645967582316848"
             },
             "description": "Creates or updates an existing Azure Container App."
           },
@@ -5620,8 +5635,8 @@
                   "metadata": {
                     "_generator": {
                       "name": "bicep",
-                      "version": "0.40.2.10011",
-                      "templateHash": "11532166369333905846"
+                      "version": "0.42.1.51946",
+                      "templateHash": "10158814198092853914"
                     },
                     "description": "Creates a container app in an Azure Container App environment."
                   },
@@ -5908,8 +5923,8 @@
                           "metadata": {
                             "_generator": {
                               "name": "bicep",
-                              "version": "0.40.2.10011",
-                              "templateHash": "16424956587608711534"
+                              "version": "0.42.1.51946",
+                              "templateHash": "7052512085473692807"
                             },
                             "description": "Assigns ACR Pull permissions to access an Azure Container Registry."
                           },
@@ -6067,8 +6082,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "15792805718630445717"
+              "version": "0.42.1.51946",
+              "templateHash": "11490171606099426364"
             },
             "description": "Creates an Azure Container Apps Auth Config using Microsoft Entra as Identity Provider."
           },
@@ -6323,8 +6338,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "11508361266166572637"
+              "version": "0.42.1.51946",
+              "templateHash": "11926130321285434542"
             }
           },
           "parameters": {
@@ -6652,8 +6667,8 @@
                   "metadata": {
                     "_generator": {
                       "name": "bicep",
-                      "version": "0.40.2.10011",
-                      "templateHash": "14086045203764155910"
+                      "version": "0.42.1.51946",
+                      "templateHash": "9403299884103120938"
                     },
                     "description": "Creates an Azure storage account."
                   },
@@ -6857,8 +6872,8 @@
                   "metadata": {
                     "_generator": {
                       "name": "bicep",
-                      "version": "0.40.2.10011",
-                      "templateHash": "14086045203764155910"
+                      "version": "0.42.1.51946",
+                      "templateHash": "9403299884103120938"
                     },
                     "description": "Creates an Azure storage account."
                   },
@@ -7062,8 +7077,8 @@
                   "metadata": {
                     "_generator": {
                       "name": "bicep",
-                      "version": "0.40.2.10011",
-                      "templateHash": "14086045203764155910"
+                      "version": "0.42.1.51946",
+                      "templateHash": "9403299884103120938"
                     },
                     "description": "Creates an Azure storage account."
                   },
@@ -9270,8 +9285,8 @@
                   "metadata": {
                     "_generator": {
                       "name": "bicep",
-                      "version": "0.40.2.10011",
-                      "templateHash": "15337060678053363241"
+                      "version": "0.42.1.51946",
+                      "templateHash": "6162475252212563774"
                     }
                   },
                   "parameters": {
@@ -9521,8 +9536,8 @@
                   "metadata": {
                     "_generator": {
                       "name": "bicep",
-                      "version": "0.40.2.10011",
-                      "templateHash": "8060445211679006669"
+                      "version": "0.42.1.51946",
+                      "templateHash": "10092985603885471099"
                     }
                   },
                   "parameters": {
@@ -15237,8 +15252,8 @@
                   "metadata": {
                     "_generator": {
                       "name": "bicep",
-                      "version": "0.40.2.10011",
-                      "templateHash": "15337060678053363241"
+                      "version": "0.42.1.51946",
+                      "templateHash": "6162475252212563774"
                     }
                   },
                   "parameters": {
@@ -15488,8 +15503,8 @@
                   "metadata": {
                     "_generator": {
                       "name": "bicep",
-                      "version": "0.40.2.10011",
-                      "templateHash": "8060445211679006669"
+                      "version": "0.42.1.51946",
+                      "templateHash": "10092985603885471099"
                     }
                   },
                   "parameters": {
@@ -21204,8 +21219,8 @@
                   "metadata": {
                     "_generator": {
                       "name": "bicep",
-                      "version": "0.40.2.10011",
-                      "templateHash": "15337060678053363241"
+                      "version": "0.42.1.51946",
+                      "templateHash": "6162475252212563774"
                     }
                   },
                   "parameters": {
@@ -21455,8 +21470,8 @@
                   "metadata": {
                     "_generator": {
                       "name": "bicep",
-                      "version": "0.40.2.10011",
-                      "templateHash": "8060445211679006669"
+                      "version": "0.42.1.51946",
+                      "templateHash": "10092985603885471099"
                     }
                   },
                   "parameters": {
@@ -27179,8 +27194,8 @@
                   "metadata": {
                     "_generator": {
                       "name": "bicep",
-                      "version": "0.40.2.10011",
-                      "templateHash": "3678729639992584402"
+                      "version": "0.42.1.51946",
+                      "templateHash": "8240664749618509603"
                     }
                   },
                   "parameters": {
@@ -27247,8 +27262,8 @@
                           "metadata": {
                             "_generator": {
                               "name": "bicep",
-                              "version": "0.40.2.10011",
-                              "templateHash": "12400914197403547478"
+                              "version": "0.42.1.51946",
+                              "templateHash": "4473367690918390053"
                             },
                             "description": "Creates a role assignment for a service principal."
                           },
@@ -27313,8 +27328,8 @@
                           "metadata": {
                             "_generator": {
                               "name": "bicep",
-                              "version": "0.40.2.10011",
-                              "templateHash": "12400914197403547478"
+                              "version": "0.42.1.51946",
+                              "templateHash": "4473367690918390053"
                             },
                             "description": "Creates a role assignment for a service principal."
                           },
@@ -27379,8 +27394,8 @@
                           "metadata": {
                             "_generator": {
                               "name": "bicep",
-                              "version": "0.40.2.10011",
-                              "templateHash": "12400914197403547478"
+                              "version": "0.42.1.51946",
+                              "templateHash": "4473367690918390053"
                             },
                             "description": "Creates a role assignment for a service principal."
                           },
@@ -27445,8 +27460,8 @@
                           "metadata": {
                             "_generator": {
                               "name": "bicep",
-                              "version": "0.40.2.10011",
-                              "templateHash": "12400914197403547478"
+                              "version": "0.42.1.51946",
+                              "templateHash": "4473367690918390053"
                             },
                             "description": "Creates a role assignment for a service principal."
                           },
@@ -27511,8 +27526,8 @@
                           "metadata": {
                             "_generator": {
                               "name": "bicep",
-                              "version": "0.40.2.10011",
-                              "templateHash": "12400914197403547478"
+                              "version": "0.42.1.51946",
+                              "templateHash": "4473367690918390053"
                             },
                             "description": "Creates a role assignment for a service principal."
                           },
@@ -27577,8 +27592,8 @@
                           "metadata": {
                             "_generator": {
                               "name": "bicep",
-                              "version": "0.40.2.10011",
-                              "templateHash": "12400914197403547478"
+                              "version": "0.42.1.51946",
+                              "templateHash": "4473367690918390053"
                             },
                             "description": "Creates a role assignment for a service principal."
                           },
@@ -27643,8 +27658,8 @@
                           "metadata": {
                             "_generator": {
                               "name": "bicep",
-                              "version": "0.40.2.10011",
-                              "templateHash": "12400914197403547478"
+                              "version": "0.42.1.51946",
+                              "templateHash": "4473367690918390053"
                             },
                             "description": "Creates a role assignment for a service principal."
                           },
@@ -27710,8 +27725,8 @@
                           "metadata": {
                             "_generator": {
                               "name": "bicep",
-                              "version": "0.40.2.10011",
-                              "templateHash": "12400914197403547478"
+                              "version": "0.42.1.51946",
+                              "templateHash": "4473367690918390053"
                             },
                             "description": "Creates a role assignment for a service principal."
                           },
@@ -27777,8 +27792,8 @@
                           "metadata": {
                             "_generator": {
                               "name": "bicep",
-                              "version": "0.40.2.10011",
-                              "templateHash": "12400914197403547478"
+                              "version": "0.42.1.51946",
+                              "templateHash": "4473367690918390053"
                             },
                             "description": "Creates a role assignment for a service principal."
                           },
@@ -27842,8 +27857,8 @@
                           "metadata": {
                             "_generator": {
                               "name": "bicep",
-                              "version": "0.40.2.10011",
-                              "templateHash": "12400914197403547478"
+                              "version": "0.42.1.51946",
+                              "templateHash": "4473367690918390053"
                             },
                             "description": "Creates a role assignment for a service principal."
                           },
@@ -28072,8 +28087,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "4111149653023803318"
+              "version": "0.42.1.51946",
+              "templateHash": "12109984582462331550"
             }
           },
           "parameters": {
@@ -28331,8 +28346,8 @@
                   "metadata": {
                     "_generator": {
                       "name": "bicep",
-                      "version": "0.40.2.10011",
-                      "templateHash": "14086045203764155910"
+                      "version": "0.42.1.51946",
+                      "templateHash": "9403299884103120938"
                     },
                     "description": "Creates an Azure storage account."
                   },
@@ -35023,8 +35038,8 @@
                   "metadata": {
                     "_generator": {
                       "name": "bicep",
-                      "version": "0.40.2.10011",
-                      "templateHash": "3678729639992584402"
+                      "version": "0.42.1.51946",
+                      "templateHash": "8240664749618509603"
                     }
                   },
                   "parameters": {
@@ -35091,8 +35106,8 @@
                           "metadata": {
                             "_generator": {
                               "name": "bicep",
-                              "version": "0.40.2.10011",
-                              "templateHash": "12400914197403547478"
+                              "version": "0.42.1.51946",
+                              "templateHash": "4473367690918390053"
                             },
                             "description": "Creates a role assignment for a service principal."
                           },
@@ -35157,8 +35172,8 @@
                           "metadata": {
                             "_generator": {
                               "name": "bicep",
-                              "version": "0.40.2.10011",
-                              "templateHash": "12400914197403547478"
+                              "version": "0.42.1.51946",
+                              "templateHash": "4473367690918390053"
                             },
                             "description": "Creates a role assignment for a service principal."
                           },
@@ -35223,8 +35238,8 @@
                           "metadata": {
                             "_generator": {
                               "name": "bicep",
-                              "version": "0.40.2.10011",
-                              "templateHash": "12400914197403547478"
+                              "version": "0.42.1.51946",
+                              "templateHash": "4473367690918390053"
                             },
                             "description": "Creates a role assignment for a service principal."
                           },
@@ -35289,8 +35304,8 @@
                           "metadata": {
                             "_generator": {
                               "name": "bicep",
-                              "version": "0.40.2.10011",
-                              "templateHash": "12400914197403547478"
+                              "version": "0.42.1.51946",
+                              "templateHash": "4473367690918390053"
                             },
                             "description": "Creates a role assignment for a service principal."
                           },
@@ -35355,8 +35370,8 @@
                           "metadata": {
                             "_generator": {
                               "name": "bicep",
-                              "version": "0.40.2.10011",
-                              "templateHash": "12400914197403547478"
+                              "version": "0.42.1.51946",
+                              "templateHash": "4473367690918390053"
                             },
                             "description": "Creates a role assignment for a service principal."
                           },
@@ -35421,8 +35436,8 @@
                           "metadata": {
                             "_generator": {
                               "name": "bicep",
-                              "version": "0.40.2.10011",
-                              "templateHash": "12400914197403547478"
+                              "version": "0.42.1.51946",
+                              "templateHash": "4473367690918390053"
                             },
                             "description": "Creates a role assignment for a service principal."
                           },
@@ -35487,8 +35502,8 @@
                           "metadata": {
                             "_generator": {
                               "name": "bicep",
-                              "version": "0.40.2.10011",
-                              "templateHash": "12400914197403547478"
+                              "version": "0.42.1.51946",
+                              "templateHash": "4473367690918390053"
                             },
                             "description": "Creates a role assignment for a service principal."
                           },
@@ -35554,8 +35569,8 @@
                           "metadata": {
                             "_generator": {
                               "name": "bicep",
-                              "version": "0.40.2.10011",
-                              "templateHash": "12400914197403547478"
+                              "version": "0.42.1.51946",
+                              "templateHash": "4473367690918390053"
                             },
                             "description": "Creates a role assignment for a service principal."
                           },
@@ -35621,8 +35636,8 @@
                           "metadata": {
                             "_generator": {
                               "name": "bicep",
-                              "version": "0.40.2.10011",
-                              "templateHash": "12400914197403547478"
+                              "version": "0.42.1.51946",
+                              "templateHash": "4473367690918390053"
                             },
                             "description": "Creates a role assignment for a service principal."
                           },
@@ -35686,8 +35701,8 @@
                           "metadata": {
                             "_generator": {
                               "name": "bicep",
-                              "version": "0.40.2.10011",
-                              "templateHash": "12400914197403547478"
+                              "version": "0.42.1.51946",
+                              "templateHash": "4473367690918390053"
                             },
                             "description": "Creates a role assignment for a service principal."
                           },
@@ -45773,8 +45788,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "14180137862188054812"
+              "version": "0.42.1.51946",
+              "templateHash": "3771595712122239083"
             },
             "description": "Creates an Azure AI Search instance."
           },
@@ -45966,8 +45981,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "9117202140387195313"
+              "version": "0.42.1.51946",
+              "templateHash": "1757409735686406374"
             }
           },
           "parameters": {
@@ -46106,8 +46121,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "14086045203764155910"
+              "version": "0.42.1.51946",
+              "templateHash": "9403299884103120938"
             },
             "description": "Creates an Azure storage account."
           },
@@ -46332,8 +46347,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "14086045203764155910"
+              "version": "0.42.1.51946",
+              "templateHash": "9403299884103120938"
             },
             "description": "Creates an Azure storage account."
           },
@@ -46566,8 +46581,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "14086045203764155910"
+              "version": "0.42.1.51946",
+              "templateHash": "9403299884103120938"
             },
             "description": "Creates an Azure storage account."
           },
@@ -50422,8 +50437,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "12401162371681408112"
+              "version": "0.42.1.51946",
+              "templateHash": "3966739252482443975"
             }
           },
           "parameters": {
@@ -50523,8 +50538,8 @@
                   "metadata": {
                     "_generator": {
                       "name": "bicep",
-                      "version": "0.40.2.10011",
-                      "templateHash": "16351970244618532161"
+                      "version": "0.42.1.51946",
+                      "templateHash": "18370049856567947923"
                     }
                   },
                   "parameters": {
@@ -50710,8 +50725,8 @@
                   "metadata": {
                     "_generator": {
                       "name": "bicep",
-                      "version": "0.40.2.10011",
-                      "templateHash": "7014667783863369660"
+                      "version": "0.42.1.51946",
+                      "templateHash": "16249834068650327830"
                     }
                   },
                   "parameters": {
@@ -50823,8 +50838,8 @@
                           "metadata": {
                             "_generator": {
                               "name": "bicep",
-                              "version": "0.40.2.10011",
-                              "templateHash": "12400914197403547478"
+                              "version": "0.42.1.51946",
+                              "templateHash": "4473367690918390053"
                             },
                             "description": "Creates a role assignment for a service principal."
                           },
@@ -50891,8 +50906,8 @@
                           "metadata": {
                             "_generator": {
                               "name": "bicep",
-                              "version": "0.40.2.10011",
-                              "templateHash": "12400914197403547478"
+                              "version": "0.42.1.51946",
+                              "templateHash": "4473367690918390053"
                             },
                             "description": "Creates a role assignment for a service principal."
                           },
@@ -51001,8 +51016,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "12400914197403547478"
+              "version": "0.42.1.51946",
+              "templateHash": "4473367690918390053"
             },
             "description": "Creates a role assignment for a service principal."
           },
@@ -51070,8 +51085,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "12400914197403547478"
+              "version": "0.42.1.51946",
+              "templateHash": "4473367690918390053"
             },
             "description": "Creates a role assignment for a service principal."
           },
@@ -51139,8 +51154,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "12400914197403547478"
+              "version": "0.42.1.51946",
+              "templateHash": "4473367690918390053"
             },
             "description": "Creates a role assignment for a service principal."
           },
@@ -51208,8 +51223,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "12400914197403547478"
+              "version": "0.42.1.51946",
+              "templateHash": "4473367690918390053"
             },
             "description": "Creates a role assignment for a service principal."
           },
@@ -51277,8 +51292,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "12400914197403547478"
+              "version": "0.42.1.51946",
+              "templateHash": "4473367690918390053"
             },
             "description": "Creates a role assignment for a service principal."
           },
@@ -51347,8 +51362,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "12400914197403547478"
+              "version": "0.42.1.51946",
+              "templateHash": "4473367690918390053"
             },
             "description": "Creates a role assignment for a service principal."
           },
@@ -51416,8 +51431,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "12400914197403547478"
+              "version": "0.42.1.51946",
+              "templateHash": "4473367690918390053"
             },
             "description": "Creates a role assignment for a service principal."
           },
@@ -51485,8 +51500,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "12400914197403547478"
+              "version": "0.42.1.51946",
+              "templateHash": "4473367690918390053"
             },
             "description": "Creates a role assignment for a service principal."
           },
@@ -51554,8 +51569,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "12400914197403547478"
+              "version": "0.42.1.51946",
+              "templateHash": "4473367690918390053"
             },
             "description": "Creates a role assignment for a service principal."
           },
@@ -51624,8 +51639,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "12400914197403547478"
+              "version": "0.42.1.51946",
+              "templateHash": "4473367690918390053"
             },
             "description": "Creates a role assignment for a service principal."
           },
@@ -51690,8 +51705,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "14329725216280987490"
+              "version": "0.42.1.51946",
+              "templateHash": "2660866486008545267"
             },
             "name": "DocumentDB Database Account SQL Role Assignments.",
             "description": "Assign RBAC role for data plane access to Azure Cosmos DB for NoSQL."
@@ -51768,8 +51783,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "12400914197403547478"
+              "version": "0.42.1.51946",
+              "templateHash": "4473367690918390053"
             },
             "description": "Creates a role assignment for a service principal."
           },
@@ -51840,8 +51855,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "12400914197403547478"
+              "version": "0.42.1.51946",
+              "templateHash": "4473367690918390053"
             },
             "description": "Creates a role assignment for a service principal."
           },
@@ -51911,8 +51926,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "12400914197403547478"
+              "version": "0.42.1.51946",
+              "templateHash": "4473367690918390053"
             },
             "description": "Creates a role assignment for a service principal."
           },
@@ -51979,8 +51994,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "12400914197403547478"
+              "version": "0.42.1.51946",
+              "templateHash": "4473367690918390053"
             },
             "description": "Creates a role assignment for a service principal."
           },
@@ -52049,8 +52064,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "12400914197403547478"
+              "version": "0.42.1.51946",
+              "templateHash": "4473367690918390053"
             },
             "description": "Creates a role assignment for a service principal."
           },
@@ -52121,8 +52136,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "12400914197403547478"
+              "version": "0.42.1.51946",
+              "templateHash": "4473367690918390053"
             },
             "description": "Creates a role assignment for a service principal."
           },
@@ -52192,8 +52207,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "12400914197403547478"
+              "version": "0.42.1.51946",
+              "templateHash": "4473367690918390053"
             },
             "description": "Creates a role assignment for a service principal."
           },
@@ -52264,8 +52279,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "6894250719222966748"
+              "version": "0.42.1.51946",
+              "templateHash": "10514777374154314664"
             },
             "description": "Assigns a role to a principal on a specific storage account."
           },
@@ -52350,8 +52365,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "6894250719222966748"
+              "version": "0.42.1.51946",
+              "templateHash": "10514777374154314664"
             },
             "description": "Assigns a role to a principal on a specific storage account."
           },
@@ -52435,8 +52450,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "6894250719222966748"
+              "version": "0.42.1.51946",
+              "templateHash": "10514777374154314664"
             },
             "description": "Assigns a role to a principal on a specific storage account."
           },
@@ -52517,8 +52532,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "12400914197403547478"
+              "version": "0.42.1.51946",
+              "templateHash": "4473367690918390053"
             },
             "description": "Creates a role assignment for a service principal."
           },
@@ -52586,8 +52601,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "12400914197403547478"
+              "version": "0.42.1.51946",
+              "templateHash": "4473367690918390053"
             },
             "description": "Creates a role assignment for a service principal."
           },
@@ -52655,8 +52670,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "12400914197403547478"
+              "version": "0.42.1.51946",
+              "templateHash": "4473367690918390053"
             },
             "description": "Creates a role assignment for a service principal."
           },
@@ -52721,8 +52736,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "14329725216280987490"
+              "version": "0.42.1.51946",
+              "templateHash": "2660866486008545267"
             },
             "name": "DocumentDB Database Account SQL Role Assignments.",
             "description": "Assign RBAC role for data plane access to Azure Cosmos DB for NoSQL."
@@ -52811,8 +52826,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "7579095350399331155"
+              "version": "0.42.1.51946",
+              "templateHash": "17197414967490002290"
             },
             "description": "Sets up private networking for all resources, using VNet, private endpoints, and DNS zones."
           },
@@ -59097,8 +59112,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "11760072432259057972"
+              "version": "0.42.1.51946",
+              "templateHash": "13855541662625132320"
             },
             "description": "Creates private endpoints for Azure services and configures Azure Monitor Private Link Scope with DNS zones for secure private networking."
           },
@@ -59401,8 +59416,8 @@
                   "metadata": {
                     "_generator": {
                       "name": "bicep",
-                      "version": "0.40.2.10011",
-                      "templateHash": "11302067215822738034"
+                      "version": "0.42.1.51946",
+                      "templateHash": "11435576797829038741"
                     },
                     "description": "Creates a private DNS zone and links it to an existing virtual network"
                   },
@@ -59509,8 +59524,8 @@
                   "metadata": {
                     "_generator": {
                       "name": "bicep",
-                      "version": "0.40.2.10011",
-                      "templateHash": "2504099928658685612"
+                      "version": "0.42.1.51946",
+                      "templateHash": "10891334582621207295"
                     },
                     "description": "Create a private endpoint for a given sub-resource, subnet, and private DNS zone group"
                   },
@@ -59648,8 +59663,8 @@
                   "metadata": {
                     "_generator": {
                       "name": "bicep",
-                      "version": "0.40.2.10011",
-                      "templateHash": "11302067215822738034"
+                      "version": "0.42.1.51946",
+                      "templateHash": "11435576797829038741"
                     },
                     "description": "Creates a private DNS zone and links it to an existing virtual network"
                   },
@@ -59783,8 +59798,8 @@
                   "metadata": {
                     "_generator": {
                       "name": "bicep",
-                      "version": "0.40.2.10011",
-                      "templateHash": "2504099928658685612"
+                      "version": "0.42.1.51946",
+                      "templateHash": "10891334582621207295"
                     },
                     "description": "Create a private endpoint for a given sub-resource, subnet, and private DNS zone group"
                   },
@@ -59939,8 +59954,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "12400914197403547478"
+              "version": "0.42.1.51946",
+              "templateHash": "4473367690918390053"
             },
             "description": "Creates a role assignment for a service principal."
           },
@@ -60008,8 +60023,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "12400914197403547478"
+              "version": "0.42.1.51946",
+              "templateHash": "4473367690918390053"
             },
             "description": "Creates a role assignment for a service principal."
           },
@@ -60078,8 +60093,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "12400914197403547478"
+              "version": "0.42.1.51946",
+              "templateHash": "4473367690918390053"
             },
             "description": "Creates a role assignment for a service principal."
           },
@@ -60148,8 +60163,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.40.2.10011",
-              "templateHash": "12400914197403547478"
+              "version": "0.42.1.51946",
+              "templateHash": "4473367690918390053"
             },
             "description": "Creates a role assignment for a service principal."
           },
