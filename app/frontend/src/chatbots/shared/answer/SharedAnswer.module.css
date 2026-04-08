@@ -68,7 +68,7 @@
 
 .answerMarkdown {
     color: #1f2937;
-    font-size: 0.98rem;
+    font-size: var(--chatbot-answer-font-size, 0.98rem);
     line-height: 1.72;
     overflow-wrap: anywhere;
 }
@@ -373,7 +373,7 @@
     }
 
     .answerMarkdown {
-        font-size: 0.95rem;
+        font-size: var(--chatbot-answer-font-size-mobile, 0.95rem);
         line-height: 1.66;
     }
 

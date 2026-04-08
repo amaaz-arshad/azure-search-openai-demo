@@ -1,1 +1,1 @@
-from approaches.chatbots.demo.sampleprompt import SAMPLE_PROMPT
+from approaches.chatbots.public_test.sampleprompt import SAMPLE_PROMPT
