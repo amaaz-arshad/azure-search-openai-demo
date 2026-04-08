@@ -976,7 +976,10 @@ class Approach(ABC):
         return VectorizedQuery(vector=multimodal_query_vector, k=50, fields="images/embedding")
 
     def get_system_prompt_variables(
-        self, override_prompt: Optional[str], chatbot_name: Optional[str] = None
+        self,
+        override_prompt: Optional[str],
+        chatbot_name: Optional[str] = None,
+        saved_prompt: Optional[str] = None,
     ) -> dict[str, str]:
         # Allows client to replace the entire prompt, or to inject into the existing prompt using >>>
         if override_prompt is None:
@@ -988,6 +991,8 @@ class Approach(ABC):
                     if referer:
                         referer_first_segment = urlparse(referer).path.strip("/").split("/", 1)[0]
                         normalized_chatbot_name = normalize_chatbot_name(referer_first_segment)
+            if saved_prompt:
+                return {"override_prompt": render_chatbot_prompt(saved_prompt, normalized_chatbot_name)}
             chatbot_prompt = get_chatbot_prompt(normalized_chatbot_name)
             if chatbot_prompt:
                 return {"override_prompt": render_chatbot_prompt(chatbot_prompt, normalized_chatbot_name)}

@@ -283,6 +283,10 @@ param enableUnauthenticatedAccess bool = false
 param serverAppId string = ''
 @secure()
 param serverAppSecret string = ''
+@secure()
+param internalToolsPassword string = ''
+@secure()
+param chatbotDirectoryPassword string = ''
 param publicTestSmtpHost string = ''
 param publicTestSmtpPort string = '587'
 param publicTestSmtpUsername string = ''
@@ -410,6 +414,52 @@ var containerAppCustomDomains = (!empty(containerAppCustomDomainName) && !empty(
       }
     ]
   : []
+var effectiveInternalToolsPassword = !empty(internalToolsPassword) ? internalToolsPassword : chatbotDirectoryPassword
+var acaBackendSecrets = union(
+  useAuthentication ? {
+    azureclientappsecret: clientAppSecret
+    azureserverappsecret: serverAppSecret
+  } : {},
+  !empty(effectiveInternalToolsPassword) ? {
+    internaltoolspassword: effectiveInternalToolsPassword
+  } : {},
+  !empty(publicTestSmtpUsername) ? {
+    publictestsmtpusername: publicTestSmtpUsername
+  } : {},
+  !empty(publicTestSmtpPassword) ? {
+    publictestsmtppassword: publicTestSmtpPassword
+  } : {}
+)
+var acaBackendEnvSecrets = concat(
+  useAuthentication ? [
+    {
+      name: 'AZURE_CLIENT_APP_SECRET'
+      secretRef: 'azureclientappsecret'
+    }
+    {
+      name: 'AZURE_SERVER_APP_SECRET'
+      secretRef: 'azureserverappsecret'
+    }
+  ] : [],
+  !empty(effectiveInternalToolsPassword) ? [
+    {
+      name: 'INTERNAL_TOOLS_PASSWORD'
+      secretRef: 'internaltoolspassword'
+    }
+  ] : [],
+  !empty(publicTestSmtpUsername) ? [
+    {
+      name: 'PUBLIC_TEST_SMTP_USERNAME'
+      secretRef: 'publictestsmtpusername'
+    }
+  ] : [],
+  !empty(publicTestSmtpPassword) ? [
+    {
+      name: 'PUBLIC_TEST_SMTP_PASSWORD'
+      secretRef: 'publictestsmtppassword'
+    }
+  ] : []
+)
 
 // Organize resources in a resource group
 resource resourceGroup 'Microsoft.Resources/resourceGroups@2024-11-01' = {
@@ -624,6 +674,7 @@ module backend 'core/host/appservice.bicep' = if (deploymentTarget == 'appservic
     alwaysOn: appServiceSkuName != 'F1'
     appSettings: union(appEnvVariables, {
       AZURE_SERVER_APP_SECRET: serverAppSecret
+      INTERNAL_TOOLS_PASSWORD: effectiveInternalToolsPassword
       AZURE_CLIENT_APP_SECRET: clientAppSecret
       PUBLIC_TEST_SMTP_USERNAME: publicTestSmtpUsername
       PUBLIC_TEST_SMTP_PASSWORD: publicTestSmtpPassword
@@ -681,34 +732,8 @@ module acaBackend 'core/host/container-app-upsert.bicep' = if (deploymentTarget 
       // For using managed identity to access Azure resources. See https://github.com/microsoft/azure-container-apps/issues/442
       AZURE_CLIENT_ID: (deploymentTarget == 'containerapps') ? acaIdentity!.outputs.clientId : ''
     })
-    secrets: useAuthentication ? {
-      azureclientappsecret: clientAppSecret
-      azureserverappsecret: serverAppSecret
-      publictestsmtpusername: publicTestSmtpUsername
-      publictestsmtppassword: publicTestSmtpPassword
-    } : {
-      publictestsmtpusername: publicTestSmtpUsername
-      publictestsmtppassword: publicTestSmtpPassword
-    }
-    envSecrets: concat(useAuthentication ? [
-      {
-        name: 'AZURE_CLIENT_APP_SECRET'
-        secretRef: 'azureclientappsecret'
-      }
-      {
-        name: 'AZURE_SERVER_APP_SECRET'
-        secretRef: 'azureserverappsecret'
-      }
-    ] : [], [
-      {
-        name: 'PUBLIC_TEST_SMTP_USERNAME'
-        secretRef: 'publictestsmtpusername'
-      }
-      {
-        name: 'PUBLIC_TEST_SMTP_PASSWORD'
-        secretRef: 'publictestsmtppassword'
-      }
-    ])
+    secrets: acaBackendSecrets
+    envSecrets: acaBackendEnvSecrets
   }
 }
 

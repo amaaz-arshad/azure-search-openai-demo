@@ -140,6 +140,17 @@ def test_get_system_prompt_variables_renders_support_email_and_preserves_literal
     assert "{{N}}" in override_prompt
 
 
+def test_get_system_prompt_variables_uses_saved_prompt_and_renders_placeholders(chat_approach):
+    variables = chat_approach.get_system_prompt_variables(
+        None,
+        chatbot_name="demo",
+        saved_prompt="You are a saved prompt for {{ SUPPORT_EMAIL }}. Keep {{N}} unchanged.",
+    )
+    override_prompt = variables["override_prompt"]
+
+    assert override_prompt == "You are a saved prompt for info@snap.de. Keep {{N}} unchanged."
+
+
 def test_extract_rewritten_query_invalid_json(chat_approach):
     payload = {
         "id": "chatcmpl-2",

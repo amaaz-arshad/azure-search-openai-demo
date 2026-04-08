@@ -299,6 +299,12 @@
     "serverAppSecret": {
       "value": "${AZURE_SERVER_APP_SECRET}"
     },
+    "internalToolsPassword": {
+      "value": "${INTERNAL_TOOLS_PASSWORD}"
+    },
+    "chatbotDirectoryPassword": {
+      "value": "${CHATBOT_DIRECTORY_PASSWORD}"
+    },
     "publicTestSmtpHost": {
       "value": "${PUBLIC_TEST_SMTP_HOST}"
     },

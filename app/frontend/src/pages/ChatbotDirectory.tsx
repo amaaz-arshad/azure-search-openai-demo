@@ -4,11 +4,7 @@ import { Link } from "react-router-dom";
 import { Icon } from "@fluentui/react";
 
 import { chatbotDefinitions } from "../chatbots/registry";
-import {
-    INTERNAL_TOOLS_PASSWORD,
-    INTERNAL_TOOLS_SESSION_KEY,
-    getInitialInternalAuthenticationState
-} from "./internalToolsAccess";
+import { useInternalAdminAccess } from "./useInternalAdminAccess";
 import styles from "./ChatbotDirectory.module.css";
 
 const sortedChatbots = [...chatbotDefinitions].sort((a, b) => a.name.localeCompare(b.name));
@@ -16,37 +12,29 @@ const sortedChatbots = [...chatbotDefinitions].sort((a, b) => a.name.localeCompa
 const formatChatbotLabel = (name: string) => name.replace(/[-_]+/g, " ");
 
 const ChatbotDirectory = () => {
-    const [isAuthenticated, setIsAuthenticated] = useState<boolean>(getInitialInternalAuthenticationState);
+    const { isAuthenticated, isCheckingAuthentication, authError, clearAuthError, login, logout } = useInternalAdminAccess();
     const [password, setPassword] = useState("");
-    const [errorMessage, setErrorMessage] = useState("");
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
     const [query, setQuery] = useState("");
 
     const normalizedQuery = query.trim().toLowerCase();
     const filteredChatbots = sortedChatbots.filter(chatbot => chatbot.name.toLowerCase().includes(normalizedQuery));
 
-    const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
 
-        if (password === INTERNAL_TOOLS_PASSWORD) {
-            window.sessionStorage.setItem(INTERNAL_TOOLS_SESSION_KEY, "true");
-            setIsAuthenticated(true);
+        if (await login(password)) {
             setPassword("");
-            setErrorMessage("");
             setIsPasswordVisible(false);
             return;
         }
-
-        setErrorMessage("Incorrect password. Please try again.");
     };
 
     const handleLockDirectory = () => {
-        window.sessionStorage.removeItem(INTERNAL_TOOLS_SESSION_KEY);
-        setIsAuthenticated(false);
         setPassword("");
         setQuery("");
-        setErrorMessage("");
         setIsPasswordVisible(false);
+        void logout();
     };
 
     return (
@@ -80,6 +68,9 @@ const ChatbotDirectory = () => {
                                 <Link className={styles.secondaryButton} to="/upload-files">
                                     Manage uploads
                                 </Link>
+                                <Link className={styles.secondaryButton} to="/manage-prompts">
+                                    Manage prompts
+                                </Link>
                                 <button className={styles.secondaryButton} type="button" onClick={handleLockDirectory}>
                                     Lock directory
                                 </button>
@@ -109,7 +100,7 @@ const ChatbotDirectory = () => {
                                         value={password}
                                         onChange={event => {
                                             setPassword(event.target.value);
-                                            setErrorMessage("");
+                                            clearAuthError();
                                         }}
                                         placeholder="Enter password"
                                         autoComplete="off"
@@ -131,12 +122,12 @@ const ChatbotDirectory = () => {
                                     </button>
                                 </div>
 
-                                <button className={styles.primaryButton} type="submit">
-                                    Unlock directory
+                                <button className={styles.primaryButton} type="submit" disabled={isCheckingAuthentication}>
+                                    {isCheckingAuthentication ? "Unlocking..." : "Unlock directory"}
                                 </button>
 
                                 <p className={styles.errorMessage} role="alert" aria-live="polite">
-                                    {errorMessage}
+                                    {authError}
                                 </p>
                             </form>
                         </div>

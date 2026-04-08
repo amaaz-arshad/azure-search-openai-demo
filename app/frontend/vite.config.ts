@@ -38,8 +38,7 @@ export default defineConfig(({ mode }) => {
         define: {
             "import.meta.env.VITE_AZURE_SPEECH_SERVICE_LOCATION": JSON.stringify(azdEnv.AZURE_SPEECH_SERVICE_LOCATION ?? ""),
             "import.meta.env.VITE_AZURE_SPEECH_SERVICE_VOICE": JSON.stringify(azdEnv.AZURE_SPEECH_SERVICE_VOICE ?? ""),
-            "import.meta.env.VITE_AZURE_SPEECH_SERVICE_API_KEY": JSON.stringify(azdEnv.AZURE_SPEECH_SERVICE_API_KEY ?? ""),
-            "import.meta.env.VITE_CHATBOT_DIRECTORY_PASSWORD": JSON.stringify(azdEnv.CHATBOT_DIRECTORY_PASSWORD ?? "")
+            "import.meta.env.VITE_AZURE_SPEECH_SERVICE_API_KEY": JSON.stringify(azdEnv.AZURE_SPEECH_SERVICE_API_KEY ?? "")
         },
         resolve: {
             preserveSymlinks: true
@@ -72,6 +71,9 @@ export default defineConfig(({ mode }) => {
                 "/speech": "http://localhost:50505",
                 "/config": "http://localhost:50505",
                 "/chatbot_uploads": "http://localhost:50505",
+                "/internal-admin": "http://localhost:50505",
+                "/managed_uploads": "http://localhost:50505",
+                "/public-test-admin": "http://localhost:50505",
                 "/upload": "http://localhost:50505",
                 "/delete_uploaded": "http://localhost:50505",
                 "/list_uploaded": "http://localhost:50505",

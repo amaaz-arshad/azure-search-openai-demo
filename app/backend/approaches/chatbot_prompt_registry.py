@@ -52,3 +52,7 @@ def get_chatbot_prompt(chatbot_name: Optional[str]) -> Optional[str]:
     if not module_name:
         return None
     return load_prompt_from_module(module_name)
+
+
+def get_registered_chatbot_names() -> list[str]:
+    return list(CHATBOT_PROMPT_MODULES)

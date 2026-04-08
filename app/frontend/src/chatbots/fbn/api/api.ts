@@ -85,8 +85,7 @@ export function getCitationFilePath(citation: string): string {
     const cleanedCitation = citation.replace(/\s*\(.*?\)\s*$/, "").trim();
     const [pathWithoutFragment, fragment] = cleanedCitation.split("#", 2);
     const fragmentSuffix = fragment ? `#${fragment}` : "";
-    const firstSegment = typeof window === "undefined" ? "" : window.location.pathname.split("/").filter(Boolean)[0] || "";
-    const chatbotName = !firstSegment || ["chatbots", "upload-files", "content", "assets"].includes(firstSegment) ? "" : firstSegment;
+    const chatbotName = getCurrentChatbotName();
     if (!chatbotName) {
         return `${BACKEND_URI}/content/${pathWithoutFragment}${fragmentSuffix}`;
     }

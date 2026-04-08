@@ -516,6 +516,8 @@ def mock_env(monkeypatch, request):
         monkeypatch.setenv("AZURE_SPEECH_SERVICE_LOCATION", "eastus")
         monkeypatch.setenv("AZURE_OPENAI_CHATGPT_MODEL", "gpt-4.1-mini")
         monkeypatch.setenv("ALLOWED_ORIGIN", "https://frontend.com")
+        monkeypatch.setenv("AZURE_SERVER_APP_SECRET", "SECRET")
+        monkeypatch.setenv("CHATBOT_DIRECTORY_PASSWORD", "chatbot123")
         for key, value in request.param.items():
             monkeypatch.setenv(key, value)
         if os.getenv("AZURE_USE_AUTHENTICATION") is not None:
@@ -542,6 +544,8 @@ def mock_reasoning_env(monkeypatch, request):
         monkeypatch.setenv("AZURE_SPEECH_SERVICE_LOCATION", "eastus")
         monkeypatch.setenv("ALLOWED_ORIGIN", "https://frontend.com")
         monkeypatch.setenv("TEST_ENABLE_REASONING", "true")
+        monkeypatch.setenv("AZURE_SERVER_APP_SECRET", "SECRET")
+        monkeypatch.setenv("CHATBOT_DIRECTORY_PASSWORD", "chatbot123")
         for key, value in request.param.items():
             monkeypatch.setenv(key, value)
 
@@ -569,6 +573,8 @@ def mock_knowledgebase_env(monkeypatch, request):
         monkeypatch.setenv("AZURE_SPEECH_SERVICE_ID", "test-id")
         monkeypatch.setenv("AZURE_SPEECH_SERVICE_LOCATION", "eastus")
         monkeypatch.setenv("ALLOWED_ORIGIN", "https://frontend.com")
+        monkeypatch.setenv("AZURE_SERVER_APP_SECRET", "SECRET")
+        monkeypatch.setenv("CHATBOT_DIRECTORY_PASSWORD", "chatbot123")
         for key, value in request.param.items():
             monkeypatch.setenv(key, value)
 
@@ -593,6 +599,8 @@ def mock_knowledgebase_auth_env(monkeypatch, request):
         monkeypatch.setenv("AZURE_SPEECH_SERVICE_ID", "test-id")
         monkeypatch.setenv("AZURE_SPEECH_SERVICE_LOCATION", "eastus")
         monkeypatch.setenv("ALLOWED_ORIGIN", "https://frontend.com")
+        monkeypatch.setenv("AZURE_SERVER_APP_SECRET", "SECRET")
+        monkeypatch.setenv("CHATBOT_DIRECTORY_PASSWORD", "chatbot123")
         for key, value in request.param.items():
             monkeypatch.setenv(key, value)
 
@@ -612,6 +620,8 @@ def mock_vision_env(monkeypatch, request):
         monkeypatch.setenv("AZURE_SEARCH_INDEX", "test-search-index")
         monkeypatch.setenv("AZURE_SEARCH_SERVICE", "test-search-service")
         monkeypatch.setenv("AZURE_OPENAI_CHATGPT_MODEL", "gpt-4.1-mini")
+        monkeypatch.setenv("AZURE_SERVER_APP_SECRET", "SECRET")
+        monkeypatch.setenv("CHATBOT_DIRECTORY_PASSWORD", "chatbot123")
         for key, value in request.param.items():
             monkeypatch.setenv(key, value)
 
@@ -631,6 +641,8 @@ def mock_vision_auth_env(monkeypatch, request):
         monkeypatch.setenv("AZURE_SEARCH_INDEX", "test-search-index")
         monkeypatch.setenv("AZURE_SEARCH_SERVICE", "test-search-service")
         monkeypatch.setenv("AZURE_OPENAI_CHATGPT_MODEL", "gpt-4.1-mini")
+        monkeypatch.setenv("AZURE_SERVER_APP_SECRET", "SECRET")
+        monkeypatch.setenv("CHATBOT_DIRECTORY_PASSWORD", "chatbot123")
         for key, value in request.param.items():
             monkeypatch.setenv(key, value)
 
@@ -764,6 +776,7 @@ async def auth_client(
     monkeypatch.setenv("USE_LOCAL_PDF_PARSER", "true")
     monkeypatch.setenv("USE_LOCAL_HTML_PARSER", "true")
     monkeypatch.setenv("AZURE_DOCUMENTINTELLIGENCE_SERVICE", "test-documentintelligence-service")
+    monkeypatch.setenv("CHATBOT_DIRECTORY_PASSWORD", "chatbot123")
     for key, value in request.param.items():
         monkeypatch.setenv(key, value)
 
@@ -807,6 +820,7 @@ async def auth_public_documents_client(
     monkeypatch.setenv("AZURE_CHAT_HISTORY_DATABASE", "test-cosmosdb-database")
     monkeypatch.setenv("AZURE_CHAT_HISTORY_CONTAINER", "test-cosmosdb-container")
     monkeypatch.setenv("AZURE_CHAT_HISTORY_VERSION", "cosmosdb-v2")
+    monkeypatch.setenv("CHATBOT_DIRECTORY_PASSWORD", "chatbot123")
 
     for key, value in request.param.items():
         monkeypatch.setenv(key, value)

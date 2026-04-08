@@ -11,11 +11,6 @@ import {
 } from "@fluentui/react-icons";
 
 import {
-    INTERNAL_TOOLS_PASSWORD,
-    INTERNAL_TOOLS_SESSION_KEY,
-    getInitialInternalAuthenticationState
-} from "./internalToolsAccess";
-import {
     ManagedUploadCreatedEntry,
     ManagedUploadEntry,
     cancelManagedUploadApi,
@@ -24,6 +19,7 @@ import {
     listManagedUploadsApi,
     uploadManagedFilesApi
 } from "./uploadFilesApi";
+import { useInternalAdminAccess } from "./useInternalAdminAccess";
 import styles from "./UploadFilesPage.module.css";
 
 const acceptedFileTypes = ".txt,.md,.csv,.json,.pdf,.html,.xml";
@@ -112,9 +108,16 @@ const matchesLibraryFilters = (entry: ManagedUploadEntry, categoryFilter: string
 };
 
 const UploadFilesPage = () => {
-    const [isAuthenticated, setIsAuthenticated] = useState<boolean>(getInitialInternalAuthenticationState);
+    const {
+        isAuthenticated,
+        isCheckingAuthentication,
+        authError,
+        clearAuthError,
+        handleUnauthorizedError,
+        login,
+        logout
+    } = useInternalAdminAccess();
     const [password, setPassword] = useState("");
-    const [errorMessage, setErrorMessage] = useState("");
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
     const [uploadCategory, setUploadCategory] = useState("");
     const [categoryFilter, setCategoryFilter] = useState(allCategoriesValue);
@@ -156,6 +159,49 @@ const UploadFilesPage = () => {
     const totalPages = Math.max(1, Math.ceil(filteredFileCount / rowsPerPage));
     const currentPageSafe = Math.min(currentPage, totalPages);
     const pageStartIndex = (currentPageSafe - 1) * rowsPerPage;
+
+    const resetAdminState = (preserveStatus = false) => {
+        setPassword("");
+        setIsPasswordVisible(false);
+        if (!preserveStatus) {
+            setStatus(undefined);
+        }
+        setQuery("");
+        setDebouncedQuery("");
+        setUploadCategory("");
+        setCategoryFilter(allCategoriesValue);
+        setQueueState(() => []);
+        setUploadedFiles([]);
+        setAvailableCategories([]);
+        setCategoryCounts({});
+        setFilteredFileCount(0);
+        setTotalManagedFiles(0);
+        setCurrentPage(1);
+        setHasLoadedLibraryMetadata(false);
+        setIsLoading(false);
+        setIsProcessingQueue(false);
+        setIsStopping(false);
+        setDeletingFiles({});
+        setDeletingCategory(null);
+        setIsDeletingAll(false);
+        libraryAbortRef.current?.abort();
+        currentAbortRef.current?.abort();
+        stopRequestedRef.current = false;
+        processingRef.current = false;
+        currentUploadIdRef.current = null;
+        currentQueueItemIdRef.current = null;
+        currentUploadCategoryRef.current = null;
+    };
+
+    const handleAdminError = (error: unknown) => {
+        if (!handleUnauthorizedError(error)) {
+            return false;
+        }
+
+        resetAdminState(true);
+        return true;
+    };
+
     const setQueueState = (updater: (current: UploadQueueItem[]) => UploadQueueItem[]) => {
         const nextState = updater(queueRef.current);
         queueRef.current = nextState;
@@ -277,6 +323,9 @@ const UploadFilesPage = () => {
             return response;
         } catch (error) {
             if (controller.signal.aborted || (error instanceof DOMException && error.name === "AbortError")) {
+                return null;
+            }
+            if (handleAdminError(error)) {
                 return null;
             }
             if (!options?.suppressErrors) {
@@ -437,6 +486,8 @@ const UploadFilesPage = () => {
                     if (isAbortError) {
                         await reconcileAbortedUpload(nextItem);
                         shouldRevalidateLibrary = true;
+                    } else if (handleAdminError(error)) {
+                        return;
                     } else {
                         updateQueueItem(nextItem.id, {
                             status: stopRequestedRef.current ? "canceled" : "failed",
@@ -568,6 +619,9 @@ const UploadFilesPage = () => {
             try {
                 await cancelManagedUploadApi(activeCategory, activeUploadId);
             } catch (error) {
+                if (handleAdminError(error)) {
+                    return;
+                }
                 setStatus({
                     tone: "warning",
                     message: error instanceof Error ? error.message : "Stop requested."
@@ -597,6 +651,9 @@ const UploadFilesPage = () => {
             });
             await loadFiles({ includeCategories: true });
         } catch (error) {
+            if (handleAdminError(error)) {
+                return;
+            }
             setStatus({
                 tone: "error",
                 message: error instanceof Error ? error.message : "Error deleting file."
@@ -629,6 +686,9 @@ const UploadFilesPage = () => {
             });
             await loadFiles({ includeCategories: true });
         } catch (error) {
+            if (handleAdminError(error)) {
+                return;
+            }
             setStatus({
                 tone: "error",
                 message: error instanceof Error ? error.message : "Error deleting category files."
@@ -656,6 +716,9 @@ const UploadFilesPage = () => {
             });
             await loadFiles({ includeCategories: true });
         } catch (error) {
+            if (handleAdminError(error)) {
+                return;
+            }
             setStatus({
                 tone: "error",
                 message: error instanceof Error ? error.message : "Error deleting uploaded files."
@@ -665,17 +728,13 @@ const UploadFilesPage = () => {
         }
     };
 
-    const handleUnlock = (event: FormEvent<HTMLFormElement>) => {
+    const handleUnlock = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        if (password === INTERNAL_TOOLS_PASSWORD) {
-            window.sessionStorage.setItem(INTERNAL_TOOLS_SESSION_KEY, "true");
-            setIsAuthenticated(true);
+        if (await login(password)) {
             setPassword("");
-            setErrorMessage("");
             setIsPasswordVisible(false);
             return;
         }
-        setErrorMessage("Incorrect password. Please try again.");
     };
 
     const handleLockPage = () => {
@@ -686,25 +745,8 @@ const UploadFilesPage = () => {
             });
             return;
         }
-        window.sessionStorage.removeItem(INTERNAL_TOOLS_SESSION_KEY);
-        setIsAuthenticated(false);
-        setPassword("");
-        setErrorMessage("");
-        setIsPasswordVisible(false);
-        setStatus(undefined);
-        setQuery("");
-        setDebouncedQuery("");
-        setUploadCategory("");
-        setCategoryFilter(allCategoriesValue);
-        setQueueState(() => []);
-        setUploadedFiles([]);
-        setAvailableCategories([]);
-        setCategoryCounts({});
-        setFilteredFileCount(0);
-        setTotalManagedFiles(0);
-        setCurrentPage(1);
-        setHasLoadedLibraryMetadata(false);
-        libraryAbortRef.current?.abort();
+        resetAdminState();
+        void logout();
     };
 
     useEffect(() => {
@@ -808,6 +850,9 @@ const UploadFilesPage = () => {
                                 <Link className={styles.secondaryButton} to="/public-test-users">
                                     Public-test users
                                 </Link>
+                                <Link className={styles.secondaryButton} to="/manage-prompts">
+                                    Manage prompts
+                                </Link>
                                 <button className={styles.secondaryButton} type="button" onClick={handleLockPage}>
                                     Lock page
                                 </button>
@@ -836,7 +881,7 @@ const UploadFilesPage = () => {
                                         value={password}
                                         onChange={event => {
                                             setPassword(event.target.value);
-                                            setErrorMessage("");
+                                            clearAuthError();
                                         }}
                                         placeholder="Enter password"
                                         autoComplete="off"
@@ -854,10 +899,10 @@ const UploadFilesPage = () => {
                                         <Icon iconName={isPasswordVisible ? "Hide3" : "RedEye"} />
                                     </button>
                                 </div>
-                                <button className={styles.primaryButton} type="submit">
-                                    Unlock upload manager
+                                <button className={styles.primaryButton} type="submit" disabled={isCheckingAuthentication}>
+                                    {isCheckingAuthentication ? "Unlocking..." : "Unlock upload manager"}
                                 </button>
-                                <p className={styles.errorMessage}>{errorMessage}</p>
+                                <p className={styles.errorMessage}>{authError}</p>
                             </form>
                         </div>
                     ) : (

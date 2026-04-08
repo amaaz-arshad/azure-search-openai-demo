@@ -3,9 +3,10 @@ from collections.abc import Callable
 from functools import wraps
 from typing import Any, TypeVar, cast
 
-from quart import abort, current_app, request
+from quart import abort, current_app, jsonify, request
 
-from config import CONFIG_AUTH_CLIENT, CONFIG_SEARCH_CLIENT
+from config import CONFIG_AUTH_CLIENT, CONFIG_INTERNAL_ADMIN_AUTH_SERVICE, CONFIG_SEARCH_CLIENT
+from core.internaladminauth import INTERNAL_ADMIN_PASSWORD_MISSING_MESSAGE, INTERNAL_ADMIN_REQUIRED_MESSAGE
 from core.authentication import AuthError
 from error import error_response
 
@@ -55,5 +56,23 @@ def authenticated(route_fn: _C) -> _C:
             abort(403)
 
         return await route_fn(auth_claims, *args, **kwargs)
+
+    return cast(_C, auth_handler)
+
+
+def internal_admin_required(route_fn: _C) -> _C:
+    @wraps(route_fn)
+    async def auth_handler(*args, **kwargs):
+        auth_service = current_app.config.get(CONFIG_INTERNAL_ADMIN_AUTH_SERVICE)
+        if auth_service is None:
+            raise RuntimeError("Internal admin auth service is not configured")
+        if not auth_service.has_password_configured():
+            return jsonify({"message": INTERNAL_ADMIN_PASSWORD_MISSING_MESSAGE}), 503
+
+        session = await auth_service.load_session(request.cookies.get(auth_service.session_cookie_name))
+        if session is None:
+            return jsonify({"message": INTERNAL_ADMIN_REQUIRED_MESSAGE}), 401
+
+        return await route_fn(*args, **kwargs)
 
     return cast(_C, auth_handler)

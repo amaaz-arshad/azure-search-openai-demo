@@ -48,6 +48,7 @@ from quart_cors import cors
 
 from approaches.approach import Approach, DataPoints
 from approaches.chatbot_config_registry import load_all_chatbot_configs
+from approaches.chatbot_prompt_registry import DEFAULT_CHATBOT_NAME, get_chatbot_prompt, get_registered_chatbot_names
 from approaches.chatreadretrieveread import ChatReadRetrieveReadApproach
 from approaches.promptmanager import PromptManager
 from chat_history.cosmosdb import chat_history_cosmosdb_bp
@@ -58,6 +59,7 @@ from config import (
     CONFIG_CHATBOT_UPLOAD_MANAGERS,
     CONFIG_CHAT_APPROACH,
     CONFIG_CHATBOT_CHAT_APPROACHES,
+    CONFIG_CHATBOT_PROMPT_STORE,
     CONFIG_CHAT_HISTORY_BROWSER_ENABLED,
     CONFIG_CHAT_HISTORY_COSMOS_ENABLED,
     CONFIG_CREDENTIAL,
@@ -72,6 +74,7 @@ from config import (
     CONFIG_LANGUAGE_PICKER_ENABLED,
     CONFIG_MULTIMODAL_ENABLED,
     CONFIG_OPENAI_CLIENT,
+    CONFIG_INTERNAL_ADMIN_AUTH_SERVICE,
     CONFIG_QUERY_REWRITING_ENABLED,
     CONFIG_RAG_SEARCH_IMAGE_EMBEDDINGS,
     CONFIG_RAG_SEARCH_TEXT_EMBEDDINGS,
@@ -96,9 +99,15 @@ from config import (
     CONFIG_WEB_SOURCE_ENABLED,
 )
 from core.authentication import AuthenticationHelper
+from core.chatbotpromptstore import ChatbotPromptOverride, ChatbotPromptStore
+from core.internaladminauth import (
+    INTERNAL_ADMIN_INVALID_PASSWORD_MESSAGE,
+    INTERNAL_ADMIN_PASSWORD_MISSING_MESSAGE,
+    InternalAdminAuthStore,
+)
 from core.publictestauth import PublicTestAuthError, PublicTestAuthStore, PublicTestSession, normalize_public_test_email
 from core.sessionhelper import create_session_id
-from decorators import authenticated, authenticated_path
+from decorators import authenticated, authenticated_path, internal_admin_required
 from error import ErrorContext, error_dict, error_response, get_request_error_context
 from prepdocs import (
     OpenAIHost,
@@ -141,12 +150,14 @@ NON_CHATBOT_FRONTEND_PREFIXES = {
     "favicon.ico",
     "list_uploaded",
     "managed_uploads",
+    "manage-prompts",
     "public-test-admin",
     "public-test-users",
     "redirect",
     "speech",
     "upload",
     "upload-files",
+    "internal-admin",
 }
 
 # Keep in sync with frontend chatbot routes in app/frontend/src/chatbots/registry.ts.
@@ -215,8 +226,27 @@ def get_public_test_auth_service() -> PublicTestAuthStore:
     return cast(PublicTestAuthStore, auth_service)
 
 
+def get_internal_admin_auth_service() -> InternalAdminAuthStore:
+    auth_service = current_app.config.get(CONFIG_INTERNAL_ADMIN_AUTH_SERVICE)
+    if auth_service is None:
+        raise RuntimeError("Internal admin auth service is not configured")
+    return cast(InternalAdminAuthStore, auth_service)
+
+
+def get_chatbot_prompt_store() -> ChatbotPromptStore:
+    prompt_store = current_app.config.get(CONFIG_CHATBOT_PROMPT_STORE)
+    if prompt_store is None:
+        raise RuntimeError("Chatbot prompt store is not configured")
+    return cast(ChatbotPromptStore, prompt_store)
+
+
 async def get_authenticated_public_test_user() -> PublicTestSession | None:
     auth_service = get_public_test_auth_service()
+    return await auth_service.load_session(request.cookies.get(auth_service.session_cookie_name))
+
+
+async def get_authenticated_internal_admin():
+    auth_service = get_internal_admin_auth_service()
     return await auth_service.load_session(request.cookies.get(auth_service.session_cookie_name))
 
 
@@ -252,6 +282,67 @@ def should_set_secure_session_cookie() -> bool:
         or os.getenv("WEBSITE_HOSTNAME") is not None
         or os.getenv("RUNNING_IN_PRODUCTION") is not None
     )
+
+
+def resolve_requested_chatbot_name(request_json: dict[str, Any] | None = None, *, fallback_to_default: bool = False) -> str | None:
+    requested_chatbot_name = get_chatbot_name_from_request_json(request_json or {})
+    if requested_chatbot_name:
+        return requested_chatbot_name
+
+    header_chatbot_name = (request.headers.get("X-Chatbot-Name") or "").strip().lower()
+    if header_chatbot_name in KNOWN_CHATBOT_NAMES:
+        return header_chatbot_name
+
+    referer = request.headers.get("Referer")
+    if referer:
+        referer_first_segment = urlparse(referer).path.strip("/").split("/", 1)[0].strip().lower()
+        if referer_first_segment in KNOWN_CHATBOT_NAMES:
+            return referer_first_segment
+
+    return DEFAULT_CHATBOT_NAME if fallback_to_default else None
+
+
+async def apply_saved_chatbot_prompt_override(request_json: dict[str, Any]) -> str | None:
+    if not isinstance(request_json, dict):
+        return None
+
+    context = request_json.get("context")
+    if not isinstance(context, dict):
+        context = {}
+        request_json["context"] = context
+
+    overrides = context.get("overrides")
+    if not isinstance(overrides, dict):
+        overrides = {}
+        context["overrides"] = overrides
+
+    existing_prompt_template = overrides.get("prompt_template")
+    if isinstance(existing_prompt_template, str):
+        return resolve_requested_chatbot_name(request_json)
+
+    requested_chatbot_name = resolve_requested_chatbot_name(request_json, fallback_to_default=True)
+    if requested_chatbot_name is None:
+        return None
+
+    prompt_override = await get_chatbot_prompt_store().load_prompt(requested_chatbot_name)
+    if prompt_override is not None:
+        overrides["__saved_prompt_template"] = prompt_override.prompt
+    return requested_chatbot_name
+
+
+def build_prompt_admin_payload(
+    chatbot_name: str,
+    default_prompt: str | None,
+    prompt_override: ChatbotPromptOverride | None,
+) -> dict[str, Any]:
+    current_prompt = prompt_override.prompt if prompt_override is not None else (default_prompt or "")
+    return {
+        "chatbotName": chatbot_name,
+        "source": "override" if prompt_override is not None else "default",
+        "currentPrompt": current_prompt,
+        "defaultPrompt": default_prompt or "",
+        "updatedAt": prompt_override.updated_at if prompt_override is not None else None,
+    }
 
 
 async def serve_spa_index():
@@ -303,6 +394,13 @@ async def upload_files_page(subpath: str | None = None):
 @bp.route("/public-test-users/")
 @bp.route("/public-test-users/<path:subpath>")
 async def public_test_users_page(subpath: str | None = None):
+    return await serve_spa_index()
+
+
+@bp.route("/manage-prompts")
+@bp.route("/manage-prompts/")
+@bp.route("/manage-prompts/<path:subpath>")
+async def manage_prompts_page(subpath: str | None = None):
     return await serve_spa_index()
 
 
@@ -690,7 +788,126 @@ async def public_test_logout():
     return response, 200
 
 
+@bp.post("/internal-admin/login")
+async def internal_admin_login():
+    if not request.is_json:
+        return jsonify({"message": "Request must be JSON."}), 415
+
+    request_json = await request.get_json()
+    if not isinstance(request_json, dict):
+        return jsonify({"message": "Request payload must be an object."}), 400
+
+    auth_service = get_internal_admin_auth_service()
+    if not auth_service.has_password_configured():
+        return jsonify({"message": INTERNAL_ADMIN_PASSWORD_MISSING_MESSAGE, "authenticated": False}), 503
+
+    password = str(request_json.get("password", ""))
+    if not auth_service.verify_password(password):
+        return jsonify({"message": INTERNAL_ADMIN_INVALID_PASSWORD_MESSAGE, "authenticated": False}), 401
+
+    response = jsonify({"authenticated": True})
+    auth_service.set_session_cookie(response, secure=should_set_secure_session_cookie())
+    return response, 200
+
+
+@bp.get("/internal-admin/session")
+async def internal_admin_session():
+    auth_service = get_internal_admin_auth_service()
+    if not auth_service.has_password_configured():
+        return jsonify({"message": INTERNAL_ADMIN_PASSWORD_MISSING_MESSAGE, "authenticated": False}), 503
+
+    internal_admin_session = await get_authenticated_internal_admin()
+    return jsonify({"authenticated": internal_admin_session is not None}), 200
+
+
+@bp.post("/internal-admin/logout")
+async def internal_admin_logout():
+    auth_service = get_internal_admin_auth_service()
+    response = jsonify({"authenticated": False})
+    auth_service.clear_session_cookie(response)
+    return response, 200
+
+
+@bp.get("/internal-admin/prompts")
+@internal_admin_required
+async def list_internal_admin_prompts():
+    prompt_store = get_chatbot_prompt_store()
+    overrides = await prompt_store.list_prompts()
+    prompt_payload = [
+        build_prompt_admin_payload(
+            chatbot_name,
+            get_chatbot_prompt(chatbot_name),
+            overrides.get(chatbot_name),
+        )
+        for chatbot_name in get_registered_chatbot_names()
+    ]
+    return jsonify({"prompts": prompt_payload}), 200
+
+
+@bp.put("/internal-admin/prompts/<chatbot_name>")
+@internal_admin_required
+async def save_internal_admin_prompt(chatbot_name: str):
+    if not request.is_json:
+        return jsonify({"message": "Request must be JSON."}), 415
+
+    request_json = await request.get_json()
+    if not isinstance(request_json, dict):
+        return jsonify({"message": "Request payload must be an object."}), 400
+
+    normalized_chatbot_name = chatbot_name.strip().lower()
+    if normalized_chatbot_name not in set(get_registered_chatbot_names()):
+        return jsonify({"message": "Unknown chatbot."}), 404
+
+    prompt = request_json.get("prompt")
+    if not isinstance(prompt, str):
+        return jsonify({"message": "Prompt must be a string."}), 400
+
+    default_prompt = get_chatbot_prompt(normalized_chatbot_name)
+    prompt_store = get_chatbot_prompt_store()
+    try:
+        prompt_override = await prompt_store.save_prompt(
+            normalized_chatbot_name,
+            prompt,
+            default_prompt=default_prompt,
+        )
+    except ValueError as error:
+        return jsonify({"message": str(error)}), 400
+
+    message = "Prompt saved successfully." if prompt_override is not None else "Prompt reset to default."
+    return (
+        jsonify(
+            {
+                "message": message,
+                "prompt": build_prompt_admin_payload(normalized_chatbot_name, default_prompt, prompt_override),
+            }
+        ),
+        200,
+    )
+
+
+@bp.delete("/internal-admin/prompts/<chatbot_name>")
+@internal_admin_required
+async def delete_internal_admin_prompt(chatbot_name: str):
+    normalized_chatbot_name = chatbot_name.strip().lower()
+    if normalized_chatbot_name not in set(get_registered_chatbot_names()):
+        return jsonify({"message": "Unknown chatbot."}), 404
+
+    prompt_store = get_chatbot_prompt_store()
+    await prompt_store.delete_prompt(normalized_chatbot_name)
+    default_prompt = get_chatbot_prompt(normalized_chatbot_name)
+    return (
+        jsonify(
+            {
+                "message": "Prompt reset to default.",
+                "prompt": build_prompt_admin_payload(normalized_chatbot_name, default_prompt, None),
+            }
+        ),
+        200,
+    )
+
+
 @bp.get("/public-test-admin/users")
+@internal_admin_required
 async def list_public_test_admin_users():
     auth_service = get_public_test_auth_service()
     upload_manager = get_chatbot_upload_manager(PUBLIC_TEST_CHATBOT_NAME)
@@ -713,6 +930,7 @@ async def list_public_test_admin_users():
 
 
 @bp.delete("/public-test-admin/users/<path:email>")
+@internal_admin_required
 async def delete_public_test_admin_user(email: str):
     normalized_email = normalize_public_test_email(email)
     if normalized_email is None:
@@ -741,6 +959,7 @@ async def delete_public_test_admin_user(email: str):
 
 
 @bp.post("/public-test-admin/users/<path:email>/password")
+@internal_admin_required
 async def reset_public_test_admin_user_password(email: str):
     if not request.is_json:
         return jsonify({"message": "Request must be JSON."}), 415
@@ -779,7 +998,7 @@ async def chat(auth_claims: dict[str, Any]):
     request_json = await request.get_json()
     error_context = get_request_error_context(request_json)
     context = request_json.get("context", {})
-    requested_chatbot_name = get_chatbot_name_from_request_json(request_json)
+    requested_chatbot_name = await apply_saved_chatbot_prompt_override(request_json)
     if requested_chatbot_name in {PUBLIC_TEST_CHATBOT_NAME, RAK_CHATBOT_NAME}:
         chatbot_user = await get_user_scoped_chatbot_user(requested_chatbot_name)
         if chatbot_user is None:
@@ -817,7 +1036,7 @@ async def chat_stream(auth_claims: dict[str, Any]):
     request_json = await request.get_json()
     error_context = get_request_error_context(request_json)
     context = request_json.get("context", {})
-    requested_chatbot_name = get_chatbot_name_from_request_json(request_json)
+    requested_chatbot_name = await apply_saved_chatbot_prompt_override(request_json)
     if requested_chatbot_name in {PUBLIC_TEST_CHATBOT_NAME, RAK_CHATBOT_NAME}:
         chatbot_user = await get_user_scoped_chatbot_user(requested_chatbot_name)
         if chatbot_user is None:
@@ -1118,6 +1337,7 @@ async def delete_all_chatbot_uploaded(chatbot_name: str):
 
 
 @bp.get("/managed_uploads")
+@internal_admin_required
 async def list_managed_uploads():
     category = (request.args.get("category") or "").strip() or None
     query = (request.args.get("query") or "").strip() or None
@@ -1151,6 +1371,7 @@ async def list_managed_uploads():
 
 
 @bp.post("/managed_uploads")
+@internal_admin_required
 async def upload_managed_files():
     form = await request.form
     category = (form.get("category") or "").strip()
@@ -1222,6 +1443,7 @@ async def upload_managed_files():
 
 
 @bp.post("/managed_uploads/cancel/<upload_id>")
+@internal_admin_required
 async def cancel_managed_upload(upload_id: str):
     upload_id = upload_id.strip()
     category = (request.args.get("category") or "").strip()
@@ -1240,6 +1462,7 @@ async def cancel_managed_upload(upload_id: str):
 
 
 @bp.delete("/managed_uploads/<path:filename>")
+@internal_admin_required
 async def delete_managed_uploaded_file(filename: str):
     category = (request.args.get("category") or "").strip()
     if not category:
@@ -1256,6 +1479,7 @@ async def delete_managed_uploaded_file(filename: str):
 
 
 @bp.delete("/managed_uploads")
+@internal_admin_required
 async def delete_managed_uploaded_files():
     category = (request.args.get("category") or "").strip() or None
     manager = get_category_upload_manager()
@@ -1325,6 +1549,7 @@ async def setup_clients():
     AZURE_ENABLE_UNAUTHENTICATED_ACCESS = os.getenv("AZURE_ENABLE_UNAUTHENTICATED_ACCESS", "").lower() == "true"
     AZURE_SERVER_APP_ID = os.getenv("AZURE_SERVER_APP_ID")
     AZURE_SERVER_APP_SECRET = os.getenv("AZURE_SERVER_APP_SECRET")
+    INTERNAL_TOOLS_PASSWORD = os.getenv("INTERNAL_TOOLS_PASSWORD") or os.getenv("CHATBOT_DIRECTORY_PASSWORD")
     AZURE_CLIENT_APP_ID = os.getenv("AZURE_CLIENT_APP_ID")
     AZURE_AUTH_TENANT_ID = os.getenv("AZURE_AUTH_TENANT_ID", AZURE_TENANT_ID)
     PUBLIC_TEST_SMTP_HOST = os.getenv("PUBLIC_TEST_SMTP_HOST")
@@ -1522,6 +1747,17 @@ async def setup_clients():
         )
 
     public_test_upload_page_limit = 30
+    chatbot_prompt_store = ChatbotPromptStore(blob_manager=global_blob_manager)
+    current_app.config[CONFIG_CHATBOT_PROMPT_STORE] = chatbot_prompt_store
+
+    internal_admin_auth_service = InternalAdminAuthStore(
+        blob_manager=global_blob_manager,
+        session_secret=AZURE_SERVER_APP_SECRET,
+        admin_password=INTERNAL_TOOLS_PASSWORD,
+    )
+    await internal_admin_auth_service.setup()
+    current_app.config[CONFIG_INTERNAL_ADMIN_AUTH_SERVICE] = internal_admin_auth_service
+
     public_test_auth_service = PublicTestAuthStore(
         blob_manager=global_blob_manager,
         session_secret=AZURE_SERVER_APP_SECRET,

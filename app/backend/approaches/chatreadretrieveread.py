@@ -311,6 +311,11 @@ class ChatReadRetrieveReadApproach(Approach):
             system_template_variables=self.get_system_prompt_variables(
                 overrides.get("prompt_template"),
                 chatbot_name_override if isinstance(chatbot_name_override, str) else None,
+                saved_prompt=(
+                    overrides.get("__saved_prompt_template")
+                    if isinstance(overrides.get("__saved_prompt_template"), str)
+                    else None
+                ),
             )
             | {
                 "include_follow_up_questions": bool(overrides.get("suggest_followup_questions")),

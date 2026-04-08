@@ -1,6 +1,4 @@
-export const INTERNAL_TOOLS_PASSWORD =
-    (import.meta.env.VITE_CHATBOT_DIRECTORY_PASSWORD as string | undefined) || "chatbot123";
-export const INTERNAL_TOOLS_SESSION_KEY = "chatbotDirectoryAuthenticated";
+export const INTERNAL_TOOLS_SESSION_KEY = "internalToolsAdminAuthenticated";
 
 export const getInitialInternalAuthenticationState = () => {
     if (typeof window === "undefined") {
@@ -8,4 +6,17 @@ export const getInitialInternalAuthenticationState = () => {
     }
 
     return window.sessionStorage.getItem(INTERNAL_TOOLS_SESSION_KEY) === "true";
+};
+
+export const setInternalAuthenticationState = (isAuthenticated: boolean) => {
+    if (typeof window === "undefined") {
+        return;
+    }
+
+    if (isAuthenticated) {
+        window.sessionStorage.setItem(INTERNAL_TOOLS_SESSION_KEY, "true");
+        return;
+    }
+
+    window.sessionStorage.removeItem(INTERNAL_TOOLS_SESSION_KEY);
 };

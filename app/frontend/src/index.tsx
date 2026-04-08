@@ -14,6 +14,7 @@ import { Component as SharedNoPage } from "./chatbots/shared/noPage/NoPage";
 import { ChatbotThemeRoot } from "./chatbots/shared/theme/ChatbotThemeRoot";
 import i18n from "./chatbots/nerilio/i18n/config";
 import ChatbotDirectory from "./pages/ChatbotDirectory";
+import ManagePromptsPage from "./pages/ManagePromptsPage";
 import PublicTestUsersPage from "./pages/PublicTestUsersPage";
 import UploadFilesPage from "./pages/UploadFilesPage";
 import { msalConfig, useLogin } from "./authConfig";
@@ -63,6 +64,10 @@ const router = createBrowserRouter([
     {
         path: "/public-test-users",
         element: <PublicTestUsersPage />
+    },
+    {
+        path: "/manage-prompts",
+        element: <ManagePromptsPage />
     },
     ...chatbotRoutes,
     {

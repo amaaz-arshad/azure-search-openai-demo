@@ -4,16 +4,12 @@ import { Link } from "react-router-dom";
 import { Icon } from "@fluentui/react";
 
 import {
-    INTERNAL_TOOLS_PASSWORD,
-    INTERNAL_TOOLS_SESSION_KEY,
-    getInitialInternalAuthenticationState
-} from "./internalToolsAccess";
-import {
     PublicTestAdminUser,
     deletePublicTestUserApi,
     listPublicTestUsersApi,
     resetPublicTestUserPasswordApi
 } from "./publicTestUsersApi";
+import { useInternalAdminAccess } from "./useInternalAdminAccess";
 import styles from "./PublicTestUsersPage.module.css";
 
 const formatTimestamp = (timestamp: string) => {
@@ -25,9 +21,16 @@ const formatTimestamp = (timestamp: string) => {
 };
 
 const PublicTestUsersPage = () => {
-    const [isAuthenticated, setIsAuthenticated] = useState<boolean>(getInitialInternalAuthenticationState);
+    const {
+        isAuthenticated,
+        isCheckingAuthentication,
+        authError,
+        clearAuthError,
+        handleUnauthorizedError,
+        login,
+        logout
+    } = useInternalAdminAccess();
     const [password, setPassword] = useState("");
-    const [errorMessage, setErrorMessage] = useState("");
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
     const [query, setQuery] = useState("");
     const [users, setUsers] = useState<PublicTestAdminUser[]>([]);
@@ -62,6 +65,18 @@ const PublicTestUsersPage = () => {
             const response = await listPublicTestUsersApi();
             setUsers(response.users);
         } catch (error) {
+            if (handleUnauthorizedError(error)) {
+                setUsers([]);
+                setPasswordResetEmail(null);
+                setNewPassword("");
+                setConfirmNewPassword("");
+                setIsNewPasswordVisible(false);
+                setIsConfirmPasswordVisible(false);
+                setResettingEmail(null);
+                setDeletingEmail(null);
+                setQuery("");
+                return;
+            }
             setStatusMessage(error instanceof Error ? error.message : "Could not load public-test users.");
         } finally {
             setIsLoading(false);
@@ -75,28 +90,20 @@ const PublicTestUsersPage = () => {
         void loadUsers();
     }, [isAuthenticated]);
 
-    const handleUnlock = (event: FormEvent<HTMLFormElement>) => {
+    const handleUnlock = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
 
-        if (password === INTERNAL_TOOLS_PASSWORD) {
-            window.sessionStorage.setItem(INTERNAL_TOOLS_SESSION_KEY, "true");
-            setIsAuthenticated(true);
+        if (await login(password)) {
             setPassword("");
-            setErrorMessage("");
             setIsPasswordVisible(false);
             return;
         }
-
-        setErrorMessage("Incorrect password. Please try again.");
     };
 
     const handleLockPage = () => {
-        window.sessionStorage.removeItem(INTERNAL_TOOLS_SESSION_KEY);
-        setIsAuthenticated(false);
         setPassword("");
         setQuery("");
         setUsers([]);
-        setErrorMessage("");
         setStatusMessage("");
         setIsPasswordVisible(false);
         setDeletingEmail(null);
@@ -106,6 +113,7 @@ const PublicTestUsersPage = () => {
         setIsNewPasswordVisible(false);
         setIsConfirmPasswordVisible(false);
         setResettingEmail(null);
+        void logout();
     };
 
     const handleDeleteUser = async (user: PublicTestAdminUser) => {
@@ -124,6 +132,11 @@ const PublicTestUsersPage = () => {
             const deletedUploadCount = response.deletedUploadCount ?? 0;
             setStatusMessage(`Deleted ${user.email} and removed ${deletedUploadCount} uploaded file(s).`);
         } catch (error) {
+            if (handleUnauthorizedError(error)) {
+                setUsers([]);
+                setDeletingEmail(null);
+                return;
+            }
             setStatusMessage(error instanceof Error ? error.message : "Could not delete public-test user.");
         } finally {
             setDeletingEmail(null);
@@ -168,6 +181,15 @@ const PublicTestUsersPage = () => {
             setIsNewPasswordVisible(false);
             setIsConfirmPasswordVisible(false);
         } catch (error) {
+            if (handleUnauthorizedError(error)) {
+                setUsers([]);
+                setPasswordResetEmail(null);
+                setNewPassword("");
+                setConfirmNewPassword("");
+                setIsNewPasswordVisible(false);
+                setIsConfirmPasswordVisible(false);
+                return;
+            }
             setStatusMessage(error instanceof Error ? error.message : "Could not reset public-test password.");
         } finally {
             setResettingEmail(null);
@@ -200,6 +222,9 @@ const PublicTestUsersPage = () => {
                                 <Link className={styles.secondaryButton} to="/upload-files">
                                     Uploads
                                 </Link>
+                                <Link className={styles.secondaryButton} to="/manage-prompts">
+                                    Prompts
+                                </Link>
                                 <button className={styles.secondaryButton} type="button" onClick={handleLockPage}>
                                     Lock page
                                 </button>
@@ -229,7 +254,7 @@ const PublicTestUsersPage = () => {
                                         value={password}
                                         onChange={event => {
                                             setPassword(event.target.value);
-                                            setErrorMessage("");
+                                            clearAuthError();
                                         }}
                                         placeholder="Enter password"
                                         autoComplete="off"
@@ -248,12 +273,12 @@ const PublicTestUsersPage = () => {
                                     </button>
                                 </div>
 
-                                <button className={styles.primaryButton} type="submit">
-                                    Unlock user admin
+                                <button className={styles.primaryButton} type="submit" disabled={isCheckingAuthentication}>
+                                    {isCheckingAuthentication ? "Unlocking..." : "Unlock user admin"}
                                 </button>
 
                                 <p className={styles.errorMessage} role="alert" aria-live="polite">
-                                    {errorMessage}
+                                    {authError}
                                 </p>
                             </form>
                         </div>

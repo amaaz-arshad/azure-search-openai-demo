@@ -1,5 +1,6 @@
 import json
 import os
+from pathlib import Path
 from typing import Any
 from types import SimpleNamespace
 from unittest import mock
@@ -11,6 +12,7 @@ from openai import BadRequestError
 from quart import Response as QuartResponse
 
 import app
+from core.internaladminauth import INTERNAL_ADMIN_AUTH_COOKIE, INTERNAL_ADMIN_INVALID_PASSWORD_MESSAGE, INTERNAL_ADMIN_REQUIRED_MESSAGE
 
 
 def fake_response(http_code):
@@ -60,6 +62,14 @@ def pop_citation_activity_details(result: dict[str, Any] | None):  # type: ignor
     if not isinstance(data_points, dict):
         return None
     return data_points.pop("citation_activity_details", None)
+
+
+async def login_internal_admin(client, password: str = "chatbot123"):
+    response = await client.post("/internal-admin/login", json={"password": password})
+    payload = await response.get_json()
+    assert response.status_code == 200
+    assert payload == {"authenticated": True}
+    return response
 
 
 @pytest.mark.asyncio
@@ -421,7 +431,136 @@ async def test_public_test_profile_returns_account_details(client, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_internal_admin_login_session_logout_flow(client):
+    response = await client.get("/internal-admin/session")
+    payload = await response.get_json()
+    assert response.status_code == 200
+    assert payload == {"authenticated": False}
+
+    response = await client.post("/internal-admin/login", json={"password": "wrong-password"})
+    payload = await response.get_json()
+    assert response.status_code == 401
+    assert payload == {"message": INTERNAL_ADMIN_INVALID_PASSWORD_MESSAGE, "authenticated": False}
+
+    response = await login_internal_admin(client)
+    assert INTERNAL_ADMIN_AUTH_COOKIE in response.headers["Set-Cookie"]
+
+    response = await client.get("/internal-admin/session")
+    payload = await response.get_json()
+    assert response.status_code == 200
+    assert payload == {"authenticated": True}
+
+    response = await client.post("/internal-admin/logout")
+    payload = await response.get_json()
+    assert response.status_code == 200
+    assert payload == {"authenticated": False}
+    assert INTERNAL_ADMIN_AUTH_COOKIE in response.headers["Set-Cookie"]
+
+    response = await client.get("/internal-admin/session")
+    payload = await response.get_json()
+    assert response.status_code == 200
+    assert payload == {"authenticated": False}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("path", ["/internal-admin/prompts", "/managed_uploads", "/public-test-admin/users"])
+async def test_internal_admin_routes_require_session(client, path):
+    response = await client.get(path)
+    payload = await response.get_json()
+    assert response.status_code == 401
+    assert payload == {"message": INTERNAL_ADMIN_REQUIRED_MESSAGE}
+
+
+@pytest.mark.asyncio
+async def test_manage_prompts_spa_route(client):
+    response = await client.get("/manage-prompts")
+    assert response.status_code == 200
+    assert response.content_type.startswith("text/html")
+
+
+def test_chat_history_scope_marks_internal_admin_routes_as_non_chatbot():
+    chat_history_scope = (Path(app.__file__).resolve().parent.parent / "frontend" / "src" / "chatHistoryScope.ts").read_text(
+        encoding="utf-8"
+    )
+    assert '"public-test-users"' in chat_history_scope
+    assert '"manage-prompts"' in chat_history_scope
+
+
+@pytest.mark.asyncio
+async def test_prompt_override_is_used_for_next_chat_request_and_delete_restores_default(client, monkeypatch):
+    await login_internal_admin(client)
+
+    prompt_store = client.app.config[app.CONFIG_CHATBOT_PROMPT_STORE]
+    override_state = {"prompt": None}
+
+    async def mock_load_prompt(chatbot_name: str):
+        assert chatbot_name == "demo"
+        return override_state["prompt"]
+
+    async def mock_save_prompt(chatbot_name: str, prompt: str, *, default_prompt: str | None = None):
+        assert chatbot_name == "demo"
+        assert default_prompt == app.get_chatbot_prompt("demo")
+        override_state["prompt"] = app.ChatbotPromptOverride(
+            chatbot_name="demo",
+            prompt=prompt,
+            created_at="2026-04-08T10:00:00+00:00",
+            updated_at="2026-04-08T10:05:00+00:00",
+        )
+        return override_state["prompt"]
+
+    async def mock_delete_prompt(chatbot_name: str):
+        assert chatbot_name == "demo"
+        override_state["prompt"] = None
+        return True
+
+    monkeypatch.setattr(prompt_store, "load_prompt", mock_load_prompt)
+    monkeypatch.setattr(prompt_store, "save_prompt", mock_save_prompt)
+    monkeypatch.setattr(prompt_store, "delete_prompt", mock_delete_prompt)
+
+    save_response = await client.put(
+        "/internal-admin/prompts/demo",
+        json={"prompt": "You are a saved prompt for {{ SUPPORT_EMAIL }}."},
+    )
+    save_payload = await save_response.get_json()
+    assert save_response.status_code == 200
+    assert save_payload["prompt"]["source"] == "override"
+    assert save_payload["prompt"]["updatedAt"] == "2026-04-08T10:05:00+00:00"
+
+    response = await client.post(
+        "/chat",
+        json={
+            "messages": [{"content": "What is the capital of France?", "role": "user"}],
+            "context": {"overrides": {"retrieval_mode": "text", "include_category": "demo"}},
+        },
+    )
+    assert response.status_code == 200
+    result = await response.get_json()
+    assert result["context"]["thoughts"][3]["description"][0]["content"].startswith(
+        "You are a saved prompt for info@snap.de."
+    )
+
+    reset_response = await client.delete("/internal-admin/prompts/demo")
+    reset_payload = await reset_response.get_json()
+    assert reset_response.status_code == 200
+    assert reset_payload["prompt"]["source"] == "default"
+
+    response = await client.post(
+        "/chat",
+        json={
+            "messages": [{"content": "What is the capital of France?", "role": "user"}],
+            "context": {"overrides": {"retrieval_mode": "text", "include_category": "demo"}},
+        },
+    )
+    assert response.status_code == 200
+    result = await response.get_json()
+    assert not result["context"]["thoughts"][3]["description"][0]["content"].startswith(
+        "You are a saved prompt for info@snap.de."
+    )
+
+
+@pytest.mark.asyncio
 async def test_public_test_admin_users_lists_accounts(client, monkeypatch):
+    await login_internal_admin(client)
     auth_service = client.app.config[app.CONFIG_PUBLIC_TEST_AUTH_SERVICE]
 
     async def mock_list_accounts():
@@ -460,6 +599,7 @@ async def test_public_test_admin_users_lists_accounts(client, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_public_test_admin_user_delete_removes_uploads_and_account(client, monkeypatch):
+    await login_internal_admin(client)
     auth_service = client.app.config[app.CONFIG_PUBLIC_TEST_AUTH_SERVICE]
     upload_manager = mock.AsyncMock()
     upload_manager.remove_all_files.return_value = (["deleted.pdf"], [])
@@ -484,6 +624,7 @@ async def test_public_test_admin_user_delete_removes_uploads_and_account(client,
 
 @pytest.mark.asyncio
 async def test_public_test_admin_user_password_reset_updates_account(client, monkeypatch):
+    await login_internal_admin(client)
     auth_service = client.app.config[app.CONFIG_PUBLIC_TEST_AUTH_SERVICE]
 
     async def mock_reset_account_password(**kwargs):
