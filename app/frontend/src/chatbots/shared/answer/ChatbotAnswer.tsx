@@ -80,6 +80,7 @@ type Props = {
     assistantLogoAlt: string;
     assistantLogoVariant?: "avatar" | "wordmark";
     assistantLogoClassName?: string;
+    assistantLogoPlacement?: "inside" | "outside-left";
     assistantName?: string;
     showAssistantName?: boolean;
     showCopyButton?: boolean;
@@ -221,6 +222,7 @@ export const ChatbotAnswer = ({
     assistantLogoAlt,
     assistantLogoVariant = "avatar",
     assistantLogoClassName,
+    assistantLogoPlacement = "inside",
     assistantName,
     showAssistantName = true,
     showCopyButton = true,
@@ -240,6 +242,11 @@ export const ChatbotAnswer = ({
     const assistantLogoClasses = [assistantLogoVariant === "wordmark" ? styles.assistantWordmark : styles.assistantAvatar, assistantLogoClassName]
         .filter(Boolean)
         .join(" ");
+    const useOutsideLeftAvatar = assistantLogoPlacement === "outside-left" && assistantLogoVariant === "avatar";
+    const showHeaderActions =
+        showCopyButton || Boolean(showSpeechOutputAzure && SpeechOutputAzureComponent) || Boolean(showSpeechOutputBrowser && SpeechOutputBrowserComponent);
+    const showInsideAssistantHeader = !useOutsideLeftAvatar;
+    const renderHeaderRow = (showInsideAssistantHeader && (assistantLogoSrc || (showAssistantName && assistantName))) || showHeaderActions;
 
     const copyableMarkdown = useMemo(() => stripCitationLinks(parsedAnswer.markdown), [parsedAnswer.markdown]);
     const answerForSpeech = useMemo(() => cleanSpeechText(copyableMarkdown), [copyableMarkdown]);
@@ -343,123 +350,143 @@ export const ChatbotAnswer = ({
     };
 
     return (
-        <Stack className={`${styles.answerContainer} ${isSelected ? styles.selected : ""}`} verticalAlign="space-between">
-            <Stack.Item>
-                <Stack horizontal horizontalAlign="space-between" className={styles.headerRow}>
-                    <div className={styles.assistantHeader}>
-                        <img src={assistantLogoSrc} alt={assistantLogoAlt} className={assistantLogoClasses} />
-                        {showAssistantName && assistantName && <div className={styles.assistantName}>{assistantName}</div>}
+        <div className={`${styles.answerShell} ${useOutsideLeftAvatar ? styles.answerShellWithOutsideAvatar : ""}`}>
+            {useOutsideLeftAvatar && (
+                <img
+                    src={assistantLogoSrc}
+                    alt={assistantLogoAlt}
+                    className={`${assistantLogoClasses} ${styles.assistantAvatarOutside}`}
+                    data-testid="assistant-avatar-outside"
+                />
+            )}
+            <Stack
+                className={`${styles.answerContainer} ${isSelected ? styles.selected : ""}`}
+                data-testid="chatbot-answer-card"
+                verticalAlign="space-between"
+            >
+                {renderHeaderRow && (
+                    <Stack.Item>
+                        <Stack horizontal className={`${styles.headerRow} ${!showInsideAssistantHeader ? styles.headerRowActionsOnly : ""}`}>
+                            {showInsideAssistantHeader && (
+                                <div className={styles.assistantHeader}>
+                                    <img src={assistantLogoSrc} alt={assistantLogoAlt} className={assistantLogoClasses} />
+                                    {showAssistantName && assistantName && <div className={styles.assistantName}>{assistantName}</div>}
+                                </div>
+                            )}
+                            {showHeaderActions && (
+                                <div className={styles.headerActions}>
+                                    {showCopyButton && (
+                                        <IconButton
+                                            style={{ color: "black" }}
+                                            iconProps={{ iconName: copied ? "CheckMark" : "Copy" }}
+                                            title={copied ? copiedLabel : copyLabel}
+                                            ariaLabel={copied ? copiedLabel : copyLabel}
+                                            onClick={handleCopy}
+                                        />
+                                    )}
+                                    {showSpeechOutputAzure && SpeechOutputAzureComponent && (
+                                        <SpeechOutputAzureComponent answer={answerForSpeech} isStreaming={isStreaming} />
+                                    )}
+                                    {showSpeechOutputBrowser && SpeechOutputBrowserComponent && <SpeechOutputBrowserComponent answer={answerForSpeech} />}
+                                </div>
+                            )}
+                        </Stack>
+                    </Stack.Item>
+                )}
+
+                <Stack.Item grow>
+                    <div className={styles.answerMarkdown}>
+                        <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm, remarkBreaks, supersub]}>
+                            {parsedAnswer.markdown}
+                        </ReactMarkdown>
                     </div>
-                    <div className={styles.headerActions}>
-                        {showCopyButton && (
-                            <IconButton
-                                style={{ color: "black" }}
-                                iconProps={{ iconName: copied ? "CheckMark" : "Copy" }}
-                                title={copied ? copiedLabel : copyLabel}
-                                ariaLabel={copied ? copiedLabel : copyLabel}
-                                onClick={handleCopy}
-                            />
-                        )}
-                        {showSpeechOutputAzure && SpeechOutputAzureComponent && (
-                            <SpeechOutputAzureComponent answer={answerForSpeech} isStreaming={isStreaming} />
-                        )}
-                        {showSpeechOutputBrowser && SpeechOutputBrowserComponent && <SpeechOutputBrowserComponent answer={answerForSpeech} />}
-                    </div>
-                </Stack>
-            </Stack.Item>
+                </Stack.Item>
 
-            <Stack.Item grow>
-                <div className={styles.answerMarkdown}>
-                    <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm, remarkBreaks, supersub]}>
-                        {parsedAnswer.markdown}
-                    </ReactMarkdown>
-                </div>
-            </Stack.Item>
+                {!!parsedAnswer.citations.length && (
+                    <Stack.Item>
+                        <Stack horizontal wrap tokens={{ childrenGap: 8 }} className={styles.footerList}>
+                            <span className={styles.sectionLabel}>{citationLabel}</span>
+                            {parsedAnswer.citations.map(citation => {
+                                const customAction = getCitationListAction?.(citation);
 
-            {!!parsedAnswer.citations.length && (
-                <Stack.Item>
-                    <Stack horizontal wrap tokens={{ childrenGap: 8 }} className={styles.footerList}>
-                        <span className={styles.sectionLabel}>{citationLabel}</span>
-                        {parsedAnswer.citations.map(citation => {
-                            const customAction = getCitationListAction?.(citation);
+                                if (customAction?.href && allowedLinkHref(customAction.href)) {
+                                    return (
+                                        <span key={`${citation.reference}-${citation.index}`} className={styles.footerEntry}>
+                                            <a
+                                                className={styles.footerPill}
+                                                title={customAction.title || customAction.label}
+                                                href={customAction.href}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                            >
+                                                {`${citation.index}. ${customAction.label}`}
+                                            </a>
+                                        </span>
+                                    );
+                                }
 
-                            if (customAction?.href && allowedLinkHref(customAction.href)) {
-                                return (
-                                    <span key={`${citation.reference}-${citation.index}`} className={styles.footerEntry}>
-                                        <a
-                                            className={styles.footerPill}
-                                            title={customAction.title || customAction.label}
-                                            href={customAction.href}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                        >
-                                            {`${citation.index}. ${customAction.label}`}
-                                        </a>
-                                    </span>
-                                );
-                            }
+                                if (customAction?.onClick) {
+                                    return (
+                                        <span key={`${citation.reference}-${citation.index}`} className={styles.footerEntry}>
+                                            <button
+                                                type="button"
+                                                className={styles.footerPillButton}
+                                                title={customAction.title || customAction.label}
+                                                onClick={customAction.onClick}
+                                            >
+                                                {`${citation.index}. ${customAction.label}`}
+                                            </button>
+                                        </span>
+                                    );
+                                }
 
-                            if (customAction?.onClick) {
+                                if (citation.isWeb) {
+                                    const titleOrUrl = citation.displayLabel?.trim() || citation.reference;
+                                    return (
+                                        <span key={`${citation.reference}-${citation.index}`} className={styles.footerEntry}>
+                                            <a className={styles.footerPill} title={titleOrUrl} href={citation.reference} target="_blank" rel="noopener noreferrer">
+                                                {`${citation.index}. ${titleOrUrl}`}
+                                            </a>
+                                        </span>
+                                    );
+                                }
+
                                 return (
                                     <span key={`${citation.reference}-${citation.index}`} className={styles.footerEntry}>
                                         <button
                                             type="button"
                                             className={styles.footerPillButton}
-                                            title={customAction.title || customAction.label}
-                                            onClick={customAction.onClick}
+                                            title={citation.reference}
+                                            onClick={() => openNonWebCitation(citation)}
                                         >
-                                            {`${citation.index}. ${customAction.label}`}
+                                            {`${citation.index}. ${citation.reference}`}
                                         </button>
                                     </span>
                                 );
-                            }
+                            })}
+                        </Stack>
+                    </Stack.Item>
+                )}
 
-                            if (citation.isWeb) {
-                                const titleOrUrl = citation.displayLabel?.trim() || citation.reference;
-                                return (
-                                    <span key={`${citation.reference}-${citation.index}`} className={styles.footerEntry}>
-                                        <a className={styles.footerPill} title={titleOrUrl} href={citation.reference} target="_blank" rel="noopener noreferrer">
-                                            {`${citation.index}. ${titleOrUrl}`}
-                                        </a>
-                                    </span>
-                                );
-                            }
-
-                            return (
-                                <span key={`${citation.reference}-${citation.index}`} className={styles.footerEntry}>
-                                    <button
-                                        type="button"
-                                        className={styles.footerPillButton}
-                                        title={citation.reference}
-                                        onClick={() => openNonWebCitation(citation)}
-                                    >
-                                        {`${citation.index}. ${citation.reference}`}
-                                    </button>
-                                </span>
-                            );
-                        })}
-                    </Stack>
-                </Stack.Item>
-            )}
-
-            {!!followupQuestions?.length && showFollowupQuestions && onFollowupQuestionClicked && (
-                <Stack.Item>
-                    <Stack horizontal wrap tokens={{ childrenGap: 8 }} className={styles.footerList}>
-                        <span className={styles.sectionLabel}>{followupQuestionsLabel}</span>
-                        {followupQuestions.map((question, index) => (
-                            <button
-                                key={`${question}-${index}`}
-                                type="button"
-                                className={styles.followupPill}
-                                title={question}
-                                onClick={() => onFollowupQuestionClicked(question)}
-                            >
-                                {question}
-                            </button>
-                        ))}
-                    </Stack>
-                </Stack.Item>
-            )}
-        </Stack>
+                {!!followupQuestions?.length && showFollowupQuestions && onFollowupQuestionClicked && (
+                    <Stack.Item>
+                        <Stack horizontal wrap tokens={{ childrenGap: 8 }} className={styles.footerList}>
+                            <span className={styles.sectionLabel}>{followupQuestionsLabel}</span>
+                            {followupQuestions.map((question, index) => (
+                                <button
+                                    key={`${question}-${index}`}
+                                    type="button"
+                                    className={styles.followupPill}
+                                    title={question}
+                                    onClick={() => onFollowupQuestionClicked(question)}
+                                >
+                                    {question}
+                                </button>
+                            ))}
+                        </Stack>
+                    </Stack.Item>
+                )}
+            </Stack>
+        </div>
     );
 };

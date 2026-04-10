@@ -27,6 +27,7 @@ interface BotAnswerOptions {
     showCopyButton?: boolean;
     assistantLogoVariant?: "avatar" | "wordmark";
     assistantLogoClassName?: string;
+    assistantLogoPlacement?: "inside" | "outside-left";
 }
 
 /**
@@ -56,6 +57,7 @@ export function createBotAnswer(
                 assistantLogoAlt={`${t("headerTitle")} logo`}
                 assistantLogoVariant={options.assistantLogoVariant}
                 assistantLogoClassName={options.assistantLogoClassName}
+                assistantLogoPlacement={options.assistantLogoPlacement}
                 assistantName={t("headerTitle")}
                 showAssistantName={options.showAssistantName}
                 showCopyButton={options.showCopyButton}

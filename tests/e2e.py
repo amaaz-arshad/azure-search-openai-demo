@@ -341,6 +341,38 @@ def test_publishone_answer_keeps_wordmark_logo_wrapper(page: Page, live_server_u
     )
 
 
+def test_nerilio_answer_places_avatar_outside_card(page: Page, live_server_url: str):
+    page.route(
+        "*/**/chat/stream",
+        lambda route: fulfill_chat_stream_snapshot(
+            route, "tests/snapshots/test_app/test_chat_stream_text/client0/result.jsonlines"
+        ),
+    )
+
+    page.goto(f"{live_server_url}nerilio")
+
+    question_input = page.get_by_placeholder("Type a new question (e.g. does my plan cover annual eye exams?)")
+    question_input.click()
+    question_input.fill("Whats the dental plan?")
+    page.get_by_label("Submit question").click()
+
+    expect(page.get_by_text("The capital of France is Paris.")).to_be_visible()
+
+    avatar = page.get_by_test_id("assistant-avatar-outside").first
+    card = page.get_by_test_id("chatbot-answer-card").first
+
+    expect(avatar).to_be_visible()
+    expect(card).to_be_visible()
+
+    avatar_box = avatar.bounding_box()
+    card_box = card.bounding_box()
+
+    assert avatar_box is not None
+    assert card_box is not None
+    assert avatar_box["x"] < card_box["x"]
+    assert card.locator("[data-testid='assistant-avatar-outside']").count() == 0
+
+
 def test_rak_answer_citation_keeps_logged_in_user_scope(page: Page, live_server_url: str):
     page.route(
         "*/**/chat/stream",
