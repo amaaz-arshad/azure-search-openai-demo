@@ -1,8 +1,8 @@
 .container {
-    --chatbot-answer-font-size: 16px;
-    --chatbot-answer-font-size-mobile: 16px;
-    --chatbot-disclaimer-message-font-size: 16px;
-    --chatbot-disclaimer-message-font-size-mobile: 16px;
+    --chatbot-answer-font-size: 15px;
+    --chatbot-answer-font-size-mobile: 15px;
+    --chatbot-disclaimer-message-font-size: 15px;
+    --chatbot-disclaimer-message-font-size-mobile: 15px;
     flex: 1;
     display: flex;
     flex-direction: column;

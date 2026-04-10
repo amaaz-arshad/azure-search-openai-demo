@@ -15,5 +15,5 @@
         0px 0px 0.125em rgba(0, 0, 0, 0.12);
     outline: transparent solid 0.0625em;
     color: var(--chatbot-user-bubble-text);
-    font-size: 16px;
+    font-size: 15px;
 }
