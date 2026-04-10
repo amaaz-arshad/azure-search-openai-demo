@@ -1,16 +1,16 @@
 .answerShell {
     display: flex;
     align-items: flex-start;
-    gap: 0.75rem;
+    gap: var(--chatbot-answer-shell-gap, 0.75rem);
     max-width: 100%;
 }
 
 .answerShellWithOutsideAvatar {
-    --assistant-avatar-outside-size: 25px;
+    --assistant-avatar-outside-size: var(--chatbot-answer-outside-avatar-size, 25px);
 }
 
 .answerShellWithOutsideAvatar .answerContainer {
-    max-width: calc(100% - var(--assistant-avatar-outside-size) - 0.75rem);
+    max-width: calc(100% - var(--assistant-avatar-outside-size) - var(--chatbot-answer-shell-gap, 0.75rem));
 }
 
 .answerContainer {
@@ -50,8 +50,8 @@
 }
 
 .assistantAvatar {
-    width: 25px;
-    height: 25px;
+    width: var(--assistant-avatar-outside-size, 25px);
+    height: var(--assistant-avatar-outside-size, 25px);
     border-radius: 50%;
     object-fit: contain;
     background-color: white;
