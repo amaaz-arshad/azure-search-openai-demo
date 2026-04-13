@@ -1,0 +1,53 @@
+# Optional: Local OpenLIT backend for LLM observability
+# Usage: docker compose -f docker-compose.openlit.yml up -d
+# Then set OPENLIT_ENDPOINT=http://localhost:4318
+# Dashboard: http://localhost:3000 (login: user@openlit.io / openlituser)
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.1
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+    environment:
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: openlit
+      CLICKHOUSE_DB: openlit
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--password", "openlit", "--query", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+
+  openlit:
+    image: ghcr.io/openlit/openlit:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - openlit_data:/app/client/data
+    environment:
+      INIT_DB_HOST: clickhouse
+      INIT_DB_PORT: "8123"
+      INIT_DB_USERNAME: default
+      INIT_DB_PASSWORD: openlit
+      INIT_DB_DATABASE: openlit
+      SQLITE_DATABASE_URL: "file:/app/client/data/openlit.db"
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+
+volumes:
+  clickhouse_data:
+  openlit_data:

@@ -12,8 +12,11 @@ aiosignal==1.4.0
     # via aiohttp
 annotated-types==0.7.0
     # via pydantic
+anthropic==0.94.0
+    # via openlit
 anyio==4.4.0
     # via
+    #   anthropic
     #   httpx
     #   openai
 asgiref==3.10.0
@@ -70,6 +73,13 @@ blinker==1.9.0
     # via
     #   flask
     #   quart
+boto3==1.42.88
+    # via openlit
+botocore==1.42.88
+    # via
+    #   boto3
+    #   openlit
+    #   s3transfer
 certifi==2026.1.4
     # via
     #   httpcore
@@ -85,6 +95,10 @@ click==8.3.1
     #   flask
     #   quart
     #   uvicorn
+colorama==0.4.6
+    # via
+    #   click
+    #   tqdm
 cryptography==44.0.1
     # via
     #   -r requirements.in
@@ -93,7 +107,11 @@ cryptography==44.0.1
     #   msal
     #   pyjwt
 distro==1.9.0
-    # via openai
+    # via
+    #   anthropic
+    #   openai
+docstring-parser==0.17.0
+    # via anthropic
 exceptiongroup==1.3.1
     # via
     #   anyio
@@ -105,6 +123,12 @@ frozenlist==1.8.0
     # via
     #   aiohttp
     #   aiosignal
+googleapis-common-protos==1.74.0
+    # via
+    #   opentelemetry-exporter-otlp-proto-grpc
+    #   opentelemetry-exporter-otlp-proto-http
+grpcio==1.80.0
+    # via opentelemetry-exporter-otlp-proto-grpc
 h11==0.16.0
     # via
     #   httpcore
@@ -121,6 +145,7 @@ httpcore==1.0.9
     # via httpx
 httpx==0.28.1
     # via
+    #   anthropic
     #   microsoft-kiota-http
     #   msgraph-core
     #   openai
@@ -153,7 +178,13 @@ jinja2==3.1.6
     #   flask
     #   quart
 jiter==0.11.0
-    # via openai
+    # via
+    #   anthropic
+    #   openai
+jmespath==1.1.0
+    # via
+    #   boto3
+    #   botocore
 markdown-it-py==3.0.0
     # via rich
 markupsafe==3.0.3
@@ -204,7 +235,11 @@ multidict==6.7.0
     #   yarl
 oauthlib==3.3.1
     # via requests-oauthlib
-openai==2.6.1
+openai==1.109.1
+    # via
+    #   -r requirements.in
+    #   openlit
+openlit==1.40.3
     # via -r requirements.in
 opentelemetry-api==1.39.0
     # via
@@ -213,67 +248,124 @@ opentelemetry-api==1.39.0
     #   microsoft-kiota-abstractions
     #   microsoft-kiota-authentication-azure
     #   microsoft-kiota-http
+    #   openlit
+    #   opentelemetry-exporter-otlp-proto-grpc
+    #   opentelemetry-exporter-otlp-proto-http
     #   opentelemetry-instrumentation
     #   opentelemetry-instrumentation-aiohttp-client
     #   opentelemetry-instrumentation-asgi
     #   opentelemetry-instrumentation-dbapi
     #   opentelemetry-instrumentation-django
+    #   opentelemetry-instrumentation-falcon
     #   opentelemetry-instrumentation-fastapi
     #   opentelemetry-instrumentation-flask
     #   opentelemetry-instrumentation-httpx
     #   opentelemetry-instrumentation-openai
     #   opentelemetry-instrumentation-psycopg2
+    #   opentelemetry-instrumentation-pyramid
     #   opentelemetry-instrumentation-requests
+    #   opentelemetry-instrumentation-starlette
+    #   opentelemetry-instrumentation-tornado
     #   opentelemetry-instrumentation-urllib
     #   opentelemetry-instrumentation-urllib3
     #   opentelemetry-instrumentation-wsgi
     #   opentelemetry-sdk
     #   opentelemetry-semantic-conventions
+opentelemetry-exporter-otlp==1.39.0
+    # via openlit
+opentelemetry-exporter-otlp-proto-common==1.39.0
+    # via
+    #   opentelemetry-exporter-otlp-proto-grpc
+    #   opentelemetry-exporter-otlp-proto-http
+opentelemetry-exporter-otlp-proto-grpc==1.39.0
+    # via opentelemetry-exporter-otlp
+opentelemetry-exporter-otlp-proto-http==1.39.0
+    # via
+    #   -r requirements.in
+    #   opentelemetry-exporter-otlp
 opentelemetry-instrumentation==0.60b0
     # via
+    #   openlit
     #   opentelemetry-instrumentation-aiohttp-client
     #   opentelemetry-instrumentation-asgi
     #   opentelemetry-instrumentation-dbapi
     #   opentelemetry-instrumentation-django
+    #   opentelemetry-instrumentation-falcon
     #   opentelemetry-instrumentation-fastapi
     #   opentelemetry-instrumentation-flask
     #   opentelemetry-instrumentation-httpx
     #   opentelemetry-instrumentation-openai
     #   opentelemetry-instrumentation-psycopg2
+    #   opentelemetry-instrumentation-pyramid
     #   opentelemetry-instrumentation-requests
+    #   opentelemetry-instrumentation-starlette
+    #   opentelemetry-instrumentation-tornado
     #   opentelemetry-instrumentation-urllib
     #   opentelemetry-instrumentation-urllib3
     #   opentelemetry-instrumentation-wsgi
 opentelemetry-instrumentation-aiohttp-client==0.60b0
-    # via -r requirements.in
+    # via
+    #   -r requirements.in
+    #   openlit
 opentelemetry-instrumentation-asgi==0.60b0
     # via
     #   -r requirements.in
+    #   openlit
     #   opentelemetry-instrumentation-fastapi
+    #   opentelemetry-instrumentation-starlette
 opentelemetry-instrumentation-dbapi==0.60b0
     # via opentelemetry-instrumentation-psycopg2
 opentelemetry-instrumentation-django==0.60b0
-    # via azure-monitor-opentelemetry
+    # via
+    #   azure-monitor-opentelemetry
+    #   openlit
+opentelemetry-instrumentation-falcon==0.60b0
+    # via openlit
 opentelemetry-instrumentation-fastapi==0.60b0
-    # via azure-monitor-opentelemetry
+    # via
+    #   azure-monitor-opentelemetry
+    #   openlit
 opentelemetry-instrumentation-flask==0.60b0
-    # via azure-monitor-opentelemetry
+    # via
+    #   azure-monitor-opentelemetry
+    #   openlit
 opentelemetry-instrumentation-httpx==0.60b0
-    # via -r requirements.in
+    # via
+    #   -r requirements.in
+    #   openlit
 opentelemetry-instrumentation-openai==0.51.1
     # via -r requirements.in
 opentelemetry-instrumentation-psycopg2==0.60b0
     # via azure-monitor-opentelemetry
+opentelemetry-instrumentation-pyramid==0.60b0
+    # via openlit
 opentelemetry-instrumentation-requests==0.60b0
-    # via azure-monitor-opentelemetry
+    # via
+    #   azure-monitor-opentelemetry
+    #   openlit
+opentelemetry-instrumentation-starlette==0.60b0
+    # via openlit
+opentelemetry-instrumentation-tornado==0.60b0
+    # via openlit
 opentelemetry-instrumentation-urllib==0.60b0
-    # via azure-monitor-opentelemetry
+    # via
+    #   azure-monitor-opentelemetry
+    #   openlit
 opentelemetry-instrumentation-urllib3==0.60b0
-    # via azure-monitor-opentelemetry
+    # via
+    #   azure-monitor-opentelemetry
+    #   openlit
 opentelemetry-instrumentation-wsgi==0.60b0
     # via
     #   opentelemetry-instrumentation-django
+    #   opentelemetry-instrumentation-falcon
     #   opentelemetry-instrumentation-flask
+    #   opentelemetry-instrumentation-pyramid
+opentelemetry-proto==1.39.0
+    # via
+    #   opentelemetry-exporter-otlp-proto-common
+    #   opentelemetry-exporter-otlp-proto-grpc
+    #   opentelemetry-exporter-otlp-proto-http
 opentelemetry-resource-detector-azure==0.1.5
     # via azure-monitor-opentelemetry
 opentelemetry-sdk==1.39.0
@@ -283,19 +375,27 @@ opentelemetry-sdk==1.39.0
     #   microsoft-kiota-abstractions
     #   microsoft-kiota-authentication-azure
     #   microsoft-kiota-http
+    #   openlit
+    #   opentelemetry-exporter-otlp-proto-grpc
+    #   opentelemetry-exporter-otlp-proto-http
     #   opentelemetry-resource-detector-azure
 opentelemetry-semantic-conventions==0.60b0
     # via
+    #   openlit
     #   opentelemetry-instrumentation
     #   opentelemetry-instrumentation-aiohttp-client
     #   opentelemetry-instrumentation-asgi
     #   opentelemetry-instrumentation-dbapi
     #   opentelemetry-instrumentation-django
+    #   opentelemetry-instrumentation-falcon
     #   opentelemetry-instrumentation-fastapi
     #   opentelemetry-instrumentation-flask
     #   opentelemetry-instrumentation-httpx
     #   opentelemetry-instrumentation-openai
+    #   opentelemetry-instrumentation-pyramid
     #   opentelemetry-instrumentation-requests
+    #   opentelemetry-instrumentation-starlette
+    #   opentelemetry-instrumentation-tornado
     #   opentelemetry-instrumentation-urllib
     #   opentelemetry-instrumentation-urllib3
     #   opentelemetry-instrumentation-wsgi
@@ -307,16 +407,21 @@ opentelemetry-util-http==0.60b0
     #   opentelemetry-instrumentation-aiohttp-client
     #   opentelemetry-instrumentation-asgi
     #   opentelemetry-instrumentation-django
+    #   opentelemetry-instrumentation-falcon
     #   opentelemetry-instrumentation-fastapi
     #   opentelemetry-instrumentation-flask
     #   opentelemetry-instrumentation-httpx
+    #   opentelemetry-instrumentation-pyramid
     #   opentelemetry-instrumentation-requests
+    #   opentelemetry-instrumentation-starlette
+    #   opentelemetry-instrumentation-tornado
     #   opentelemetry-instrumentation-urllib
     #   opentelemetry-instrumentation-urllib3
     #   opentelemetry-instrumentation-wsgi
 packaging==24.1
     # via
     #   opentelemetry-instrumentation
+    #   opentelemetry-instrumentation-falcon
     #   opentelemetry-instrumentation-flask
 pillow==12.0.0
     # via -r requirements.in
@@ -326,12 +431,19 @@ propcache==0.2.0
     # via
     #   aiohttp
     #   yarl
+protobuf==6.33.6
+    # via
+    #   googleapis-common-protos
+    #   opentelemetry-proto
 psutil==7.1.2
     # via azure-monitor-opentelemetry-exporter
 pycparser==2.22
     # via cffi
 pydantic==2.12.5
-    # via openai
+    # via
+    #   anthropic
+    #   openai
+    #   openlit
 pydantic-core==2.41.5
     # via pydantic
 pygments==2.19.2
@@ -344,6 +456,8 @@ pymupdf==1.26.0
     # via -r requirements.in
 pypdf==6.6.2
     # via -r requirements.in
+python-dateutil==2.9.0.post0
+    # via botocore
 python-dotenv==1.1.1
     # via -r requirements.in
 quart==0.20.0
@@ -359,14 +473,23 @@ requests==2.32.4
     #   azure-core
     #   msal
     #   msrest
+    #   openlit
+    #   opentelemetry-exporter-otlp-proto-http
     #   requests-oauthlib
     #   tiktoken
 requests-oauthlib==2.0.0
     # via msrest
 rich==14.1.0
     # via -r requirements.in
+s3transfer==0.16.0
+    # via boto3
+schedule==1.2.2
+    # via openlit
+six==1.17.0
+    # via python-dateutil
 sniffio==1.3.1
     # via
+    #   anthropic
     #   anyio
     #   openai
 soupsieve==2.7
@@ -393,6 +516,7 @@ typing-extensions==4.15.0
     # via
     #   -r requirements.in
     #   aiosignal
+    #   anthropic
     #   anyio
     #   asgiref
     #   azure-ai-documentintelligence
@@ -404,10 +528,13 @@ typing-extensions==4.15.0
     #   azure-storage-file-datalake
     #   beautifulsoup4
     #   exceptiongroup
+    #   grpcio
     #   hypercorn
     #   multidict
     #   openai
     #   opentelemetry-api
+    #   opentelemetry-exporter-otlp-proto-grpc
+    #   opentelemetry-exporter-otlp-proto-http
     #   opentelemetry-sdk
     #   opentelemetry-semantic-conventions
     #   pydantic
@@ -419,7 +546,9 @@ typing-extensions==4.15.0
 typing-inspection==0.4.2
     # via pydantic
 urllib3==2.6.3
-    # via requests
+    # via
+    #   botocore
+    #   requests
 uvicorn==0.30.6
     # via -r requirements.in
 werkzeug==3.1.5
@@ -433,9 +562,12 @@ wrapt==1.16.0
     #   opentelemetry-instrumentation-aiohttp-client
     #   opentelemetry-instrumentation-dbapi
     #   opentelemetry-instrumentation-httpx
+    #   opentelemetry-instrumentation-pyramid
     #   opentelemetry-instrumentation-urllib3
 wsproto==1.3.2
     # via hypercorn
+xmltodict==0.15.1
+    # via openlit
 yarl==1.17.2
     # via aiohttp
 zipp==3.23.0

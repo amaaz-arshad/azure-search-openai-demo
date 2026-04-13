@@ -32,6 +32,10 @@ from opentelemetry.instrumentation.httpx import (
     HTTPXClientInstrumentor,
 )
 from opentelemetry.instrumentation.openai import OpenAIInstrumentor
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider as SDKTracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from quart import (
     Blueprint,
     Quart,
@@ -2018,6 +2022,8 @@ def create_app():
     app.register_blueprint(bp)
     app.register_blueprint(chat_history_cosmosdb_bp)
 
+    openlit_endpoint = os.getenv("OPENLIT_ENDPOINT")  # e.g. "http://localhost:4318"
+
     if os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING"):
         app.logger.info("APPLICATIONINSIGHTS_CONNECTION_STRING is set, enabling Azure Monitor")
         configure_azure_monitor(
@@ -2031,9 +2037,49 @@ def create_app():
         AioHttpClientInstrumentor().instrument()
         # This tracks HTTP requests made by httpx:
         HTTPXClientInstrumentor().instrument()
-        # This tracks OpenAI SDK requests:
-        OpenAIInstrumentor().instrument()
+
+        if openlit_endpoint:
+            # Add OTLP exporter so traces also flow to OpenLIT's ClickHouse
+            app.logger.info("OPENLIT_ENDPOINT is set (%s), enabling OpenLIT dual-export", openlit_endpoint)
+            provider = trace.get_tracer_provider()
+            while hasattr(provider, "_real_provider"):
+                provider = provider._real_provider
+            if isinstance(provider, SDKTracerProvider):
+                otlp_exporter = OTLPSpanExporter(endpoint=f"{openlit_endpoint}/v1/traces")
+                provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
+            else:
+                app.logger.warning("Could not add OTLP span processor — TracerProvider type: %s", type(provider))
+
+            # OpenLIT's OpenAI instrumentor is richer (cost tracking, token breakdowns)
+            # so we use it INSTEAD of the community OpenAIInstrumentor
+            import openlit
+
+            openlit.init(
+                otlp_endpoint=openlit_endpoint,
+                application_name=os.getenv("OPENLIT_APP_NAME", "azure-search-openai-demo"),
+                environment=os.getenv("OPENLIT_ENVIRONMENT", "production"),
+                disabled_instrumentors=["aiohttp", "httpx"],  # already instrumented above
+            )
+            app.logger.info("OpenLIT initialized successfully")
+        else:
+            # No OpenLIT — use community OpenAI instrumentor as before
+            OpenAIInstrumentor().instrument()
+
         # This middleware tracks app route requests:
+        app.asgi_app = OpenTelemetryMiddleware(app.asgi_app)  # type: ignore[assignment]
+
+    elif openlit_endpoint:
+        # Standalone OpenLIT mode (no Azure Monitor)
+        app.logger.info("OPENLIT_ENDPOINT is set without Azure Monitor, enabling standalone OpenLIT")
+        import openlit
+
+        openlit.init(
+            otlp_endpoint=openlit_endpoint,
+            application_name=os.getenv("OPENLIT_APP_NAME", "azure-search-openai-demo"),
+            environment=os.getenv("OPENLIT_ENVIRONMENT", "production"),
+        )
+        AioHttpClientInstrumentor().instrument()
+        HTTPXClientInstrumentor().instrument()
         app.asgi_app = OpenTelemetryMiddleware(app.asgi_app)  # type: ignore[assignment]
 
     # Log levels should be one of https://docs.python.org/3/library/logging.html#logging-levels

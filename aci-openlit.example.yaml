@@ -1,0 +1,93 @@
+# Local OpenLIT ACI manifest template.
+# Copy this file to `aci-openlit.yaml`, replace the placeholder secrets locally,
+# and use the local file for `az container create --file aci-openlit.yaml`.
+# Do not commit real storage keys or custom app secrets.
+apiVersion: '2021-09-01'
+location: germanywestcentral
+name: openlit-nerilio
+type: Microsoft.ContainerInstance/containerGroups
+properties:
+  osType: Linux
+  restartPolicy: Always
+  ipAddress:
+    type: Public
+    ports:
+      - protocol: TCP
+        port: 3000
+      - protocol: TCP
+        port: 4318
+      - protocol: TCP
+        port: 4317
+  volumes:
+    - name: clickhouse-data
+      azureFile:
+        shareName: clickhouse-data
+        storageAccountName: openlitneriilio
+        storageAccountKey: REPLACE_WITH_STORAGE_ACCOUNT_KEY
+    - name: openlit-data
+      emptyDir: {}
+    - name: otel-config
+      azureFile:
+        shareName: otel-config
+        storageAccountName: openlitneriilio
+        storageAccountKey: REPLACE_WITH_STORAGE_ACCOUNT_KEY
+  containers:
+    - name: clickhouse
+      properties:
+        image: clickhouse/clickhouse-server:24.1
+        resources:
+          requests:
+            cpu: 0.5
+            memoryInGb: 1
+        ports:
+          - port: 8123
+          - port: 9000
+        volumeMounts:
+          - name: clickhouse-data
+            mountPath: /var/lib/clickhouse
+        environmentVariables:
+          - name: CLICKHOUSE_USER
+            value: default
+          - name: CLICKHOUSE_PASSWORD
+            secureValue: openlit
+          - name: CLICKHOUSE_DB
+            value: openlit
+    - name: openlit
+      properties:
+        image: ghcr.io/openlit/openlit:latest
+        resources:
+          requests:
+            cpu: 1
+            memoryInGb: 2
+        ports:
+          - port: 3000
+          - port: 4317
+          - port: 4318
+        volumeMounts:
+          - name: openlit-data
+            mountPath: /app/client/data
+          - name: otel-config
+            mountPath: /etc/otel
+        environmentVariables:
+          - name: INIT_DB_HOST
+            value: localhost
+          - name: INIT_DB_PORT
+            value: "8123"
+          - name: INIT_DB_USERNAME
+            value: default
+          - name: INIT_DB_PASSWORD
+            secureValue: openlit
+          - name: INIT_DB_DATABASE
+            value: openlit
+          - name: SQLITE_DATABASE_URL
+            value: "file:/app/client/data/openlit.db"
+          - name: PORT
+            value: "3000"
+          - name: DOCKER_PORT
+            value: "3000"
+          - name: NEXTAUTH_URL
+            value: "http://localhost:3000"
+          - name: NEXTAUTH_SECRET
+            secureValue: REPLACE_WITH_NEXTAUTH_SECRET
+          - name: HOSTNAME
+            value: "0.0.0.0"

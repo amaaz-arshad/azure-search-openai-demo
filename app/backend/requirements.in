@@ -32,3 +32,5 @@ python-dotenv
 jinja2
 rich
 typing-extensions
+openlit>=1.40.0
+opentelemetry-exporter-otlp-proto-http

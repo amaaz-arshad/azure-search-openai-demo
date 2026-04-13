@@ -157,3 +157,6 @@ app/functions/*/requirements.txt
 data/**/*.md5
 
 .DS_Store
+
+# Local OpenLIT ACI deployment manifest with real secrets
+aci-openlit.yaml
