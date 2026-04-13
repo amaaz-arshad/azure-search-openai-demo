@@ -64,7 +64,7 @@ const Layout = () => {
         <div className={styles.layout}>
             <header className={styles.header} role="banner">
                 <div className={styles.headerContainer}>
-                    <Link aria-label="Go to home page" className={styles.logoContainer} to="/">
+                    <Link aria-label="Go to home page" className={styles.logoContainer} to="/rak">
                         <div className={styles.logoCircle}>
                             <img alt="RAK logo" src={rakLogo} />
                         </div>

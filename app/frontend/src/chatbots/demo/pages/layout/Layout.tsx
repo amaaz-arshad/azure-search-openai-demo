@@ -68,7 +68,7 @@ const Layout = () => {
         <div className={styles.layout}>
             <header className={styles.header} role="banner">
                 <div className={styles.headerContainer}>
-                    <Link className={styles.logoContainer} to="/">
+                    <Link className={styles.logoContainer} to="/demo">
                         <div className={styles.logoCircle}>
                             <img alt="Demo Chatbot logo" src={demoLogo} />
                         </div>

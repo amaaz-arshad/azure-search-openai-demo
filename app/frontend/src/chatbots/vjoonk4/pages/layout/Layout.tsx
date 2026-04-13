@@ -6,7 +6,7 @@ import { ChatAdd24Regular, History24Regular, SignOut24Regular } from "@fluentui/
 
 import { useLogin } from "../../authConfig";
 import { LoginButton } from "../../components/LoginButton";
-import vjoonk4Logo from "../../../../assets/Snap.svg";
+import vjoonk4Logo from "../../../../assets/robo1.png";
 import { logout } from "../basicauth/basicAuth";
 import styles from "./Layout.module.css";
 
@@ -57,9 +57,9 @@ const Layout = () => {
         <div className={styles.layout}>
             <header className={styles.header} role="banner">
                 <div className={styles.headerContainer}>
-                    <Link className={styles.logoContainer} to="/">
+                    <Link className={styles.logoContainer} to="/vjoonk4">
                         <div className={styles.logoCircle}>
-                            <img alt="VJOON K4 logo" src={vjoonk4Logo} />
+                            <img alt="vjoonK4 logo" src={vjoonk4Logo} />
                         </div>
                     </Link>
 

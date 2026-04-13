@@ -1,8 +1,8 @@
 {
-    "pageTitle": "VJOON K4",
-    "headerTitle": "VJOON K4",
+    "pageTitle": "vjoonK4",
+    "headerTitle": "vjoonK4",
     "initialUserMsg": "こんにちは",
-    "initialAssistantMsg": "こんにちは！ チャットに質問を入力してください。",
+    "initialAssistantMsg": "こんにちは！ vjoon K4 バージョン16のユーザーマニュアルはかなり詳しいです。気軽に何でも聞いてください。",
     "chat": "チャット",
     "login": "ログイン",
     "logout": "ログアウト",
@@ -37,7 +37,7 @@
     "developerSettings": "高度な設定",
     "disclaimer": {
         "label": "重要なお知らせ",
-        "message": "AI支援アシスタントです。回答は提供されたコンテンツに基づいて自動生成されます。正式な情報源が優先されます。",
+        "message": "私はAI支援アシスタントとして、提供された内容に基づいてあなたの質問に回答します。ただし、常に正式な情報源が優先されます。",
         "dismiss": "注意事項を閉じる"
     },
     "chatEmptyStateTitle": "データを用いてチャットを行います",

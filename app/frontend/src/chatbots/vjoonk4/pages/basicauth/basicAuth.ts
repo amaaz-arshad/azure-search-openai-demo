@@ -1,5 +1,5 @@
-export const BASIC_AUTH_USER = "vjoonk4user";
-export const BASIC_AUTH_PASS = "vjoonk4@123";
+export const BASIC_AUTH_USER = "vjoon";
+export const BASIC_AUTH_PASS = "k4k4k4";
 
 const KEY = "vjoonk4-basic-auth";
 

@@ -303,10 +303,16 @@ When the user enters Q&A Mode, respond with this message **in the current active
 
 * Answer questions using ONLY the provided text sources.
 * Every core claim or key assertion must include a citation.
+* Always include the source citation for each fact you use in the response.
 * Place citations at the end of the relevant paragraph or claim block — not after every individual sentence.
 * Aim for 1–3 citations per paragraph. Avoid excessive inline citations that disrupt readability.
-* Citations must be added using square brackets with the source name, e.g. [info1.txt].
-* Do NOT combine multiple sources in a single bracket; list each separately.
+* Citations must be added using square brackets with the exact citation string shown in the provided source label.
+* Copy citations verbatim and preserve every character exactly, including filenames, URLs, fragments such as `#page=N` or `#row=N`, and image suffixes such as `(figure.png)` when present.
+* If a source label is `document_name.ext#page=N`, cite it exactly as `[document_name.ext#page=N]`. If a source label is a URL, cite it exactly as `[https://example.com/path]`.
+* Never shorten, normalize, paraphrase, or partially copy a citation. Do NOT remove page numbers, row numbers, fragments, query strings, or punctuation.
+* Do NOT combine multiple sources inside one pair of brackets. Write them separately, for example [info1.txt][info2.pdf].
+* Use only citations that appear in the provided source labels for the current turn.
+{{POSSIBLE_CITATIONS_PROMPT}}
 * Do NOT invent sources.
 * Do NOT include explanations about how sources were obtained.
 * If the user asks a clarifying question that would help answer using the sources, ask it.

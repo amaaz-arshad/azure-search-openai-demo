@@ -50,7 +50,7 @@ const Layout = () => {
         <div className={styles.layout}>
             <header className={styles.header} role="banner">
                 <div className={styles.headerContainer}>
-                    <Link aria-label="Go to home page" className={styles.logoContainer} to="/">
+                    <Link aria-label="Go to home page" className={styles.logoContainer} to="/publishone">
                         <img alt="PublishOne logo" className={styles.brandWordmark} src={publishoneNavLogo} />
                     </Link>
 

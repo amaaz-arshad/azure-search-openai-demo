@@ -1,8 +1,8 @@
 {
-    "pageTitle": "VJOON K4",
-    "headerTitle": "VJOON K4",
+    "pageTitle": "vjoonK4",
+    "headerTitle": "vjoonK4",
     "initialUserMsg": "Hej",
-    "initialAssistantMsg": "Hej! Skriv bare dit spørgsmål i chatten.",
+    "initialAssistantMsg": "Moin! Jeg kender brugervejledningen til vjoon K4 version 16 ret godt. Spørg bare løs.",
     "chat": "Chat",
     "login": "Log ind",
     "logout": "Log ud",
@@ -37,7 +37,7 @@
     "developerSettings": "Udviklerindstillinger",
     "disclaimer": {
         "label": "Vigtig meddelelse",
-        "message": "KI-understøttet assistent. Svar genereres automatisk ud fra det tilgængelige indhold; officielle kilder er bindende.",
+        "message": "Jeg er en KI-understøttet assistent og besvarer dine spørgsmål på baggrund af det tilgængelige indhold. Det er dog altid de officielle kilder, der er gældende.",
         "dismiss": "Luk ansvarsfraskrivelse"
     },
     "chatEmptyStateTitle": "Chat med dine data",

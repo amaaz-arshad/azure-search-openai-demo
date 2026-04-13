@@ -316,6 +316,7 @@ class ChatReadRetrieveReadApproach(Approach):
                     if isinstance(overrides.get("__saved_prompt_template"), str)
                     else None
                 ),
+                citations=extra_info.data_points.citations,
             )
             | {
                 "include_follow_up_questions": bool(overrides.get("suggest_followup_questions")),

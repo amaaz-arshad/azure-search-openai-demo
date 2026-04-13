@@ -1,8 +1,8 @@
 {
-    "pageTitle": "VJOON K4",
-    "headerTitle": "VJOON K4",
+    "pageTitle": "vjoonK4",
+    "headerTitle": "vjoonK4",
     "initialUserMsg": "Hola",
-    "initialAssistantMsg": "¡Hola! Solo escribe tu pregunta en el chat.",
+    "initialAssistantMsg": "¡Hola! Conozco bastante bien el manual de usuario de vjoon K4 versión 16. Pregunta lo que quieras.",
     "chat": "Chat",
     "login": "Iniciar sesión",
     "logout": "Cerrar sesión",
@@ -37,7 +37,7 @@
     "developerSettings": "Configuración del desarrollador",
     "disclaimer": {
         "label": "Aviso importante",
-        "message": "Asistente con soporte de IA. Las respuestas se generan automáticamente a partir del contenido proporcionado; las fuentes oficiales son vinculantes.",
+        "message": "Soy un asistente con apoyo de IA y respondo a tus preguntas basándome en los contenidos proporcionados. No obstante, las fuentes oficiales son siempre las que prevalecen.",
         "dismiss": "Cerrar aviso"
     },
     "chatEmptyStateTitle": "Chatea con tus datos",

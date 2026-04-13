@@ -9,6 +9,7 @@ from approaches.chatbots.chatbot_config import ChatbotConfig
 
 logger = logging.getLogger(__name__)
 SUPPORT_EMAIL_PLACEHOLDER_PATTERN = re.compile(r"\{\{\s*SUPPORT_EMAIL\s*\}\}")
+POSSIBLE_CITATIONS_PROMPT_PATTERN = re.compile(r"\{\{\s*POSSIBLE_CITATIONS_PROMPT\s*\}\}")
 
 
 @lru_cache(maxsize=None)
@@ -47,7 +48,16 @@ def get_chatbot_citation_target(chatbot_name: Optional[str]) -> str:
     return cfg.citation_target if cfg else "sourcepage"
 
 
-def render_chatbot_prompt(prompt: str, chatbot_name: Optional[str]) -> str:
+def build_possible_citations_prompt(citations: Optional[list[str]]) -> str:
+    if not citations:
+        return ""
+    possible_citations = " ".join(f"[{citation}]" for citation in citations if citation)
+    if not possible_citations:
+        return ""
+    return f"Possible citations for current question: {possible_citations}"
+
+
+def render_chatbot_prompt(prompt: str, chatbot_name: Optional[str], citations: Optional[list[str]] = None) -> str:
     normalized = normalize_chatbot_name(chatbot_name)
     if not prompt or not normalized:
         return prompt
@@ -62,6 +72,13 @@ def render_chatbot_prompt(prompt: str, chatbot_name: Optional[str]) -> str:
                 "Chatbot prompt for %s references SUPPORT_EMAIL but chatbot config does not provide support_email",
                 normalized,
             )
+
+    if POSSIBLE_CITATIONS_PROMPT_PATTERN.search(rendered_prompt):
+        possible_citations_prompt = build_possible_citations_prompt(citations)
+        rendered_prompt = POSSIBLE_CITATIONS_PROMPT_PATTERN.sub(
+            lambda _match: possible_citations_prompt,
+            rendered_prompt,
+        )
 
     return rendered_prompt
 

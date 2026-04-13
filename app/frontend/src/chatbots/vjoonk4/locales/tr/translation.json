@@ -1,8 +1,8 @@
 {
-    "pageTitle": "VJOON K4",
-    "headerTitle": "VJOON K4",
+    "pageTitle": "vjoonK4",
+    "headerTitle": "vjoonK4",
     "initialUserMsg": "Merhaba",
-    "initialAssistantMsg": "Merhaba! Sorunuzu sohbet alanına yazmanız yeterli.",
+    "initialAssistantMsg": "Merhaba! vjoon K4 sürüm 16 kullanıcı kılavuzunu oldukça iyi biliyorum. Aklına ne gelirse sor.",
     "chat": "Sohbet",
     "login": "Giriş yap",
     "logout": "Çıkış yap",
@@ -37,7 +37,7 @@
     "developerSettings": "Geliştirici ayarları",
     "disclaimer": {
         "label": "Önemli bilgi",
-        "message": "Yapay zeka destekli asistan. Yanıtlar sağlanan içeriklerden otomatik olarak üretilir; bağlayıcı olan resmi kaynaklardır.",
+        "message": "Ben yapay zeka destekli bir asistanım ve sorularını sağlanan içeriklere dayanarak yanıtlıyorum. Ancak her zaman resmi kaynaklar esas alınır.",
         "dismiss": "Uyarıyı kapat"
     },
     "chatEmptyStateTitle": "Verilerinizle sohbet edin",

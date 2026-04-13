@@ -1,8 +1,8 @@
 {
-    "pageTitle": "VJOON K4",
-    "headerTitle": "VJOON K4",
+    "pageTitle": "vjoonK4",
+    "headerTitle": "vjoonK4",
     "initialUserMsg": "Hallo",
-    "initialAssistantMsg": "Hallo! Schrijf gewoon je vraag in de chat.",
+    "initialAssistantMsg": "Hoi! Ik ken de gebruikershandleiding van vjoon K4 versie 16 behoorlijk goed. Vraag maar raak.",
     "chat": "Chat",
     "login": "Inloggen",
     "logout": "Uitloggen",
@@ -54,7 +54,7 @@
     "developerSettings": "Ontwikkelaarinstellingen",
     "disclaimer": {
         "label": "Belangrijke melding",
-        "message": "AI-ondersteunde assistent. Antwoorden worden automatisch gegenereerd op basis van de aangeleverde inhoud; officiële bronnen zijn bindend.",
+        "message": "Ik ben een AI-ondersteunde assistent en beantwoord je vragen op basis van de verstrekte inhoud. De officiële bronnen zijn echter altijd leidend.",
         "dismiss": "Melding sluiten"
     },
     "chatEmptyStateTitle": "Chat met je gegevens",

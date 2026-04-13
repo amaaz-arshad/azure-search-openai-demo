@@ -120,7 +120,7 @@ const Layout = () => {
         <div className={styles.layout}>
             <header className={styles.header} role="banner">
                 <div className={styles.headerContainer}>
-                    <Link className={styles.logoContainer} to="/">
+                    <Link className={styles.logoContainer} to="/public-test">
                         <div className={styles.logoCircle}>
                             <img alt="Public Test logo" src={publicTestLogo} />
                         </div>
