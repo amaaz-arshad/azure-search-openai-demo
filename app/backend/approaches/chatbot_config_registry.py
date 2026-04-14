@@ -48,6 +48,11 @@ def get_chatbot_citation_target(chatbot_name: Optional[str]) -> str:
     return cfg.citation_target if cfg else "sourcepage"
 
 
+def get_chatbot_prompt_mode(chatbot_name: Optional[str]) -> str:
+    cfg = get_chatbot_config(chatbot_name)
+    return cfg.prompt_mode if cfg else "override"
+
+
 def build_possible_citations_prompt(citations: Optional[list[str]]) -> str:
     if not citations:
         return ""

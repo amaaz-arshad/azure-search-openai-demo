@@ -46,7 +46,7 @@ from openai.types.chat import (
 )
 from quart import has_request_context, request
 
-from approaches.chatbot_config_registry import render_chatbot_prompt
+from approaches.chatbot_config_registry import get_chatbot_prompt_mode, render_chatbot_prompt
 from approaches.chatbot_prompt_registry import get_chatbot_prompt, normalize_chatbot_name
 from approaches.promptmanager import PromptManager
 from prepdocslib.blobmanager import AdlsBlobManager, BlobManager
@@ -993,10 +993,22 @@ class Approach(ABC):
                         referer_first_segment = urlparse(referer).path.strip("/").split("/", 1)[0]
                         normalized_chatbot_name = normalize_chatbot_name(referer_first_segment)
             if saved_prompt:
-                return {"override_prompt": render_chatbot_prompt(saved_prompt, normalized_chatbot_name, citations)}
+                prompt_mode = get_chatbot_prompt_mode(normalized_chatbot_name)
+                rendered_prompt = render_chatbot_prompt(
+                    saved_prompt,
+                    normalized_chatbot_name,
+                    citations if prompt_mode == "override" else None,
+                )
+                return {"injected_prompt" if prompt_mode == "inject" else "override_prompt": rendered_prompt}
             chatbot_prompt = get_chatbot_prompt(normalized_chatbot_name)
             if chatbot_prompt:
-                return {"override_prompt": render_chatbot_prompt(chatbot_prompt, normalized_chatbot_name, citations)}
+                prompt_mode = get_chatbot_prompt_mode(normalized_chatbot_name)
+                rendered_prompt = render_chatbot_prompt(
+                    chatbot_prompt,
+                    normalized_chatbot_name,
+                    citations if prompt_mode == "override" else None,
+                )
+                return {"injected_prompt" if prompt_mode == "inject" else "override_prompt": rendered_prompt}
             return {}
         elif override_prompt.startswith(">>>"):
             return {"injected_prompt": override_prompt[3:]}

@@ -11,5 +11,6 @@ class ChatbotConfig:
     reasoning_effort: Optional[str] = None
     # Prompt configuration
     support_email: Optional[str] = None
+    prompt_mode: Literal["inject", "override"] = "override"
     # Retrieval
     citation_target: Literal["sourcepage", "url"] = "sourcepage"

@@ -6,10 +6,9 @@ SAMPLE_PROMPT = r"""
 
 ## Language Rules
 
-- Detect the language of the user's first message and use it as the active language state.
-- Keep using the active language state unless the user explicitly asks to switch languages.
-- Translate any quoted templates or fixed fallback wording into the active language state before responding.
-- When the current language state is German, always use formal German address and phrasing such as **Sie**, **Ihnen**, and **Ihr**, and do not use informal German such as **du**, **dir**, or **dein**, unless the user explicitly asks for informal German.
+- German is the default language for responses.
+- If the question is not in German, answer in the language used in the question.
+- When answering in German, always use formal German address and phrasing such as **Sie**, **Ihnen**, and **Ihr**, and do not use informal German such as **du**, **dir**, or **dein**, unless the user explicitly asks for informal German.
 
 ## Source and Record Restrictions
 

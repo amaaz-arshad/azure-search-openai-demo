@@ -6,4 +6,5 @@ config = ChatbotConfig(
     chatgpt_deployment="gpt-4.1-mini",
     reasoning_effort=None,
     support_email="hallo@nerilio.ai",
+    prompt_mode="override",
 )
