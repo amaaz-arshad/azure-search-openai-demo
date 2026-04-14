@@ -3,6 +3,7 @@
     --chatbot-answer-font-size-mobile: 15px;
     --chatbot-answer-card-radius: 1.2em;
     --chatbot-answer-card-radius-mobile: 1.2em;
+    --chatbot-answer-outside-avatar-size: 30px;
     --chatbot-disclaimer-message-font-size: 15px;
     --chatbot-disclaimer-message-font-size-mobile: 15px;
     --chat-mobile-inline-padding: clamp(0.75rem, 4.25vw, 1rem);
@@ -121,7 +122,7 @@
 @media (max-width: 991px) {
     .container {
         --chatbot-answer-shell-gap: 0.5rem;
-        --chatbot-answer-outside-avatar-size: 22px;
+        --chatbot-answer-outside-avatar-size: 26px;
     }
 
     .chatMessageStream {

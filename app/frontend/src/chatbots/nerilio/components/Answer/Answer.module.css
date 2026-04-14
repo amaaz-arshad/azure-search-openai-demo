@@ -206,3 +206,9 @@ sup {
     color: #333;
     /* margin-bottom: 10px; */
 }
+
+.loadingAnswerContainer {
+    display: flex;
+    align-items: center;
+    min-height: 3.5rem;
+}

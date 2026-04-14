@@ -1,13 +1,12 @@
-import { Spinner, Stack } from "@fluentui/react";
+import { Stack } from "@fluentui/react";
 import { animated, useSpring } from "@react-spring/web";
-import { useTranslation } from "react-i18next";
 
 import styles from "./Answer.module.css";
-import { AnswerIcon } from "./AnswerIcon";
-import { BeatLoader, PulseLoader } from "react-spinners";
+import sharedAnswerStyles from "../../../shared/answer/SharedAnswer.module.css";
+import chatbotLogo from "../../assets/robo1.png";
+import { BeatLoader } from "react-spinners";
 
 export const AnswerLoading = () => {
-    const { t, i18n } = useTranslation();
     const animatedStyles = useSpring({
         from: { opacity: 0 },
         to: { opacity: 1 }
@@ -15,9 +14,16 @@ export const AnswerLoading = () => {
 
     return (
         <animated.div style={{ ...animatedStyles }}>
-            <Stack className={styles.answerContainer}>
-                <BeatLoader color="grey" size={10} />
-            </Stack>
+            <div className={`${sharedAnswerStyles.answerShell} ${sharedAnswerStyles.answerShellWithOutsideAvatar}`}>
+                <img
+                    src={chatbotLogo}
+                    alt="Nerilio logo"
+                    className={`${sharedAnswerStyles.assistantAvatar} ${sharedAnswerStyles.assistantAvatarOutside}`}
+                />
+                <Stack className={`${sharedAnswerStyles.answerContainer} ${styles.loadingAnswerContainer}`}>
+                    <BeatLoader color="grey" size={10} />
+                </Stack>
+            </div>
         </animated.div>
     );
 };
