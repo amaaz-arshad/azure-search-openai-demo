@@ -34,8 +34,62 @@ from opentelemetry.instrumentation.httpx import (
 from opentelemetry.instrumentation.openai import OpenAIInstrumentor
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider as SDKTracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanExporter, SpanExportResult
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+
+
+class LLMOnlySpanExporter(SpanExporter):
+    """Wraps an exporter and only forwards LLM-related spans."""
+
+    _LLM_SPAN_PREFIXES = ("chat ", "embeddings ", "completion ", "responses ")
+    _LLM_ATTRIBUTES = ("gen_ai.system", "gen_ai.request.model", "llm.request.type")
+
+    def __init__(self, inner: SpanExporter):
+        self._inner = inner
+
+    def _is_llm_span(self, span):  # type: ignore[no-untyped-def]
+        name = span.name.lower()
+        if any(name.startswith(p) for p in self._LLM_SPAN_PREFIXES):
+            return True
+        attrs = span.attributes or {}
+        return any(a in attrs for a in self._LLM_ATTRIBUTES)
+
+    def export(self, spans):  # type: ignore[no-untyped-def]
+        llm_spans = [s for s in spans if self._is_llm_span(s)]
+        if not llm_spans:
+            return SpanExportResult.SUCCESS
+        return self._inner.export(llm_spans)
+
+    def shutdown(self):  # type: ignore[no-untyped-def]
+        self._inner.shutdown()
+
+    def force_flush(self, timeout_millis=30000):  # type: ignore[no-untyped-def]
+        return self._inner.force_flush(timeout_millis)
+
+
+OPENLIT_LLM_ONLY_DISABLED_INSTRUMENTORS = (
+    "aiohttp",
+    "httpx",
+    "requests",
+    "urllib",
+    "urllib3",
+    "asgi",
+    "flask",
+    "starlette",
+    "fastapi",
+    "falcon",
+    "tornado",
+    "pyramid",
+    "django",
+    "psycopg",
+    "psycopg-pool",
+)
+
+
+def get_openlit_llm_only_disabled_instrumentors() -> list[str]:
+    extra_disabled = os.getenv("OPENLIT_DISABLED_INSTRUMENTORS", "")
+    configured_instrumentors = [name.strip() for name in extra_disabled.split(",") if name.strip()]
+    return list(dict.fromkeys((*OPENLIT_LLM_ONLY_DISABLED_INSTRUMENTORS, *configured_instrumentors)))
 from quart import (
     Blueprint,
     Quart,
@@ -2045,7 +2099,7 @@ def create_app():
             while hasattr(provider, "_real_provider"):
                 provider = provider._real_provider
             if isinstance(provider, SDKTracerProvider):
-                otlp_exporter = OTLPSpanExporter(endpoint=f"{openlit_endpoint}/v1/traces")
+                otlp_exporter = LLMOnlySpanExporter(OTLPSpanExporter(endpoint=f"{openlit_endpoint}/v1/traces"))
                 provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
             else:
                 app.logger.warning("Could not add OTLP span processor — TracerProvider type: %s", type(provider))
@@ -2058,7 +2112,7 @@ def create_app():
                 otlp_endpoint=openlit_endpoint,
                 application_name=os.getenv("OPENLIT_APP_NAME", "azure-search-openai-demo"),
                 environment=os.getenv("OPENLIT_ENVIRONMENT", "production"),
-                disabled_instrumentors=["aiohttp", "httpx"],  # already instrumented above
+                disabled_instrumentors=get_openlit_llm_only_disabled_instrumentors(),
             )
             app.logger.info("OpenLIT initialized successfully")
         else:
@@ -2077,10 +2131,10 @@ def create_app():
             otlp_endpoint=openlit_endpoint,
             application_name=os.getenv("OPENLIT_APP_NAME", "azure-search-openai-demo"),
             environment=os.getenv("OPENLIT_ENVIRONMENT", "production"),
+            disabled_instrumentors=get_openlit_llm_only_disabled_instrumentors(),
         )
-        AioHttpClientInstrumentor().instrument()
-        HTTPXClientInstrumentor().instrument()
-        app.asgi_app = OpenTelemetryMiddleware(app.asgi_app)  # type: ignore[assignment]
+        # Standalone OpenLIT should stay LLM-only, so we intentionally skip
+        # the generic HTTP client and ASGI request instrumentation here.
 
     # Log levels should be one of https://docs.python.org/3/library/logging.html#logging-levels
     # Set root level to WARNING to avoid seeing overly verbose logs from SDKS

@@ -1,4 +1,5 @@
 import os
+import sys
 from unittest import mock
 
 import pytest
@@ -420,3 +421,77 @@ def test_app_enables_azure_monitor_when_connection_string_set(monkeypatch):
     mock_connection_string = "InstrumentationKey=12345678-1234-1234-1234-123456789012"
     monkeypatch.setenv("APPLICATIONINSIGHTS_CONNECTION_STRING", mock_connection_string)
     app.create_app()
+
+
+def test_app_standalone_openlit_disables_non_llm_instrumentation(monkeypatch, minimal_env):
+    monkeypatch.setenv("OPENLIT_ENDPOINT", "http://openlit.internal")
+
+    openlit_init = mock.Mock()
+    aiohttp_instrumentor = mock.Mock()
+    httpx_instrumentor = mock.Mock()
+    middleware = mock.Mock(side_effect=lambda asgi_app: asgi_app)
+
+    monkeypatch.setitem(sys.modules, "openlit", mock.Mock(init=openlit_init))
+    monkeypatch.setattr(app, "AioHttpClientInstrumentor", mock.Mock(return_value=aiohttp_instrumentor))
+    monkeypatch.setattr(app, "HTTPXClientInstrumentor", mock.Mock(return_value=httpx_instrumentor))
+    monkeypatch.setattr(app, "OpenTelemetryMiddleware", middleware)
+
+    app.create_app()
+
+    openlit_init.assert_called_once_with(
+        otlp_endpoint="http://openlit.internal",
+        application_name="azure-search-openai-demo",
+        environment="production",
+        disabled_instrumentors=app.get_openlit_llm_only_disabled_instrumentors(),
+    )
+    aiohttp_instrumentor.instrument.assert_not_called()
+    httpx_instrumentor.instrument.assert_not_called()
+    middleware.assert_not_called()
+
+
+def test_app_openlit_dual_export_uses_llm_only_disabled_instrumentors(monkeypatch, minimal_env):
+    class FakeTracerProvider(app.SDKTracerProvider):
+        def __init__(self):
+            super().__init__()
+            self.added_span_processors = []
+
+        def add_span_processor(self, span_processor):
+            self.added_span_processors.append(span_processor)
+
+    monkeypatch.setenv(
+        "APPLICATIONINSIGHTS_CONNECTION_STRING", "InstrumentationKey=12345678-1234-1234-1234-123456789012"
+    )
+    monkeypatch.setenv("OPENLIT_ENDPOINT", "http://openlit.internal")
+
+    provider = FakeTracerProvider()
+    openlit_init = mock.Mock()
+    aiohttp_instrumentor = mock.Mock()
+    httpx_instrumentor = mock.Mock()
+    middleware = mock.Mock(side_effect=lambda asgi_app: asgi_app)
+    fake_exporter = object()
+    fake_processor = object()
+
+    monkeypatch.setitem(sys.modules, "openlit", mock.Mock(init=openlit_init))
+    monkeypatch.setattr(app, "configure_azure_monitor", mock.Mock())
+    monkeypatch.setattr(app.trace, "get_tracer_provider", mock.Mock(return_value=provider))
+    monkeypatch.setattr(app, "OTLPSpanExporter", mock.Mock(return_value=fake_exporter))
+    monkeypatch.setattr(app, "BatchSpanProcessor", mock.Mock(return_value=fake_processor))
+    monkeypatch.setattr(app, "AioHttpClientInstrumentor", mock.Mock(return_value=aiohttp_instrumentor))
+    monkeypatch.setattr(app, "HTTPXClientInstrumentor", mock.Mock(return_value=httpx_instrumentor))
+    monkeypatch.setattr(app, "OpenTelemetryMiddleware", middleware)
+
+    app.create_app()
+
+    openlit_init.assert_called_once_with(
+        otlp_endpoint="http://openlit.internal",
+        application_name="azure-search-openai-demo",
+        environment="production",
+        disabled_instrumentors=app.get_openlit_llm_only_disabled_instrumentors(),
+    )
+    aiohttp_instrumentor.instrument.assert_called_once_with()
+    httpx_instrumentor.instrument.assert_called_once_with()
+    middleware.assert_called_once()
+    assert provider.added_span_processors == [fake_processor]
+    llm_exporter = app.BatchSpanProcessor.call_args.args[0]
+    assert isinstance(llm_exporter, app.LLMOnlySpanExporter)
+    assert llm_exporter._inner is fake_exporter

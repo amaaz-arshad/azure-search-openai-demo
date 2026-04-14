@@ -22,12 +22,17 @@ processors:
   batch:
     timeout: 5s
     send_batch_size: 5000
+  filter/llm:
+    error_mode: ignore
+    traces:
+      span:
+        - 'not (IsMatch(name, "^(chat|embeddings|completion|responses)\\s.*") or attributes["gen_ai.system"] != nil or attributes["gen_ai.request.model"] != nil or attributes["llm.request.type"] != nil)'
 
 service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [batch]
+      processors: [filter/llm, batch]
       exporters: [clickhouse]
     metrics:
       receivers: [otlp]

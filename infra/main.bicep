@@ -294,6 +294,8 @@ param publicTestSmtpUsername string = ''
 param publicTestSmtpPassword string = ''
 param publicTestEmailFrom string = ''
 param publicTestEmailFromName string = 'Public Test'
+
+param openLitEndpoint string = ''
 param clientAppId string = ''
 @secure()
 param clientAppSecret string = ''
@@ -644,6 +646,7 @@ var appEnvVariables = {
   PUBLIC_TEST_SMTP_PORT: publicTestSmtpPort
   PUBLIC_TEST_EMAIL_FROM: publicTestEmailFrom
   PUBLIC_TEST_EMAIL_FROM_NAME: publicTestEmailFromName
+  OPENLIT_ENDPOINT: openLitEndpoint
 }
 
 // App Service for the web application (Python Quart app with JS frontend)
