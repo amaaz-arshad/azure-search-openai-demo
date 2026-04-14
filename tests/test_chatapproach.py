@@ -140,6 +140,20 @@ def test_get_system_prompt_variables_renders_support_email_and_preserves_literal
     assert "{{N}}" in override_prompt
 
 
+def test_get_system_prompt_variables_uses_injected_prompt_for_inject_mode_bots(chat_approach):
+    variables = chat_approach.get_system_prompt_variables(
+        None,
+        chatbot_name="public-test",
+        citations=["doc.pdf#page=1"],
+    )
+    injected_prompt = variables["injected_prompt"]
+
+    assert "info@snap.de" in injected_prompt
+    assert "{{SUPPORT_EMAIL}}" not in injected_prompt
+    assert "{{POSSIBLE_CITATIONS_PROMPT}}" not in injected_prompt
+    assert "Possible citations for current question:" not in injected_prompt
+
+
 def test_get_system_prompt_variables_uses_saved_prompt_and_renders_placeholders(chat_approach):
     variables = chat_approach.get_system_prompt_variables(
         None,
@@ -149,6 +163,17 @@ def test_get_system_prompt_variables_uses_saved_prompt_and_renders_placeholders(
     override_prompt = variables["override_prompt"]
 
     assert override_prompt == "You are a saved prompt for info@snap.de. Keep {{N}} unchanged."
+
+
+def test_get_system_prompt_variables_uses_saved_prompt_with_injected_mode_for_inject_bots(chat_approach):
+    variables = chat_approach.get_system_prompt_variables(
+        None,
+        chatbot_name="public-test",
+        saved_prompt="You are a saved prompt for {{ SUPPORT_EMAIL }}. Keep {{N}} unchanged.",
+    )
+    injected_prompt = variables["injected_prompt"]
+
+    assert injected_prompt == "You are a saved prompt for info@snap.de. Keep {{N}} unchanged."
 
 
 def test_extract_rewritten_query_invalid_json(chat_approach):
