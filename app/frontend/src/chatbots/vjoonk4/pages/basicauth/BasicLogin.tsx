@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 
-import vjoonk4Logo from "../../../../assets/robo1.png";
+import vjoonk4Logo from "../../../../assets/Snap.svg";
 import BasicLoginPage from "../../../shared/basicauth/BasicLoginPage";
 import { login } from "./basicAuth";
 
@@ -16,6 +16,8 @@ const BasicLogin = ({ onSuccess }: { onSuccess: () => void }) => {
             passwordPlaceholder={t("loginPage.password")}
             loginLabel={t("loginPage.login")}
             invalidCredentials={t("loginPage.invalidCredentials")}
+            learnMoreHref="https://nerilio.ai"
+            learnMoreLabel={t("loginPage.learnMoreNerilio")}
             onLogin={login}
             onSuccess={onSuccess}
         />

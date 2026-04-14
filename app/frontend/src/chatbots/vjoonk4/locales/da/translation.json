@@ -7,6 +7,14 @@
     "login": "Log ind",
     "logout": "Log ud",
     "clearChat": "Ryd chat",
+    "loginPage": {
+        "title": "Velkommen",
+        "username": "Brugernavn",
+        "password": "Adgangskode",
+        "login": "Log ind",
+        "invalidCredentials": "Ugyldigt brugernavn eller adgangskode",
+        "learnMoreNerilio": "Lær mere om nerilio"
+    },
     "history": {
         "chatHistory": "Chathistorik",
         "openChatHistory": "Åbn chathistorik",

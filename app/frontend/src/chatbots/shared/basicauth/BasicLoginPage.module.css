@@ -213,6 +213,31 @@
     text-align: center;
 }
 
+.learnMoreLink {
+    display: inline-flex;
+    justify-content: center;
+    width: 100%;
+    margin-top: 18px;
+    color: var(--login-accent-dark);
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition:
+        color 160ms ease,
+        opacity 160ms ease;
+}
+
+.learnMoreLink:hover {
+    color: var(--login-accent);
+    opacity: 0.88;
+}
+
+.learnMoreLink:focus-visible {
+    outline: 2px solid var(--login-focus-ring-strong);
+    outline-offset: 3px;
+    border-radius: 8px;
+}
+
 @media (max-width: 860px) {
     .card {
         padding: 28px;

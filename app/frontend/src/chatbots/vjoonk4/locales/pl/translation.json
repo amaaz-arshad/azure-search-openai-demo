@@ -7,6 +7,14 @@
     "login": "Zaloguj się",
     "logout": "Wyloguj się",
     "clearChat": "Wyczyść czat",
+    "loginPage": {
+        "title": "Witamy",
+        "username": "Nazwa użytkownika",
+        "password": "Hasło",
+        "login": "Zaloguj się",
+        "invalidCredentials": "Nieprawidłowa nazwa użytkownika lub hasło",
+        "learnMoreNerilio": "Dowiedz się więcej o nerilio"
+    },
     "history": {
         "chatHistory": "Historia czatu",
         "openChatHistory": "Otwórz historię czatu",

@@ -7,6 +7,14 @@
     "login": "Giriş yap",
     "logout": "Çıkış yap",
     "clearChat": "Sohbeti temizle",
+    "loginPage": {
+        "title": "Hoş geldiniz",
+        "username": "Kullanıcı adı",
+        "password": "Şifre",
+        "login": "Giriş yap",
+        "invalidCredentials": "Geçersiz kullanıcı adı veya şifre",
+        "learnMoreNerilio": "nerilio hakkında daha fazla bilgi edin"
+    },
     "history": {
         "chatHistory": "Sohbet geçmişi",
         "openChatHistory": "Sohbet geçmişini aç",

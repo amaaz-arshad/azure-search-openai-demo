@@ -7,6 +7,14 @@
     "login": "Accedi",
     "logout": "Disconnetti",
     "clearChat": "Cancella chat",
+    "loginPage": {
+        "title": "Benvenuto",
+        "username": "Nome utente",
+        "password": "Password",
+        "login": "Accedi",
+        "invalidCredentials": "Nome utente o password non validi",
+        "learnMoreNerilio": "Scopri di più su nerilio"
+    },
     "history": {
         "chatHistory": "Cronologia chat",
         "openChatHistory": "Apri cronologia chat",

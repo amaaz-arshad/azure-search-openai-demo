@@ -13,7 +13,8 @@
         "username": "Benutzername",
         "password": "Passwort",
         "login": "Anmelden",
-        "invalidCredentials": "Ungültiger Benutzername oder Passwort"
+        "invalidCredentials": "Ungültiger Benutzername oder Passwort",
+        "learnMoreNerilio": "Lerne mehr über nerilio"
     },
     "noPage": {
         "title": "Diese Seite gibt es nicht",

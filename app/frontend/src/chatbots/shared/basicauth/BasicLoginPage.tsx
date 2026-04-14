@@ -13,6 +13,8 @@ type BasicLoginPageProps = {
     passwordPlaceholder: string;
     loginLabel: string;
     invalidCredentials: string;
+    learnMoreHref?: string;
+    learnMoreLabel?: string;
     onLogin: (username: string, password: string) => boolean;
     onSuccess: () => void;
 };
@@ -27,6 +29,8 @@ const BasicLoginPage = ({
     passwordPlaceholder,
     loginLabel,
     invalidCredentials,
+    learnMoreHref,
+    learnMoreLabel,
     onLogin,
     onSuccess
 }: BasicLoginPageProps) => {
@@ -118,6 +122,17 @@ const BasicLoginPage = ({
                             {error}
                         </p>
                     </form>
+
+                    {learnMoreHref && learnMoreLabel ? (
+                        <a
+                            className={styles.learnMoreLink}
+                            href={learnMoreHref}
+                            target="_blank"
+                            rel="noreferrer"
+                        >
+                            {learnMoreLabel}
+                        </a>
+                    ) : null}
                 </section>
             </section>
         </main>

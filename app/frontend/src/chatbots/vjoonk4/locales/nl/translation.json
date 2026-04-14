@@ -12,7 +12,8 @@
         "username": "Gebruikersnaam",
         "password": "Wachtwoord",
         "login": "Inloggen",
-        "invalidCredentials": "Ongeldige gebruikersnaam of wachtwoord"
+        "invalidCredentials": "Ongeldige gebruikersnaam of wachtwoord",
+        "learnMoreNerilio": "Meer over nerilio"
     },
     "noPage": {
         "title": "Deze pagina bestaat niet",

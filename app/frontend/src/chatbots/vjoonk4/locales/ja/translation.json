@@ -7,6 +7,14 @@
     "login": "ログイン",
     "logout": "ログアウト",
     "clearChat": "チャットをクリア",
+    "loginPage": {
+        "title": "ようこそ",
+        "username": "ユーザー名",
+        "password": "パスワード",
+        "login": "ログイン",
+        "invalidCredentials": "ユーザー名またはパスワードが正しくありません",
+        "learnMoreNerilio": "nerilioについてもっと知る"
+    },
     "history": {
         "chatHistory": "チャット履歴",
         "openChatHistory": "チャット履歴を開く",

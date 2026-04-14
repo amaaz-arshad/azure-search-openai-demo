@@ -12,7 +12,8 @@
         "username": "Username",
         "password": "Password",
         "login": "Login",
-        "invalidCredentials": "Invalid username or password"
+        "invalidCredentials": "Invalid username or password",
+        "learnMoreNerilio": "Learn more about nerilio"
     },
     "noPage": {
         "title": "This page does not exist",

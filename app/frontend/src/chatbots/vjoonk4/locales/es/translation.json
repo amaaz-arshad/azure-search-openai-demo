@@ -7,6 +7,14 @@
     "login": "Iniciar sesión",
     "logout": "Cerrar sesión",
     "clearChat": "Borrar chat",
+    "loginPage": {
+        "title": "Bienvenido",
+        "username": "Nombre de usuario",
+        "password": "Contraseña",
+        "login": "Iniciar sesión",
+        "invalidCredentials": "Nombre de usuario o contraseña no válidos",
+        "learnMoreNerilio": "Más información sobre nerilio"
+    },
     "history": {
         "chatHistory": "Historial de chat",
         "openChatHistory": "Abrir historial de chat",

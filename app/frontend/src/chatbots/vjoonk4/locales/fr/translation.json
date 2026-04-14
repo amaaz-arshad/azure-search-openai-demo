@@ -7,6 +7,14 @@
     "login": "Connexion",
     "logout": "Déconnexion",
     "clearChat": "Effacer le chat",
+    "loginPage": {
+        "title": "Bienvenue",
+        "username": "Nom d'utilisateur",
+        "password": "Mot de passe",
+        "login": "Connexion",
+        "invalidCredentials": "Nom d'utilisateur ou mot de passe invalide",
+        "learnMoreNerilio": "En savoir plus sur nerilio"
+    },
     "history": {
         "chatHistory": "Historique du chat",
         "openChatHistory": "Ouvrir l'historique du chat",
