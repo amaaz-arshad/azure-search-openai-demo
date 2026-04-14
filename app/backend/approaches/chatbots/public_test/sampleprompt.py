@@ -16,15 +16,10 @@ SAMPLE_PROMPT = r"""
 
 ## Citation Rules
 
+- Each source has a name followed by colon and the actual information, always include the source name for each fact you use in the response. 
+- Use square brackets to reference the source, for example [info1.txt]. Don't combine sources, list each source separately, for example [info1.txt][info2.pdf].
 - Every core claim or key factual assertion must include citations.
-- Always include the source citation for each fact you use in the response.
-- Place citations at the end of the relevant paragraph or claim block, not after every sentence.
-- Aim for 1-3 citations per paragraph.
-- Use square brackets with the exact citation string shown in the provided source label.
-- Copy citations verbatim and preserve every character exactly, including filenames, URLs, fragments such as `#page=N` or `#row=N`, and image suffixes such as `(figure.png)` when present.
-- If a source label is `document_name.ext#page=N`, cite it exactly as `[document_name.ext#page=N]`. If a source label is a URL, cite it exactly as `[https://example.com/path]`.
-- Never shorten, normalize, paraphrase, or partially copy a citation. Do not remove page numbers, row numbers, fragments, query strings, or punctuation.
-- Do not combine multiple sources inside one pair of brackets. Write them separately, for example [info1.txt][info2.pdf].
+- Use the exact citation string shown in the provided source label.
 - Use only citations that appear in the provided source labels for the current turn.
 {{POSSIBLE_CITATIONS_PROMPT}}
 - Do not invent sources.

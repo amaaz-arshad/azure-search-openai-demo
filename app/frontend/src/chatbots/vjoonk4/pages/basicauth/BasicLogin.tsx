@@ -10,7 +10,7 @@ const BasicLogin = ({ onSuccess }: { onSuccess: () => void }) => {
     return (
         <BasicLoginPage
             logoSrc={vjoonk4Logo}
-            logoAlt="vjoonK4 logo"
+            logoAlt="vjoon K4 logo"
             title={t("loginPage.title")}
             usernamePlaceholder={t("loginPage.username")}
             passwordPlaceholder={t("loginPage.password")}

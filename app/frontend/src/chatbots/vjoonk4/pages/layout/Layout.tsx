@@ -59,7 +59,7 @@ const Layout = () => {
                 <div className={styles.headerContainer}>
                     <Link className={styles.logoContainer} to="/vjoonk4">
                         <div className={styles.logoCircle}>
-                            <img alt="vjoonK4 logo" src={vjoonk4Logo} />
+                            <img alt="vjoon K4 logo" src={vjoonk4Logo} />
                         </div>
                     </Link>
 
@@ -82,12 +82,12 @@ const Layout = () => {
                                             <span>{t("newChat")}</span>
                                         </button>
                                     </li>
-                                    <li>
+                                    {/* <li>
                                         <button className={styles.dropdownItem} onClick={handleOpenRecentChats}>
                                             <History24Regular />
                                             <span>{t("history.viewRecentChats")}</span>
                                         </button>
-                                    </li>
+                                    </li> */}
                                     <li>
                                         <button className={styles.dropdownItem} onClick={handleBasicLogout}>
                                             <SignOut24Regular />
