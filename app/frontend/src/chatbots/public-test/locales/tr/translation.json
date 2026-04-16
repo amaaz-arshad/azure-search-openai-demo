@@ -175,7 +175,7 @@
     "llmSettings": "LLM ayarları",
     "loginPage": {
         "title": "Tekrar hoş geldiniz",
-        "subtitle": "Yalnızca kendi yüklediğiniz PDF kitaplığınıza erişmek için e-posta adresinizle giriş yapın.",
+        "subtitle": "",
         "email": "E-posta",
         "password": "Parola",
         "login": "Giriş yap",
@@ -186,8 +186,8 @@
     },
     "signupPage": {
         "title": "Hesabınızı oluşturun",
-        "subtitle": "Kendi PDF dosyalarınızı yüklemek ve onlarla sohbet etmek için bir Nerilio Bot hesabı oluşturun.",
-        "displayName": "Görünen ad",
+        "subtitle": "",
+        "displayName": "Şirket adı",
         "email": "E-posta",
         "password": "Parola",
         "confirmPassword": "Parolayı doğrula",
@@ -196,7 +196,7 @@
         "switchToLogin": "Giriş yap",
         "creatingAccount": "Hesap oluşturuluyor...",
         "verifyTitle": "E-postani dogrula",
-        "verifySubtitle": "{{email}} adresine 6 haneli bir kod gonderdik. Hesabini tamamlamak icin asagida gir.",
+        "verifySubtitle": "{{email}} adresine 6 haneli bir kod gönderdik. Kaydı tamamlamak için aşağıya gir.",
         "verificationCode": "Dogrulama kodu",
         "verifyCode": "E-postayi dogrula",
         "verifyingCode": "Kod dogrulaniyor...",

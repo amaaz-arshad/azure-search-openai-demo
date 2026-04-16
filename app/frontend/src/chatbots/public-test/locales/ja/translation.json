@@ -175,7 +175,7 @@
     "llmSettings": "LLM設定",
     "loginPage": {
         "title": "おかえりなさい",
-        "subtitle": "自分でアップロードしたPDFライブラリのみにアクセスするには、メールアドレスでログインしてください。",
+        "subtitle": "",
         "email": "メールアドレス",
         "password": "パスワード",
         "login": "ログイン",
@@ -186,8 +186,8 @@
     },
     "signupPage": {
         "title": "アカウントを作成",
-        "subtitle": "自分のPDFファイルをアップロードしてチャットするために、Nerilio Botアカウントを作成してください。",
-        "displayName": "表示名",
+        "subtitle": "",
+        "displayName": "会社名",
         "email": "メールアドレス",
         "password": "パスワード",
         "confirmPassword": "パスワードを確認",
@@ -196,7 +196,7 @@
         "switchToLogin": "ログイン",
         "creatingAccount": "アカウントを作成中...",
         "verifyTitle": "メールを確認してください",
-        "verifySubtitle": "{{email}} に6桁の確認コードを送信しました。アカウント作成を完了するため、下に入力してください。",
+        "verifySubtitle": "{{email}} に6桁の確認コードを送信しました。登録を完了するため、下に入力してください。",
         "verificationCode": "確認コード",
         "verifyCode": "メールを確認",
         "verifyingCode": "コードを確認中...",

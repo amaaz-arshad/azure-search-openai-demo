@@ -175,7 +175,7 @@
     "llmSettings": "LLM-indstillinger",
     "loginPage": {
         "title": "Velkommen tilbage",
-        "subtitle": "Log ind med din e-mail for kun at få adgang til dit eget uploadede PDF-bibliotek.",
+        "subtitle": "",
         "email": "E-mail",
         "password": "Adgangskode",
         "login": "Log ind",
@@ -186,8 +186,8 @@
     },
     "signupPage": {
         "title": "Opret din konto",
-        "subtitle": "Opret en Nerilio Bot-konto for at uploade og chatte med dine egne PDF-filer.",
-        "displayName": "Visningsnavn",
+        "subtitle": "",
+        "displayName": "Virksomhedsnavn",
         "email": "E-mail",
         "password": "Adgangskode",
         "confirmPassword": "Bekræft adgangskode",
@@ -196,7 +196,7 @@
         "switchToLogin": "Log ind",
         "creatingAccount": "Opretter konto...",
         "verifyTitle": "Bekraeft din e-mail",
-        "verifySubtitle": "Vi har sendt en 6-cifret kode til {{email}}. Indtast den nedenfor for at faerdiggoere din konto.",
+        "verifySubtitle": "Vi har sendt en 6-cifret kode til {{email}}. Indtast den nedenfor for at fuldføre registreringen.",
         "verificationCode": "Bekraeftelseskode",
         "verifyCode": "Bekraeft e-mail",
         "verifyingCode": "Koden bekraeftes...",

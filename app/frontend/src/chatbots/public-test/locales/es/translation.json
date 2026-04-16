@@ -175,7 +175,7 @@
     "llmSettings": "Configuración de LLM",
     "loginPage": {
         "title": "Bienvenido de nuevo",
-        "subtitle": "Inicia sesión con tu correo electrónico para acceder solo a tu propia biblioteca de PDF cargados.",
+        "subtitle": "",
         "email": "Correo electrónico",
         "password": "Contraseña",
         "login": "Iniciar sesión",
@@ -186,8 +186,8 @@
     },
     "signupPage": {
         "title": "Crea tu cuenta",
-        "subtitle": "Crea una cuenta de Nerilio Bot para cargar y chatear con tus propios archivos PDF.",
-        "displayName": "Nombre para mostrar",
+        "subtitle": "",
+        "displayName": "Nombre de la empresa",
         "email": "Correo electrónico",
         "password": "Contraseña",
         "confirmPassword": "Confirmar contraseña",
@@ -196,7 +196,7 @@
         "switchToLogin": "Iniciar sesión",
         "creatingAccount": "Creando cuenta...",
         "verifyTitle": "Verifica tu correo",
-        "verifySubtitle": "Enviamos un codigo de 6 digitos a {{email}}. Introducelo abajo para terminar de crear tu cuenta.",
+        "verifySubtitle": "Enviamos un código de 6 dígitos a {{email}}. Introdúcelo abajo para completar el registro.",
         "verificationCode": "Codigo de verificacion",
         "verifyCode": "Verificar correo",
         "verifyingCode": "Verificando codigo...",

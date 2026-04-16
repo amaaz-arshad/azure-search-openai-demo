@@ -176,7 +176,7 @@
     "llmSettings": "LLM settings",
     "loginPage": {
         "title": "Witamy ponownie",
-        "subtitle": "Zaloguj się swoim adresem e-mail, aby uzyskać dostęp tylko do własnej biblioteki przesłanych plików PDF.",
+        "subtitle": "",
         "email": "E-mail",
         "password": "Hasło",
         "login": "Zaloguj się",
@@ -187,8 +187,8 @@
     },
     "signupPage": {
         "title": "Utwórz konto",
-        "subtitle": "Utwórz konto Nerilio Bot, aby przesyłać własne pliki PDF i rozmawiać na ich podstawie.",
-        "displayName": "Nazwa wyświetlana",
+        "subtitle": "",
+        "displayName": "Nazwa firmy",
         "email": "E-mail",
         "password": "Hasło",
         "confirmPassword": "Potwierdź hasło",
@@ -197,7 +197,7 @@
         "switchToLogin": "Zaloguj się",
         "creatingAccount": "Tworzenie konta...",
         "verifyTitle": "Potwierdz adres e-mail",
-        "verifySubtitle": "Wyslalismy 6-cyfrowy kod na adres {{email}}. Wpisz go ponizej, aby dokonczyc tworzenie konta.",
+        "verifySubtitle": "Wysłaliśmy 6-cyfrowy kod na adres {{email}}. Wpisz go poniżej, aby dokończyć rejestrację.",
         "verificationCode": "Kod weryfikacyjny",
         "verifyCode": "Potwierdz e-mail",
         "verifyingCode": "Trwa weryfikacja kodu...",
