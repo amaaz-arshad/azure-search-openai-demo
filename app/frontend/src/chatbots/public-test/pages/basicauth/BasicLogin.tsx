@@ -60,9 +60,7 @@ const BasicLogin = ({ onSuccess }: { onSuccess: (session: PublicTestSession) => 
         if (mode === "signup") {
             return isSignupVerifyStep ? t("signupPage.verifySubtitle", { email }) : t("signupPage.subtitle");
         }
-        return isResetVerifyStep
-            ? t("passwordResetPage.verifySubtitle", { email })
-            : t("passwordResetPage.subtitle");
+        return isResetVerifyStep ? t("passwordResetPage.verifySubtitle", { email }) : t("passwordResetPage.subtitle");
     }, [email, isResetVerifyStep, isSignupVerifyStep, mode, t]);
 
     const submitLabel = useMemo(() => {
@@ -211,8 +209,7 @@ const BasicLogin = ({ onSuccess }: { onSuccess: (session: PublicTestSession) => 
         setError("");
         setStatusMessage("");
         try {
-            const result =
-                mode === "signup" ? await resendSignUpCode(email) : await resendPasswordResetCode(email);
+            const result = mode === "signup" ? await resendSignUpCode(email) : await resendPasswordResetCode(email);
             if (!result.ok) {
                 setError(t(result.errorKey));
                 return;
@@ -305,13 +302,7 @@ const BasicLogin = ({ onSuccess }: { onSuccess: (session: PublicTestSession) => 
                             <input
                                 className={sharedStyles.input}
                                 disabled={controlsDisabled}
-                                placeholder={
-                                    mode === "signup"
-                                        ? t("signupPage.email")
-                                        : mode === "reset"
-                                          ? t("passwordResetPage.email")
-                                          : t("loginPage.email")
-                                }
+                                placeholder={mode === "signup" ? t("signupPage.email") : mode === "reset" ? t("passwordResetPage.email") : t("loginPage.email")}
                                 value={email}
                                 onChange={event => {
                                     setEmail(event.target.value);
@@ -397,11 +388,7 @@ const BasicLogin = ({ onSuccess }: { onSuccess: (session: PublicTestSession) => 
                                 <input
                                     className={sharedStyles.input}
                                     disabled={controlsDisabled}
-                                    placeholder={
-                                        mode === "signup"
-                                            ? t("signupPage.verificationCode")
-                                            : t("passwordResetPage.verificationCode")
-                                    }
+                                    placeholder={mode === "signup" ? t("signupPage.verificationCode") : t("passwordResetPage.verificationCode")}
                                     value={verificationCode}
                                     onChange={event => {
                                         setVerificationCode(event.target.value.replace(/[^\d]/g, "").slice(0, 6));
@@ -411,11 +398,7 @@ const BasicLogin = ({ onSuccess }: { onSuccess: (session: PublicTestSession) => 
                                     autoComplete="one-time-code"
                                 />
                                 <p className={styles.verificationHint}>
-                                    {t(
-                                        mode === "signup"
-                                            ? "signupPage.verificationHint"
-                                            : "passwordResetPage.verificationHint"
-                                    )}
+                                    {t(mode === "signup" ? "signupPage.verificationHint" : "passwordResetPage.verificationHint")}
                                 </p>
                             </>
                         )}
@@ -429,14 +412,14 @@ const BasicLogin = ({ onSuccess }: { onSuccess: (session: PublicTestSession) => 
                                         type={isPasswordVisible ? "text" : "password"}
                                         placeholder={t("passwordResetPage.password")}
                                         value={password}
-                                    onChange={event => {
-                                        setPassword(event.target.value);
-                                        clearMessages();
-                                    }}
-                                    minLength={8}
-                                    autoComplete="new-password"
-                                    spellCheck={false}
-                                    autoCapitalize="none"
+                                        onChange={event => {
+                                            setPassword(event.target.value);
+                                            clearMessages();
+                                        }}
+                                        minLength={8}
+                                        autoComplete="new-password"
+                                        spellCheck={false}
+                                        autoCapitalize="none"
                                         autoCorrect="off"
                                     />
                                     <button
@@ -459,13 +442,13 @@ const BasicLogin = ({ onSuccess }: { onSuccess: (session: PublicTestSession) => 
                                         placeholder={t("passwordResetPage.confirmPassword")}
                                         value={confirmPassword}
                                         onChange={event => {
-                                        setConfirmPassword(event.target.value);
-                                        clearMessages();
-                                    }}
-                                    minLength={8}
-                                    autoComplete="new-password"
-                                    spellCheck={false}
-                                    autoCapitalize="none"
+                                            setConfirmPassword(event.target.value);
+                                            clearMessages();
+                                        }}
+                                        minLength={8}
+                                        autoComplete="new-password"
+                                        spellCheck={false}
+                                        autoCapitalize="none"
                                         autoCorrect="off"
                                     />
                                     <button
@@ -488,22 +471,12 @@ const BasicLogin = ({ onSuccess }: { onSuccess: (session: PublicTestSession) => 
 
                         {isVerificationStep && (
                             <div className={styles.secondaryActions}>
-                                <button
-                                    className={styles.secondaryButton}
-                                    disabled={controlsDisabled}
-                                    onClick={() => void handleResendCode()}
-                                    type="button"
-                                >
+                                <button className={styles.secondaryButton} disabled={controlsDisabled} onClick={() => void handleResendCode()} type="button">
                                     {isResending
                                         ? t(mode === "signup" ? "signupPage.resendingCode" : "passwordResetPage.resendingCode")
                                         : t(mode === "signup" ? "signupPage.resendCode" : "passwordResetPage.resendCode")}
                                 </button>
-                                <button
-                                    className={styles.secondaryButton}
-                                    disabled={controlsDisabled}
-                                    onClick={handleChangeEmail}
-                                    type="button"
-                                >
+                                <button className={styles.secondaryButton} disabled={controlsDisabled} onClick={handleChangeEmail} type="button">
                                     {t(mode === "signup" ? "signupPage.changeEmail" : "passwordResetPage.changeEmail")}
                                 </button>
                             </div>
@@ -521,21 +494,11 @@ const BasicLogin = ({ onSuccess }: { onSuccess: (session: PublicTestSession) => 
                         <div className={styles.switchActions}>
                             <p className={styles.switchText}>
                                 {t("loginPage.noAccount")}{" "}
-                                <button
-                                    className={styles.switchLink}
-                                    disabled={controlsDisabled}
-                                    type="button"
-                                    onClick={() => resetForm("signup")}
-                                >
+                                <button className={styles.switchLink} disabled={controlsDisabled} type="button" onClick={() => resetForm("signup")}>
                                     {t("loginPage.switchToSignup")}
                                 </button>
                             </p>
-                            <button
-                                className={styles.switchLinkStandalone}
-                                disabled={controlsDisabled}
-                                type="button"
-                                onClick={handleForgotPassword}
-                            >
+                            <button className={styles.switchLinkStandalone} disabled={controlsDisabled} type="button" onClick={handleForgotPassword}>
                                 {t("loginPage.forgotPassword")}
                             </button>
                         </div>
@@ -544,12 +507,7 @@ const BasicLogin = ({ onSuccess }: { onSuccess: (session: PublicTestSession) => 
                     {mode === "signup" && !isVerificationStep && (
                         <p className={styles.switchText}>
                             {t("signupPage.haveAccount")}{" "}
-                            <button
-                                className={styles.switchLink}
-                                disabled={controlsDisabled}
-                                type="button"
-                                onClick={() => resetForm("login")}
-                            >
+                            <button className={styles.switchLink} disabled={controlsDisabled} type="button" onClick={() => resetForm("login")}>
                                 {t("signupPage.switchToLogin")}
                             </button>
                         </p>
@@ -557,12 +515,7 @@ const BasicLogin = ({ onSuccess }: { onSuccess: (session: PublicTestSession) => 
 
                     {mode === "reset" && !isVerificationStep && (
                         <p className={styles.switchText}>
-                            <button
-                                className={styles.switchLink}
-                                disabled={controlsDisabled}
-                                type="button"
-                                onClick={() => resetForm("login")}
-                            >
+                            <button className={styles.switchLink} disabled={controlsDisabled} type="button" onClick={() => resetForm("login")}>
                                 {t("passwordResetPage.backToLogin")}
                             </button>
                         </p>
@@ -574,4 +527,3 @@ const BasicLogin = ({ onSuccess }: { onSuccess: (session: PublicTestSession) => 
 };
 
 export default BasicLogin;
-

@@ -184,11 +184,7 @@ const Layout = () => {
 
             {isProfileOpen && (
                 <div className={styles.profileOverlay} onClick={() => setIsProfileOpen(false)} role="presentation">
-                    <section
-                        aria-labelledby="free-profile-title"
-                        className={styles.profileModal}
-                        onClick={event => event.stopPropagation()}
-                    >
+                    <section aria-labelledby="free-profile-title" className={styles.profileModal} onClick={event => event.stopPropagation()}>
                         <div className={styles.profileHeader}>
                             <div>
                                 <h2 className={styles.profileTitle} id="free-profile-title">
@@ -196,11 +192,7 @@ const Layout = () => {
                                 </h2>
                                 <p className={styles.profileSubtitle}>{t("profile.subtitle")}</p>
                             </div>
-                            <button
-                                className={styles.profileCloseButton}
-                                onClick={() => setIsProfileOpen(false)}
-                                type="button"
-                            >
+                            <button className={styles.profileCloseButton} onClick={() => setIsProfileOpen(false)} type="button">
                                 {t("labels.closeButton")}
                             </button>
                         </div>
@@ -237,4 +229,3 @@ const Layout = () => {
 };
 
 export default Layout;
-
