@@ -29,6 +29,7 @@ PUBLIC_TEST_SESSION_SECRET_BLOB = "session-secret.txt"
 PUBLIC_TEST_VERIFICATION_CODE_TTL_SECONDS = 15 * 60
 PUBLIC_TEST_VERIFICATION_RESEND_INTERVAL_SECONDS = 45
 PUBLIC_TEST_VERIFICATION_MAX_ATTEMPTS = 5
+PUBLIC_TEST_PASSWORD_MIN_LENGTH = 8
 
 
 @dataclass(frozen=True)
@@ -121,7 +122,7 @@ class PublicTestAuthStore:
         smtp_username: str | None,
         smtp_password: str | None,
         email_from: str | None,
-        email_from_name: str = "Public Test",
+        email_from_name: str = "Nerilio Bot",
         auth_container: str = PUBLIC_TEST_AUTH_CONTAINER,
         session_cookie_name: str = PUBLIC_TEST_AUTH_COOKIE,
         session_max_age_seconds: int = PUBLIC_TEST_SESSION_MAX_AGE_SECONDS,
@@ -138,7 +139,7 @@ class PublicTestAuthStore:
         self.smtp_username = (smtp_username or "").strip()
         self.smtp_password = smtp_password or ""
         self.email_from = (email_from or "").strip()
-        self.email_from_name = email_from_name.strip() or "Public Test"
+        self.email_from_name = email_from_name.strip() or "Nerilio Bot"
         self.running_in_production = running_in_production
 
     async def setup(self):
@@ -171,6 +172,11 @@ class PublicTestAuthStore:
 
         _, computed_hash_token = PublicTestAuthStore.build_secret_hash(secret_value, salt=salt)
         return hmac.compare_digest(computed_hash_token, hash_token)
+
+    @staticmethod
+    def validate_password_requirements(password: str) -> None:
+        if len(password) < PUBLIC_TEST_PASSWORD_MIN_LENGTH:
+            raise PublicTestAuthError("authErrors.passwordTooShort")
 
     def get_account_blob_name(self, email: str) -> str:
         return f"accounts/{self.hash_email(email)}.json"
@@ -465,6 +471,7 @@ class PublicTestAuthStore:
             raise PublicTestAuthError("authErrors.invalidEmail")
         if not password:
             raise PublicTestAuthError("authErrors.passwordRequired")
+        self.validate_password_requirements(password)
         if not confirm_password:
             raise PublicTestAuthError("authErrors.confirmPasswordRequired")
         if password != confirm_password:
@@ -501,7 +508,7 @@ class PublicTestAuthStore:
             message = (
                 "Public-test verification email requested, but SMTP is not configured."
                 if self.running_in_production
-                else f"Public-test verification code for {email}: {verification_code}"
+                else f"Nerilio Bot verification code for {email}: {verification_code}"
             )
             if self.running_in_production:
                 logger.error(message)
@@ -510,7 +517,7 @@ class PublicTestAuthStore:
             return
 
         email_message = EmailMessage()
-        email_message["Subject"] = "Your Nerilio AI public test verification code"
+        email_message["Subject"] = "Your Nerilio Bot verification code"
         email_message["From"] = formataddr((self.email_from_name, self.email_from))
         email_message["To"] = email
         email_message.set_content(
@@ -518,7 +525,7 @@ class PublicTestAuthStore:
                 [
                     "Dear User,",
                     "",
-                    "Use the verification code below to finish creating your account:",
+                    "Use the verification code below to finish creating your Nerilio Bot account:",
                     "",
                     verification_code,
                     "",
@@ -542,7 +549,7 @@ class PublicTestAuthStore:
             message = (
                 "Public-test password reset email requested, but SMTP is not configured."
                 if self.running_in_production
-                else f"Public-test password reset code for {email}: {verification_code}"
+                else f"Nerilio Bot password reset code for {email}: {verification_code}"
             )
             if self.running_in_production:
                 logger.error(message)
@@ -551,7 +558,7 @@ class PublicTestAuthStore:
             return
 
         email_message = EmailMessage()
-        email_message["Subject"] = "Your Nerilio AI public test password reset code"
+        email_message["Subject"] = "Your Nerilio Bot password reset code"
         email_message["From"] = formataddr((self.email_from_name, self.email_from))
         email_message["To"] = email
         email_message.set_content(
@@ -613,6 +620,7 @@ class PublicTestAuthStore:
             raise PublicTestAuthError("authErrors.invalidEmail")
         if not password:
             raise PublicTestAuthError("authErrors.passwordRequired")
+        self.validate_password_requirements(password)
         if not confirm_password:
             raise PublicTestAuthError("authErrors.confirmPasswordRequired")
         if password != confirm_password:
@@ -828,6 +836,7 @@ class PublicTestAuthStore:
             raise PublicTestAuthError("authErrors.verificationCodeRequired")
         if not password:
             raise PublicTestAuthError("authErrors.passwordRequired")
+        self.validate_password_requirements(password)
         if not confirm_password:
             raise PublicTestAuthError("authErrors.confirmPasswordRequired")
         if password != confirm_password:

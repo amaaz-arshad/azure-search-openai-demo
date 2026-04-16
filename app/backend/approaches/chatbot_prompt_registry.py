@@ -7,10 +7,13 @@ logger = logging.getLogger(__name__)
 
 # Keep in sync with frontend chatbot routes in app/frontend/src/chatbots/registry.ts.
 DEFAULT_CHATBOT_NAME = "nerilio"
+CHATBOT_NAME_ALIASES = {
+    "public-test": "free",
+}
 CHATBOT_PROMPT_MODULES = {
     "agindo": "approaches.chatbots.agindo.sampleprompt",
     "nerilio": "approaches.chatbots.nerilio.sampleprompt",
-    "public-test": "approaches.chatbots.public_test.sampleprompt",
+    "free": "approaches.chatbots.public_test.sampleprompt",
     "rak": "approaches.chatbots.rak.sampleprompt",
     "sartorius": "approaches.chatbots.sartorius.sampleprompt",
     "steuertipps": "approaches.chatbots.steuertipps.sampleprompt",
@@ -29,7 +32,9 @@ def normalize_chatbot_name(chatbot_name: Optional[str]) -> Optional[str]:
     if not chatbot_name:
         return None
     normalized = chatbot_name.strip().strip("/").lower()
-    return normalized or None
+    if not normalized:
+        return None
+    return CHATBOT_NAME_ALIASES.get(normalized, normalized)
 
 
 @lru_cache(maxsize=None)

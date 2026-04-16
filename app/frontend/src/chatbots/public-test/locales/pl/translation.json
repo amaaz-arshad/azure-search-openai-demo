@@ -1,6 +1,6 @@
 {
-    "pageTitle": "Public Test",
-    "headerTitle": "Public Test",
+    "pageTitle": "Nerilio Bot",
+    "headerTitle": "Nerilio Bot",
     "initialUserMsg": "Cześć",
     "initialAssistantMsg": "Cześć! Po prostu wpisz swoje pytanie na czacie.",
     "chat": "Czat",
@@ -34,10 +34,10 @@
         "errorDeleting": "Błąd podczas usuwania.",
         "fileDeleted": "Plik usunięty",
         "dismissAllQueueItems": "Ukryj wszystkie zakończone",
-        "modalTitle": "Prześlij pliki PDF do Public Test",
+        "modalTitle": "Prześlij pliki PDF do Nerilio Bot",
         "modalDescription": "Obsługiwane są tylko pliki PDF. Łączny limit przesyłania to 30 stron PDF we wszystkich plikach.",
         "supportedFormats": "Obsługiwany format: tylko PDF. Łączny limit przesyłania: 30 stron.",
-        "emptyStateDescription": "Przesłane pliki PDF pojawią się tutaj i będą przeszukiwalne w czacie Public Test."
+        "emptyStateDescription": "Przesłane pliki PDF pojawią się tutaj i będą przeszukiwalne w czacie Nerilio Bot."
     },
     "developerSettings": "Ustawienia deweloperskie",
     "disclaimer": {
@@ -187,7 +187,7 @@
     },
     "signupPage": {
         "title": "Utwórz konto",
-        "subtitle": "Utwórz konto Public Test, aby przesyłać własne pliki PDF i rozmawiać na ich podstawie.",
+        "subtitle": "Utwórz konto Nerilio Bot, aby przesyłać własne pliki PDF i rozmawiać na ich podstawie.",
         "displayName": "Nazwa wyświetlana",
         "email": "E-mail",
         "password": "Hasło",
@@ -207,7 +207,8 @@
         "changeEmail": "Zmien adres e-mail",
         "codeSent": "Wyslalismy kod weryfikacyjny na adres {{email}}.",
         "codeResent": "Nowy kod weryfikacyjny zostal wyslany na adres {{email}}.",
-        "verificationHint": "Wpisz 6-cyfrowy kod z wiadomosci e-mail."
+        "verificationHint": "Wpisz 6-cyfrowy kod z wiadomosci e-mail.",
+        "passwordHint": "Use at least 8 characters."
     },
     "authErrors": {
         "displayNameRequired": "Nazwa wyświetlana jest wymagana.",
@@ -228,7 +229,8 @@
         "verificationTooManyAttempts": "Zbyt wiele blednych prob weryfikacji. Rozpocznij rejestracje ponownie.",
         "verificationSessionNotFound": "Nie znaleziono aktywnej weryfikacji rejestracji dla tego adresu e-mail.",
         "accountNotFound": "Nie znaleziono konta dla tego adresu e-mail.",
-        "passwordResetSessionNotFound": "Nie znaleziono aktywnego resetowania has?a dla tego adresu e-mail."
+        "passwordResetSessionNotFound": "Nie znaleziono aktywnego resetowania has?a dla tego adresu e-mail.",
+        "passwordTooShort": "Password must be at least 8 characters."
     },
     "newChat": "Nowy czat",
     "passwordResetPage": {
@@ -255,7 +257,7 @@
     "profile": {
         "menuLabel": "Zobacz profil",
         "title": "Tw?j profil",
-        "subtitle": "Tutaj mo?esz zobaczy? szczeg??y swojego konta Public Test.",
+        "subtitle": "Tutaj mo?esz zobaczy? szczeg??y swojego konta Nerilio Bot.",
         "displayName": "Nazwa wy?wietlana",
         "email": "E-mail",
         "createdAt": "Cz?onek od",
@@ -264,3 +266,4 @@
         "loadError": "Nie uda?o si? teraz za?adowa? Twojego profilu."
     }
 }
+

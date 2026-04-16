@@ -37,6 +37,7 @@ type SignUpInput = {
 };
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const FREE_BOT_PASSWORD_MIN_LENGTH = 8;
 
 const normalizeEmail = (email: string) => email.trim().toLowerCase();
 
@@ -92,7 +93,7 @@ const readSessionResponse = async (response: Response): Promise<PublicTestSessio
     }
 
     if (!response.ok) {
-        throw new Error(`Public Test session request failed: ${response.status}`);
+        throw new Error(`Nerilio Bot session request failed: ${response.status}`);
     }
 
     const payload = (await response.json()) as { session?: unknown };
@@ -106,7 +107,7 @@ export const getCurrentSession = async (options?: { forceRefresh?: boolean }): P
         return cachedSession;
     }
 
-    const response = await fetch("/public-test-auth/session", {
+    const response = await fetch("/free-auth/session", {
         method: "GET",
         credentials: "include"
     });
@@ -117,26 +118,26 @@ export const isAuthenticated = async () => (await getCurrentSession()) !== null;
 
 export const logout = async () => {
     cachedSession = null;
-    await fetch("/public-test-auth/logout", {
+    await fetch("/free-auth/logout", {
         method: "POST",
         credentials: "include"
     }).catch(() => undefined);
 };
 
 export const getCurrentProfile = async (): Promise<PublicTestProfile> => {
-    const response = await fetch("/public-test-auth/profile", {
+    const response = await fetch("/free-auth/profile", {
         method: "GET",
         credentials: "include"
     });
 
     if (!response.ok) {
-        throw new Error(`Public Test profile request failed: ${response.status}`);
+        throw new Error(`Nerilio Bot profile request failed: ${response.status}`);
     }
 
     const payload = (await response.json()) as { profile?: unknown };
     const profile = parseProfile(payload.profile);
     if (!profile) {
-        throw new Error("Public Test profile payload was invalid");
+        throw new Error("Nerilio Bot profile payload was invalid");
     }
 
     return profile;
@@ -161,6 +162,9 @@ export const signUp = async ({ displayName, email, password, confirmPassword }: 
     if (!password) {
         return { ok: false, errorKey: "authErrors.passwordRequired" };
     }
+    if (password.length < FREE_BOT_PASSWORD_MIN_LENGTH) {
+        return { ok: false, errorKey: "authErrors.passwordTooShort" };
+    }
 
     if (!confirmPassword) {
         return { ok: false, errorKey: "authErrors.confirmPasswordRequired" };
@@ -170,7 +174,7 @@ export const signUp = async ({ displayName, email, password, confirmPassword }: 
         return { ok: false, errorKey: "authErrors.passwordMismatch" };
     }
 
-    const response = await fetch("/public-test-auth/signup", {
+    const response = await fetch("/free-auth/signup", {
         method: "POST",
         credentials: "include",
         headers: {
@@ -216,7 +220,7 @@ export const verifySignUp = async (email: string, verificationCode: string): Pro
         return { ok: false, errorKey: "authErrors.verificationCodeRequired" };
     }
 
-    const response = await fetch("/public-test-auth/signup/verify", {
+    const response = await fetch("/free-auth/signup/verify", {
         method: "POST",
         credentials: "include",
         headers: {
@@ -251,7 +255,7 @@ export const resendSignUpCode = async (email: string): Promise<VerificationStart
         return { ok: false, errorKey: "authErrors.emailRequired" };
     }
 
-    const response = await fetch("/public-test-auth/signup/resend", {
+    const response = await fetch("/free-auth/signup/resend", {
         method: "POST",
         credentials: "include",
         headers: {
@@ -294,7 +298,7 @@ export const requestPasswordReset = async (email: string): Promise<VerificationS
         return { ok: false, errorKey: "authErrors.invalidEmail" };
     }
 
-    const response = await fetch("/public-test-auth/password-reset", {
+    const response = await fetch("/free-auth/password-reset", {
         method: "POST",
         credentials: "include",
         headers: {
@@ -334,7 +338,7 @@ export const resendPasswordResetCode = async (email: string): Promise<Verificati
         return { ok: false, errorKey: "authErrors.emailRequired" };
     }
 
-    const response = await fetch("/public-test-auth/password-reset/resend", {
+    const response = await fetch("/free-auth/password-reset/resend", {
         method: "POST",
         credentials: "include",
         headers: {
@@ -384,6 +388,9 @@ export const verifyPasswordReset = async (
     if (!password) {
         return { ok: false, errorKey: "authErrors.passwordRequired" };
     }
+    if (password.length < FREE_BOT_PASSWORD_MIN_LENGTH) {
+        return { ok: false, errorKey: "authErrors.passwordTooShort" };
+    }
     if (!confirmPassword) {
         return { ok: false, errorKey: "authErrors.confirmPasswordRequired" };
     }
@@ -391,7 +398,7 @@ export const verifyPasswordReset = async (
         return { ok: false, errorKey: "authErrors.passwordMismatch" };
     }
 
-    const response = await fetch("/public-test-auth/password-reset/verify", {
+    const response = await fetch("/free-auth/password-reset/verify", {
         method: "POST",
         credentials: "include",
         headers: {
@@ -428,7 +435,7 @@ export const login = async (email: string, password: string): Promise<AuthResult
         return { ok: false, errorKey: "authErrors.invalidCredentials" };
     }
 
-    const response = await fetch("/public-test-auth/login", {
+    const response = await fetch("/free-auth/login", {
         method: "POST",
         credentials: "include",
         headers: {
@@ -458,3 +465,4 @@ export const login = async (email: string, password: string): Promise<AuthResult
 };
 
 export const validatePublicTestEmail = (email: string) => isEmailValid(email);
+

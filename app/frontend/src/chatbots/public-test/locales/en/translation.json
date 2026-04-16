@@ -1,6 +1,6 @@
 {
-    "pageTitle": "Public Test",
-    "headerTitle": "Public Test",
+    "pageTitle": "Nerilio Bot",
+    "headerTitle": "Nerilio Bot",
     "initialUserMsg": "Hello",
     "initialAssistantMsg": "Hello! Just type your question in the chat.",
     "chat": "Chat",
@@ -63,7 +63,7 @@
         "errorDeleting": "Error deleting.",
         "fileDeleted": "File deleted",
         "menuLabel": "Upload files",
-        "modalTitle": "Upload PDF files to Public Test",
+        "modalTitle": "Upload PDF files to Nerilio Bot",
         "modalDescription": "Only PDF files are supported. The combined upload limit is 30 PDF pages across all files.",
         "chooseFiles": "Choose files",
         "refreshList": "Refresh list",
@@ -78,7 +78,7 @@
         "emptyQueueTitle": "No files in the queue",
         "emptyQueueDescription": "Add one or more files to start a managed upload queue.",
         "emptyStateTitle": "No uploaded files yet",
-        "emptyStateDescription": "Uploaded PDF files will appear here and become searchable in the Public Test chat.",
+        "emptyStateDescription": "Uploaded PDF files will appear here and become searchable in the Nerilio Bot chat.",
         "fileReady": "Ready for chat",
         "listError": "Could not load uploaded files.",
         "dismissQueueItem": "Dismiss",
@@ -232,7 +232,7 @@
     "llmSettings": "LLM settings",
     "signupPage": {
         "title": "Create your account",
-        "subtitle": "Create a Public Test account to upload and chat with your own PDF files.",
+        "subtitle": "Create a Nerilio Bot account to upload and chat with your own PDF files.",
         "displayName": "Display name",
         "email": "Email",
         "password": "Password",
@@ -252,7 +252,8 @@
         "changeEmail": "Change email",
         "codeSent": "We sent a verification code to {{email}}.",
         "codeResent": "A new verification code was sent to {{email}}.",
-        "verificationHint": "Enter the 6-digit code from your email."
+        "verificationHint": "Enter the 6-digit code from your email.",
+        "passwordHint": "Use at least 8 characters."
     },
     "authErrors": {
         "displayNameRequired": "Display name is required.",
@@ -273,7 +274,8 @@
         "verificationTooManyAttempts": "Too many incorrect verification attempts. Start signup again.",
         "verificationSessionNotFound": "No active signup verification was found for this email.",
         "accountNotFound": "No account was found for this email.",
-        "passwordResetSessionNotFound": "No active password reset was found for this email."
+        "passwordResetSessionNotFound": "No active password reset was found for this email.",
+        "passwordTooShort": "Password must be at least 8 characters."
     },
     "passwordResetPage": {
         "title": "Reset your password",
@@ -299,7 +301,7 @@
     "profile": {
         "menuLabel": "View profile",
         "title": "Your profile",
-        "subtitle": "Here are the details for your Public Test account.",
+        "subtitle": "Here are the details for your Nerilio Bot account.",
         "displayName": "Display name",
         "email": "Email",
         "createdAt": "Member since",
@@ -308,3 +310,4 @@
         "loadError": "Could not load your profile right now."
     }
 }
+

@@ -7,7 +7,7 @@ import { ArrowUpload24Regular, ChatAdd24Regular, History24Regular, Person24Regul
 import { useLogin } from "../../authConfig";
 import { UploadManagerModal } from "../../components/UploadManagerModal/UploadManagerModal";
 import { LoginButton } from "../../components/LoginButton";
-import publicTestLogo from "../../assets/applogo.svg";
+import nerilioLogo from "../../../nerilio/assets/robo1.png";
 import { LoginContext } from "../../loginContext";
 import { getCurrentProfile, logout, PublicTestProfile } from "../basicauth/basicAuth";
 import styles from "./Layout.module.css";
@@ -88,7 +88,7 @@ const Layout = () => {
                 setProfile(profileResult);
             })
             .catch(error => {
-                console.error("Public Test profile load failed", error);
+                console.error("Nerilio Bot profile load failed", error);
                 if (!isMounted) {
                     return;
                 }
@@ -120,9 +120,9 @@ const Layout = () => {
         <div className={styles.layout}>
             <header className={styles.header} role="banner">
                 <div className={styles.headerContainer}>
-                    <Link className={styles.logoContainer} to="/public-test">
+                    <Link className={styles.logoContainer} to="/free">
                         <div className={styles.logoCircle}>
-                            <img alt="Public Test logo" src={publicTestLogo} />
+                            <img alt="Nerilio Bot logo" src={nerilioLogo} />
                         </div>
                     </Link>
 
@@ -180,18 +180,18 @@ const Layout = () => {
                 <Outlet context={{ setRecentChatsAction }} />
             </main>
 
-            <UploadManagerModal chatbotName="public-test" isOpen={isUploadManagerOpen} onClose={() => setIsUploadManagerOpen(false)} />
+            <UploadManagerModal chatbotName="free" isOpen={isUploadManagerOpen} onClose={() => setIsUploadManagerOpen(false)} />
 
             {isProfileOpen && (
                 <div className={styles.profileOverlay} onClick={() => setIsProfileOpen(false)} role="presentation">
                     <section
-                        aria-labelledby="public-test-profile-title"
+                        aria-labelledby="free-profile-title"
                         className={styles.profileModal}
                         onClick={event => event.stopPropagation()}
                     >
                         <div className={styles.profileHeader}>
                             <div>
-                                <h2 className={styles.profileTitle} id="public-test-profile-title">
+                                <h2 className={styles.profileTitle} id="free-profile-title">
                                     {t("profile.title")}
                                 </h2>
                                 <p className={styles.profileSubtitle}>{t("profile.subtitle")}</p>
@@ -237,3 +237,4 @@ const Layout = () => {
 };
 
 export default Layout;
+

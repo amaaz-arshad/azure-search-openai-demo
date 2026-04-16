@@ -2,7 +2,7 @@ import { FormEvent, useMemo, useState } from "react";
 import { Icon } from "@fluentui/react";
 import { useTranslation } from "react-i18next";
 
-import publicTestLogo from "../../assets/applogo.svg";
+import nerilioLogo from "../../../nerilio/assets/robo1.png";
 import sharedStyles from "../../../shared/basicauth/BasicLoginPage.module.css";
 import styles from "./BasicLogin.module.css";
 import {
@@ -36,6 +36,7 @@ const BasicLogin = ({ onSuccess }: { onSuccess: (session: PublicTestSession) => 
     const [isResending, setIsResending] = useState(false);
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
     const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false);
+    const passwordTooShort = password.length > 0 && password.length < 8;
 
     const controlsDisabled = isSubmitting || isResending;
     const isSignupVerifyStep = mode === "signup" && signupStage === "verify";
@@ -198,7 +199,7 @@ const BasicLogin = ({ onSuccess }: { onSuccess: (session: PublicTestSession) => 
 
             await handleStartPasswordReset();
         } catch (authError) {
-            console.error("Public Test auth failed", authError);
+            console.error("Nerilio Bot auth failed", authError);
             setError(t("authErrors.unexpected"));
         } finally {
             setIsSubmitting(false);
@@ -222,7 +223,7 @@ const BasicLogin = ({ onSuccess }: { onSuccess: (session: PublicTestSession) => 
                 })
             );
         } catch (authError) {
-            console.error("Public Test verification resend failed", authError);
+            console.error("Nerilio Bot verification resend failed", authError);
             setError(t("authErrors.unexpected"));
         } finally {
             setIsResending(false);
@@ -255,7 +256,7 @@ const BasicLogin = ({ onSuccess }: { onSuccess: (session: PublicTestSession) => 
                 <section className={sharedStyles.card}>
                     <div className={sharedStyles.header}>
                         <div className={sharedStyles.logoFrame}>
-                            <img className={sharedStyles.logo} src={publicTestLogo} alt="Public Test logo" />
+                            <img className={sharedStyles.logo} src={nerilioLogo} alt="Nerilio Bot logo" />
                         </div>
                     </div>
 
@@ -324,33 +325,41 @@ const BasicLogin = ({ onSuccess }: { onSuccess: (session: PublicTestSession) => 
                         )}
 
                         {(mode === "login" || (mode === "signup" && signupStage === "details")) && (
-                            <div className={sharedStyles.inputWrap}>
-                                <input
-                                    className={`${sharedStyles.input} ${sharedStyles.passwordInput}`}
-                                    disabled={controlsDisabled}
-                                    type={isPasswordVisible ? "text" : "password"}
-                                    placeholder={mode === "login" ? t("loginPage.password") : t("signupPage.password")}
-                                    value={password}
-                                    onChange={event => {
-                                        setPassword(event.target.value);
-                                        clearMessages();
-                                    }}
-                                    autoComplete={mode === "login" ? "current-password" : "new-password"}
-                                    spellCheck={false}
-                                    autoCapitalize="none"
-                                    autoCorrect="off"
-                                />
-                                <button
-                                    className={sharedStyles.visibilityToggle}
-                                    disabled={controlsDisabled}
-                                    type="button"
-                                    onClick={() => setIsPasswordVisible(current => !current)}
-                                    aria-label={isPasswordVisible ? "Hide password" : "Show password"}
-                                    aria-pressed={isPasswordVisible}
-                                >
-                                    <Icon iconName={isPasswordVisible ? "Hide3" : "RedEye"} />
-                                </button>
-                            </div>
+                            <>
+                                <div className={sharedStyles.inputWrap}>
+                                    <input
+                                        className={`${sharedStyles.input} ${sharedStyles.passwordInput}`}
+                                        disabled={controlsDisabled}
+                                        type={isPasswordVisible ? "text" : "password"}
+                                        placeholder={mode === "login" ? t("loginPage.password") : t("signupPage.password")}
+                                        value={password}
+                                        onChange={event => {
+                                            setPassword(event.target.value);
+                                            clearMessages();
+                                        }}
+                                        minLength={mode === "signup" ? 8 : undefined}
+                                        autoComplete={mode === "login" ? "current-password" : "new-password"}
+                                        spellCheck={false}
+                                        autoCapitalize="none"
+                                        autoCorrect="off"
+                                    />
+                                    <button
+                                        className={sharedStyles.visibilityToggle}
+                                        disabled={controlsDisabled}
+                                        type="button"
+                                        onClick={() => setIsPasswordVisible(current => !current)}
+                                        aria-label={isPasswordVisible ? "Hide password" : "Show password"}
+                                        aria-pressed={isPasswordVisible}
+                                    >
+                                        <Icon iconName={isPasswordVisible ? "Hide3" : "RedEye"} />
+                                    </button>
+                                </div>
+                                {mode === "signup" && signupStage === "details" && (
+                                    <p className={styles.verificationHint}>
+                                        {passwordTooShort ? t("authErrors.passwordTooShort") : t("signupPage.passwordHint")}
+                                    </p>
+                                )}
+                            </>
                         )}
 
                         {mode === "signup" && signupStage === "details" && (
@@ -420,13 +429,14 @@ const BasicLogin = ({ onSuccess }: { onSuccess: (session: PublicTestSession) => 
                                         type={isPasswordVisible ? "text" : "password"}
                                         placeholder={t("passwordResetPage.password")}
                                         value={password}
-                                        onChange={event => {
-                                            setPassword(event.target.value);
-                                            clearMessages();
-                                        }}
-                                        autoComplete="new-password"
-                                        spellCheck={false}
-                                        autoCapitalize="none"
+                                    onChange={event => {
+                                        setPassword(event.target.value);
+                                        clearMessages();
+                                    }}
+                                    minLength={8}
+                                    autoComplete="new-password"
+                                    spellCheck={false}
+                                    autoCapitalize="none"
                                         autoCorrect="off"
                                     />
                                     <button
@@ -449,12 +459,13 @@ const BasicLogin = ({ onSuccess }: { onSuccess: (session: PublicTestSession) => 
                                         placeholder={t("passwordResetPage.confirmPassword")}
                                         value={confirmPassword}
                                         onChange={event => {
-                                            setConfirmPassword(event.target.value);
-                                            clearMessages();
-                                        }}
-                                        autoComplete="new-password"
-                                        spellCheck={false}
-                                        autoCapitalize="none"
+                                        setConfirmPassword(event.target.value);
+                                        clearMessages();
+                                    }}
+                                    minLength={8}
+                                    autoComplete="new-password"
+                                    spellCheck={false}
+                                    autoCapitalize="none"
                                         autoCorrect="off"
                                     />
                                     <button
@@ -563,3 +574,4 @@ const BasicLogin = ({ onSuccess }: { onSuccess: (session: PublicTestSession) => 
 };
 
 export default BasicLogin;
+

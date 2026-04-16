@@ -1,6 +1,6 @@
 {
-    "pageTitle": "Public Test",
-    "headerTitle": "Public Test",
+    "pageTitle": "Nerilio Bot",
+    "headerTitle": "Nerilio Bot",
     "initialUserMsg": "Hej",
     "initialAssistantMsg": "Hej! Skriv bare dit spørgsmål i chatten.",
     "chat": "Chat",
@@ -34,10 +34,10 @@
         "errorDeleting": "Fejl ved sletning.",
         "fileDeleted": "Fil slettet",
         "dismissAllQueueItems": "Skjul alle afsluttede",
-        "modalTitle": "Upload PDF-filer til Public Test",
+        "modalTitle": "Upload PDF-filer til Nerilio Bot",
         "modalDescription": "Kun PDF-filer understøttes. Den samlede uploadgrænse er 30 PDF-sider på tværs af alle filer.",
         "supportedFormats": "Understøttet format: kun PDF. Samlet uploadgrænse: 30 sider.",
-        "emptyStateDescription": "Uploadede PDF-filer vises her og bliver søgbare i Public Test-chatten."
+        "emptyStateDescription": "Uploadede PDF-filer vises her og bliver søgbare i Nerilio Bot-chatten."
     },
     "developerSettings": "Udviklerindstillinger",
     "disclaimer": {
@@ -186,7 +186,7 @@
     },
     "signupPage": {
         "title": "Opret din konto",
-        "subtitle": "Opret en Public Test-konto for at uploade og chatte med dine egne PDF-filer.",
+        "subtitle": "Opret en Nerilio Bot-konto for at uploade og chatte med dine egne PDF-filer.",
         "displayName": "Visningsnavn",
         "email": "E-mail",
         "password": "Adgangskode",
@@ -206,7 +206,8 @@
         "changeEmail": "Aendr e-mail",
         "codeSent": "Vi har sendt en bekraeftelseskode til {{email}}.",
         "codeResent": "En ny bekraeftelseskode blev sendt til {{email}}.",
-        "verificationHint": "Indtast den 6-cifrede kode fra din e-mail."
+        "verificationHint": "Indtast den 6-cifrede kode fra din e-mail.",
+        "passwordHint": "Use at least 8 characters."
     },
     "authErrors": {
         "displayNameRequired": "Visningsnavn er påkrævet.",
@@ -227,7 +228,8 @@
         "verificationTooManyAttempts": "For mange forkerte bekraeftelsesforsoeg. Start tilmeldingen igen.",
         "verificationSessionNotFound": "Der blev ikke fundet en aktiv tilmeldingsbekraeftelse for denne e-mail.",
         "accountNotFound": "Der blev ikke fundet en konto med denne e-mailadresse.",
-        "passwordResetSessionNotFound": "Der blev ikke fundet en aktiv nulstilling af adgangskode for denne e-mailadresse."
+        "passwordResetSessionNotFound": "Der blev ikke fundet en aktiv nulstilling af adgangskode for denne e-mailadresse.",
+        "passwordTooShort": "Password must be at least 8 characters."
     },
     "newChat": "Ny chat",
     "passwordResetPage": {
@@ -254,7 +256,7 @@
     "profile": {
         "menuLabel": "Se profil",
         "title": "Din profil",
-        "subtitle": "Her kan du se oplysningerne for din Public Test-konto.",
+        "subtitle": "Her kan du se oplysningerne for din Nerilio Bot-konto.",
         "displayName": "Vist navn",
         "email": "E-mail",
         "createdAt": "Medlem siden",
@@ -263,3 +265,4 @@
         "loadError": "Din profil kunne ikke indl?ses lige nu."
     }
 }
+

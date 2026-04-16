@@ -62,8 +62,12 @@ const router = createBrowserRouter([
         element: <UploadFilesPage />
     },
     {
-        path: "/public-test-users",
+        path: "/free-users",
         element: <PublicTestUsersPage />
+    },
+    {
+        path: "/public-test-users",
+        element: <Navigate to="/free-users" replace />
     },
     {
         path: "/manage-prompts",

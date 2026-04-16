@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Helmet } from "react-helmet-async";
 import { useOutletContext } from "react-router-dom";
 import { Panel, DefaultButton } from "@fluentui/react";
-import appLogo from "../../assets/applogo.svg";
+import appLogo from "../../../nerilio/assets/robo1.png";
 import styles from "./Chat.module.css";
 
 import { chatApi, configApi, RetrievalMode, ChatAppResponse, ChatAppResponseOrError, ChatAppRequest, ResponseMessage, SpeechConfig } from "../../api";
@@ -39,7 +39,7 @@ const createClientSessionId = () => {
 
 const Chat = () => {
     const { t, i18n } = useTranslation();
-    const chatbotCategory = "public-test";
+    const chatbotCategory = "free";
     const legacyInitialUserMessage: string = t("initialUserMsg");
     const initialAssistantMessageContent: string = t("initialAssistantMsg");
     const initialAssistantResponse: ChatAppResponse = {
@@ -135,7 +135,7 @@ const Chat = () => {
 
     const getConfig = async () => {
         configApi().then(config => {
-            const effectiveConfig = applyChatbotSpeechFeatureFlags("public-test", config);
+            const effectiveConfig = applyChatbotSpeechFeatureFlags("free", config);
             setShowMultimodalOptions(config.showMultimodalOptions);
             if (config.showMultimodalOptions) {
                 // Initialize from server config so defaults match deployment settings

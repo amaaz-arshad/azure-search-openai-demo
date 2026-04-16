@@ -41,19 +41,24 @@ const defaultThemeSeed: ChatbotThemeSeed = {
 // If one chatbot needs a special case later, use the optional `overrides`.
 export const chatbotThemes: Record<string, ChatbotThemeSeed> = {
     agindo: {
-        primary: "#e2c200"
+        primary: "#e2c200",
+        pageTone: "light"
     },
     demo: {
-        primary: "#313335"
+        primary: "#313335",
+        pageTone: "light"
     },
     fbn: {
-        primary: "#00cc96"
+        primary: "#00cc96",
+        pageTone: "light"
     },
     fhg: {
-        primary: "#669d24"
+        primary: "#669d24",
+        pageTone: "light"
     },
     knoll: {
         primary: "#0199fe",
+        pageTone: "light",
         loginButtonStyle: "solid",
         overrides: {
             navbar: {
@@ -73,31 +78,40 @@ export const chatbotThemes: Record<string, ChatbotThemeSeed> = {
         }
     },
     lemon: {
-        primary: "#fec701"
+        primary: "#fec701",
+        pageTone: "light"
     },
     moodle: {
-        primary: "#f98012"
+        primary: "#f98012",
+        pageTone: "light"
     },
     nerilio: {
-        primary: "#ac44c6"
+        primary: "#ac44c6",
+        pageTone: "light"
     },
-    "public-test": {
-        primary: "#313335"
+    free: {
+        primary: "#AC44C6",
+        pageTone: "light"
     },
     publishone: {
-        primary: "#212529"
+        primary: "#212529",
+        pageTone: "light"
     },
     rak: {
-        primary: "#e30613"
+        primary: "#e30613",
+        pageTone: "light"
     },
     sartorius: {
-        primary: "#ffed00"
+        primary: "#ffed00",
+        pageTone: "light"
     },
     steuertipps: {
-        primary: "#ffe016"
+        primary: "#ffe016",
+        pageTone: "light"
     },
     vjoonk4: {
-        primary: "#00cc96"
+        primary: "#00cc96",
+        pageTone: "light"
     }
 };
 

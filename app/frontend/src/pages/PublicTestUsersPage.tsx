@@ -12,6 +12,8 @@ import {
 import { useInternalAdminAccess } from "./useInternalAdminAccess";
 import styles from "./PublicTestUsersPage.module.css";
 
+const FREE_BOT_PASSWORD_MIN_LENGTH = 8;
+
 const formatTimestamp = (timestamp: string) => {
     const parsedDate = new Date(timestamp);
     if (Number.isNaN(parsedDate.getTime())) {
@@ -77,7 +79,7 @@ const PublicTestUsersPage = () => {
                 setQuery("");
                 return;
             }
-            setStatusMessage(error instanceof Error ? error.message : "Could not load public-test users.");
+            setStatusMessage(error instanceof Error ? error.message : "Could not load Nerilio Bot users.");
         } finally {
             setIsLoading(false);
         }
@@ -118,7 +120,7 @@ const PublicTestUsersPage = () => {
 
     const handleDeleteUser = async (user: PublicTestAdminUser) => {
         const confirmed = window.confirm(
-            `Delete the public-test user ${user.email}? This will also remove ${user.uploadCount} uploaded file(s).`
+            `Delete the Nerilio Bot user ${user.email}? This will also remove ${user.uploadCount} uploaded file(s).`
         );
         if (!confirmed) {
             return;
@@ -137,7 +139,7 @@ const PublicTestUsersPage = () => {
                 setDeletingEmail(null);
                 return;
             }
-            setStatusMessage(error instanceof Error ? error.message : "Could not delete public-test user.");
+            setStatusMessage(error instanceof Error ? error.message : "Could not delete Nerilio Bot user.");
         } finally {
             setDeletingEmail(null);
         }
@@ -163,6 +165,10 @@ const PublicTestUsersPage = () => {
 
     const handleResetPassword = async (event: FormEvent<HTMLFormElement>, user: PublicTestAdminUser) => {
         event.preventDefault();
+        if (newPassword.length < FREE_BOT_PASSWORD_MIN_LENGTH) {
+            setStatusMessage(`Passwords must be at least ${FREE_BOT_PASSWORD_MIN_LENGTH} characters.`);
+            return;
+        }
         setResettingEmail(user.email);
         setStatusMessage("");
         try {
@@ -190,7 +196,7 @@ const PublicTestUsersPage = () => {
                 setIsConfirmPasswordVisible(false);
                 return;
             }
-            setStatusMessage(error instanceof Error ? error.message : "Could not reset public-test password.");
+            setStatusMessage(error instanceof Error ? error.message : "Could not reset the Nerilio Bot password.");
         } finally {
             setResettingEmail(null);
         }
@@ -199,7 +205,7 @@ const PublicTestUsersPage = () => {
     return (
         <main className={styles.page}>
             <Helmet>
-                <title>Public-test Users</title>
+                <title>Nerilio Bot Users</title>
             </Helmet>
 
             <div className={styles.glowOne} aria-hidden="true" />
@@ -209,7 +215,7 @@ const PublicTestUsersPage = () => {
                 <header className={styles.header}>
                     <div>
                         <span className={styles.badge}>Internal tool</span>
-                        <h1 className={styles.title}>Public-test Users</h1>
+                        <h1 className={styles.title}>Nerilio Bot Users</h1>
                         <p className={styles.subtitle}>Review registered users, their uploads, and remove accounts when needed.</p>
                     </div>
                     <div className={styles.headerActions}>
@@ -242,15 +248,15 @@ const PublicTestUsersPage = () => {
                             </div>
 
                             <form className={styles.form} onSubmit={handleUnlock} autoComplete="off">
-                                <label className={styles.label} htmlFor="public-test-users-password">
+                                <label className={styles.label} htmlFor="free-users-password">
                                     Password
                                 </label>
                                 <div className={styles.inputWrap}>
                                     <input
-                                        id="public-test-users-password"
+                                        id="free-users-password"
                                         className={`${styles.input} ${!isPasswordVisible ? styles.maskedInput : ""}`}
                                         type="text"
-                                        name="public-test-user-admin-password"
+                                        name="free-user-admin-password"
                                         value={password}
                                         onChange={event => {
                                             setPassword(event.target.value);
@@ -291,7 +297,7 @@ const PublicTestUsersPage = () => {
                                     value={query}
                                     onChange={event => setQuery(event.target.value)}
                                     placeholder="Search by name, email, or uploaded file"
-                                    aria-label="Search public-test users"
+                                    aria-label="Search Nerilio Bot users"
                                 />
                                 <button className={styles.primaryButton} type="button" onClick={() => void loadUsers()} disabled={isLoading}>
                                     {isLoading ? "Refreshing..." : "Refresh"}
@@ -385,6 +391,7 @@ const PublicTestUsersPage = () => {
                                                             value={newPassword}
                                                             onChange={event => setNewPassword(event.target.value)}
                                                             placeholder="Enter new password"
+                                                            minLength={FREE_BOT_PASSWORD_MIN_LENGTH}
                                                             autoComplete="off"
                                                             spellCheck={false}
                                                         />
@@ -410,6 +417,7 @@ const PublicTestUsersPage = () => {
                                                             value={confirmNewPassword}
                                                             onChange={event => setConfirmNewPassword(event.target.value)}
                                                             placeholder="Confirm new password"
+                                                            minLength={FREE_BOT_PASSWORD_MIN_LENGTH}
                                                             autoComplete="off"
                                                             spellCheck={false}
                                                         />
@@ -446,3 +454,4 @@ const PublicTestUsersPage = () => {
 };
 
 export default PublicTestUsersPage;
+

@@ -1,6 +1,7 @@
 export const NON_CHATBOT_ROUTE_SEGMENTS = new Set([
     "chatbots",
     "upload-files",
+    "free-users",
     "public-test-users",
     "manage-prompts",
     "content",

@@ -166,7 +166,7 @@ async def test_chathistory_newitem_public_test_user_scope(auth_public_documents_
         "/chat_history",
         json={
             "id": "123",
-            "chatbot_name": "public-test",
+            "chatbot_name": "free",
             "answers": [["This is a test message", "This is a test answer"]],
         },
     )
@@ -304,7 +304,7 @@ async def test_chathistory_query_public_test_user_scope(auth_public_documents_cl
 
     monkeypatch.setattr(ContainerProxy, "query_items", mock_query_items)
 
-    response = await auth_public_documents_client.get("/chat_history/sessions?count=20&chatbot_name=public-test")
+    response = await auth_public_documents_client.get("/chat_history/sessions?count=20&chatbot_name=free")
     assert response.status_code == 200
 
 

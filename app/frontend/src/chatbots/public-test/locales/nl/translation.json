@@ -1,6 +1,6 @@
 {
-    "pageTitle": "Public Test",
-    "headerTitle": "Public Test",
+    "pageTitle": "Nerilio Bot",
+    "headerTitle": "Nerilio Bot",
     "initialUserMsg": "Hallo",
     "initialAssistantMsg": "Hallo! Schrijf gewoon je vraag in de chat.",
     "chat": "Chat",
@@ -63,7 +63,7 @@
         "errorDeleting": "Fout bij verwijderen.",
         "fileDeleted": "Bestand verwijderd",
         "menuLabel": "Bestanden uploaden",
-        "modalTitle": "PDF-bestanden uploaden naar Public Test",
+        "modalTitle": "PDF-bestanden uploaden naar Nerilio Bot",
         "modalDescription": "Alleen PDF-bestanden worden ondersteund. De gezamenlijke uploadlimiet is 30 PDF-pagina's over alle bestanden heen.",
         "chooseFiles": "Bestanden kiezen",
         "refreshList": "Lijst vernieuwen",
@@ -78,7 +78,7 @@
         "emptyQueueTitle": "Geen bestanden in de wachtrij",
         "emptyQueueDescription": "Voeg een of meer bestanden toe om een beheerde uploadwachtrij te starten.",
         "emptyStateTitle": "Nog geen bestanden geüpload",
-        "emptyStateDescription": "Geüploade PDF-bestanden verschijnen hier en worden doorzoekbaar in de Public Test-chat.",
+        "emptyStateDescription": "Geüploade PDF-bestanden verschijnen hier en worden doorzoekbaar in de Nerilio Bot-chat.",
         "fileReady": "Klaar voor chat",
         "listError": "Geüploade bestanden konden niet worden geladen.",
         "dismissQueueItem": "Verbergen",
@@ -233,7 +233,7 @@
     "llmSettings": "LLM-instellingen",
     "signupPage": {
         "title": "Maak je account aan",
-        "subtitle": "Maak een Public Test-account aan om je eigen PDF-bestanden te uploaden en ermee te chatten.",
+        "subtitle": "Maak een Nerilio Bot-account aan om je eigen PDF-bestanden te uploaden en ermee te chatten.",
         "displayName": "Weergavenaam",
         "email": "E-mailadres",
         "password": "Wachtwoord",
@@ -253,7 +253,8 @@
         "changeEmail": "E-mail wijzigen",
         "codeSent": "We hebben een verificatiecode naar {{email}} gestuurd.",
         "codeResent": "Er is een nieuwe verificatiecode naar {{email}} gestuurd.",
-        "verificationHint": "Voer de 6-cijferige code uit je e-mail in."
+        "verificationHint": "Voer de 6-cijferige code uit je e-mail in.",
+        "passwordHint": "Gebruik minimaal 8 tekens."
     },
     "authErrors": {
         "displayNameRequired": "Weergavenaam is verplicht.",
@@ -274,7 +275,8 @@
         "verificationTooManyAttempts": "Te veel onjuiste verificatiepogingen. Start de registratie opnieuw.",
         "verificationSessionNotFound": "Er is geen actieve verificatiesessie gevonden voor dit e-mailadres.",
         "accountNotFound": "Er is geen account gevonden voor dit e-mailadres.",
-        "passwordResetSessionNotFound": "Er is geen actieve wachtwoordreset gevonden voor dit e-mailadres."
+        "passwordResetSessionNotFound": "Er is geen actieve wachtwoordreset gevonden voor dit e-mailadres.",
+        "passwordTooShort": "Het wachtwoord moet minimaal 8 tekens bevatten."
     },
     "passwordResetPage": {
         "title": "Wachtwoord opnieuw instellen",
@@ -300,7 +302,7 @@
     "profile": {
         "menuLabel": "Profiel bekijken",
         "title": "Jouw profiel",
-        "subtitle": "Hier zie je de gegevens van je Public Test-account.",
+        "subtitle": "Hier zie je de gegevens van je Nerilio Bot-account.",
         "displayName": "Weergavenaam",
         "email": "E-mail",
         "createdAt": "Lid sinds",
@@ -309,3 +311,4 @@
         "loadError": "Je profiel kon nu niet worden geladen."
     }
 }
+

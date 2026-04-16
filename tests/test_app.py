@@ -242,7 +242,7 @@ async def test_public_test_signup_starts_verification(client, monkeypatch):
     monkeypatch.setattr(auth_service, "start_signup", mock_start_signup)
 
     response = await client.post(
-        "/public-test-auth/signup",
+        "/free-auth/signup",
         json={
             "displayName": "Test User",
             "email": "user@example.com",
@@ -272,7 +272,7 @@ async def test_public_test_signup_verify_sets_session_cookie(client, monkeypatch
     monkeypatch.setattr(auth_service, "verify_signup", mock_verify_signup)
 
     response = await client.post(
-        "/public-test-auth/signup/verify",
+        "/free-auth/signup/verify",
         json={
             "email": "user@example.com",
             "verificationCode": "123456",
@@ -296,7 +296,7 @@ async def test_public_test_password_reset_starts_verification(client, monkeypatc
     monkeypatch.setattr(auth_service, "start_password_reset", mock_start_password_reset)
 
     response = await client.post(
-        "/public-test-auth/password-reset",
+        "/free-auth/password-reset",
         json={
             "email": "user@example.com",
         },
@@ -325,7 +325,7 @@ async def test_public_test_password_reset_verify_sets_session_cookie(client, mon
     monkeypatch.setattr(auth_service, "verify_password_reset", mock_verify_password_reset)
 
     response = await client.post(
-        "/public-test-auth/password-reset/verify",
+        "/free-auth/password-reset/verify",
         json={
             "email": "user@example.com",
             "verificationCode": "123456",
@@ -350,7 +350,7 @@ async def test_public_test_password_reset_resend_returns_error_key(client, monke
     monkeypatch.setattr(auth_service, "resend_password_reset_code", mock_resend_password_reset_code)
 
     response = await client.post(
-        "/public-test-auth/password-reset/resend",
+        "/free-auth/password-reset/resend",
         json={
             "email": "user@example.com",
         },
@@ -371,7 +371,7 @@ async def test_public_test_login_returns_error_key(client, monkeypatch):
     monkeypatch.setattr(auth_service, "login_user", mock_login_user)
 
     response = await client.post(
-        "/public-test-auth/login",
+        "/free-auth/login",
         json={
             "email": "user@example.com",
             "password": "wrong-password",
@@ -390,7 +390,7 @@ async def test_public_test_session_returns_authenticated_user(client, monkeypatc
 
     monkeypatch.setattr(app, "get_authenticated_public_test_user", mock_get_authenticated_public_test_user)
 
-    response = await client.get("/public-test-auth/session")
+    response = await client.get("/free-auth/session")
 
     payload = await response.get_json()
     assert response.status_code == 200
@@ -416,7 +416,7 @@ async def test_public_test_profile_returns_account_details(client, monkeypatch):
     monkeypatch.setattr(app, "get_authenticated_public_test_user", mock_get_authenticated_public_test_user)
     monkeypatch.setattr(auth_service, "load_account", mock_load_account)
 
-    response = await client.get("/public-test-auth/profile")
+    response = await client.get("/free-auth/profile")
 
     payload = await response.get_json()
     assert response.status_code == 200
@@ -463,7 +463,7 @@ async def test_internal_admin_login_session_logout_flow(client):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("path", ["/internal-admin/prompts", "/managed_uploads", "/public-test-admin/users"])
+@pytest.mark.parametrize("path", ["/internal-admin/prompts", "/managed_uploads", "/free-admin/users"])
 async def test_internal_admin_routes_require_session(client, path):
     response = await client.get(path)
     payload = await response.get_json()
@@ -482,8 +482,16 @@ def test_chat_history_scope_marks_internal_admin_routes_as_non_chatbot():
     chat_history_scope = (Path(app.__file__).resolve().parent.parent / "frontend" / "src" / "chatHistoryScope.ts").read_text(
         encoding="utf-8"
     )
+    assert '"free-users"' in chat_history_scope
     assert '"public-test-users"' in chat_history_scope
     assert '"manage-prompts"' in chat_history_scope
+
+
+@pytest.mark.asyncio
+async def test_legacy_public_test_route_redirects_to_free(client):
+    response = await client.get("/public-test")
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/free")
 
 
 @pytest.mark.asyncio
@@ -579,7 +587,7 @@ async def test_public_test_admin_users_lists_accounts(client, monkeypatch):
     monkeypatch.setattr(auth_service, "list_accounts", mock_list_accounts)
     monkeypatch.setattr(app, "get_chatbot_upload_manager", lambda chatbot_name: upload_manager)
 
-    response = await client.get("/public-test-admin/users")
+    response = await client.get("/free-admin/users")
 
     payload = await response.get_json()
     assert response.status_code == 200
@@ -611,12 +619,12 @@ async def test_public_test_admin_user_delete_removes_uploads_and_account(client,
     monkeypatch.setattr(app, "get_chatbot_upload_manager", lambda chatbot_name: upload_manager)
     monkeypatch.setattr(auth_service, "delete_account", mock_delete_account)
 
-    response = await client.delete("/public-test-admin/users/user%40example.com")
+    response = await client.delete("/free-admin/users/user%40example.com")
 
     payload = await response.get_json()
     assert response.status_code == 200
     assert payload == {
-        "message": "Public-test user deleted successfully.",
+        "message": "Nerilio Bot user deleted successfully.",
         "deletedUploadCount": 1,
     }
     upload_manager.remove_all_files.assert_awaited_once_with(user_identifier="user@example.com")
@@ -636,14 +644,14 @@ async def test_public_test_admin_user_password_reset_updates_account(client, mon
     monkeypatch.setattr(auth_service, "reset_account_password", mock_reset_account_password)
 
     response = await client.post(
-        "/public-test-admin/users/user%40example.com/password",
+        "/free-admin/users/user%40example.com/password",
         json={"password": "new-secret", "confirmPassword": "new-secret"},
     )
 
     payload = await response.get_json()
     assert response.status_code == 200
     assert payload == {
-        "message": "Public-test user password updated successfully.",
+        "message": "Nerilio Bot user password updated successfully.",
         "email": "user@example.com",
         "updatedAt": "2026-03-31T12:00:00+00:00",
     }

@@ -847,8 +847,8 @@ const UploadFilesPage = () => {
                                 <Link className={styles.secondaryButton} to="/chatbots">
                                     Back to directory
                                 </Link>
-                                <Link className={styles.secondaryButton} to="/public-test-users">
-                                    Public-test users
+                                <Link className={styles.secondaryButton} to="/free-users">
+                                    Nerilio Bot users
                                 </Link>
                                 <Link className={styles.secondaryButton} to="/manage-prompts">
                                     Manage prompts
@@ -1223,3 +1223,4 @@ const UploadFilesPage = () => {
 };
 
 export default UploadFilesPage;
+

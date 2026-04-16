@@ -3,6 +3,7 @@ import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
 import { Icon } from "@fluentui/react";
 
+import { formatChatbotLabel, getChatbotRouteSegment } from "./chatbotDisplay";
 import { PromptAdminEntry, listPromptAdminEntriesApi, resetPromptAdminEntryApi, savePromptAdminEntryApi } from "./promptAdminApi";
 import { useInternalAdminAccess } from "./useInternalAdminAccess";
 import styles from "./ManagePromptsPage.module.css";
@@ -13,8 +14,6 @@ type StatusState =
           message: string;
       }
     | undefined;
-
-const formatChatbotLabel = (name: string) => name.replace(/[-_]+/g, " ");
 
 const formatTimestamp = (timestamp?: string | null) => {
     if (!timestamp) {
@@ -60,7 +59,11 @@ const ManagePromptsPage = () => {
             return prompts;
         }
 
-        return prompts.filter(prompt => prompt.chatbotName.toLowerCase().includes(normalizedQuery));
+        return prompts.filter(
+            prompt =>
+                prompt.chatbotName.toLowerCase().includes(normalizedQuery) ||
+                formatChatbotLabel(prompt.chatbotName).toLowerCase().includes(normalizedQuery)
+        );
     }, [prompts, query]);
 
     const selectedPrompt = prompts.find(prompt => prompt.chatbotName === selectedChatbotName) || null;
@@ -302,10 +305,10 @@ const ManagePromptsPage = () => {
                                 </Link>
                                 <Link
                                     className={styles.secondaryButton}
-                                    to="/public-test-users"
+                                    to="/free-users"
                                     onClick={handleGuardedNavigation}
                                 >
-                                    Public-test users
+                                    Nerilio Bot users
                                 </Link>
                                 <button className={styles.secondaryButton} type="button" onClick={handleLockPage}>
                                     Lock page
@@ -433,7 +436,7 @@ const ManagePromptsPage = () => {
                                                             {prompt.source === "override" ? "Override" : "Default"}
                                                         </span>
                                                     </div>
-                                                    <span className={styles.chatbotMeta}>/{prompt.chatbotName}</span>
+                                                            <span className={styles.chatbotMeta}>/{getChatbotRouteSegment(prompt.chatbotName)}</span>
                                                 </button>
                                             ))
                                         ) : (
@@ -532,3 +535,4 @@ const ManagePromptsPage = () => {
 };
 
 export default ManagePromptsPage;
+

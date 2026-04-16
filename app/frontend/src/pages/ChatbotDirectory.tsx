@@ -4,12 +4,11 @@ import { Link } from "react-router-dom";
 import { Icon } from "@fluentui/react";
 
 import { chatbotDefinitions } from "../chatbots/registry";
+import { formatChatbotLabel } from "./chatbotDisplay";
 import { useInternalAdminAccess } from "./useInternalAdminAccess";
 import styles from "./ChatbotDirectory.module.css";
 
 const sortedChatbots = [...chatbotDefinitions].sort((a, b) => a.name.localeCompare(b.name));
-
-const formatChatbotLabel = (name: string) => name.replace(/[-_]+/g, " ");
 
 const ChatbotDirectory = () => {
     const { isAuthenticated, isCheckingAuthentication, authError, clearAuthError, login, logout } = useInternalAdminAccess();
@@ -18,7 +17,11 @@ const ChatbotDirectory = () => {
     const [query, setQuery] = useState("");
 
     const normalizedQuery = query.trim().toLowerCase();
-    const filteredChatbots = sortedChatbots.filter(chatbot => chatbot.name.toLowerCase().includes(normalizedQuery));
+    const filteredChatbots = sortedChatbots.filter(
+        chatbot =>
+            chatbot.name.toLowerCase().includes(normalizedQuery) ||
+            formatChatbotLabel(chatbot.name).toLowerCase().includes(normalizedQuery)
+    );
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -62,8 +65,8 @@ const ChatbotDirectory = () => {
 
                         {isAuthenticated ? (
                             <>
-                                <Link className={styles.secondaryButton} to="/public-test-users">
-                                    Public-test users
+                                <Link className={styles.secondaryButton} to="/free-users">
+                                    Nerilio Bot users
                                 </Link>
                                 <Link className={styles.secondaryButton} to="/upload-files">
                                     Manage uploads
@@ -180,3 +183,4 @@ const ChatbotDirectory = () => {
 };
 
 export default ChatbotDirectory;
+

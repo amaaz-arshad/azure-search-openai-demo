@@ -26,7 +26,7 @@ const LayoutWrapper = () => {
                 setLoggedIn(isAuthenticated);
             })
             .catch(error => {
-                console.error("Public Test session check failed", error);
+                console.error("Nerilio Bot session check failed", error);
                 if (!isMounted) {
                     return;
                 }
@@ -100,3 +100,4 @@ const LayoutWrapper = () => {
 };
 
 export default LayoutWrapper;
+

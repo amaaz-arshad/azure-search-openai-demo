@@ -1,6 +1,6 @@
 {
-    "pageTitle": "Public Test",
-    "headerTitle": "Public Test",
+    "pageTitle": "Nerilio Bot",
+    "headerTitle": "Nerilio Bot",
     "initialUserMsg": "Ciao",
     "initialAssistantMsg": "Ciao! Scrivi semplicemente la tua domanda nella chat.",
     "chat": "Chat",
@@ -40,7 +40,7 @@
         "errorDeleting": "Errore durante l'eliminazione.",
         "fileDeleted": "File eliminato",
         "menuLabel": "Carica file",
-        "modalTitle": "Carica file PDF in Public Test",
+        "modalTitle": "Carica file PDF in Nerilio Bot",
         "modalDescription": "Sono supportati solo i file PDF. Il limite complessivo di caricamento è di 30 pagine PDF totali tra tutti i file.",
         "chooseFiles": "Scegli file",
         "refreshList": "Aggiorna elenco",
@@ -55,7 +55,7 @@
         "emptyQueueTitle": "Nessun file in coda",
         "emptyQueueDescription": "Aggiungi uno o più file per avviare una coda di caricamento gestita.",
         "emptyStateTitle": "Nessun file caricato",
-        "emptyStateDescription": "I file PDF caricati appariranno qui e saranno ricercabili nella chat di Public Test.",
+        "emptyStateDescription": "I file PDF caricati appariranno qui e saranno ricercabili nella chat di Nerilio Bot.",
         "fileReady": "Pronto per la chat",
         "listError": "Impossibile caricare l'elenco dei file.",
         "dismissQueueItem": "Nascondi",
@@ -221,7 +221,7 @@
     },
     "signupPage": {
         "title": "Crea il tuo account",
-        "subtitle": "Crea un account Public Test per caricare e chattare con i tuoi file PDF.",
+        "subtitle": "Crea un account Nerilio Bot per caricare e chattare con i tuoi file PDF.",
         "displayName": "Nome visualizzato",
         "email": "E-mail",
         "password": "Password",
@@ -241,7 +241,8 @@
         "changeEmail": "Cambia e-mail",
         "codeSent": "Abbiamo inviato un codice di verifica a {{email}}.",
         "codeResent": "Un nuovo codice di verifica e stato inviato a {{email}}.",
-        "verificationHint": "Inserisci il codice di 6 cifre ricevuto via e-mail."
+        "verificationHint": "Inserisci il codice di 6 cifre ricevuto via e-mail.",
+        "passwordHint": "Use at least 8 characters."
     },
     "authErrors": {
         "displayNameRequired": "Il nome visualizzato è obbligatorio.",
@@ -262,7 +263,8 @@
         "verificationTooManyAttempts": "Troppi tentativi di verifica errati. Riavvia la registrazione.",
         "verificationSessionNotFound": "Non e stata trovata una verifica di registrazione attiva per questa e-mail.",
         "accountNotFound": "Nessun account trovato per questa e-mail.",
-        "passwordResetSessionNotFound": "Nessuna reimpostazione della password attiva trovata per questa e-mail."
+        "passwordResetSessionNotFound": "Nessuna reimpostazione della password attiva trovata per questa e-mail.",
+        "passwordTooShort": "Password must be at least 8 characters."
     },
     "passwordResetPage": {
         "title": "Reimposta la password",
@@ -288,7 +290,7 @@
     "profile": {
         "menuLabel": "Visualizza profilo",
         "title": "Il tuo profilo",
-        "subtitle": "Qui puoi vedere i dettagli del tuo account Public Test.",
+        "subtitle": "Qui puoi vedere i dettagli del tuo account Nerilio Bot.",
         "displayName": "Nome visualizzato",
         "email": "E-mail",
         "createdAt": "Membro dal",
@@ -297,3 +299,4 @@
         "loadError": "Impossibile caricare il tuo profilo in questo momento."
     }
 }
+

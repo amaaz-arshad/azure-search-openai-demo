@@ -1,0 +1,259 @@
+diff --git a/app/frontend/src/chatbots/public-test/components/Answer/Answer.tsx b/app/frontend/src/chatbots/public-test/components/Answer/Answer.tsx
+index 0eef98b..696b14b 100644
+--- a/app/frontend/src/chatbots/public-test/components/Answer/Answer.tsx
++++ b/app/frontend/src/chatbots/public-test/components/Answer/Answer.tsx
+@@ -1,6 +1,6 @@
+-import publicTestLogo from "../../assets/applogo.svg";
++import nerilioLogo from "../../../nerilio/assets/applogo.svg";
+ import { createBotAnswer } from "../../../shared/answer";
+ import { SpeechOutputBrowser } from "./SpeechOutputBrowser";
+ import { SpeechOutputAzure } from "./SpeechOutputAzure";
+ 
+-export const Answer = createBotAnswer(publicTestLogo, SpeechOutputBrowser, SpeechOutputAzure);
++export const Answer = createBotAnswer(nerilioLogo, SpeechOutputBrowser, SpeechOutputAzure);
+diff --git a/app/frontend/src/chatbots/public-test/pages/basicauth/BasicLogin.tsx b/app/frontend/src/chatbots/public-test/pages/basicauth/BasicLogin.tsx
+index a764102..e172006 100644
+--- a/app/frontend/src/chatbots/public-test/pages/basicauth/BasicLogin.tsx
++++ b/app/frontend/src/chatbots/public-test/pages/basicauth/BasicLogin.tsx
+@@ -2,7 +2,7 @@ import { FormEvent, useMemo, useState } from "react";
+ import { Icon } from "@fluentui/react";
+ import { useTranslation } from "react-i18next";
+ 
+-import publicTestLogo from "../../assets/applogo.svg";
++import nerilioLogo from "../../../nerilio/assets/applogo.svg";
+ import sharedStyles from "../../../shared/basicauth/BasicLoginPage.module.css";
+ import styles from "./BasicLogin.module.css";
+ import {
+@@ -36,6 +36,7 @@ const BasicLogin = ({ onSuccess }: { onSuccess: (session: PublicTestSession) =>
+     const [isResending, setIsResending] = useState(false);
+     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+     const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false);
++    const passwordTooShort = password.length > 0 && password.length < 8;
+ 
+     const controlsDisabled = isSubmitting || isResending;
+     const isSignupVerifyStep = mode === "signup" && signupStage === "verify";
+@@ -198,7 +199,7 @@ const BasicLogin = ({ onSuccess }: { onSuccess: (session: PublicTestSession) =>
+ 
+             await handleStartPasswordReset();
+         } catch (authError) {
+-            console.error("Public Test auth failed", authError);
++            console.error("Free Bot auth failed", authError);
+             setError(t("authErrors.unexpected"));
+         } finally {
+             setIsSubmitting(false);
+@@ -222,7 +223,7 @@ const BasicLogin = ({ onSuccess }: { onSuccess: (session: PublicTestSession) =>
+                 })
+             );
+         } catch (authError) {
+-            console.error("Public Test verification resend failed", authError);
++            console.error("Free Bot verification resend failed", authError);
+             setError(t("authErrors.unexpected"));
+         } finally {
+             setIsResending(false);
+@@ -255,7 +256,7 @@ const BasicLogin = ({ onSuccess }: { onSuccess: (session: PublicTestSession) =>
+                 <section className={sharedStyles.card}>
+                     <div className={sharedStyles.header}>
+                         <div className={sharedStyles.logoFrame}>
+-                            <img className={sharedStyles.logo} src={publicTestLogo} alt="Public Test logo" />
++                            <img className={sharedStyles.logo} src={nerilioLogo} alt="Free Bot logo" />
+                         </div>
+                     </div>
+ 
+@@ -324,33 +325,41 @@ const BasicLogin = ({ onSuccess }: { onSuccess: (session: PublicTestSession) =>
+                         )}
+ 
+                         {(mode === "login" || (mode === "signup" && signupStage === "details")) && (
+-                            <div className={sharedStyles.inputWrap}>
+-                                <input
+-                                    className={`${sharedStyles.input} ${sharedStyles.passwordInput}`}
+-                                    disabled={controlsDisabled}
+-                                    type={isPasswordVisible ? "text" : "password"}
+-                                    placeholder={mode === "login" ? t("loginPage.password") : t("signupPage.password")}
+-                                    value={password}
+-                                    onChange={event => {
+-                                        setPassword(event.target.value);
+-                                        clearMessages();
+-                                    }}
+-                                    autoComplete={mode === "login" ? "current-password" : "new-password"}
+-                                    spellCheck={false}
+-                                    autoCapitalize="none"
+-                                    autoCorrect="off"
+-                                />
+-                                <button
+-                                    className={sharedStyles.visibilityToggle}
+-                                    disabled={controlsDisabled}
+-                                    type="button"
+-                                    onClick={() => setIsPasswordVisible(current => !current)}
+-                                    aria-label={isPasswordVisible ? "Hide password" : "Show password"}
+-                                    aria-pressed={isPasswordVisible}
+-                                >
+-                                    <Icon iconName={isPasswordVisible ? "Hide3" : "RedEye"} />
+-                                </button>
+-                            </div>
++                            <>
++                                <div className={sharedStyles.inputWrap}>
++                                    <input
++                                        className={`${sharedStyles.input} ${sharedStyles.passwordInput}`}
++                                        disabled={controlsDisabled}
++                                        type={isPasswordVisible ? "text" : "password"}
++                                        placeholder={mode === "login" ? t("loginPage.password") : t("signupPage.password")}
++                                        value={password}
++                                        onChange={event => {
++                                            setPassword(event.target.value);
++                                            clearMessages();
++                                        }}
++                                        minLength={mode === "signup" ? 8 : undefined}
++                                        autoComplete={mode === "login" ? "current-password" : "new-password"}
++                                        spellCheck={false}
++                                        autoCapitalize="none"
++                                        autoCorrect="off"
++                                    />
++                                    <button
++                                        className={sharedStyles.visibilityToggle}
++                                        disabled={controlsDisabled}
++                                        type="button"
++                                        onClick={() => setIsPasswordVisible(current => !current)}
++                                        aria-label={isPasswordVisible ? "Hide password" : "Show password"}
++                                        aria-pressed={isPasswordVisible}
++                                    >
++                                        <Icon iconName={isPasswordVisible ? "Hide3" : "RedEye"} />
++                                    </button>
++                                </div>
++                                {mode === "signup" && signupStage === "details" && (
++                                    <p className={styles.verificationHint}>
++                                        {passwordTooShort ? t("authErrors.passwordTooShort") : t("signupPage.passwordHint")}
++                                    </p>
++                                )}
++                            </>
+                         )}
+ 
+                         {mode === "signup" && signupStage === "details" && (
+@@ -420,13 +429,14 @@ const BasicLogin = ({ onSuccess }: { onSuccess: (session: PublicTestSession) =>
+                                         type={isPasswordVisible ? "text" : "password"}
+                                         placeholder={t("passwordResetPage.password")}
+                                         value={password}
+-                                        onChange={event => {
+-                                            setPassword(event.target.value);
+-                                            clearMessages();
+-                                        }}
+-                                        autoComplete="new-password"
+-                                        spellCheck={false}
+-                                        autoCapitalize="none"
++                                    onChange={event => {
++                                        setPassword(event.target.value);
++                                        clearMessages();
++                                    }}
++                                    minLength={8}
++                                    autoComplete="new-password"
++                                    spellCheck={false}
++                                    autoCapitalize="none"
+                                         autoCorrect="off"
+                                     />
+                                     <button
+@@ -449,12 +459,13 @@ const BasicLogin = ({ onSuccess }: { onSuccess: (session: PublicTestSession) =>
+                                         placeholder={t("passwordResetPage.confirmPassword")}
+                                         value={confirmPassword}
+                                         onChange={event => {
+-                                            setConfirmPassword(event.target.value);
+-                                            clearMessages();
+-                                        }}
+-                                        autoComplete="new-password"
+-                                        spellCheck={false}
+-                                        autoCapitalize="none"
++                                        setConfirmPassword(event.target.value);
++                                        clearMessages();
++                                    }}
++                                    minLength={8}
++                                    autoComplete="new-password"
++                                    spellCheck={false}
++                                    autoCapitalize="none"
+                                         autoCorrect="off"
+                                     />
+                                     <button
+diff --git a/app/frontend/src/chatbots/public-test/pages/chat/Chat.tsx b/app/frontend/src/chatbots/public-test/pages/chat/Chat.tsx
+index 3d4918a..b94099b 100644
+--- a/app/frontend/src/chatbots/public-test/pages/chat/Chat.tsx
++++ b/app/frontend/src/chatbots/public-test/pages/chat/Chat.tsx
+@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
+ import { Helmet } from "react-helmet-async";
+ import { useOutletContext } from "react-router-dom";
+ import { Panel, DefaultButton } from "@fluentui/react";
+-import appLogo from "../../assets/applogo.svg";
++import appLogo from "../../../nerilio/assets/applogo.svg";
+ import styles from "./Chat.module.css";
+ 
+ import { chatApi, configApi, RetrievalMode, ChatAppResponse, ChatAppResponseOrError, ChatAppRequest, ResponseMessage, SpeechConfig } from "../../api";
+@@ -39,7 +39,7 @@ const createClientSessionId = () => {
+ 
+ const Chat = () => {
+     const { t, i18n } = useTranslation();
+-    const chatbotCategory = "public-test";
++    const chatbotCategory = "free";
+     const legacyInitialUserMessage: string = t("initialUserMsg");
+     const initialAssistantMessageContent: string = t("initialAssistantMsg");
+     const initialAssistantResponse: ChatAppResponse = {
+@@ -135,7 +135,7 @@ const Chat = () => {
+ 
+     const getConfig = async () => {
+         configApi().then(config => {
+-            const effectiveConfig = applyChatbotSpeechFeatureFlags("public-test", config);
++            const effectiveConfig = applyChatbotSpeechFeatureFlags("free", config);
+             setShowMultimodalOptions(config.showMultimodalOptions);
+             if (config.showMultimodalOptions) {
+                 // Initialize from server config so defaults match deployment settings
+diff --git a/app/frontend/src/chatbots/public-test/pages/layout/Layout.tsx b/app/frontend/src/chatbots/public-test/pages/layout/Layout.tsx
+index a3773db..6da423a 100644
+--- a/app/frontend/src/chatbots/public-test/pages/layout/Layout.tsx
++++ b/app/frontend/src/chatbots/public-test/pages/layout/Layout.tsx
+@@ -7,7 +7,7 @@ import { ArrowUpload24Regular, ChatAdd24Regular, History24Regular, Person24Regul
+ import { useLogin } from "../../authConfig";
+ import { UploadManagerModal } from "../../components/UploadManagerModal/UploadManagerModal";
+ import { LoginButton } from "../../components/LoginButton";
+-import publicTestLogo from "../../assets/applogo.svg";
++import nerilioLogo from "../../../nerilio/assets/applogo.svg";
+ import { LoginContext } from "../../loginContext";
+ import { getCurrentProfile, logout, PublicTestProfile } from "../basicauth/basicAuth";
+ import styles from "./Layout.module.css";
+@@ -88,7 +88,7 @@ const Layout = () => {
+                 setProfile(profileResult);
+             })
+             .catch(error => {
+-                console.error("Public Test profile load failed", error);
++                console.error("Free Bot profile load failed", error);
+                 if (!isMounted) {
+                     return;
+                 }
+@@ -120,9 +120,9 @@ const Layout = () => {
+         <div className={styles.layout}>
+             <header className={styles.header} role="banner">
+                 <div className={styles.headerContainer}>
+-                    <Link className={styles.logoContainer} to="/public-test">
++                    <Link className={styles.logoContainer} to="/free">
+                         <div className={styles.logoCircle}>
+-                            <img alt="Public Test logo" src={publicTestLogo} />
++                            <img alt="Free Bot logo" src={nerilioLogo} />
+                         </div>
+                     </Link>
+ 
+@@ -180,18 +180,18 @@ const Layout = () => {
+                 <Outlet context={{ setRecentChatsAction }} />
+             </main>
+ 
+-            <UploadManagerModal chatbotName="public-test" isOpen={isUploadManagerOpen} onClose={() => setIsUploadManagerOpen(false)} />
++            <UploadManagerModal chatbotName="free" isOpen={isUploadManagerOpen} onClose={() => setIsUploadManagerOpen(false)} />
+ 
+             {isProfileOpen && (
+                 <div className={styles.profileOverlay} onClick={() => setIsProfileOpen(false)} role="presentation">
+                     <section
+-                        aria-labelledby="public-test-profile-title"
++                        aria-labelledby="free-profile-title"
+                         className={styles.profileModal}
+                         onClick={event => event.stopPropagation()}
+                     >
+                         <div className={styles.profileHeader}>
+                             <div>
+-                                <h2 className={styles.profileTitle} id="public-test-profile-title">
++                                <h2 className={styles.profileTitle} id="free-profile-title">
+                                     {t("profile.title")}
+                                 </h2>
+                                 <p className={styles.profileSubtitle}>{t("profile.subtitle")}</p>

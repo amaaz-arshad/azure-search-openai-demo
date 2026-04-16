@@ -11,12 +11,16 @@ logger = logging.getLogger(__name__)
 SUPPORT_EMAIL_PLACEHOLDER_PATTERN = re.compile(r"\{\{\s*SUPPORT_EMAIL\s*\}\}")
 POSSIBLE_CITATIONS_PROMPT_PATTERN = re.compile(r"\{\{\s*POSSIBLE_CITATIONS_PROMPT\s*\}\}")
 
+# Maps chatbot names to their on-disk folder name when they differ.
+CHATBOT_CONFIG_FOLDER_MAP: dict[str, str] = {
+    "free": "public_test",
+}
+
 
 @lru_cache(maxsize=None)
 def load_chatbot_config(chatbot_name: str) -> Optional[ChatbotConfig]:
     """Load the ChatbotConfig for a given chatbot name, or None if no config.py exists."""
-    # public-test is stored as public_test on disk
-    module_suffix = chatbot_name.replace("-", "_")
+    module_suffix = CHATBOT_CONFIG_FOLDER_MAP.get(chatbot_name, chatbot_name.replace("-", "_"))
     module_name = f"approaches.chatbots.{module_suffix}.config"
     try:
         module = import_module(module_name)

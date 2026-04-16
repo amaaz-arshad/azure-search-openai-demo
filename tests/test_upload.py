@@ -885,7 +885,7 @@ async def test_public_test_rejects_non_pdf_upload(client, monkeypatch):
     monkeypatch.setattr(app, "get_authenticated_public_test_user", mock_get_authenticated_public_test_user)
 
     response = await client.post(
-        "/chatbot_uploads/public-test",
+        "/chatbot_uploads/free",
         files={"files": FileStorage(BytesIO(b"demo upload content"), filename="notes.txt")},
     )
 
@@ -918,7 +918,7 @@ async def test_public_test_rejects_pdf_over_total_page_limit(client, monkeypatch
     monkeypatch.setattr(app, "get_authenticated_public_test_user", mock_get_authenticated_public_test_user)
 
     response = await client.post(
-        "/chatbot_uploads/public-test",
+        "/chatbot_uploads/free",
         files={"files": FileStorage(create_pdf_bytes(31), filename="too-many-pages.pdf")},
     )
 
@@ -970,7 +970,7 @@ async def test_public_test_rejects_pdf_when_existing_uploads_exceed_total_page_l
     monkeypatch.setattr(app, "get_authenticated_public_test_user", mock_get_authenticated_public_test_user)
 
     response = await client.post(
-        "/chatbot_uploads/public-test",
+        "/chatbot_uploads/free",
         files={"files": FileStorage(create_pdf_bytes(11), filename="new-upload.pdf")},
     )
 
@@ -1040,7 +1040,7 @@ async def test_public_test_upload_indexes_user_and_uses_user_scoped_blob_path(cl
     monkeypatch.setattr(app, "get_authenticated_public_test_user", mock_get_authenticated_public_test_user)
 
     response = await client.post(
-        "/chatbot_uploads/public-test",
+        "/chatbot_uploads/free",
         headers={"X-Upload-Id": "upload-123"},
         files={"files": FileStorage(create_pdf_bytes(2), filename="private-notes.pdf")},
     )

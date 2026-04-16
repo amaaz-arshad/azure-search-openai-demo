@@ -1,6 +1,6 @@
 {
-    "pageTitle": "Public Test",
-    "headerTitle": "Public Test",
+    "pageTitle": "Nerilio Bot",
+    "headerTitle": "Nerilio Bot",
     "initialUserMsg": "Bonjour",
     "initialAssistantMsg": "Bonjour ! Écrivez simplement votre question dans le chat.",
     "chat": "Chat",
@@ -34,10 +34,10 @@
         "errorDeleting": "Erreur lors de la suppression.",
         "fileDeleted": "Fichier supprimé",
         "dismissAllQueueItems": "Masquer tous les terminés",
-        "modalTitle": "Téléverser des fichiers PDF vers Public Test",
+        "modalTitle": "Téléverser des fichiers PDF vers Nerilio Bot",
         "modalDescription": "Seuls les fichiers PDF sont pris en charge. La limite totale de téléversement est de 30 pages PDF pour l'ensemble des fichiers.",
         "supportedFormats": "Format pris en charge : PDF uniquement. Limite totale de téléversement : 30 pages.",
-        "emptyStateDescription": "Les fichiers PDF téléversés apparaîtront ici et seront consultables dans le chat Public Test."
+        "emptyStateDescription": "Les fichiers PDF téléversés apparaîtront ici et seront consultables dans le chat Nerilio Bot."
     },
     "developerSettings": "Paramètres développeur",
     "disclaimer": {
@@ -186,7 +186,7 @@
     },
     "signupPage": {
         "title": "Créez votre compte",
-        "subtitle": "Créez un compte Public Test pour importer et interroger vos propres fichiers PDF.",
+        "subtitle": "Créez un compte Nerilio Bot pour importer et interroger vos propres fichiers PDF.",
         "displayName": "Nom affiché",
         "email": "E-mail",
         "password": "Mot de passe",
@@ -206,7 +206,8 @@
         "changeEmail": "Changer d e-mail",
         "codeSent": "Nous avons envoye un code de verification a {{email}}.",
         "codeResent": "Un nouveau code de verification a ete envoye a {{email}}.",
-        "verificationHint": "Saisissez le code a 6 chiffres recu par e-mail."
+        "verificationHint": "Saisissez le code a 6 chiffres recu par e-mail.",
+        "passwordHint": "Use at least 8 characters."
     },
     "authErrors": {
         "displayNameRequired": "Le nom affiché est obligatoire.",
@@ -227,7 +228,8 @@
         "verificationTooManyAttempts": "Trop de tentatives de verification incorrectes. Recommencez l inscription.",
         "verificationSessionNotFound": "Aucune verification d inscription active n a ete trouvee pour cette adresse e-mail.",
         "accountNotFound": "Aucun compte n?a ?t? trouv? pour cette adresse e-mail.",
-        "passwordResetSessionNotFound": "Aucune r?initialisation de mot de passe active n?a ?t? trouv?e pour cette adresse e-mail."
+        "passwordResetSessionNotFound": "Aucune r?initialisation de mot de passe active n?a ?t? trouv?e pour cette adresse e-mail.",
+        "passwordTooShort": "Password must be at least 8 characters."
     },
     "newChat": "Nouveau chat",
     "passwordResetPage": {
@@ -254,7 +256,7 @@
     "profile": {
         "menuLabel": "Voir le profil",
         "title": "Votre profil",
-        "subtitle": "Voici les informations de votre compte Public Test.",
+        "subtitle": "Voici les informations de votre compte Nerilio Bot.",
         "displayName": "Nom affich?",
         "email": "E-mail",
         "createdAt": "Membre depuis",
@@ -263,3 +265,4 @@
         "loadError": "Votre profil ne peut pas ?tre charg? pour le moment."
     }
 }
+

@@ -6,6 +6,7 @@ from azure.cosmos.aio import ContainerProxy, CosmosClient
 from azure.identity.aio import AzureDeveloperCliCredential, ManagedIdentityCredential
 from quart import Blueprint, current_app, jsonify, make_response, request
 
+from approaches.chatbot_prompt_registry import normalize_chatbot_name
 from config import (
     CONFIG_CHAT_HISTORY_COSMOS_ENABLED,
     CONFIG_COSMOS_HISTORY_CLIENT,
@@ -36,6 +37,7 @@ def normalize_rak_history_username(raw_username: str | None) -> str | None:
 
 
 async def resolve_history_user_id(chatbot_name: str, auth_claims: dict[str, Any]) -> str | None:
+    chatbot_name = normalize_chatbot_name(chatbot_name) or chatbot_name.strip().lower()
     if chatbot_name == PUBLIC_TEST_CHATBOT_NAME:
         auth_service = current_app.config.get(CONFIG_PUBLIC_TEST_AUTH_SERVICE)
         if auth_service is None:
@@ -74,7 +76,7 @@ async def post_chat_history(auth_claims: dict[str, Any]):
         request_json = await request.get_json()
         session_id = request_json.get("id")
         message_pairs = request_json.get("answers")
-        chatbot_name = request_json.get("chatbot_name") or ""
+        chatbot_name = normalize_chatbot_name(request_json.get("chatbot_name")) or ""
         history_user_id = await resolve_history_user_id(chatbot_name, auth_claims)
         if not history_user_id:
             return jsonify({"error": "User history scope not found"}), 401
@@ -132,7 +134,7 @@ async def get_chat_history_sessions(auth_claims: dict[str, Any]):
     try:
         count = int(request.args.get("count", 10))
         continuation_token = request.args.get("continuation_token")
-        chatbot_name = request.args.get("chatbot_name") or ""
+        chatbot_name = normalize_chatbot_name(request.args.get("chatbot_name")) or ""
         history_user_id = await resolve_history_user_id(chatbot_name, auth_claims)
         if not history_user_id:
             return jsonify({"error": "User history scope not found"}), 401
@@ -187,7 +189,7 @@ async def get_chat_history_session(auth_claims: dict[str, Any], session_id: str)
         return jsonify({"error": "Chat history not enabled"}), 400
 
     try:
-        chatbot_name = request.args.get("chatbot_name") or ""
+        chatbot_name = normalize_chatbot_name(request.args.get("chatbot_name")) or ""
         history_user_id = await resolve_history_user_id(chatbot_name, auth_claims)
         if not history_user_id:
             return jsonify({"error": "User history scope not found"}), 401
@@ -231,7 +233,7 @@ async def delete_chat_history_session(auth_claims: dict[str, Any], session_id: s
         return jsonify({"error": "Chat history not enabled"}), 400
 
     try:
-        chatbot_name = request.args.get("chatbot_name") or ""
+        chatbot_name = normalize_chatbot_name(request.args.get("chatbot_name")) or ""
         history_user_id = await resolve_history_user_id(chatbot_name, auth_claims)
         if not history_user_id:
             return jsonify({"error": "User history scope not found"}), 401

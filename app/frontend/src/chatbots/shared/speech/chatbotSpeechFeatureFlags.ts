@@ -54,7 +54,7 @@ export const chatbotSpeechFeatureFlags: Record<string, ChatbotSpeechVisibility> 
         showSpeechOutputBrowser: false,
         showSpeechOutputAzure: false
     },
-    "public-test": {
+    free: {
         showSpeechInput: true,
         showSpeechOutputBrowser: true,
         showSpeechOutputAzure: true

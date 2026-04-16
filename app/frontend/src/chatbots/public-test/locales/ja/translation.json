@@ -1,6 +1,6 @@
 {
-    "pageTitle": "Public Test",
-    "headerTitle": "Public Test",
+    "pageTitle": "Nerilio Bot",
+    "headerTitle": "Nerilio Bot",
     "initialUserMsg": "こんにちは",
     "initialAssistantMsg": "こんにちは！ チャットに質問を入力してください。",
     "chat": "チャット",
@@ -34,10 +34,10 @@
         "errorDeleting": "削除エラー。",
         "fileDeleted": "ファイル削除済み",
         "dismissAllQueueItems": "完了した項目をすべて非表示",
-        "modalTitle": "Public Test に PDF ファイルをアップロード",
+        "modalTitle": "Nerilio Bot に PDF ファイルをアップロード",
         "modalDescription": "アップロードできるのは PDF ファイルのみです。すべてのファイルを合わせた上限は PDF 30 ページです。",
         "supportedFormats": "対応形式: PDF のみ。アップロード上限: 合計 30 ページ。",
-        "emptyStateDescription": "アップロードした PDF ファイルはここに表示され、Public Test のチャットで検索できるようになります。"
+        "emptyStateDescription": "アップロードした PDF ファイルはここに表示され、Nerilio Bot のチャットで検索できるようになります。"
     },
     "developerSettings": "高度な設定",
     "disclaimer": {
@@ -186,7 +186,7 @@
     },
     "signupPage": {
         "title": "アカウントを作成",
-        "subtitle": "自分のPDFファイルをアップロードしてチャットするために、Public Testアカウントを作成してください。",
+        "subtitle": "自分のPDFファイルをアップロードしてチャットするために、Nerilio Botアカウントを作成してください。",
         "displayName": "表示名",
         "email": "メールアドレス",
         "password": "パスワード",
@@ -206,7 +206,8 @@
         "changeEmail": "メールアドレスを変更",
         "codeSent": "{{email}} に確認コードを送信しました。",
         "codeResent": "{{email}} に新しい確認コードを送信しました。",
-        "verificationHint": "メールに届いた6桁のコードを入力してください。"
+        "verificationHint": "メールに届いた6桁のコードを入力してください。",
+        "passwordHint": "Use at least 8 characters."
     },
     "authErrors": {
         "displayNameRequired": "表示名は必須です。",
@@ -227,7 +228,8 @@
         "verificationTooManyAttempts": "確認コードの入力間違いが多すぎます。もう一度サインアップを開始してください。",
         "verificationSessionNotFound": "このメールアドレスの有効なサインアップ確認が見つかりません。",
         "accountNotFound": "???????????????????????????",
-        "passwordResetSessionNotFound": "????????????????????????????????????"
+        "passwordResetSessionNotFound": "????????????????????????????????????",
+        "passwordTooShort": "Password must be at least 8 characters."
     },
     "newChat": "???????",
     "passwordResetPage": {
@@ -254,7 +256,7 @@
     "profile": {
         "menuLabel": "?????????",
         "title": "??????????",
-        "subtitle": "??? Public Test ????????????????",
+        "subtitle": "??? Nerilio Bot ????????????????",
         "displayName": "???",
         "email": "???????",
         "createdAt": "?????",
@@ -263,3 +265,4 @@
         "loadError": "?????????????????"
     }
 }
+

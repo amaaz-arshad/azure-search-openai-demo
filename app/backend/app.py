@@ -106,7 +106,12 @@ from quart_cors import cors
 
 from approaches.approach import Approach, DataPoints
 from approaches.chatbot_config_registry import load_all_chatbot_configs
-from approaches.chatbot_prompt_registry import DEFAULT_CHATBOT_NAME, get_chatbot_prompt, get_registered_chatbot_names
+from approaches.chatbot_prompt_registry import (
+    DEFAULT_CHATBOT_NAME,
+    get_chatbot_prompt,
+    get_registered_chatbot_names,
+    normalize_chatbot_name,
+)
 from approaches.chatreadretrieveread import ChatReadRetrieveReadApproach
 from approaches.promptmanager import PromptManager
 from chat_history.cosmosdb import chat_history_cosmosdb_bp
@@ -191,7 +196,8 @@ bp = Blueprint("routes", __name__, static_folder="static")
 mimetypes.add_type("application/javascript", ".js")
 mimetypes.add_type("text/css", ".css")
 STATIC_ROOT = Path(__file__).resolve().parent / "static"
-PUBLIC_TEST_CHATBOT_NAME = "public-test"
+PUBLIC_TEST_CHATBOT_NAME = "free"
+FREE_CHATBOT_ROUTE_NAME = "free"
 RAK_CHATBOT_NAME = "rak"
 RAK_ALLOWED_USERNAMES = frozenset({"12345", "67890"})
 
@@ -204,6 +210,9 @@ NON_CHATBOT_FRONTEND_PREFIXES = {
     "chat_history",
     "config",
     "content",
+    "free-admin",
+    "free-auth",
+    "free-users",
     "delete_uploaded",
     "favicon.ico",
     "list_uploaded",
@@ -222,6 +231,7 @@ NON_CHATBOT_FRONTEND_PREFIXES = {
 KNOWN_CHATBOT_NAMES = {
     "agindo",
     "nerilio",
+    "free",
     "public-test",
     "rak",
     "sartorius",
@@ -239,7 +249,8 @@ KNOWN_CHATBOT_NAMES = {
 
 def get_chatbot_upload_manager(chatbot_name: str) -> ChatbotUploadStrategy:
     managers: dict[str, ChatbotUploadStrategy] = current_app.config.get(CONFIG_CHATBOT_UPLOAD_MANAGERS, {})
-    manager = managers.get(chatbot_name)
+    normalized_chatbot_name = normalize_chatbot_name(chatbot_name) or chatbot_name.strip().lower()
+    manager = managers.get(normalized_chatbot_name)
     if manager is None:
         abort(404)
     return manager
@@ -273,8 +284,35 @@ def get_chatbot_name_from_request_json(request_json: dict[str, Any]) -> str | No
     include_category = overrides.get("include_category")
     if not isinstance(include_category, str):
         return None
-    chatbot_name = include_category.split(",", 1)[0].strip().lower()
-    return chatbot_name or None
+    return normalize_chatbot_name(include_category.split(",", 1)[0])
+
+
+def normalize_chatbot_category_list(raw_value: str) -> str:
+    normalized_categories: list[str] = []
+    for raw_category in raw_value.split(","):
+        stripped_category = raw_category.strip()
+        if not stripped_category:
+            continue
+        normalized_categories.append(normalize_chatbot_name(stripped_category) or stripped_category.lower())
+    return ",".join(normalized_categories)
+
+
+def normalize_chatbot_request_overrides(request_json: dict[str, Any]) -> None:
+    if not isinstance(request_json, dict):
+        return
+
+    context = request_json.get("context")
+    if not isinstance(context, dict):
+        return
+
+    overrides = context.get("overrides")
+    if not isinstance(overrides, dict):
+        return
+
+    for key in ("include_category", "exclude_category"):
+        raw_value = overrides.get(key)
+        if isinstance(raw_value, str):
+            overrides[key] = normalize_chatbot_category_list(raw_value)
 
 
 def get_public_test_auth_service() -> PublicTestAuthStore:
@@ -316,6 +354,7 @@ def normalize_rak_username(raw_username: str | None) -> str | None:
 
 
 async def get_user_scoped_chatbot_user(chatbot_name: str, *, allow_query_param: bool = False) -> str | None:
+    chatbot_name = normalize_chatbot_name(chatbot_name) or chatbot_name.strip().lower()
     if chatbot_name == PUBLIC_TEST_CHATBOT_NAME:
         public_test_user = await get_authenticated_public_test_user()
         return public_test_user.email if public_test_user is not None else None
@@ -347,13 +386,13 @@ def resolve_requested_chatbot_name(request_json: dict[str, Any] | None = None, *
     if requested_chatbot_name:
         return requested_chatbot_name
 
-    header_chatbot_name = (request.headers.get("X-Chatbot-Name") or "").strip().lower()
+    header_chatbot_name = normalize_chatbot_name(request.headers.get("X-Chatbot-Name"))
     if header_chatbot_name in KNOWN_CHATBOT_NAMES:
         return header_chatbot_name
 
     referer = request.headers.get("Referer")
     if referer:
-        referer_first_segment = urlparse(referer).path.strip("/").split("/", 1)[0].strip().lower()
+        referer_first_segment = normalize_chatbot_name(urlparse(referer).path.strip("/").split("/", 1)[0])
         if referer_first_segment in KNOWN_CHATBOT_NAMES:
             return referer_first_segment
 
@@ -448,10 +487,16 @@ async def upload_files_page(subpath: str | None = None):
     return await serve_spa_index()
 
 
+@bp.route("/free-users")
+@bp.route("/free-users/")
+@bp.route("/free-users/<path:subpath>")
 @bp.route("/public-test-users")
 @bp.route("/public-test-users/")
 @bp.route("/public-test-users/<path:subpath>")
 async def public_test_users_page(subpath: str | None = None):
+    if request.path.startswith("/public-test-users"):
+        target = f"/free-users{f'/{subpath}' if subpath else ''}"
+        return quart_redirect(target)
     return await serve_spa_index()
 
 
@@ -468,6 +513,9 @@ async def chatbot_entry(chatbot_name: str, subpath: str | None = None):
     # Avoid treating API/static endpoints as chatbot names.
     if chatbot_name in NON_CHATBOT_FRONTEND_PREFIXES or "." in chatbot_name:
         abort(404)
+    if chatbot_name == "public-test":
+        target = f"/{FREE_CHATBOT_ROUTE_NAME}{f'/{subpath}' if subpath else ''}"
+        return quart_redirect(target)
     if chatbot_name not in KNOWN_CHATBOT_NAMES:
         return quart_redirect("/")
     return await serve_spa_index()
@@ -491,12 +539,12 @@ async def content_file(path: str, auth_claims: dict[str, Any]):
     current_app.logger.info("Opening file %s", path)
     result = None
     chatbot_upload_managers: dict[str, ChatbotUploadStrategy] = current_app.config.get(CONFIG_CHATBOT_UPLOAD_MANAGERS, {})
-    requested_chatbot_name = (request.args.get("chatbot_name") or "").strip().lower() or None
+    requested_chatbot_name = normalize_chatbot_name(request.args.get("chatbot_name"))
     normalized_path = path
     path_chatbot_name = None
     if "/" in path:
         path_first_segment, remaining_path = path.split("/", 1)
-        normalized_path_first_segment = path_first_segment.strip().lower()
+        normalized_path_first_segment = normalize_chatbot_name(path_first_segment)
         if normalized_path_first_segment in KNOWN_CHATBOT_NAMES and remaining_path:
             path_chatbot_name = normalized_path_first_segment
             requested_chatbot_name = path_chatbot_name
@@ -505,7 +553,7 @@ async def content_file(path: str, auth_claims: dict[str, Any]):
     if requested_chatbot_name is None:
         referer = request.headers.get("Referer")
         if referer:
-            referer_first_segment = urlparse(referer).path.strip("/").split("/", 1)[0].strip().lower()
+            referer_first_segment = normalize_chatbot_name(urlparse(referer).path.strip("/").split("/", 1)[0])
             if referer_first_segment in KNOWN_CHATBOT_NAMES:
                 requested_chatbot_name = referer_first_segment
     requested_user_identifier = None
@@ -613,6 +661,7 @@ def get_speech_service_auth_token() -> str:
     )
 
 
+@bp.post("/free-auth/signup")
 @bp.post("/public-test-auth/signup")
 async def public_test_signup():
     if not request.is_json:
@@ -644,6 +693,7 @@ async def public_test_signup():
     )
 
 
+@bp.post("/free-auth/signup/verify")
 @bp.post("/public-test-auth/signup/verify")
 async def public_test_signup_verify():
     if not request.is_json:
@@ -666,6 +716,7 @@ async def public_test_signup_verify():
     return response, 200
 
 
+@bp.post("/free-auth/signup/resend")
 @bp.post("/public-test-auth/signup/resend")
 async def public_test_signup_resend():
     if not request.is_json:
@@ -694,6 +745,7 @@ async def public_test_signup_resend():
     )
 
 
+@bp.post("/free-auth/password-reset")
 @bp.post("/public-test-auth/password-reset")
 async def public_test_password_reset_start():
     if not request.is_json:
@@ -722,6 +774,7 @@ async def public_test_password_reset_start():
     )
 
 
+@bp.post("/free-auth/password-reset/resend")
 @bp.post("/public-test-auth/password-reset/resend")
 async def public_test_password_reset_resend():
     if not request.is_json:
@@ -750,6 +803,7 @@ async def public_test_password_reset_resend():
     )
 
 
+@bp.post("/free-auth/password-reset/verify")
 @bp.post("/public-test-auth/password-reset/verify")
 async def public_test_password_reset_verify():
     if not request.is_json:
@@ -774,6 +828,7 @@ async def public_test_password_reset_verify():
     return response, 200
 
 
+@bp.post("/free-auth/login")
 @bp.post("/public-test-auth/login")
 async def public_test_login():
     if not request.is_json:
@@ -796,6 +851,7 @@ async def public_test_login():
     return response, 200
 
 
+@bp.get("/free-auth/session")
 @bp.get("/public-test-auth/session")
 async def public_test_session():
     auth_service = get_public_test_auth_service()
@@ -808,6 +864,7 @@ async def public_test_session():
     return jsonify({"session": {"displayName": session.display_name, "email": session.email}}), 200
 
 
+@bp.get("/free-auth/profile")
 @bp.get("/public-test-auth/profile")
 async def public_test_profile():
     auth_service = get_public_test_auth_service()
@@ -838,6 +895,7 @@ async def public_test_profile():
     )
 
 
+@bp.post("/free-auth/logout")
 @bp.post("/public-test-auth/logout")
 async def public_test_logout():
     auth_service = get_public_test_auth_service()
@@ -964,6 +1022,7 @@ async def delete_internal_admin_prompt(chatbot_name: str):
     )
 
 
+@bp.get("/free-admin/users")
 @bp.get("/public-test-admin/users")
 @internal_admin_required
 async def list_public_test_admin_users():
@@ -987,6 +1046,7 @@ async def list_public_test_admin_users():
     return jsonify({"users": users_payload}), 200
 
 
+@bp.delete("/free-admin/users/<path:email>")
 @bp.delete("/public-test-admin/users/<path:email>")
 @internal_admin_required
 async def delete_public_test_admin_user(email: str):
@@ -1011,11 +1071,12 @@ async def delete_public_test_admin_user(email: str):
     auth_service = get_public_test_auth_service()
     deleted_account = await auth_service.delete_account(normalized_email)
     if not deleted_account:
-        return jsonify({"message": "Public-test user not found.", "deletedUploadCount": len(deleted_uploads)}), 404
+        return jsonify({"message": "Nerilio Bot user not found.", "deletedUploadCount": len(deleted_uploads)}), 404
 
-    return jsonify({"message": "Public-test user deleted successfully.", "deletedUploadCount": len(deleted_uploads)}), 200
+    return jsonify({"message": "Nerilio Bot user deleted successfully.", "deletedUploadCount": len(deleted_uploads)}), 200
 
 
+@bp.post("/free-admin/users/<path:email>/password")
 @bp.post("/public-test-admin/users/<path:email>/password")
 @internal_admin_required
 async def reset_public_test_admin_user_password(email: str):
@@ -1039,7 +1100,7 @@ async def reset_public_test_admin_user_password(email: str):
     return (
         jsonify(
             {
-                "message": "Public-test user password updated successfully.",
+                "message": "Nerilio Bot user password updated successfully.",
                 "email": updated_account.email,
                 "updatedAt": updated_account.updated_at,
             }
@@ -1054,6 +1115,7 @@ async def chat(auth_claims: dict[str, Any]):
     if not request.is_json:
         return jsonify({"error": "request must be json"}), 415
     request_json = await request.get_json()
+    normalize_chatbot_request_overrides(request_json)
     error_context = get_request_error_context(request_json)
     context = request_json.get("context", {})
     requested_chatbot_name = await apply_saved_chatbot_prompt_override(request_json)
@@ -1092,6 +1154,7 @@ async def chat_stream(auth_claims: dict[str, Any]):
     if not request.is_json:
         return jsonify({"error": "request must be json"}), 415
     request_json = await request.get_json()
+    normalize_chatbot_request_overrides(request_json)
     error_context = get_request_error_context(request_json)
     context = request_json.get("context", {})
     requested_chatbot_name = await apply_saved_chatbot_prompt_override(request_json)
@@ -1615,7 +1678,7 @@ async def setup_clients():
     PUBLIC_TEST_SMTP_USERNAME = os.getenv("PUBLIC_TEST_SMTP_USERNAME")
     PUBLIC_TEST_SMTP_PASSWORD = os.getenv("PUBLIC_TEST_SMTP_PASSWORD")
     PUBLIC_TEST_EMAIL_FROM = os.getenv("PUBLIC_TEST_EMAIL_FROM")
-    PUBLIC_TEST_EMAIL_FROM_NAME = os.getenv("PUBLIC_TEST_EMAIL_FROM_NAME", "Public Test")
+    PUBLIC_TEST_EMAIL_FROM_NAME = os.getenv("PUBLIC_TEST_EMAIL_FROM_NAME", "Nerilio Bot")
 
     KB_FIELDS_CONTENT = os.getenv("KB_FIELDS_CONTENT", "content")
     KB_FIELDS_SOURCEPAGE = os.getenv("KB_FIELDS_SOURCEPAGE", "sourcepage")
@@ -1838,8 +1901,8 @@ async def setup_clients():
             search_field_name_embedding=AZURE_SEARCH_FIELD_NAME_EMBEDDING,
             blob_manager=global_blob_manager,
         ),
-        "public-test": ChatbotUploadStrategy(
-            chatbot_name="public-test",
+        "free": ChatbotUploadStrategy(
+            chatbot_name="free",
             search_info=chatbot_upload_search_info,
             file_processors=chatbot_upload_file_processors,
             embeddings=chatbot_upload_embeddings,

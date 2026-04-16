@@ -1,6 +1,6 @@
 {
-    "pageTitle": "Public Test",
-    "headerTitle": "Public Test",
+    "pageTitle": "Nerilio Bot",
+    "headerTitle": "Nerilio Bot",
     "initialUserMsg": "Merhaba",
     "initialAssistantMsg": "Merhaba! Sorunuzu sohbet alanına yazmanız yeterli.",
     "chat": "Sohbet",
@@ -34,10 +34,10 @@
         "errorDeleting": "Silme hatası.",
         "fileDeleted": "Dosya silindi",
         "dismissAllQueueItems": "Tamamlananların tümünü gizle",
-        "modalTitle": "PDF dosyalarını Public Test'e yükle",
+        "modalTitle": "PDF dosyalarını Nerilio Bot'e yükle",
         "modalDescription": "Yalnızca PDF dosyaları desteklenir. Tüm dosyalar için toplam yükleme sınırı 30 PDF sayfasıdır.",
         "supportedFormats": "Desteklenen format: yalnızca PDF. Toplam yükleme sınırı: 30 sayfa.",
-        "emptyStateDescription": "Yüklenen PDF dosyaları burada görünür ve Public Test sohbetinde aranabilir hale gelir."
+        "emptyStateDescription": "Yüklenen PDF dosyaları burada görünür ve Nerilio Bot sohbetinde aranabilir hale gelir."
     },
     "developerSettings": "Geliştirici ayarları",
     "disclaimer": {
@@ -186,7 +186,7 @@
     },
     "signupPage": {
         "title": "Hesabınızı oluşturun",
-        "subtitle": "Kendi PDF dosyalarınızı yüklemek ve onlarla sohbet etmek için bir Public Test hesabı oluşturun.",
+        "subtitle": "Kendi PDF dosyalarınızı yüklemek ve onlarla sohbet etmek için bir Nerilio Bot hesabı oluşturun.",
         "displayName": "Görünen ad",
         "email": "E-posta",
         "password": "Parola",
@@ -206,7 +206,8 @@
         "changeEmail": "E-postayi degistir",
         "codeSent": "{{email}} adresine bir dogrulama kodu gonderdik.",
         "codeResent": "{{email}} adresine yeni bir dogrulama kodu gonderildi.",
-        "verificationHint": "E-postandaki 6 haneli kodu gir."
+        "verificationHint": "E-postandaki 6 haneli kodu gir.",
+        "passwordHint": "Use at least 8 characters."
     },
     "authErrors": {
         "displayNameRequired": "Görünen ad zorunludur.",
@@ -227,7 +228,8 @@
         "verificationTooManyAttempts": "Cok fazla hatali dogrulama denemesi yapildi. Kaydi yeniden baslat.",
         "verificationSessionNotFound": "Bu e-posta icin etkin bir kayit dogrulamasi bulunamadi.",
         "accountNotFound": "Bu e-posta adresi i?in bir hesap bulunamad?.",
-        "passwordResetSessionNotFound": "Bu e-posta adresi i?in etkin bir ?ifre s?f?rlama iste?i bulunamad?."
+        "passwordResetSessionNotFound": "Bu e-posta adresi i?in etkin bir ?ifre s?f?rlama iste?i bulunamad?.",
+        "passwordTooShort": "Password must be at least 8 characters."
     },
     "newChat": "Yeni sohbet",
     "passwordResetPage": {
@@ -254,7 +256,7 @@
     "profile": {
         "menuLabel": "Profili g?r?nt?le",
         "title": "Profiliniz",
-        "subtitle": "Public Test hesab?n?z?n ayr?nt?lar?n? burada g?rebilirsiniz.",
+        "subtitle": "Nerilio Bot hesab?n?z?n ayr?nt?lar?n? burada g?rebilirsiniz.",
         "displayName": "G?r?nen ad",
         "email": "E-posta",
         "createdAt": "?yelik ba?lang?c?",
@@ -263,3 +265,4 @@
         "loadError": "Profiliniz ?u anda y?klenemedi."
     }
 }
+
