@@ -81,14 +81,6 @@ export const chatbotThemes: Record<string, ChatbotThemeSeed> = {
         primary: "#fec701",
         pageTone: "light"
     },
-    "lemon-test1": {
-        primary: "#fec701",
-        pageTone: "light"
-    },
-    "lemon-test2": {
-        primary: "#fec701",
-        pageTone: "light"
-    },
     moodle: {
         primary: "#f98012",
         pageTone: "light"

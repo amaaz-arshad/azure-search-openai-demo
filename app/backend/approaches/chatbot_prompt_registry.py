@@ -19,8 +19,6 @@ CHATBOT_PROMPT_MODULES = {
     "steuertipps": "approaches.chatbots.steuertipps.sampleprompt",
     "knoll": "approaches.chatbots.knoll.sampleprompt",
     "lemon": "approaches.chatbots.lemon.sampleprompt",
-    "lemon-test1": "approaches.chatbots.lemon.sampleprompt",
-    "lemon-test2": "approaches.chatbots.lemon.sampleprompt",
     "moodle": "approaches.chatbots.moodle.sampleprompt",
     "publishone": "approaches.chatbots.publishone.sampleprompt",
     "fbn": "approaches.chatbots.fbn.sampleprompt",
