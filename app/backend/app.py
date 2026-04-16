@@ -238,6 +238,8 @@ KNOWN_CHATBOT_NAMES = {
     "steuertipps",
     "knoll",
     "lemon",
+    "lemon-test1",
+    "lemon-test2",
     "moodle",
     "publishone",
     "fbn",
