@@ -30,6 +30,7 @@ class ChatbotUploadManifest:
     upload_id: str
     uploaded_at: str
     page_count: Optional[int] = None
+    file_size: Optional[int] = None
     file_extension: Optional[str] = None
     user_identifier: Optional[str] = None
 
@@ -38,6 +39,7 @@ class ChatbotUploadManifest:
 class ChatbotUploadRules:
     allowed_extensions: Optional[frozenset[str]] = None
     max_total_pdf_pages: Optional[int] = None
+    max_total_file_size_mb: Optional[float] = None
     user_scoped: bool = False
 
 
@@ -413,6 +415,7 @@ class ChatbotUploadStrategy:
                     upload_id=manifest_data["upload_id"],
                     uploaded_at=manifest_data["uploaded_at"],
                     page_count=manifest_data.get("page_count"),
+                    file_size=manifest_data.get("file_size"),
                     file_extension=manifest_data.get("file_extension"),
                     user_identifier=manifest_data.get("user_identifier"),
                 )
@@ -623,29 +626,91 @@ class ChatbotUploadStrategy:
 
         return total_pages
 
+    @staticmethod
+    def measure_file_size(file_content) -> int:
+        file_content.seek(0, 2)
+        size = file_content.tell()
+        file_content.seek(0)
+        return size
+
+    async def get_uploaded_file_size(self, filename: str, user_identifier: Optional[str] = None) -> int:
+        normalized_user_identifier = self.normalize_user_identifier(user_identifier)
+        manifest = await self.get_manifest(filename, user_identifier=normalized_user_identifier)
+
+        if manifest is not None and manifest.file_size is not None:
+            return manifest.file_size
+
+        blob_name = (
+            manifest.blob_name
+            if manifest is not None
+            else self.file_blob_name(filename, normalized_user_identifier)
+        )
+        blob = await self.blob_manager.download_blob(blob_name)
+        if blob is None and manifest is None:
+            blob = await self.blob_manager.download_blob(self.legacy_blob_name(filename, normalized_user_identifier))
+        if blob is None:
+            return 0
+
+        content, _ = blob
+        return len(content)
+
+    async def get_total_uploaded_file_size(
+        self,
+        excluding_filename: Optional[str] = None,
+        user_identifier: Optional[str] = None,
+    ) -> int:
+        total_size = 0
+        normalized_excluding_filename = self.logical_filename(excluding_filename) if excluding_filename else None
+
+        for existing_filename in await self.list_files(user_identifier=user_identifier):
+            normalized_filename = self.logical_filename(existing_filename)
+            if normalized_excluding_filename is not None and normalized_filename == normalized_excluding_filename:
+                continue
+            total_size += await self.get_uploaded_file_size(normalized_filename, user_identifier=user_identifier)
+
+        return total_size
+
     async def validate_upload_constraints(
         self,
         file: File,
         filename: str,
         user_identifier: Optional[str] = None,
-    ) -> Optional[int]:
-        if self.rules.max_total_pdf_pages is None or os.path.splitext(filename)[1].lower() != ".pdf":
-            return None
+    ) -> tuple[Optional[int], Optional[int]]:
+        pdf_page_count: Optional[int] = None
+        file_size: Optional[int] = None
 
-        pdf_page_count = self.count_pdf_pages(file.content, filename)
-        existing_pdf_pages = await self.get_total_uploaded_pdf_pages(
-            excluding_filename=filename,
-            user_identifier=user_identifier,
-        )
-        total_pdf_pages = existing_pdf_pages + pdf_page_count
-
-        if total_pdf_pages > self.rules.max_total_pdf_pages:
-            raise ValueError(
-                f"{self.chatbot_name} allows up to {self.rules.max_total_pdf_pages} uploaded PDF pages in total. "
-                f"Existing uploads use {existing_pdf_pages} pages and {filename} adds {pdf_page_count} pages."
+        if self.rules.max_total_pdf_pages is not None and os.path.splitext(filename)[1].lower() == ".pdf":
+            pdf_page_count = self.count_pdf_pages(file.content, filename)
+            existing_pdf_pages = await self.get_total_uploaded_pdf_pages(
+                excluding_filename=filename,
+                user_identifier=user_identifier,
             )
+            total_pdf_pages = existing_pdf_pages + pdf_page_count
 
-        return pdf_page_count
+            if total_pdf_pages > self.rules.max_total_pdf_pages:
+                raise ValueError(
+                    f"{self.chatbot_name} version allows up to {self.rules.max_total_pdf_pages} uploaded PDF pages in total. "
+                    f"Existing uploads use {existing_pdf_pages} pages and {filename} adds {pdf_page_count} pages."
+                )
+
+        if self.rules.max_total_file_size_mb is not None:
+            file_size = self.measure_file_size(file.content)
+            existing_size = await self.get_total_uploaded_file_size(
+                excluding_filename=filename,
+                user_identifier=user_identifier,
+            )
+            total_size = existing_size + file_size
+            max_size_bytes = int(self.rules.max_total_file_size_mb * 1024 * 1024)
+
+            if total_size > max_size_bytes:
+                existing_mb = round(existing_size / (1024 * 1024), 2)
+                file_mb = round(file_size / (1024 * 1024), 2)
+                raise ValueError(
+                    f"{self.chatbot_name} version allows up to {self.rules.max_total_file_size_mb} MB of uploaded files in total. "
+                    f"Existing uploads use {existing_mb} MB and {filename} adds {file_mb} MB."
+                )
+
+        return pdf_page_count, file_size
 
     async def add_file(
         self,
@@ -662,7 +727,7 @@ class ChatbotUploadStrategy:
             raise ValueError(
                 f"Filename '{filename}' conflicts with existing {self.chatbot_name} content. Rename the file and upload it again."
             )
-        pdf_page_count = await self.validate_upload_constraints(
+        pdf_page_count, file_size = await self.validate_upload_constraints(
             file,
             filename,
             user_identifier=normalized_user_identifier,
@@ -717,6 +782,7 @@ class ChatbotUploadStrategy:
                     upload_id=upload_id,
                     uploaded_at=datetime.now(timezone.utc).isoformat(),
                     page_count=pdf_page_count,
+                    file_size=file_size,
                     file_extension=file_extension,
                     user_identifier=normalized_user_identifier,
                 )

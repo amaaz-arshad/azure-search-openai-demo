@@ -35,8 +35,8 @@
         "fileDeleted": "ファイル削除済み",
         "dismissAllQueueItems": "完了した項目をすべて非表示",
         "modalTitle": "Nerilio Bot に PDF ファイルをアップロード",
-        "modalDescription": "アップロードできるのは PDF ファイルのみです。すべてのファイルを合わせた上限は PDF 30 ページです。",
-        "supportedFormats": "対応形式: PDF のみ。アップロード上限: 合計 30 ページ。",
+        "modalDescription": "アップロードできるのは PDF ファイルのみです。すべてのファイルを合わせた上限は 5 MB です。",
+        "supportedFormats": "対応形式: PDF のみ。アップロード上限: 合計 5 MB。",
         "emptyStateDescription": "アップロードした PDF ファイルはここに表示され、Nerilio Bot のチャットで検索できるようになります。"
     },
     "developerSettings": "高度な設定",
