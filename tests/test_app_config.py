@@ -181,10 +181,38 @@ async def test_app_config_default(monkeypatch, minimal_env):
         response = await client.get("/config")
         assert response.status_code == 200
         result = await response.get_json()
+        assert result["availableChatModels"] == [
+            "gpt-4.1",
+            "gpt-4.1-mini",
+            "gpt-4.1-nano",
+            "gpt-5",
+            "gpt-5-mini",
+            "gpt-5-nano",
+            "gpt-5.4",
+            "gpt-5.4-mini",
+            "gpt-5.4-nano",
+        ]
+        assert result["defaultChatModel"] == "gpt-4.1-mini"
         assert result["showMultimodalOptions"] is False
         assert result["showSemanticRankerOption"] is True
         assert result["showVectorOption"] is True
         assert result["defaultRetrievalReasoningEffort"] == "low"
+        assert result["reasoningCapableChatModels"] == [
+            "gpt-5",
+            "gpt-5-mini",
+            "gpt-5-nano",
+            "gpt-5.4",
+            "gpt-5.4-mini",
+            "gpt-5.4-nano",
+        ]
+        assert result["chatModelReasoningEfforts"] == {
+            "gpt-5": ["minimal", "low", "medium", "high"],
+            "gpt-5-mini": ["minimal", "low", "medium", "high"],
+            "gpt-5-nano": ["minimal", "low", "medium", "high"],
+            "gpt-5.4": ["none", "low", "medium", "high", "xhigh"],
+            "gpt-5.4-mini": ["none", "low", "medium", "high", "xhigh"],
+            "gpt-5.4-nano": ["none", "low", "medium", "high", "xhigh"],
+        }
 
 
 @pytest.mark.asyncio

@@ -937,6 +937,161 @@ def test_demo_upload_manager_modal(page: Page, live_server_url: str):
     expect(page.get_by_role("button", name="Delete all")).to_be_visible()
 
 
+def test_internal_bot_dropdown_opens_settings_and_upload_manager(page: Page, live_server_url: str):
+
+    def handle_config(route: Route):
+        route.fulfill(
+            body=json.dumps(
+                {
+                    "defaultReasoningEffort": "",
+                    "defaultRetrievalReasoningEffort": "minimal",
+                    "showMultimodalOptions": False,
+                    "showSemanticRankerOption": True,
+                    "showQueryRewritingOption": False,
+                    "showReasoningEffortOption": False,
+                    "streamingEnabled": True,
+                    "showVectorOption": True,
+                    "showUserUpload": False,
+                    "showLanguagePicker": False,
+                    "showSpeechInput": False,
+                    "showSpeechOutputBrowser": False,
+                    "showSpeechOutputAzure": False,
+                    "showChatHistoryBrowser": False,
+                    "showChatHistoryCosmos": False,
+                    "showAgenticRetrievalOption": False,
+                    "ragSearchImageEmbeddings": False,
+                    "ragSearchTextEmbeddings": True,
+                    "ragSendImageSources": False,
+                    "ragSendTextSources": True,
+                    "webSourceEnabled": False,
+                    "sharepointSourceEnabled": False,
+                }
+            ),
+            status=200,
+        )
+
+    page.route("*/**/config", handle_config)
+
+    def handle_uploads(route: Route):
+        route.fulfill(body=json.dumps(["internal-manual.pdf", "ops-notes.txt"]), status=200)
+
+    page.route("*/**/chatbot_uploads/internal", handle_uploads)
+
+    page.goto(f"{live_server_url}internal")
+
+    page.get_by_role("button", name="Toggle menu").click()
+    page.get_by_role("button", name="Developer settings").click()
+
+    expect(page.get_by_text("Configure answer generation")).to_be_visible()
+    page.get_by_role("button", name="Close").click()
+
+    page.get_by_role("button", name="Toggle menu").click()
+    page.get_by_role("button", name="Upload files").click()
+
+    expect(page.get_by_role("dialog")).to_be_visible()
+    expect(page.get_by_text("Upload files to the internal bot")).to_be_visible()
+    expect(page.get_by_text("Current upload queue")).to_be_visible()
+    expect(page.get_by_text("No files in the queue")).to_be_visible()
+    expect(page.get_by_text("internal-manual.pdf")).to_be_visible()
+    expect(page.get_by_text("ops-notes.txt")).to_be_visible()
+
+
+def test_internal_bot_model_selector_controls_reasoning_options(page: Page, live_server_url: str):
+    def handle_config(route: Route):
+        route.fulfill(
+            body=json.dumps(
+                {
+                    "availableChatModels": [
+                        "gpt-4.1",
+                        "gpt-4.1-mini",
+                        "gpt-4.1-nano",
+                        "gpt-5",
+                        "gpt-5-mini",
+                        "gpt-5-nano",
+                        "gpt-5.4",
+                        "gpt-5.4-mini",
+                        "gpt-5.4-nano",
+                    ],
+                    "defaultChatModel": "gpt-4.1-mini",
+                    "defaultReasoningEffort": "low",
+                    "defaultRetrievalReasoningEffort": "low",
+                    "reasoningCapableChatModels": [
+                        "gpt-5",
+                        "gpt-5-mini",
+                        "gpt-5-nano",
+                        "gpt-5.4",
+                        "gpt-5.4-mini",
+                        "gpt-5.4-nano",
+                    ],
+                    "chatModelReasoningEfforts": {
+                        "gpt-5": ["minimal", "low", "medium", "high"],
+                        "gpt-5-mini": ["minimal", "low", "medium", "high"],
+                        "gpt-5-nano": ["minimal", "low", "medium", "high"],
+                        "gpt-5.4": ["none", "low", "medium", "high", "xhigh"],
+                        "gpt-5.4-mini": ["none", "low", "medium", "high", "xhigh"],
+                        "gpt-5.4-nano": ["none", "low", "medium", "high", "xhigh"],
+                    },
+                    "showMultimodalOptions": False,
+                    "showSemanticRankerOption": True,
+                    "showQueryRewritingOption": False,
+                    "showReasoningEffortOption": False,
+                    "streamingEnabled": True,
+                    "showVectorOption": True,
+                    "showUserUpload": False,
+                    "showLanguagePicker": False,
+                    "showSpeechInput": False,
+                    "showSpeechOutputBrowser": False,
+                    "showSpeechOutputAzure": False,
+                    "showChatHistoryBrowser": False,
+                    "showChatHistoryCosmos": False,
+                    "showAgenticRetrievalOption": False,
+                    "ragSearchImageEmbeddings": False,
+                    "ragSearchTextEmbeddings": True,
+                    "ragSendImageSources": False,
+                    "ragSendTextSources": True,
+                    "webSourceEnabled": False,
+                    "sharepointSourceEnabled": False,
+                }
+            ),
+            status=200,
+        )
+
+    page.route("*/**/config", handle_config)
+
+    def handle_chat(route: Route):
+        post_data = route.request.post_data_json
+        assert post_data["context"]["overrides"]["chat_model"] == "gpt-5.4"
+        assert post_data["context"]["overrides"]["reasoning_effort"] == "xhigh"
+
+        with open("tests/snapshots/test_app/test_chat_text/result.json", encoding="utf-8") as snapshot_file:
+            route.fulfill(body=snapshot_file.read(), status=200)
+
+    page.route("*/**/chat", handle_chat)
+
+    page.goto(f"{live_server_url}internal")
+
+    page.get_by_role("button", name="Toggle menu").click()
+    page.get_by_role("button", name="Developer settings").click()
+
+    expect(page.get_by_label("Model")).to_be_visible()
+    expect(page.get_by_label("Reasoning effort")).to_have_count(0)
+
+    page.get_by_label("Model").click()
+    page.get_by_role("option", name="gpt-5.4").click()
+
+    expect(page.get_by_label("Reasoning effort")).to_be_visible()
+    page.get_by_label("Reasoning effort").click()
+    expect(page.get_by_role("option", name="None")).to_be_visible()
+    expect(page.get_by_role("option", name="Very high")).to_be_visible()
+    page.get_by_role("option", name="Very high").click()
+    page.get_by_role("button", name="Close").click()
+
+    page.get_by_placeholder("Type a new question (e.g. does my plan cover annual eye exams?)").fill("Hello?")
+    page.get_by_role("button", name="Submit question").click()
+
+    expect(page.get_by_text("The capital of France is Paris.")).to_be_visible()
+
+
 def test_agentic_retrieval_effort_minimal_disables_web(page: Page, live_server_url: str):
     """Test that selecting 'Minimal' effort deselects and disables the web source checkbox."""
 

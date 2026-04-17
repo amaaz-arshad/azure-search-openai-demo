@@ -31,6 +31,12 @@ def test_chatbot_config_registry_loads_known_configs() -> None:
     lemon = get_chatbot_config("lemon")
     assert lemon is not None
     assert lemon.prompt_mode == "override"
+    assert lemon.support_email == "info@lemon-systems.de"
+
+    internal = get_chatbot_config("internal")
+    assert internal is not None
+    assert internal.prompt_mode == "override"
+    assert internal.support_email == "info@lemon-systems.de"
 
 
 def test_chatbot_config_registry_returns_defaults_for_unknown_chatbots() -> None:

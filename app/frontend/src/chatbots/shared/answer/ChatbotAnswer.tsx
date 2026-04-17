@@ -91,6 +91,7 @@ type Props = {
     buildCitationPath: (reference: string) => string;
     getCitationListAction?: (detail: CitationDetail) => CitationListAction;
     getNonWebCitationAction?: (detail: CitationDetail) => NonWebCitationAction;
+    extraHeaderActions?: ReactNode;
     SpeechOutputBrowserComponent?: ComponentType<SpeechOutputBrowserProps>;
     SpeechOutputAzureComponent?: ComponentType<SpeechOutputAzureProps>;
 };
@@ -233,6 +234,7 @@ export const ChatbotAnswer = ({
     buildCitationPath,
     getCitationListAction,
     getNonWebCitationAction,
+    extraHeaderActions,
     SpeechOutputBrowserComponent,
     SpeechOutputAzureComponent
 }: Props) => {
@@ -244,7 +246,10 @@ export const ChatbotAnswer = ({
         .join(" ");
     const useOutsideLeftAvatar = assistantLogoPlacement === "outside-left" && assistantLogoVariant === "avatar";
     const showHeaderActions =
-        showCopyButton || Boolean(showSpeechOutputAzure && SpeechOutputAzureComponent) || Boolean(showSpeechOutputBrowser && SpeechOutputBrowserComponent);
+        Boolean(extraHeaderActions) ||
+        showCopyButton ||
+        Boolean(showSpeechOutputAzure && SpeechOutputAzureComponent) ||
+        Boolean(showSpeechOutputBrowser && SpeechOutputBrowserComponent);
     const showInsideAssistantHeader = !useOutsideLeftAvatar;
     const renderHeaderRow = (showInsideAssistantHeader && (assistantLogoSrc || (showAssistantName && assistantName))) || showHeaderActions;
 
@@ -375,6 +380,7 @@ export const ChatbotAnswer = ({
                             )}
                             {showHeaderActions && (
                                 <div className={styles.headerActions}>
+                                    {extraHeaderActions}
                                     {showCopyButton && (
                                         <IconButton
                                             style={{ color: "black" }}

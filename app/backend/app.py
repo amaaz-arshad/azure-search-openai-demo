@@ -117,15 +117,19 @@ from approaches.promptmanager import PromptManager
 from chat_history.cosmosdb import chat_history_cosmosdb_bp
 from config import (
     CONFIG_AGENTIC_KNOWLEDGEBASE_ENABLED,
+    CONFIG_AVAILABLE_CHAT_MODELS,
     CONFIG_AUTH_CLIENT,
     CONFIG_CATEGORY_UPLOAD_MANAGER,
     CONFIG_CHATBOT_UPLOAD_MANAGERS,
     CONFIG_CHAT_APPROACH,
     CONFIG_CHATBOT_CHAT_APPROACHES,
+    CONFIG_CHAT_MODEL_REASONING_EFFORTS,
+    CONFIG_CHAT_MODEL_DEPLOYMENTS,
     CONFIG_CHATBOT_PROMPT_STORE,
     CONFIG_CHAT_HISTORY_BROWSER_ENABLED,
     CONFIG_CHAT_HISTORY_COSMOS_ENABLED,
     CONFIG_CREDENTIAL,
+    CONFIG_DEFAULT_CHAT_MODEL,
     CONFIG_DEFAULT_REASONING_EFFORT,
     CONFIG_DEFAULT_RETRIEVAL_REASONING_EFFORT,
     CONFIG_GLOBAL_BLOB_MANAGER,
@@ -145,6 +149,7 @@ from config import (
     CONFIG_RAG_SEND_TEXT_SOURCES,
     CONFIG_PUBLIC_TEST_AUTH_SERVICE,
     CONFIG_REASONING_EFFORT_ENABLED,
+    CONFIG_REASONING_CHAT_MODELS,
     CONFIG_SEARCH_CLIENT,
     CONFIG_SEMANTIC_RANKER_DEPLOYED,
     CONFIG_SHAREPOINT_SOURCE_ENABLED,
@@ -238,6 +243,7 @@ KNOWN_CHATBOT_NAMES = {
     "steuertipps",
     "knoll",
     "lemon",
+    "internal",
     "moodle",
     "publishone",
     "fbn",
@@ -245,6 +251,19 @@ KNOWN_CHATBOT_NAMES = {
     "fhg",
     "vjoonk4",
 }
+
+DEVELOPER_CHAT_MODELS = (
+    "gpt-4.1",
+    "gpt-4.1-mini",
+    "gpt-4.1-nano",
+    "gpt-5",
+    "gpt-5-mini",
+    "gpt-5-nano",
+    "gpt-5.4",
+    "gpt-5.4-mini",
+    "gpt-5.4-nano",
+)
+DEFAULT_DEVELOPER_CHAT_MODEL = "gpt-4.1-mini"
 
 
 def get_chatbot_upload_manager(chatbot_name: str) -> ChatbotUploadStrategy:
@@ -313,6 +332,26 @@ def normalize_chatbot_request_overrides(request_json: dict[str, Any]) -> None:
         raw_value = overrides.get(key)
         if isinstance(raw_value, str):
             overrides[key] = normalize_chatbot_category_list(raw_value)
+
+
+def build_chat_model_deployments(default_model: str, default_deployment: str | None) -> dict[str, str | None]:
+    deployments = {model: model for model in DEVELOPER_CHAT_MODELS}
+    if default_model in deployments and default_deployment:
+        deployments[default_model] = default_deployment
+    raw_overrides = (os.getenv("AZURE_OPENAI_CHAT_MODEL_DEPLOYMENTS") or "").strip()
+    if raw_overrides:
+        try:
+            parsed_overrides = json.loads(raw_overrides)
+        except json.JSONDecodeError as error:
+            raise ValueError("AZURE_OPENAI_CHAT_MODEL_DEPLOYMENTS must be valid JSON.") from error
+        if not isinstance(parsed_overrides, dict):
+            raise ValueError("AZURE_OPENAI_CHAT_MODEL_DEPLOYMENTS must be a JSON object.")
+        for model, deployment in parsed_overrides.items():
+            if model not in deployments:
+                continue
+            if isinstance(deployment, str) and deployment.strip():
+                deployments[model] = deployment.strip()
+    return deployments
 
 
 def get_public_test_auth_service() -> PublicTestAuthStore:
@@ -1206,8 +1245,12 @@ def config():
             "showQueryRewritingOption": current_app.config[CONFIG_QUERY_REWRITING_ENABLED],
             "showReasoningEffortOption": current_app.config[CONFIG_REASONING_EFFORT_ENABLED],
             "streamingEnabled": current_app.config[CONFIG_STREAMING_ENABLED],
+            "availableChatModels": current_app.config[CONFIG_AVAILABLE_CHAT_MODELS],
+            "defaultChatModel": current_app.config[CONFIG_DEFAULT_CHAT_MODEL],
             "defaultReasoningEffort": current_app.config[CONFIG_DEFAULT_REASONING_EFFORT],
             "defaultRetrievalReasoningEffort": current_app.config[CONFIG_DEFAULT_RETRIEVAL_REASONING_EFFORT],
+            "reasoningCapableChatModels": current_app.config[CONFIG_REASONING_CHAT_MODELS],
+            "chatModelReasoningEfforts": current_app.config[CONFIG_CHAT_MODEL_REASONING_EFFORTS],
             "showVectorOption": current_app.config[CONFIG_VECTOR_SEARCH_ENABLED],
             "showUserUpload": current_app.config[CONFIG_USER_UPLOAD_ENABLED],
             "showLanguagePicker": current_app.config[CONFIG_LANGUAGE_PICKER_ENABLED],
@@ -1905,6 +1948,14 @@ async def setup_clients():
             search_field_name_embedding=AZURE_SEARCH_FIELD_NAME_EMBEDDING,
             blob_manager=global_blob_manager,
         ),
+        "internal": ChatbotUploadStrategy(
+            chatbot_name="internal",
+            search_info=chatbot_upload_search_info,
+            file_processors=chatbot_upload_file_processors,
+            embeddings=chatbot_upload_embeddings,
+            search_field_name_embedding=AZURE_SEARCH_FIELD_NAME_EMBEDDING,
+            blob_manager=global_blob_manager,
+        ),
         "free": ChatbotUploadStrategy(
             chatbot_name="free",
             search_info=chatbot_upload_search_info,
@@ -2024,6 +2075,21 @@ async def setup_clients():
     current_app.config[CONFIG_QUERY_REWRITING_ENABLED] = (
         AZURE_SEARCH_QUERY_REWRITING == "true" and AZURE_SEARCH_SEMANTIC_RANKER != "disabled"
     )
+    chat_model_deployments = build_chat_model_deployments(
+        OPENAI_CHATGPT_MODEL,
+        AZURE_OPENAI_CHATGPT_DEPLOYMENT if OPENAI_HOST == OpenAIHost.AZURE else None,
+    )
+    current_app.config[CONFIG_AVAILABLE_CHAT_MODELS] = list(DEVELOPER_CHAT_MODELS)
+    current_app.config[CONFIG_DEFAULT_CHAT_MODEL] = DEFAULT_DEVELOPER_CHAT_MODEL
+    current_app.config[CONFIG_REASONING_CHAT_MODELS] = [
+        model for model in DEVELOPER_CHAT_MODELS if model in Approach.GPT_REASONING_MODELS
+    ]
+    current_app.config[CONFIG_CHAT_MODEL_REASONING_EFFORTS] = {
+        model: list(Approach.GPT_REASONING_MODELS[model].supported_efforts)
+        for model in DEVELOPER_CHAT_MODELS
+        if model in Approach.GPT_REASONING_MODELS
+    }
+    current_app.config[CONFIG_CHAT_MODEL_DEPLOYMENTS] = chat_model_deployments
     current_app.config[CONFIG_DEFAULT_REASONING_EFFORT] = OPENAI_REASONING_EFFORT
     current_app.config[CONFIG_DEFAULT_RETRIEVAL_REASONING_EFFORT] = AGENTIC_KNOWLEDGEBASE_REASONING_EFFORT
     current_app.config[CONFIG_REASONING_EFFORT_ENABLED] = OPENAI_CHATGPT_MODEL in Approach.GPT_REASONING_MODELS
@@ -2082,6 +2148,7 @@ async def setup_clients():
         use_web_source=current_app.config[CONFIG_WEB_SOURCE_ENABLED],
         use_sharepoint_source=current_app.config[CONFIG_SHAREPOINT_SOURCE_ENABLED],
         retrieval_reasoning_effort=AGENTIC_KNOWLEDGEBASE_REASONING_EFFORT,
+        chat_model_deployments=chat_model_deployments,
     )
 
     # Per-chatbot approach overrides — auto-discovered from each chatbot's config.py.
@@ -2112,6 +2179,7 @@ async def setup_clients():
         use_web_source=current_app.config[CONFIG_WEB_SOURCE_ENABLED],
         use_sharepoint_source=current_app.config[CONFIG_SHAREPOINT_SOURCE_ENABLED],
         retrieval_reasoning_effort=AGENTIC_KNOWLEDGEBASE_REASONING_EFFORT,
+        chat_model_deployments=chat_model_deployments,
     )
     chatbot_approaches: dict[str, ChatReadRetrieveReadApproach] = {}
     for bot_name, bot_cfg in load_all_chatbot_configs().items():

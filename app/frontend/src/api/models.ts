@@ -5,6 +5,7 @@ export const enum RetrievalMode {
 }
 
 export type ChatAppRequestOverrides = {
+    chat_model?: string;
     retrieval_mode?: RetrievalMode;
     semantic_ranker?: boolean;
     semantic_captions?: boolean;
@@ -109,8 +110,12 @@ export type ChatAppRequest = {
 };
 
 export type Config = {
+    availableChatModels?: string[];
+    defaultChatModel?: string;
     defaultReasoningEffort: string;
     defaultRetrievalReasoningEffort: string;
+    reasoningCapableChatModels?: string[];
+    chatModelReasoningEfforts?: Record<string, string[]>;
     showMultimodalOptions: boolean;
     showSemanticRankerOption: boolean;
     showQueryRewritingOption: boolean;

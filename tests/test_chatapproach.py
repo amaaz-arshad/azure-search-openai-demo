@@ -176,6 +176,92 @@ def test_get_system_prompt_variables_uses_saved_prompt_with_injected_mode_for_in
     assert injected_prompt == "You are a saved prompt for info@snap.de. Keep {{N}} unchanged."
 
 
+@pytest.mark.parametrize("chatbot_name", ["lemon", "internal"])
+def test_get_system_prompt_variables_renders_support_email_for_request_override_prompts(chat_approach, chatbot_name):
+    variables = chat_approach.get_system_prompt_variables(
+        "Please contact {{SUPPORT_EMAIL}} for assistance.",
+        chatbot_name=chatbot_name,
+    )
+
+    assert variables["override_prompt"] == "Please contact info@lemon-systems.de for assistance."
+
+
+@pytest.mark.parametrize("chatbot_name", ["lemon", "internal"])
+def test_get_system_prompt_variables_renders_support_email_for_request_injected_prompts(chat_approach, chatbot_name):
+    variables = chat_approach.get_system_prompt_variables(
+        ">>>Please contact {{SUPPORT_EMAIL}} for assistance.",
+        chatbot_name=chatbot_name,
+    )
+
+    assert variables["injected_prompt"] == "Please contact info@lemon-systems.de for assistance."
+
+
+def test_get_lowest_reasoning_effort_supports_selected_gpt_5_variants(chat_approach):
+    assert chat_approach.get_lowest_reasoning_effort("gpt-5") == "minimal"
+    assert chat_approach.get_lowest_reasoning_effort("gpt-5-mini") == "minimal"
+    assert chat_approach.get_lowest_reasoning_effort("gpt-5-nano") == "minimal"
+    assert chat_approach.get_lowest_reasoning_effort("gpt-5.4") == "none"
+    assert chat_approach.get_lowest_reasoning_effort("gpt-5.4-mini") == "none"
+    assert chat_approach.get_lowest_reasoning_effort("gpt-5.4-nano") == "none"
+
+
+def test_normalize_reasoning_effort_uses_valid_gpt_5_4_options(chat_approach):
+    chat_approach.reasoning_effort = "low"
+
+    assert chat_approach.normalize_reasoning_effort("gpt-5.4", "minimal") == "low"
+    assert chat_approach.normalize_reasoning_effort("gpt-5.4", "xhigh") == "xhigh"
+
+
+def test_resolve_chat_model_and_deployment_uses_supported_override(chat_approach):
+    chat_approach.chat_model_deployments = {
+        "gpt-4.1-mini": "chat",
+        "gpt-5-mini": "gpt-5-mini",
+    }
+
+    model, deployment = chat_approach.resolve_chat_model_and_deployment(
+        {"chat_model": "gpt-5-mini"},
+        chat_approach.chatgpt_model,
+        chat_approach.chatgpt_deployment,
+    )
+
+    assert model == "gpt-5-mini"
+    assert deployment == "gpt-5-mini"
+
+
+@pytest.mark.asyncio
+async def test_create_chat_completion_uses_selected_chat_model_override(chat_approach):
+    captured_args: dict[str, object] = {}
+
+    class DummyCompletions:
+        async def create(self, **kwargs):
+            captured_args.update(kwargs)
+            return kwargs
+
+    class DummyChat:
+        completions = DummyCompletions()
+
+    class DummyOpenAIClient:
+        chat = DummyChat()
+
+    chat_approach.openai_client = DummyOpenAIClient()
+    chat_approach.chat_model_deployments = {
+        "gpt-4.1-mini": "chat",
+        "gpt-5-mini": "gpt-5-mini",
+    }
+
+    await chat_approach.create_chat_completion(
+        chatgpt_deployment=chat_approach.chatgpt_deployment,
+        chatgpt_model=chat_approach.chatgpt_model,
+        messages=[{"role": "user", "content": "Hello"}],
+        overrides={"chat_model": "gpt-5-mini", "reasoning_effort": "low"},
+        response_token_limit=256,
+    )
+
+    assert captured_args["model"] == "gpt-5-mini"
+    assert captured_args["reasoning_effort"] == "low"
+    assert captured_args["max_completion_tokens"] == 256
+
+
 def test_extract_rewritten_query_invalid_json(chat_approach):
     payload = {
         "id": "chatcmpl-2",

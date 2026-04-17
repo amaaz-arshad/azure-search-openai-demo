@@ -56,6 +56,10 @@ export const chatbotThemes: Record<string, ChatbotThemeSeed> = {
         primary: "#669d24",
         pageTone: "light"
     },
+    internal: {
+        primary: "#fec701",
+        pageTone: "light"
+    },
     knoll: {
         primary: "#0199fe",
         pageTone: "light",

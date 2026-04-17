@@ -34,6 +34,11 @@ export const chatbotSpeechFeatureFlags: Record<string, ChatbotSpeechVisibility> 
         showSpeechOutputBrowser: false,
         showSpeechOutputAzure: false
     },
+    internal: {
+        showSpeechInput: true,
+        showSpeechOutputBrowser: true,
+        showSpeechOutputAzure: true
+    },
     knoll: {
         showSpeechInput: true,
         showSpeechOutputBrowser: true,

@@ -1,6 +1,7 @@
 const chatbotDisplayNames: Record<string, string> = {
     free: "Nerilio Bot",
-    "public-test": "Nerilio Bot"
+    "public-test": "Nerilio Bot",
+    internal: "Internal Bot"
 };
 
 const chatbotRouteSegments: Record<string, string> = {

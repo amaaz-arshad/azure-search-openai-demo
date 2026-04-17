@@ -236,19 +236,26 @@ class TokenUsageProps:
 @dataclass
 class GPTReasoningModelSupport:
     streaming: bool
-    minimal_effort: bool
+    supported_efforts: tuple[str, ...]
 
 
 class Approach(ABC):
     # List of GPT reasoning models support
     GPT_REASONING_MODELS = {
-        "o1": GPTReasoningModelSupport(streaming=False, minimal_effort=False),
-        "o3": GPTReasoningModelSupport(streaming=True, minimal_effort=False),
-        "o3-mini": GPTReasoningModelSupport(streaming=True, minimal_effort=False),
-        "o4-mini": GPTReasoningModelSupport(streaming=True, minimal_effort=False),
-        "gpt-5": GPTReasoningModelSupport(streaming=True, minimal_effort=True),
-        "gpt-5-nano": GPTReasoningModelSupport(streaming=True, minimal_effort=True),
-        "gpt-5-mini": GPTReasoningModelSupport(streaming=True, minimal_effort=True),
+        "o1": GPTReasoningModelSupport(streaming=False, supported_efforts=("low", "medium", "high")),
+        "o3": GPTReasoningModelSupport(streaming=True, supported_efforts=("low", "medium", "high")),
+        "o3-mini": GPTReasoningModelSupport(streaming=True, supported_efforts=("low", "medium", "high")),
+        "o4-mini": GPTReasoningModelSupport(streaming=True, supported_efforts=("low", "medium", "high")),
+        "gpt-5": GPTReasoningModelSupport(streaming=True, supported_efforts=("minimal", "low", "medium", "high")),
+        "gpt-5-nano": GPTReasoningModelSupport(streaming=True, supported_efforts=("minimal", "low", "medium", "high")),
+        "gpt-5-mini": GPTReasoningModelSupport(streaming=True, supported_efforts=("minimal", "low", "medium", "high")),
+        "gpt-5.4": GPTReasoningModelSupport(streaming=True, supported_efforts=("none", "low", "medium", "high", "xhigh")),
+        "gpt-5.4-mini": GPTReasoningModelSupport(
+            streaming=True, supported_efforts=("none", "low", "medium", "high", "xhigh")
+        ),
+        "gpt-5.4-nano": GPTReasoningModelSupport(
+            streaming=True, supported_efforts=("none", "low", "medium", "high", "xhigh")
+        ),
     }
     # Set a higher token limit for GPT reasoning models
     RESPONSE_DEFAULT_TOKEN_LIMIT = 1024
@@ -438,7 +445,10 @@ class Approach(ABC):
         no_response_token: Optional[str] = None,
     ) -> RewriteQueryResult:
         query_messages = [self.prompt_manager.build_system_prompt(prompt_template, prompt_variables)]
-        rewrite_reasoning_effort = self.get_lowest_reasoning_effort(self.chatgpt_model)
+        effective_chatgpt_model, _ = self.resolve_chat_model_and_deployment(
+            overrides, chatgpt_model, chatgpt_deployment
+        )
+        rewrite_reasoning_effort = self.get_lowest_reasoning_effort(effective_chatgpt_model)
 
         chat_completion = cast(
             ChatCompletion,
@@ -472,6 +482,7 @@ class Approach(ABC):
         messages: list[ChatCompletionMessageParam],
         knowledgebase_client: KnowledgeBaseRetrievalClient,
         search_index_name: str,
+        overrides: Optional[dict[str, Any]] = None,
         filter_add_on: Optional[str] = None,
         minimum_reranker_score: Optional[float] = None,
         access_token: Optional[str] = None,
@@ -483,6 +494,7 @@ class Approach(ABC):
     ) -> AgenticRetrievalResults:
         # STEP 1: Invoke agentic retrieval
         thoughts = []
+        overrides = overrides or {}
 
         knowledge_source_params = [
             SearchIndexKnowledgeSourceParams(
@@ -525,16 +537,19 @@ class Approach(ABC):
             original_user_query = messages[-1]["content"]
             if not isinstance(original_user_query, str):
                 raise ValueError("The most recent message content must be a string.")
+            effective_chatgpt_model, _ = self.resolve_chat_model_and_deployment(
+                overrides, self.chatgpt_model, self.chatgpt_deployment
+            )
 
             rewrite_result = await self.rewrite_query(
                 prompt_template="query_rewrite.system.jinja2",
                 prompt_variables={"user_query": original_user_query, "past_messages": messages[:-1]},
-                overrides={},
+                overrides=overrides,
                 chatgpt_model=self.chatgpt_model,
                 chatgpt_deployment=self.chatgpt_deployment,
                 user_query=original_user_query,
                 response_token_limit=self.get_response_token_limit(
-                    self.chatgpt_model, 100
+                    effective_chatgpt_model, 100
                 ),  # Setting too low risks malformed JSON, setting too high may affect performance
                 tools=self.query_rewrite_tools,
                 temperature=0.0,  # Minimize creativity for search query generation
@@ -544,7 +559,7 @@ class Approach(ABC):
                 self.format_thought_step_for_chatcompletion(
                     title="Prompt to generate search query",
                     messages=rewrite_result.messages,
-                    overrides={},
+                    overrides=overrides,
                     model=self.chatgpt_model,
                     deployment=self.chatgpt_deployment,
                     usage=rewrite_result.completion.usage,
@@ -982,38 +997,38 @@ class Approach(ABC):
         saved_prompt: Optional[str] = None,
         citations: Optional[list[str]] = None,
     ) -> dict[str, str]:
+        normalized_chatbot_name = normalize_chatbot_name(chatbot_name)
+        if has_request_context() and normalized_chatbot_name is None:
+            normalized_chatbot_name = normalize_chatbot_name(request.headers.get("X-Chatbot-Name"))
+            if normalized_chatbot_name is None:
+                referer = request.headers.get("Referer")
+                if referer:
+                    referer_first_segment = urlparse(referer).path.strip("/").split("/", 1)[0]
+                    normalized_chatbot_name = normalize_chatbot_name(referer_first_segment)
+
+        prompt_mode = get_chatbot_prompt_mode(normalized_chatbot_name)
+
+        def render_prompt(prompt: str) -> str:
+            return render_chatbot_prompt(
+                prompt,
+                normalized_chatbot_name,
+                citations if prompt_mode == "override" else None,
+            )
+
         # Allows client to replace the entire prompt, or to inject into the existing prompt using >>>
         if override_prompt is None:
-            normalized_chatbot_name = normalize_chatbot_name(chatbot_name)
-            if has_request_context() and normalized_chatbot_name is None:
-                normalized_chatbot_name = normalize_chatbot_name(request.headers.get("X-Chatbot-Name"))
-                if normalized_chatbot_name is None:
-                    referer = request.headers.get("Referer")
-                    if referer:
-                        referer_first_segment = urlparse(referer).path.strip("/").split("/", 1)[0]
-                        normalized_chatbot_name = normalize_chatbot_name(referer_first_segment)
             if saved_prompt:
-                prompt_mode = get_chatbot_prompt_mode(normalized_chatbot_name)
-                rendered_prompt = render_chatbot_prompt(
-                    saved_prompt,
-                    normalized_chatbot_name,
-                    citations if prompt_mode == "override" else None,
-                )
+                rendered_prompt = render_prompt(saved_prompt)
                 return {"injected_prompt" if prompt_mode == "inject" else "override_prompt": rendered_prompt}
             chatbot_prompt = get_chatbot_prompt(normalized_chatbot_name)
             if chatbot_prompt:
-                prompt_mode = get_chatbot_prompt_mode(normalized_chatbot_name)
-                rendered_prompt = render_chatbot_prompt(
-                    chatbot_prompt,
-                    normalized_chatbot_name,
-                    citations if prompt_mode == "override" else None,
-                )
+                rendered_prompt = render_prompt(chatbot_prompt)
                 return {"injected_prompt" if prompt_mode == "inject" else "override_prompt": rendered_prompt}
             return {}
         elif override_prompt.startswith(">>>"):
-            return {"injected_prompt": override_prompt[3:]}
+            return {"injected_prompt": render_prompt(override_prompt[3:])}
         else:
-            return {"override_prompt": override_prompt}
+            return {"override_prompt": render_prompt(override_prompt)}
 
     def get_response_token_limit(self, model: str, default_limit: int) -> int:
         if model in self.GPT_REASONING_MODELS:
@@ -1021,15 +1036,53 @@ class Approach(ABC):
 
         return default_limit
 
-    def get_lowest_reasoning_effort(self, model: str) -> ChatCompletionReasoningEffort:
+    def get_supported_reasoning_efforts(self, model: str) -> tuple[str, ...]:
+        if model not in self.GPT_REASONING_MODELS:
+            return ()
+
+        return self.GPT_REASONING_MODELS[model].supported_efforts
+
+    def normalize_reasoning_effort(self, model: str, reasoning_effort: Optional[str]) -> Optional[str]:
+        supported_efforts = self.get_supported_reasoning_efforts(model)
+        if not supported_efforts:
+            return None
+
+        if reasoning_effort in supported_efforts:
+            return reasoning_effort
+        if self.reasoning_effort in supported_efforts:
+            return self.reasoning_effort
+
+        return supported_efforts[0]
+
+    def get_lowest_reasoning_effort(self, model: str) -> Optional[str]:
         """
         Return the lowest valid reasoning_effort for the given model.
         """
-        if model not in self.GPT_REASONING_MODELS:
+        supported_efforts = self.get_supported_reasoning_efforts(model)
+        if not supported_efforts:
             return None
-        if self.GPT_REASONING_MODELS[model].minimal_effort:
-            return "minimal"
-        return "low"
+
+        return supported_efforts[0]
+
+    def resolve_chat_model_and_deployment(
+        self,
+        overrides: dict[str, Any],
+        model: str,
+        deployment: Optional[str],
+    ) -> tuple[str, Optional[str]]:
+        requested_model = overrides.get("chat_model")
+        if not isinstance(requested_model, str):
+            return model, deployment
+
+        normalized_requested_model = requested_model.strip()
+        if not normalized_requested_model:
+            return model, deployment
+
+        available_deployments = getattr(self, "chat_model_deployments", {})
+        if normalized_requested_model not in available_deployments:
+            return model, deployment
+
+        return normalized_requested_model, available_deployments[normalized_requested_model]
 
     def create_chat_completion(
         self,
@@ -1044,6 +1097,9 @@ class Approach(ABC):
         n: Optional[int] = None,
         reasoning_effort: Optional[ChatCompletionReasoningEffort] = None,
     ) -> Awaitable[ChatCompletion] | Awaitable[AsyncStream[ChatCompletionChunk]]:
+        chatgpt_model, chatgpt_deployment = self.resolve_chat_model_and_deployment(
+            overrides, chatgpt_model, chatgpt_deployment
+        )
         if chatgpt_model in self.GPT_REASONING_MODELS:
             params: dict[str, Any] = {
                 # max_tokens is not supported
@@ -1055,7 +1111,10 @@ class Approach(ABC):
             if supported_features.streaming and should_stream:
                 params["stream"] = True
                 params["stream_options"] = {"include_usage": True}
-            params["reasoning_effort"] = reasoning_effort or overrides.get("reasoning_effort") or self.reasoning_effort
+            params["reasoning_effort"] = self.normalize_reasoning_effort(
+                chatgpt_model,
+                cast(Optional[str], reasoning_effort or overrides.get("reasoning_effort")),
+            )
 
         else:
             # Include parameters that may not be supported for reasoning models
@@ -1090,13 +1149,15 @@ class Approach(ABC):
         usage: Optional[CompletionUsage] = None,
         reasoning_effort: Optional[ChatCompletionReasoningEffort] = None,
     ) -> ThoughtStep:
+        model, deployment = self.resolve_chat_model_and_deployment(overrides, model, deployment)
         properties: dict[str, Any] = {"model": model}
         if deployment:
             properties["deployment"] = deployment
         # Only add reasoning_effort setting if the model supports it
         if model in self.GPT_REASONING_MODELS:
-            properties["reasoning_effort"] = reasoning_effort or overrides.get(
-                "reasoning_effort", self.reasoning_effort
+            properties["reasoning_effort"] = self.normalize_reasoning_effort(
+                model,
+                cast(Optional[str], reasoning_effort or overrides.get("reasoning_effort")),
             )
         if usage:
             properties["token_usage"] = TokenUsageProps.from_completion_usage(usage)
