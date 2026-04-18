@@ -43,9 +43,15 @@ Keep `AGENTS.md` focused on workflow, invariants, and change guides. Do not rebu
 
 * Frontend chatbot routing is `/<chatbot_name>` inside each bot's `LayoutWrapper`, while `/<chatbot_name>/*` renders that bot's `NoPage` outside the layout so the fallback page appears without chatbot navbar/header chrome.
 * Backend `/config` is the frontend capability contract for model selection and reasoning effort. When models diverge, update backend metadata instead of hardcoding frontend assumptions.
+* `/internal` is a router shell, not its own retrieval category. Internal requests must carry `context.overrides.source_chatbot`; backend validation then derives the effective bot identity, prompt, and `include_category` from that selected source bot.
+* `/config` now includes `internalSourceBots` for the `/internal` source-bot dropdown. Do not reintroduce `All` for internal; only one real source bot can be active per internal session.
+* Internal chat history sessions must persist `source_chatbot` metadata. Legacy internal sessions without that metadata are intentionally hidden and non-restorable.
+* Internal citations resolve against the selected source bot's content path, while the visible `/internal` shell branding stays fixed as `Internal Bot`.
 * Backend startup auto-discovers optional chatbot backend modules under `app/backend/approaches/chatbots/<chatbot_name>/`; do not add manual registration unless the code path truly requires it.
 * Shared internal admin auth gates `/chatbots`, `/upload-files`, `/public-test-users`, and `/manage-prompts`; keep frontend and backend route names aligned.
 * `public-test` still keeps some legacy internal identifiers for compatibility even though the public branding is now "Free Bot"; verify compatibility before renaming storage/auth/history namespaces.
+* Frontend chatbot locale support is standardized to `en`, `de`, and `nl`; do not add or keep extra chatbot locale folders unless the entire bot set is intentionally expanded together.
+* If a chatbot uses the generic app mark on its empty state or similar generic surfaces, import the shared `app/frontend/src/assets/applogo.svg` instead of keeping duplicate per-bot `applogo.svg` assets.
 * If you change shared ingestion logic in `app/backend/prepdocslib/`, refresh the synchronized copies under `app/functions/`.
 * For Moodle/PublishOne XML feed automation, preserve both the blob-copy/index flow and the post-deploy Event Grid subscription script.
 
@@ -74,6 +80,8 @@ If the chatbot also needs backend-specific behavior, add the matching backend mo
 1. Add `sampleprompt.py` for chatbot-specific prompt variables. Keep it as the default raw prompt; `/manage-prompts` saves runtime overrides elsewhere and falls back to this file when no override exists.
 1. Add `contentfilter.py` only if the default localized content-filter copy is not enough.
 1. Add `config.py` when the bot needs a different `chatgpt_model`, `chatgpt_deployment`, `reasoning_effort`, prompt-time values such as `support_email`, a specific `prompt_mode`, or citation target. Startup auto-discovers these files; you do not need to register them manually anywhere else.
+
+`internal` is the exception: it keeps its own frontend shell, but it does not use an active backend `sampleprompt.py` or upload manager at runtime. Internal behavior is routed through the selected `source_chatbot` instead.
 
 ## Adding a new azd environment variable
 

@@ -15,13 +15,15 @@ export const HistoryPanel = ({
     isOpen,
     notify,
     onClose,
-    onChatSelected
+    onChatSelected,
+    filterItem
 }: {
     provider: HistoryProviderOptions;
     isOpen: boolean;
     notify: boolean;
     onClose: () => void;
     onChatSelected: (answers: Answers) => void;
+    filterItem?: (item: HistoryMetaData) => boolean;
 }) => {
     const historyManager = useHistoryManager(provider);
     const [history, setHistory] = useState<HistoryMetaData[]>([]);
@@ -42,11 +44,12 @@ export const HistoryPanel = ({
     const loadMoreHistory = async () => {
         setIsLoading(() => true);
         const token = client ? await getToken(client) : undefined;
-        const items = await historyManager.getNextItems(HISTORY_COUNT_PER_LOAD, token);
-        if (items.length === 0) {
+        const loadedItems = await historyManager.getNextItems(HISTORY_COUNT_PER_LOAD, token);
+        if (loadedItems.length === 0) {
             setHasMoreHistory(false);
         }
-        setHistory(prevHistory => [...prevHistory, ...items]);
+        const nextItems = filterItem ? loadedItems.filter(filterItem) : loadedItems;
+        setHistory(prevHistory => [...prevHistory, ...nextItems]);
         setIsLoading(() => false);
     };
 

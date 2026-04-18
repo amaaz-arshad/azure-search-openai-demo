@@ -1,9 +1,9 @@
 import { IconButton } from "@fluentui/react";
 import { useTranslation } from "react-i18next";
 
-import lemonChatbotLogo from "../../../lemon/assets/lemon-chatbot.png";
+import appLogo from "../../../../assets/applogo.svg";
 import { ChatbotAnswer } from "../../../shared/answer";
-import { ChatAppResponse, getCitationFilePath, SpeechConfig } from "../../api";
+import { ChatAppResponse, SpeechConfig } from "../../api";
 import { SpeechOutputBrowser } from "../../../lemon/components/Answer/SpeechOutputBrowser";
 import { SpeechOutputAzure } from "../../../lemon/components/Answer/SpeechOutputAzure";
 
@@ -11,6 +11,8 @@ interface Props {
     answer: ChatAppResponse;
     index: number;
     speechConfig: SpeechConfig;
+    assistantName: string;
+    buildCitationPath: (reference: string) => string;
     isSelected?: boolean;
     isStreaming: boolean;
     onCitationClicked: (filePath: string) => void;
@@ -36,14 +38,14 @@ export const Answer = (props: Props) => {
             showFollowupQuestions={props.showFollowupQuestions}
             showSpeechOutputBrowser={props.showSpeechOutputBrowser}
             showSpeechOutputAzure={props.showSpeechOutputAzure}
-            assistantLogoSrc={lemonChatbotLogo}
-            assistantLogoAlt={`${t("headerTitle")} logo`}
-            assistantName={t("headerTitle")}
+            assistantLogoSrc={appLogo}
+            assistantLogoAlt={`${props.assistantName} logo`}
+            assistantName={props.assistantName}
             copyLabel={t("tooltips.copy")}
             copiedLabel={t("tooltips.copied")}
             citationLabel={t("citationWithColon")}
             followupQuestionsLabel={t("followupQuestions")}
-            buildCitationPath={reference => getCitationFilePath(reference)}
+            buildCitationPath={props.buildCitationPath}
             extraHeaderActions={
                 <IconButton
                     style={{ color: "black" }}

@@ -11,10 +11,12 @@ type RenderLabelType = ITextFieldProps | IDropdownProps | ICheckboxProps;
 
 export interface SettingsProps {
     chatModel?: string;
+    sourceBot: string;
     promptTemplate: string;
     temperature: number;
     retrieveCount: number;
     availableChatModels?: string[];
+    availableSourceBots?: { id: string; label: string }[];
     reasoningEffortOptions?: string[];
     agenticReasoningEffort: string;
     seed: number | null;
@@ -24,8 +26,6 @@ export interface SettingsProps {
     useSemanticCaptions: boolean;
     useQueryRewriting: boolean;
     reasoningEffort: string;
-    excludeCategory: string;
-    includeCategory: string;
     retrievalMode: RetrievalMode;
     sendTextSources: boolean;
     sendImageSources: boolean;
@@ -57,10 +57,12 @@ export interface SettingsProps {
 
 export const Settings = ({
     chatModel = "",
+    sourceBot,
     promptTemplate,
     temperature,
     retrieveCount,
     availableChatModels = [],
+    availableSourceBots = [],
     reasoningEffortOptions = [],
     agenticReasoningEffort,
     seed,
@@ -70,8 +72,6 @@ export const Settings = ({
     useSemanticCaptions,
     useQueryRewriting,
     reasoningEffort,
-    excludeCategory,
-    includeCategory,
     retrievalMode,
     searchTextEmbeddings,
     searchImageEmbeddings,
@@ -125,10 +125,8 @@ export const Settings = ({
     const retrieveCountFieldId = useId("retrieveCountField");
     const agenticReasoningEffortId = useId("agenticReasoningEffort");
     const agenticReasoningEffortFieldId = useId("agenticReasoningEffortField");
-    const includeCategoryId = useId("includeCategory");
-    const includeCategoryFieldId = useId("includeCategoryField");
-    const excludeCategoryId = useId("excludeCategory");
-    const excludeCategoryFieldId = useId("excludeCategoryField");
+    const sourceBotId = useId("sourceBot");
+    const sourceBotFieldId = useId("sourceBotField");
     const semanticRankerId = useId("semanticRanker");
     const semanticRankerFieldId = useId("semanticRankerField");
     const queryRewritingFieldId = useId("queryRewritingField");
@@ -199,6 +197,19 @@ export const Settings = ({
                     onRenderLabel={props => renderLabel(props, agenticRetrievalId, agenticRetrievalFieldId, t("helpTexts.useAgenticKnowledgeBase"))}
                 />
             )}
+
+            <Dropdown
+                id={sourceBotFieldId}
+                className={styles.settingsSeparator}
+                label={t("labels.sourceBot")}
+                selectedKey={sourceBot || undefined}
+                onChange={(_ev?: React.FormEvent<HTMLElement | HTMLInputElement>, option?: IDropdownOption) =>
+                    onChange("sourceBot", option?.key?.toString() ?? "")
+                }
+                aria-labelledby={sourceBotId}
+                options={availableSourceBots.map(bot => ({ key: bot.id, text: bot.label }))}
+                onRenderLabel={props => renderLabel(props, sourceBotId, sourceBotFieldId, t("helpTexts.sourceBot"))}
+            />
 
             {showAgenticRetrievalOption && useAgenticKnowledgeBase && (
                 <Dropdown
@@ -287,41 +298,21 @@ export const Settings = ({
             )}
 
             {!useAgenticKnowledgeBase && (
-                <TextField
-                    id={retrieveCountFieldId}
-                    className={styles.settingsSeparator}
-                    label={t("labels.retrieveCount")}
-                    type="number"
-                    min={1}
-                    max={50}
-                    defaultValue={retrieveCount.toString()}
-                    onChange={(_ev, val) => onChange("retrieveCount", parseInt(val || "3"))}
-                    aria-labelledby={retrieveCountId}
-                    onRenderLabel={props => renderLabel(props, retrieveCountId, retrieveCountFieldId, t("helpTexts.retrieveNumber"))}
-                />
+                <>
+                    <TextField
+                        id={retrieveCountFieldId}
+                        className={styles.settingsSeparator}
+                        label={t("labels.retrieveCount")}
+                        type="number"
+                        min={1}
+                        max={50}
+                        defaultValue={retrieveCount.toString()}
+                        onChange={(_ev, val) => onChange("retrieveCount", parseInt(val || "3"))}
+                        aria-labelledby={retrieveCountId}
+                        onRenderLabel={props => renderLabel(props, retrieveCountId, retrieveCountFieldId, t("helpTexts.retrieveNumber"))}
+                    />
+                </>
             )}
-            <Dropdown
-                id={includeCategoryFieldId}
-                className={styles.settingsSeparator}
-                label={t("labels.includeCategory")}
-                selectedKey={includeCategory}
-                onChange={(_ev?: React.FormEvent<HTMLElement | HTMLInputElement>, option?: IDropdownOption) => onChange("includeCategory", option?.key || "")}
-                aria-labelledby={includeCategoryId}
-                options={[
-                    { key: "", text: t("labels.includeCategoryOptions.all") }
-                    // { key: "example", text: "Example Category" } // Add more categories as needed
-                ]}
-                onRenderLabel={props => renderLabel(props, includeCategoryId, includeCategoryFieldId, t("helpTexts.includeCategory"))}
-            />
-            <TextField
-                id={excludeCategoryFieldId}
-                className={styles.settingsSeparator}
-                label={t("labels.excludeCategory")}
-                defaultValue={excludeCategory}
-                onChange={(_ev, val) => onChange("excludeCategory", val || "")}
-                aria-labelledby={excludeCategoryId}
-                onRenderLabel={props => renderLabel(props, excludeCategoryId, excludeCategoryFieldId, t("helpTexts.excludeCategory"))}
-            />
             {showSemanticRankerOption && !useAgenticKnowledgeBase && (
                 <>
                     <Checkbox

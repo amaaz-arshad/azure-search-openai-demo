@@ -97,6 +97,15 @@ async def test_app_demo_upload_processors_are_local(monkeypatch, minimal_env):
 
 
 @pytest.mark.asyncio
+async def test_app_chatbot_upload_managers_exclude_internal_router(monkeypatch, minimal_env):
+    monkeypatch.setenv("AZURE_SERVER_APP_SECRET", "test-server-secret")
+    quart_app = app.create_app()
+    async with quart_app.test_app():
+        chatbot_upload_managers = quart_app.config[app.CONFIG_CHATBOT_UPLOAD_MANAGERS]
+        assert set(chatbot_upload_managers) == {"demo", "free", "rak"}
+
+
+@pytest.mark.asyncio
 async def test_app_user_upload_requires_storage_configuration(monkeypatch, minimal_env):
     monkeypatch.setenv("USE_USER_UPLOAD", "true")
 
@@ -175,6 +184,7 @@ async def test_app_user_upload_processors_docint_localhtml(monkeypatch, minimal_
 
 @pytest.mark.asyncio
 async def test_app_config_default(monkeypatch, minimal_env):
+    monkeypatch.setenv("AZURE_SERVER_APP_SECRET", "test-server-secret")
     quart_app = app.create_app()
     async with quart_app.test_app() as test_app:
         client = test_app.test_client()
@@ -193,6 +203,20 @@ async def test_app_config_default(monkeypatch, minimal_env):
             "gpt-5.4-nano",
         ]
         assert result["defaultChatModel"] == "gpt-4.1-mini"
+        assert result["internalSourceBots"] == [
+            {"id": "agindo", "label": "agindo"},
+            {"id": "demo", "label": "demo"},
+            {"id": "fbn", "label": "fbn"},
+            {"id": "fhg", "label": "fhg"},
+            {"id": "knoll", "label": "knoll"},
+            {"id": "lemon", "label": "lemon"},
+            {"id": "moodle", "label": "moodle"},
+            {"id": "nerilio", "label": "nerilio"},
+            {"id": "publishone", "label": "publishone"},
+            {"id": "sartorius", "label": "sartorius"},
+            {"id": "steuertipps", "label": "steuertipps"},
+            {"id": "vjoonk4", "label": "vjoonk4"},
+        ]
         assert result["showMultimodalOptions"] is False
         assert result["showSemanticRankerOption"] is True
         assert result["showVectorOption"] is True

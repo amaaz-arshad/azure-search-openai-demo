@@ -937,7 +937,7 @@ def test_demo_upload_manager_modal(page: Page, live_server_url: str):
     expect(page.get_by_role("button", name="Delete all")).to_be_visible()
 
 
-def test_internal_bot_dropdown_opens_settings_and_upload_manager(page: Page, live_server_url: str):
+def test_internal_bot_dropdown_uses_source_bot_router_settings(page: Page, live_server_url: str):
 
     def handle_config(route: Route):
         route.fulfill(
@@ -965,6 +965,10 @@ def test_internal_bot_dropdown_opens_settings_and_upload_manager(page: Page, liv
                     "ragSendTextSources": True,
                     "webSourceEnabled": False,
                     "sharepointSourceEnabled": False,
+                    "internalSourceBots": [
+                        {"id": "nerilio", "label": "nerilio"},
+                        {"id": "vjoonk4", "label": "vjoonk4"},
+                    ],
                 }
             ),
             status=200,
@@ -972,28 +976,39 @@ def test_internal_bot_dropdown_opens_settings_and_upload_manager(page: Page, liv
 
     page.route("*/**/config", handle_config)
 
-    def handle_uploads(route: Route):
-        route.fulfill(body=json.dumps(["internal-manual.pdf", "ops-notes.txt"]), status=200)
-
-    page.route("*/**/chatbot_uploads/internal", handle_uploads)
-
     page.goto(f"{live_server_url}internal")
 
+    expect(page.get_by_text("Select a source bot")).to_be_visible()
+    expect(page.get_by_text("Open Developer settings and choose which bot Internal Bot should use for retrieval and system instructions.")).to_be_visible()
+    expect(
+        page.get_by_placeholder("Select a source bot in Developer settings before sending a message")
+    ).to_be_disabled()
+
     page.get_by_role("button", name="Toggle menu").click()
+    expect(page.get_by_role("button", name="Upload files")).to_have_count(0)
     page.get_by_role("button", name="Developer settings").click()
 
     expect(page.get_by_text("Configure answer generation")).to_be_visible()
+    expect(page.get_by_label("Source bot")).to_be_visible()
+    expect(page.get_by_label("Include category")).to_have_count(0)
+    expect(page.get_by_label("Exclude category")).to_have_count(0)
+
+    page.get_by_label("Source bot").click()
+    page.get_by_role("option", name="nerilio").click()
     page.get_by_role("button", name="Close").click()
 
-    page.get_by_role("button", name="Toggle menu").click()
-    page.get_by_role("button", name="Upload files").click()
+    expect(page.get_by_text("Internal Bot")).to_be_visible()
+    expect(page.get_by_text("Hello, I'm nerilio. How can I assist you today?")).to_be_visible()
 
-    expect(page.get_by_role("dialog")).to_be_visible()
-    expect(page.get_by_text("Upload files to the internal bot")).to_be_visible()
-    expect(page.get_by_text("Current upload queue")).to_be_visible()
-    expect(page.get_by_text("No files in the queue")).to_be_visible()
-    expect(page.get_by_text("internal-manual.pdf")).to_be_visible()
-    expect(page.get_by_text("ops-notes.txt")).to_be_visible()
+    page.get_by_role("button", name="Toggle menu").click()
+    page.get_by_role("button", name="Developer settings").click()
+    page.get_by_label("Source bot").click()
+    page.get_by_role("option", name="vjoon K4").click()
+    page.get_by_role("button", name="Close").click()
+
+    expect(page.get_by_text("Hi there! I know the user manual for vjoon K4 version 16 really well. Just ask away.")).to_be_visible()
+    expect(page.get_by_text("Hello, I'm nerilio. How can I assist you today?")).to_have_count(0)
+    expect(page.get_by_text("Internal Bot")).to_be_visible()
 
 
 def test_internal_bot_model_selector_controls_reasoning_options(page: Page, live_server_url: str):
@@ -1051,6 +1066,10 @@ def test_internal_bot_model_selector_controls_reasoning_options(page: Page, live
                     "ragSendTextSources": True,
                     "webSourceEnabled": False,
                     "sharepointSourceEnabled": False,
+                    "internalSourceBots": [
+                        {"id": "nerilio", "label": "nerilio"},
+                        {"id": "lemon", "label": "lemon"},
+                    ],
                 }
             ),
             status=200,
@@ -1060,6 +1079,7 @@ def test_internal_bot_model_selector_controls_reasoning_options(page: Page, live
 
     def handle_chat(route: Route):
         post_data = route.request.post_data_json
+        assert post_data["context"]["overrides"]["source_chatbot"] == "nerilio"
         assert post_data["context"]["overrides"]["chat_model"] == "gpt-5.4"
         assert post_data["context"]["overrides"]["reasoning_effort"] == "xhigh"
 
@@ -1073,6 +1093,8 @@ def test_internal_bot_model_selector_controls_reasoning_options(page: Page, live
     page.get_by_role("button", name="Toggle menu").click()
     page.get_by_role("button", name="Developer settings").click()
 
+    page.get_by_label("Source bot").click()
+    page.get_by_role("option", name="nerilio").click()
     expect(page.get_by_label("Model")).to_be_visible()
     expect(page.get_by_label("Reasoning effort")).to_have_count(0)
 
@@ -1084,9 +1106,12 @@ def test_internal_bot_model_selector_controls_reasoning_options(page: Page, live
     expect(page.get_by_role("option", name="None")).to_be_visible()
     expect(page.get_by_role("option", name="Very high")).to_be_visible()
     page.get_by_role("option", name="Very high").click()
+    page.get_by_text("Stream chat completion responses").click()
     page.get_by_role("button", name="Close").click()
 
-    page.get_by_placeholder("Type a new question (e.g. does my plan cover annual eye exams?)").fill("Hello?")
+    expect(page.get_by_text("Hello, I'm nerilio. How can I assist you today?")).to_be_visible()
+
+    page.get_by_placeholder("Type your message").fill("Hello?")
     page.get_by_role("button", name="Submit question").click()
 
     expect(page.get_by_text("The capital of France is Paris.")).to_be_visible()

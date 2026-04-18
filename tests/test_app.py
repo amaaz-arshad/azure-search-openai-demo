@@ -478,6 +478,23 @@ async def test_manage_prompts_spa_route(client):
     assert response.content_type.startswith("text/html")
 
 
+@pytest.mark.asyncio
+async def test_internal_admin_prompt_list_excludes_internal_router_bot(client):
+    prompt_store = client.app.config[app.CONFIG_CHATBOT_PROMPT_STORE]
+
+    async def mock_list_prompts():
+        return {}
+
+    with mock.patch.object(prompt_store, "list_prompts", mock_list_prompts):
+        await login_internal_admin(client)
+
+        response = await client.get("/internal-admin/prompts")
+        payload = await response.get_json()
+
+        assert response.status_code == 200
+        assert all(prompt["chatbotName"] != "internal" for prompt in payload["prompts"])
+
+
 def test_chat_history_scope_marks_internal_admin_routes_as_non_chatbot():
     chat_history_scope = (Path(app.__file__).resolve().parent.parent / "frontend" / "src" / "chatHistoryScope.ts").read_text(
         encoding="utf-8"
@@ -675,6 +692,59 @@ async def test_chat_rak_applies_user_filter_from_header(client):
 
     assert response.status_code == 200
     assert client.app.config[app.CONFIG_SEARCH_CLIENT].filter == "(category eq 'rak') and user eq '12345'"
+
+
+@pytest.mark.asyncio
+async def test_internal_chat_requires_source_bot_selection(client):
+    response = await client.post(
+        "/chat",
+        headers={"X-Chatbot-Name": "internal"},
+        json={
+            "messages": [{"content": "What is the capital of France?", "role": "user"}],
+            "context": {"overrides": {"retrieval_mode": "text"}},
+        },
+    )
+
+    assert response.status_code == 400
+    assert await response.get_json() == {"error": "Internal Bot requires a source bot selection."}
+
+
+@pytest.mark.asyncio
+async def test_internal_chat_rejects_invalid_source_bot(client):
+    response = await client.post(
+        "/chat",
+        headers={"X-Chatbot-Name": "internal"},
+        json={
+            "messages": [{"content": "What is the capital of France?", "role": "user"}],
+            "context": {"overrides": {"retrieval_mode": "text", "source_chatbot": "free"}},
+        },
+    )
+
+    assert response.status_code == 400
+    assert await response.get_json() == {"error": "Internal Bot source bot is invalid."}
+
+
+@pytest.mark.asyncio
+async def test_internal_chat_uses_selected_source_bot_for_prompt_and_category(client):
+    prompt_store = client.app.config[app.CONFIG_CHATBOT_PROMPT_STORE]
+
+    async def mock_load_prompt(_chatbot_name: str):
+        return None
+
+    with mock.patch.object(prompt_store, "load_prompt", mock_load_prompt):
+        response = await client.post(
+            "/chat",
+            headers={"X-Chatbot-Name": "internal"},
+            json={
+                "messages": [{"content": "What is the capital of France?", "role": "user"}],
+                "context": {"overrides": {"retrieval_mode": "text", "source_chatbot": "lemon"}},
+            },
+        )
+
+        assert response.status_code == 200
+        result = await response.get_json()
+        assert client.app.config[app.CONFIG_SEARCH_CLIENT].filter == "category eq 'lemon'"
+        assert "info@lemon-systems.de" in result["context"]["thoughts"][3]["description"][0]["content"]
 
 
 @pytest.mark.asyncio

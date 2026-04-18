@@ -1,38 +1,44 @@
-import { useRef, useState, useEffect, useContext } from "react";
+import { useRef, useState, useEffect, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Helmet } from "react-helmet-async";
 import { useOutletContext } from "react-router-dom";
 import { Panel, DefaultButton } from "@fluentui/react";
-import appLogo from "../../../lemon/assets/applogo.svg";
+import appLogo from "../../../../assets/applogo.svg";
 import styles from "../../../lemon/pages/chat/Chat.module.css";
 
-import { chatApi, configApi, RetrievalMode, ChatAppResponse, ChatAppResponseOrError, ChatAppRequest, ResponseMessage, SpeechConfig } from "../../api";
+import {
+    chatApi,
+    configApi,
+    getCitationFilePath,
+    RetrievalMode,
+    ChatAppResponse,
+    ChatAppResponseOrError,
+    ChatAppRequest,
+    ResponseMessage,
+    SpeechConfig
+} from "../../api";
 import { Answer, AnswerError, AnswerLoading } from "../../components/Answer";
 import { QuestionInput } from "../../../lemon/components/QuestionInput";
-import { ExampleList } from "../../../lemon/components/Example";
 import { UserChatMessage } from "../../../lemon/components/UserChatMessage";
 import { AnalysisPanel, AnalysisPanelTabs } from "../../../lemon/components/AnalysisPanel";
 import { HistoryPanel } from "../../../lemon/components/HistoryPanel";
 import { HistoryProviderOptions, useHistoryManager } from "../../../lemon/components/HistoryProviders";
-import { HistoryButton } from "../../../lemon/components/HistoryButton";
-import { SettingsButton } from "../../../lemon/components/SettingsButton";
-import { ClearChatButton } from "../../../lemon/components/ClearChatButton";
-import { UploadFile } from "../../../lemon/components/UploadFile";
 import { useLogin, getToken, requireAccessControl } from "../../authConfig";
 import { useMsal } from "@azure/msal-react";
 import { TokenClaimsDisplay } from "../../../lemon/components/TokenClaimsDisplay";
 import { LoginContext } from "../../loginContext";
-import { LanguagePicker } from "../../../lemon/i18n/LanguagePicker";
 import { Settings } from "../../components/Settings/Settings";
 import { setGlobalClearChat, type InternalLayoutOutletContext } from "../layout/Layout";
 import { applyChatbotSpeechFeatureFlags } from "../../../shared/speech/chatbotSpeechFeatureFlags";
 import { ChatbotDisclaimerBanner } from "../../../shared/disclaimer/ChatbotDisclaimerBanner";
+import { getSourceBotLabel, getSourceBotWelcome } from "../../sourceBots";
 
 const INITIAL_ASSISTANT_SENTINEL_USER_MESSAGE = "__initial_assistant__";
 const DEFAULT_CHAT_MODEL = "gpt-4.1-mini";
 const GPT_5_REASONING_EFFORT_OPTIONS = ["minimal", "low", "medium", "high"];
 const GPT_5_4_REASONING_EFFORT_OPTIONS = ["none", "low", "medium", "high", "xhigh"];
 const EMPTY_REASONING_EFFORT_OPTIONS: string[] = [];
+type SourceBotOption = { id: string; label: string };
 
 const getLegacyReasoningEffortOptions = (chatModel: string, reasoningCapableChatModels: string[]) => {
     if (!reasoningCapableChatModels.includes(chatModel)) {
@@ -54,28 +60,39 @@ const createClientSessionId = () => {
     return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 };
 
+const buildInitialAssistantPair = (initialAssistantMessageContent?: string | null): [user: string, response: ChatAppResponse] | null => {
+    if (!initialAssistantMessageContent) {
+        return null;
+    }
+
+    return [
+        INITIAL_ASSISTANT_SENTINEL_USER_MESSAGE,
+        {
+            message: {
+                content: initialAssistantMessageContent,
+                role: "assistant"
+            },
+            delta: {
+                content: initialAssistantMessageContent,
+                role: "assistant"
+            },
+            session_state: null
+        }
+    ];
+};
+
+const getHistorySourceBot = (historyAnswers: [user: string, response: ChatAppResponse][]): string | null => {
+    const historyMetadata = (historyAnswers as [user: string, response: ChatAppResponse][] & {
+        metadata?: { source_chatbot?: string } | null;
+    }).metadata;
+    return typeof historyMetadata?.source_chatbot === "string" ? historyMetadata.source_chatbot : null;
+};
+
 const Chat = () => {
     const { t, i18n } = useTranslation();
-    const chatbotCategory = "internal";
-    const legacyInitialUserMessage: string = t("initialUserMsg");
-    const initialAssistantMessageContent: string = t("initialAssistantMsg");
-    const initialAssistantResponse: ChatAppResponse = {
-        message: {
-            content: initialAssistantMessageContent,
-            role: "assistant"
-        },
-        delta: {
-            content: initialAssistantMessageContent,
-            role: "assistant"
-        },
-        session_state: null
-    };
-    const initialAssistantPair: [user: string, response: ChatAppResponse] = [
-        INITIAL_ASSISTANT_SENTINEL_USER_MESSAGE,
-        initialAssistantResponse
-    ];
     const [isConfigPanelOpen, setIsConfigPanelOpen] = useState(false);
     const [isHistoryPanelOpen, setIsHistoryPanelOpen] = useState(false);
+    const [selectedSourceBot, setSelectedSourceBot] = useState<string>("");
     const [promptTemplate, setPromptTemplate] = useState<string>("");
     const [chatModel, setChatModel] = useState<string>(DEFAULT_CHAT_MODEL);
     const [temperature, setTemperature] = useState<number>(0);
@@ -92,9 +109,8 @@ const Chat = () => {
     const [shouldStream, setShouldStream] = useState<boolean>(true);
     const previousShouldStreamRef = useRef<boolean>(true);
     const forcedStreamingRef = useRef<boolean>(false);
+    const suppressAbortRestoreRef = useRef<boolean>(false);
     const [useSemanticCaptions, setUseSemanticCaptions] = useState<boolean>(false);
-    const [includeCategory, setIncludeCategory] = useState<string>("");
-    const [excludeCategory, setExcludeCategory] = useState<string>("");
     const [useSuggestFollowupQuestions, setUseSuggestFollowupQuestions] = useState<boolean>(false);
     const [searchTextEmbeddings, setSearchTextEmbeddings] = useState<boolean>(true);
     const [searchImageEmbeddings, setSearchImageEmbeddings] = useState<boolean>(false);
@@ -115,19 +131,18 @@ const Chat = () => {
     const [activeAnalysisPanelTab, setActiveAnalysisPanelTab] = useState<AnalysisPanelTabs | undefined>(undefined);
 
     const [selectedAnswer, setSelectedAnswer] = useState<number>(0);
-    const [answers, setAnswers] = useState<[user: string, response: ChatAppResponse][]>([initialAssistantPair]);
-    const [streamedAnswers, setStreamedAnswers] = useState<[user: string, response: ChatAppResponse][]>([initialAssistantPair]);
+    const [answers, setAnswers] = useState<[user: string, response: ChatAppResponse][]>([]);
+    const [streamedAnswers, setStreamedAnswers] = useState<[user: string, response: ChatAppResponse][]>([]);
     const [speechUrls, setSpeechUrls] = useState<(string | null)[]>([]);
 
     const [showMultimodalOptions, setShowMultimodalOptions] = useState<boolean>(false);
+    const [availableSourceBots, setAvailableSourceBots] = useState<SourceBotOption[]>([]);
     const [availableChatModels, setAvailableChatModels] = useState<string[]>([DEFAULT_CHAT_MODEL]);
     const [reasoningCapableChatModels, setReasoningCapableChatModels] = useState<string[]>([]);
     const [chatModelReasoningEfforts, setChatModelReasoningEfforts] = useState<Record<string, string[]>>({});
     const [showSemanticRankerOption, setShowSemanticRankerOption] = useState<boolean>(false);
     const [showQueryRewritingOption, setShowQueryRewritingOption] = useState<boolean>(false);
     const [showVectorOption, setShowVectorOption] = useState<boolean>(false);
-    const [showUserUpload, setShowUserUpload] = useState<boolean>(false);
-    const [showLanguagePicker, setshowLanguagePicker] = useState<boolean>(false);
     const [showSpeechInput, setShowSpeechInput] = useState<boolean>(false);
     const [showSpeechOutputBrowser, setShowSpeechOutputBrowser] = useState<boolean>(false);
     const [showSpeechOutputAzure, setShowSpeechOutputAzure] = useState<boolean>(false);
@@ -144,6 +159,29 @@ const Chat = () => {
     const supportedReasoningEfforts =
         chatModelReasoningEfforts[chatModel] ?? getLegacyReasoningEffortOptions(chatModel, reasoningCapableChatModels);
     const showReasoningEffortOption = supportedReasoningEfforts.length > 0;
+    const sourceBotWelcome = useMemo(
+        () => (selectedSourceBot ? getSourceBotWelcome(selectedSourceBot, i18n.language) : null),
+        [i18n.language, selectedSourceBot]
+    );
+    const initialAssistantPair = useMemo(
+        () => buildInitialAssistantPair(sourceBotWelcome?.initialAssistantMsg),
+        [sourceBotWelcome?.initialAssistantMsg]
+    );
+    const localizedSourceBots = useMemo(
+        () =>
+            availableSourceBots.map(bot => ({
+                id: bot.id,
+                label: getSourceBotLabel(bot.id, i18n.language, bot.label)
+            })),
+        [availableSourceBots, i18n.language]
+    );
+    const selectedAssistantCardName = useMemo(() => {
+        if (!selectedSourceBot) {
+            return t("headerTitle");
+        }
+
+        return getSourceBotLabel(selectedSourceBot, i18n.language, t("headerTitle"));
+    }, [i18n.language, selectedSourceBot, t]);
 
     const audio = useRef(new Audio()).current;
     const [isPlaying, setIsPlaying] = useState(false);
@@ -160,6 +198,7 @@ const Chat = () => {
         configApi().then(config => {
             const effectiveConfig = applyChatbotSpeechFeatureFlags("internal", config);
             setShowMultimodalOptions(config.showMultimodalOptions);
+            setAvailableSourceBots(config.internalSourceBots ?? []);
             if (config.showMultimodalOptions) {
                 // Initialize from server config so defaults match deployment settings
                 setSendTextSources(config.ragSendTextSources !== undefined ? config.ragSendTextSources : true);
@@ -181,8 +220,6 @@ const Chat = () => {
             if (!config.showVectorOption) {
                 setRetrievalMode(RetrievalMode.Text);
             }
-            setShowUserUpload(config.showUserUpload);
-            setshowLanguagePicker(config.showLanguagePicker);
             setShowSpeechInput(effectiveConfig.showSpeechInput);
             setShowSpeechOutputBrowser(effectiveConfig.showSpeechOutputBrowser);
             setShowSpeechOutputAzure(effectiveConfig.showSpeechOutputAzure);
@@ -327,10 +364,36 @@ const Chat = () => {
         };
     }, [setDeveloperOptionsAction, setRecentChatsAction]);
 
-    const isSyntheticInitialPair = ([user, response]: [user: string, response: ChatAppResponse]) =>
-        response.message.role === "assistant" &&
-        response.message.content === initialAssistantMessageContent &&
-        (user === INITIAL_ASSISTANT_SENTINEL_USER_MESSAGE || user === legacyInitialUserMessage);
+    const buildInitialConversation = (sourceBot: string) => {
+        const sourceWelcome = getSourceBotWelcome(sourceBot, i18n.language);
+        const sourceInitialPair = buildInitialAssistantPair(sourceWelcome?.initialAssistantMsg);
+        return sourceInitialPair ? [sourceInitialPair] : [];
+    };
+
+    const resetChatState = (sourceBot: string) => {
+        const hadActiveRequest = abortController !== null;
+        suppressAbortRestoreRef.current = hadActiveRequest;
+        abortController?.abort();
+        const nextAnswers = buildInitialConversation(sourceBot);
+        localHistorySessionIdRef.current = null;
+        lastQuestionRef.current = "";
+        error && setError(undefined);
+        setActiveCitation(undefined);
+        setActiveAnalysisPanelTab(undefined);
+        setSelectedAnswer(0);
+        setAnswers(nextAnswers);
+        setStreamedAnswers(nextAnswers);
+        setSpeechUrls(nextAnswers.length ? [null] : []);
+        setIsLoading(false);
+        setIsStreaming(false);
+        setRestoredQuestion("");
+        if (!hadActiveRequest) {
+            suppressAbortRestoreRef.current = false;
+        }
+    };
+
+    const isSyntheticInitialPair = ([user]: [user: string, response: ChatAppResponse]) =>
+        user === INITIAL_ASSISTANT_SENTINEL_USER_MESSAGE;
 
     const stripLeadingSyntheticInitialPairs = (chatAnswers: [user: string, response: ChatAppResponse][]) => {
         let startIndex = 0;
@@ -397,6 +460,11 @@ const Chat = () => {
     };
 
     const makeApiRequest = async (question: string) => {
+        if (!selectedSourceBot) {
+            setIsConfigPanelOpen(true);
+            return;
+        }
+
         const controller = new AbortController();
         setAbortController(controller);
         lastQuestionRef.current = question;
@@ -420,10 +488,9 @@ const Chat = () => {
                 messages: [...messages, { content: question, role: "user" }],
                 context: {
                     overrides: {
+                        source_chatbot: selectedSourceBot,
                         prompt_template: promptTemplate.length === 0 ? undefined : promptTemplate,
                         chat_model: chatModel,
-                        include_category: chatbotCategory,
-                        exclude_category: undefined,
                         top: retrieveCount,
                         ...(useAgenticKnowledgeBase ? { retrieval_reasoning_effort: agenticReasoningEffort } : {}),
                         temperature: temperature,
@@ -473,7 +540,9 @@ const Chat = () => {
                     setAnswers([...answers, [question, normalizedResponse]]);
                     if (typeof sessionState === "string" && sessionState !== "") {
                         const token = client ? await getToken(client) : undefined;
-                        historyManager.addItem(sessionState, [...conversationAnswers, [question, normalizedResponse]], token);
+                        historyManager.addItem(sessionState, [...conversationAnswers, [question, normalizedResponse]], token, {
+                            source_chatbot: selectedSourceBot
+                        });
                     }
                 } else {
                     // Stopped before any content arrived - restore question to input
@@ -497,12 +566,18 @@ const Chat = () => {
                 setAnswers([...answers, [question, normalizedResponse]]);
                 if (typeof sessionState === "string" && sessionState !== "") {
                     const token = client ? await getToken(client) : undefined;
-                    historyManager.addItem(sessionState, [...conversationAnswers, [question, normalizedResponse]], token);
+                    historyManager.addItem(sessionState, [...conversationAnswers, [question, normalizedResponse]], token, {
+                        source_chatbot: selectedSourceBot
+                    });
                 }
             }
             setSpeechUrls([...speechUrls, null]);
         } catch (e) {
             if (e instanceof DOMException && e.name === "AbortError") {
+                if (suppressAbortRestoreRef.current) {
+                    suppressAbortRestoreRef.current = false;
+                    return;
+                }
                 // Stopped during loading - restore question to input
                 lastQuestionRef.current = getLastRealQuestion(answers);
                 setRestoredQuestion(question);
@@ -510,23 +585,14 @@ const Chat = () => {
                 setError(e);
             }
         } finally {
+            suppressAbortRestoreRef.current = false;
             setIsLoading(false);
             setAbortController(null);
         }
     };
 
     const clearChat = () => {
-        localHistorySessionIdRef.current = null;
-        lastQuestionRef.current = "";
-        error && setError(undefined);
-        setActiveCitation(undefined);
-        setActiveAnalysisPanelTab(undefined);
-        setAnswers([initialAssistantPair]); // Reset to welcome message
-        setStreamedAnswers([initialAssistantPair]); // Reset to welcome message
-        setSpeechUrls([null]);
-        setIsLoading(false);
-        setIsStreaming(false);
-        setRestoredQuestion("");
+        resetChatState(selectedSourceBot);
     };
 
     useEffect(() => {
@@ -536,14 +602,15 @@ const Chat = () => {
         };
     }, [clearChat]);
 
-    // Also add an effect to set initial state on component mount
     useEffect(() => {
-        // Ensure welcome message is shown on initial load
-        if (answers.length === 0) {
-            setAnswers([initialAssistantPair]);
-            setStreamedAnswers([initialAssistantPair]);
-            setSpeechUrls([null]);
+        if (stripLeadingSyntheticInitialPairs(answers).length > 0) {
+            return;
         }
+
+        const nextAnswers = initialAssistantPair ? [initialAssistantPair] : [];
+        setAnswers(nextAnswers);
+        setStreamedAnswers(nextAnswers);
+        setSpeechUrls(nextAnswers.length ? [null] : []);
     }, [answers.length, initialAssistantPair]);
 
     useEffect(() => chatMessageStreamEnd.current?.scrollIntoView({ behavior: "smooth" }), [isLoading]);
@@ -551,6 +618,18 @@ const Chat = () => {
     useEffect(() => {
         getConfig();
     }, []);
+
+    useEffect(() => {
+        if (!selectedSourceBot) {
+            return;
+        }
+        if (availableSourceBots.some(bot => bot.id === selectedSourceBot)) {
+            return;
+        }
+
+        setSelectedSourceBot("");
+        resetChatState("");
+    }, [availableSourceBots, selectedSourceBot]);
 
     // Preserve streaming preference when agentic retrieval forces streaming off.
     useEffect(() => {
@@ -603,12 +682,15 @@ const Chat = () => {
             case "useSemanticCaptions":
                 setUseSemanticCaptions(value);
                 break;
-            case "excludeCategory":
-                setExcludeCategory(value);
+            case "sourceBot": {
+                const nextSourceBot = value?.toString() ?? "";
+                if (nextSourceBot === selectedSourceBot) {
+                    break;
+                }
+                setSelectedSourceBot(nextSourceBot);
+                resetChatState(nextSourceBot);
                 break;
-            case "includeCategory":
-                setIncludeCategory(value);
-                break;
+            }
             case "shouldStream":
                 {
                     const normalizedShouldStream = !!value;
@@ -675,10 +757,6 @@ const Chat = () => {
         }
     };
 
-    const onExampleClicked = (example: string) => {
-        makeApiRequest(example);
-    };
-
     const isPdfCitation = (citation: string) => {
         const citationWithoutHash = citation.split("#")[0].toLowerCase();
         return citationWithoutHash.endsWith(".pdf") || citationWithoutHash.includes(".pdf?");
@@ -722,106 +800,95 @@ const Chat = () => {
 
     return (
         <div className={styles.container}>
-            {/* Setting the page title using react-helmet-async */}
             <Helmet>
                 <title>{t("pageTitle")}</title>
             </Helmet>
-            {/* <div className={styles.commandsSplitContainer}>
-                <div className={styles.commandsContainer}>
-                    {((useLogin && showChatHistoryCosmos) || showChatHistoryBrowser) && (
-                        <HistoryButton className={styles.commandButton} onClick={() => setIsHistoryPanelOpen(!isHistoryPanelOpen)} />
-                    )}
-                </div>
-                <div className={styles.commandsContainer}>
-                    <ClearChatButton className={styles.commandButton} onClick={clearChat} disabled={!lastQuestionRef.current || isLoading} />
-                    {showUserUpload && <UploadFile className={styles.commandButton} disabled={!loggedIn} />}
-                    <SettingsButton className={styles.commandButton} onClick={() => setIsConfigPanelOpen(!isConfigPanelOpen)} />
-                </div>
-            </div> */}
             <div className={styles.chatRoot} style={{ marginLeft: isHistoryPanelOpen ? "300px" : "0" }}>
                 <div className={styles.chatContainer}>
                     <ChatbotDisclaimerBanner isLoggedIn={loggedIn} />
-                    {/* {!lastQuestionRef.current && answers.length === 1 && answers[0][0] === "" ? (
+                    {!selectedSourceBot ? (
                         <div className={styles.chatEmptyState}>
                             <img src={appLogo} alt="App logo" width="120" height="120" />
-                            <h1 className={styles.chatEmptyStateTitle}>{t("chatEmptyStateTitle")}</h1>
-                            <h2 className={styles.chatEmptyStateSubtitle}>{t("chatEmptyStateSubtitle")}</h2>
-                            {showLanguagePicker && <LanguagePicker onLanguageChange={newLang => i18n.changeLanguage(newLang)} />}
-                            <ExampleList onExampleClicked={onExampleClicked} useMultimodalAnswering={showMultimodalOptions} />
+                            <h1 className={styles.chatEmptyStateTitle}>{t("sourceBotSelection.title")}</h1>
+                            <h2 className={styles.chatEmptyStateSubtitle}>{t("sourceBotSelection.description")}</h2>
                         </div>
-                    ) : ( */}
-                    <div className={styles.chatMessageStream}>
-                        {isStreaming &&
-                            streamedAnswers.map((streamedAnswer, index) => (
-                                <div key={index}>
-                                    {!isSyntheticInitialPair(streamedAnswer) && <UserChatMessage message={streamedAnswer[0]} />}
-                                    <div className={styles.chatMessageGpt}>
-                                        <Answer
-                                            isStreaming={true}
-                                            key={index}
-                                            answer={streamedAnswer[1]}
-                                            index={index}
-                                            speechConfig={speechConfig}
-                                            isSelected={false}
-                                            onCitationClicked={c => onShowCitation(c, index)}
-                                            onThoughtProcessClicked={() => onToggleTab(AnalysisPanelTabs.ThoughtProcessTab, index)}
-                                            onSupportingContentClicked={() => onToggleTab(AnalysisPanelTabs.SupportingContentTab, index)}
-                                            onFollowupQuestionClicked={q => makeApiRequest(q)}
-                                            showFollowupQuestions={useSuggestFollowupQuestions && answers.length - 1 === index}
-                                            showSpeechOutputAzure={showSpeechOutputAzure}
-                                            showSpeechOutputBrowser={showSpeechOutputBrowser}
-                                        />
+                    ) : (
+                        <div className={styles.chatMessageStream}>
+                            {isStreaming &&
+                                streamedAnswers.map((streamedAnswer, index) => (
+                                    <div key={index}>
+                                        {!isSyntheticInitialPair(streamedAnswer) && <UserChatMessage message={streamedAnswer[0]} />}
+                                        <div className={styles.chatMessageGpt}>
+                                            <Answer
+                                                isStreaming={true}
+                                                key={index}
+                                                answer={streamedAnswer[1]}
+                                                index={index}
+                                                speechConfig={speechConfig}
+                                                assistantName={selectedAssistantCardName}
+                                                buildCitationPath={reference => getCitationFilePath(reference, selectedSourceBot)}
+                                                isSelected={false}
+                                                onCitationClicked={c => onShowCitation(c, index)}
+                                                onThoughtProcessClicked={() => onToggleTab(AnalysisPanelTabs.ThoughtProcessTab, index)}
+                                                onSupportingContentClicked={() => onToggleTab(AnalysisPanelTabs.SupportingContentTab, index)}
+                                                onFollowupQuestionClicked={q => makeApiRequest(q)}
+                                                showFollowupQuestions={useSuggestFollowupQuestions && answers.length - 1 === index}
+                                                showSpeechOutputAzure={showSpeechOutputAzure}
+                                                showSpeechOutputBrowser={showSpeechOutputBrowser}
+                                            />
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
-                        {!isStreaming &&
-                            answers.map((answer, index) => (
-                                <div key={index}>
-                                    {!isSyntheticInitialPair(answer) && <UserChatMessage message={answer[0]} />}
-                                    <div className={styles.chatMessageGpt}>
-                                        <Answer
-                                            isStreaming={false}
-                                            key={index}
-                                            answer={answer[1]}
-                                            index={index}
-                                            speechConfig={speechConfig}
-                                            isSelected={selectedAnswer === index && activeAnalysisPanelTab !== undefined}
-                                            onCitationClicked={c => onShowCitation(c, index)}
-                                            onThoughtProcessClicked={() => onToggleTab(AnalysisPanelTabs.ThoughtProcessTab, index)}
-                                            onSupportingContentClicked={() => onToggleTab(AnalysisPanelTabs.SupportingContentTab, index)}
-                                            onFollowupQuestionClicked={q => makeApiRequest(q)}
-                                            showFollowupQuestions={useSuggestFollowupQuestions && answers.length - 1 === index}
-                                            showSpeechOutputAzure={showSpeechOutputAzure}
-                                            showSpeechOutputBrowser={showSpeechOutputBrowser}
-                                        />
+                                ))}
+                            {!isStreaming &&
+                                answers.map((answer, index) => (
+                                    <div key={index}>
+                                        {!isSyntheticInitialPair(answer) && <UserChatMessage message={answer[0]} />}
+                                        <div className={styles.chatMessageGpt}>
+                                            <Answer
+                                                isStreaming={false}
+                                                key={index}
+                                                answer={answer[1]}
+                                                index={index}
+                                                speechConfig={speechConfig}
+                                                assistantName={selectedAssistantCardName}
+                                                buildCitationPath={reference => getCitationFilePath(reference, selectedSourceBot)}
+                                                isSelected={selectedAnswer === index && activeAnalysisPanelTab !== undefined}
+                                                onCitationClicked={c => onShowCitation(c, index)}
+                                                onThoughtProcessClicked={() => onToggleTab(AnalysisPanelTabs.ThoughtProcessTab, index)}
+                                                onSupportingContentClicked={() => onToggleTab(AnalysisPanelTabs.SupportingContentTab, index)}
+                                                onFollowupQuestionClicked={q => makeApiRequest(q)}
+                                                showFollowupQuestions={useSuggestFollowupQuestions && answers.length - 1 === index}
+                                                showSpeechOutputAzure={showSpeechOutputAzure}
+                                                showSpeechOutputBrowser={showSpeechOutputBrowser}
+                                            />
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
-                        {isLoading && (
-                            <>
-                                <UserChatMessage message={lastQuestionRef.current} />
-                                <div className={styles.chatMessageGptMinWidth}>
-                                    <AnswerLoading />
-                                </div>
-                            </>
-                        )}
-                        {error ? (
-                            <>
-                                <UserChatMessage message={lastQuestionRef.current} />
-                                <div className={styles.chatMessageGptMinWidth}>
-                                    <AnswerError error={error.toString()} onRetry={() => makeApiRequest(lastQuestionRef.current)} />
-                                </div>
-                            </>
-                        ) : null}
-                        <div ref={chatMessageStreamEnd} />
-                    </div>
-                    {/* )} */}
+                                ))}
+                            {isLoading && (
+                                <>
+                                    <UserChatMessage message={lastQuestionRef.current} />
+                                    <div className={styles.chatMessageGptMinWidth}>
+                                        <AnswerLoading />
+                                    </div>
+                                </>
+                            )}
+                            {error ? (
+                                <>
+                                    <UserChatMessage message={lastQuestionRef.current} />
+                                    <div className={styles.chatMessageGptMinWidth}>
+                                        <AnswerError error={error.toString()} onRetry={() => makeApiRequest(lastQuestionRef.current)} />
+                                    </div>
+                                </>
+                            ) : null}
+                            <div ref={chatMessageStreamEnd} />
+                        </div>
+                    )}
 
                     <div className={styles.chatInput}>
                         <QuestionInput
                             clearOnSend
-                            placeholder={t("defaultExamples.placeholder")}
-                            disabled={isLoading}
+                            placeholder={selectedSourceBot ? t("defaultExamples.placeholder") : t("sourceBotSelection.placeholder")}
+                            disabled={isLoading || !selectedSourceBot}
                             onSend={question => makeApiRequest(question)}
                             showSpeechInput={showSpeechInput}
                             isStreaming={isStreaming}
@@ -850,13 +917,22 @@ const Chat = () => {
                         isOpen={isHistoryPanelOpen}
                         notify={!isStreaming && !isLoading}
                         onClose={() => setIsHistoryPanelOpen(false)}
+                        filterItem={item => Boolean(item.metadata?.source_chatbot)}
                         onChatSelected={historyAnswers => {
+                            const restoredSourceBot = getHistorySourceBot(historyAnswers);
+                            if (!restoredSourceBot) return;
                             const restoredAnswers = stripLeadingSyntheticInitialPairs(historyAnswers);
                             if (restoredAnswers.length === 0) return;
-                            // Add welcome message at the beginning of the loaded history
-                            const restoredConversation = [initialAssistantPair, ...restoredAnswers];
+                            const restoredInitialPair = buildInitialConversation(restoredSourceBot)[0];
+                            const restoredConversation = restoredInitialPair ? [restoredInitialPair, ...restoredAnswers] : restoredAnswers;
+                            setSelectedSourceBot(restoredSourceBot);
                             setAnswers(restoredConversation);
                             setStreamedAnswers(restoredConversation);
+                            setSpeechUrls(Array.from({ length: restoredConversation.length }, () => null));
+                            setActiveCitation(undefined);
+                            setActiveAnalysisPanelTab(undefined);
+                            setSelectedAnswer(0);
+                            setRestoredQuestion("");
                             lastQuestionRef.current = getLastRealQuestion(restoredAnswers);
                             const restoredSessionState = restoredAnswers[restoredAnswers.length - 1][1].session_state;
                             localHistorySessionIdRef.current =
@@ -875,10 +951,12 @@ const Chat = () => {
                     isFooterAtBottom={true}
                 >
                     <Settings
+                        sourceBot={selectedSourceBot}
                         chatModel={chatModel}
                         promptTemplate={promptTemplate}
                         temperature={temperature}
                         retrieveCount={retrieveCount}
+                        availableSourceBots={localizedSourceBots}
                         availableChatModels={availableChatModels}
                         agenticReasoningEffort={agenticReasoningEffort}
                         seed={seed}
@@ -888,8 +966,6 @@ const Chat = () => {
                         useSemanticCaptions={useSemanticCaptions}
                         useQueryRewriting={useQueryRewriting}
                         reasoningEffort={reasoningEffort}
-                        excludeCategory={excludeCategory}
-                        includeCategory={includeCategory}
                         retrievalMode={retrievalMode}
                         showMultimodalOptions={showMultimodalOptions}
                         sendTextSources={sendTextSources}

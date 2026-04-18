@@ -84,6 +84,11 @@
         "duplicateQueuedFile": "{{filename}} staat al in de actieve wachtrij."
     },
     "developerSettings": "Ontwikkelaarinstellingen",
+    "sourceBotSelection": {
+        "title": "Selecteer een bronbot",
+        "description": "Open de ontwikkelaarinstellingen en kies welke bot Internal Bot moet gebruiken voor retrieval en systeeminstructies.",
+        "placeholder": "Selecteer eerst een bronbot in de ontwikkelaarinstellingen"
+    },
     "disclaimer": {
         "label": "Belangrijke melding",
         "message": "AI-ondersteunde assistent. Antwoorden worden automatisch gegenereerd op basis van de aangeleverde inhoud; officiële bronnen zijn bindend.",
@@ -136,17 +141,13 @@
         "minimumSearchScore": "Minimale zoekscore",
         "minimumRerankerScore": "Minimale reranker score",
         "retrieveCount": "Dit aantal zoekresultaten ophalen:",
+        "sourceBot": "Bronbot",
         "agenticReasoningEffort": "Redeneerinspanning voor retrieval",
         "agenticReasoningEffortOptions": {
             "minimal": "Minimaal",
             "low": "Laag",
             "medium": "Gemiddeld"
         },
-        "includeCategory": "Categorie opnemen",
-        "includeCategoryOptions": {
-            "all": "Alle"
-        },
-        "excludeCategory": "Categorie uitsluiten",
         "useSemanticRanker": "Semantische rangschikking gebruiken",
         "useSemanticCaptions": "Semantische bijschriften gebruiken",
         "useQueryRewriting": "Gebruik de herformulering van zoekopdrachten om informatie op te halen",
@@ -196,9 +197,8 @@
         "searchScore": "Stelt een minimale score in voor zoekresultaten van de Azure AI zoekfunctie. De bereik van de score varieert afhankelijk van de zoekmodus: hybride (standaard), alleen vectoren, of alleen tekst.",
         "rerankerScore": "Stelt een minimale score in voor zoekresultaten van de semantische ranker. De score varieert van 0 tot 4, waarbij een hogere score aangeeft dat het resultaat semantisch relevanter is voor de vraag.",
         "retrieveNumber": "Stelt het aantal zoekresultaten in om op te halen van Azure AI zoekfunctie. Meer resultaten vergroten de kans op het juiste antwoord, maar kunnen ook leiden tot het 'lost in the middle' probleem.",
+        "sourceBot": "Selecteert welke bestaande chatbot Internal Bot moet gebruiken voor prompt, retrievalcategorie en citaties.",
         "agenticReasoningEffort": "Bepaalt hoeveel redeneren de agent toepast bij het opstellen van multi-query plannen. Meer inspanning kan de recall verbeteren, maar verhoogt tokens en latency.",
-        "includeCategory": "Specificeert een categorie om op te nemen in de zoekresultaten. Er zijn geen categorieën in de standaard dataset.",
-        "excludeCategory": "Specificeert een categorie om uit te sluiten van de zoekresultaten. Er zijn geen categorieën in de standaard dataset.",
         "useSemanticReranker": "Activeert de semantische ranker van Azure AI Search, een model dat zoekresultaten rangschikt op basis van semantische overeenkomst met de zoekopdracht.",
         "useSemanticCaptions": "Stuurt semantische bijschriften naar het taalmodel in plaats van het volledige zoekresultaat. Een semantisch bijschrift wordt geëxtraheerd voor ieder zoekresultaat tijdens het toepassen van de semantische ranker.",
         "useQueryRewriting": "Schakelt Azure AI Search query herformulering in, een proces dat de query van de gebruiker wijzigt om zoekresultaten te verbeteren. Vereist dat semantische rangschikking is ingeschakeld.",

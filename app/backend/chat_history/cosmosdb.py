@@ -6,7 +6,7 @@ from azure.cosmos.aio import ContainerProxy, CosmosClient
 from azure.identity.aio import AzureDeveloperCliCredential, ManagedIdentityCredential
 from quart import Blueprint, current_app, jsonify, make_response, request
 
-from approaches.chatbot_prompt_registry import normalize_chatbot_name
+from approaches.chatbot_prompt_registry import get_registered_chatbot_names, normalize_chatbot_name
 from config import (
     CONFIG_CHAT_HISTORY_COSMOS_ENABLED,
     CONFIG_COSMOS_HISTORY_CLIENT,
@@ -26,6 +26,8 @@ PUBLIC_TEST_HISTORY_USER_PREFIX = "public-test:"
 RAK_CHATBOT_NAME = "rak"
 RAK_HISTORY_USER_PREFIX = "rak:"
 RAK_ALLOWED_USERNAMES = {"12345", "67890"}
+INTERNAL_ROUTER_CHATBOT_NAME = "internal"
+INTERNAL_INVALID_SOURCE_BOTS = frozenset({INTERNAL_ROUTER_CHATBOT_NAME, "free", RAK_CHATBOT_NAME})
 
 
 def normalize_rak_history_username(raw_username: str | None) -> str | None:
@@ -62,6 +64,23 @@ async def resolve_history_user_id(chatbot_name: str, auth_claims: dict[str, Any]
     return str(entra_oid) if entra_oid else None
 
 
+def normalize_internal_source_chatbot(raw_source_chatbot: Any) -> str | None:
+    if not isinstance(raw_source_chatbot, str):
+        return None
+
+    normalized_source_chatbot = normalize_chatbot_name(raw_source_chatbot)
+    if not normalized_source_chatbot:
+        return None
+
+    if normalized_source_chatbot in INTERNAL_INVALID_SOURCE_BOTS:
+        return None
+
+    if normalized_source_chatbot not in set(get_registered_chatbot_names()):
+        return None
+
+    return normalized_source_chatbot
+
+
 @chat_history_cosmosdb_bp.post("/chat_history")
 @authenticated
 async def post_chat_history(auth_claims: dict[str, Any]):
@@ -77,9 +96,18 @@ async def post_chat_history(auth_claims: dict[str, Any]):
         session_id = request_json.get("id")
         message_pairs = request_json.get("answers")
         chatbot_name = normalize_chatbot_name(request_json.get("chatbot_name")) or ""
+        metadata = request_json.get("metadata")
+        metadata = metadata if isinstance(metadata, dict) else {}
+        source_chatbot = (
+            normalize_internal_source_chatbot(metadata.get("source_chatbot"))
+            if chatbot_name == INTERNAL_ROUTER_CHATBOT_NAME
+            else None
+        )
         history_user_id = await resolve_history_user_id(chatbot_name, auth_claims)
         if not history_user_id:
             return jsonify({"error": "User history scope not found"}), 401
+        if chatbot_name == INTERNAL_ROUTER_CHATBOT_NAME and source_chatbot is None:
+            return jsonify({"error": "Internal Bot requires a valid source bot selection."}), 400
         first_question = message_pairs[0][0]
         title = first_question + "..." if len(first_question) > 50 else first_question
         timestamp = int(time.time() * 1000)
@@ -95,6 +123,8 @@ async def post_chat_history(auth_claims: dict[str, Any]):
             "title": title,
             "timestamp": timestamp,
         }
+        if source_chatbot is not None:
+            session_item["source_chatbot"] = source_chatbot
 
         message_pair_items = []
         # Now insert a message item for each question/response pair:
@@ -138,9 +168,10 @@ async def get_chat_history_sessions(auth_claims: dict[str, Any]):
         history_user_id = await resolve_history_user_id(chatbot_name, auth_claims)
         if not history_user_id:
             return jsonify({"error": "User history scope not found"}), 401
+        source_chatbot_filter = " AND IS_DEFINED(c.source_chatbot)" if chatbot_name == INTERNAL_ROUTER_CHATBOT_NAME else ""
 
         res = container.query_items(
-            query="SELECT c.id, c.entra_oid, c.title, c.timestamp FROM c WHERE c.entra_oid = @entra_oid AND c.type = @type AND c.chatbot_name = @chatbot_name ORDER BY c.timestamp DESC",
+            query=f"SELECT c.id, c.entra_oid, c.title, c.timestamp, c.source_chatbot FROM c WHERE c.entra_oid = @entra_oid AND c.type = @type AND c.chatbot_name = @chatbot_name{source_chatbot_filter} ORDER BY c.timestamp DESC",
             parameters=[
                 dict(name="@entra_oid", value=history_user_id),
                 dict(name="@type", value="session"),
@@ -165,6 +196,11 @@ async def get_chat_history_sessions(auth_claims: dict[str, Any]):
                         "entra_oid": item.get("entra_oid"),
                         "title": item.get("title", "untitled"),
                         "timestamp": item.get("timestamp"),
+                        "metadata": (
+                            {"source_chatbot": item.get("source_chatbot")}
+                            if isinstance(item.get("source_chatbot"), str)
+                            else None
+                        ),
                     }
                 )
 
@@ -193,6 +229,30 @@ async def get_chat_history_session(auth_claims: dict[str, Any], session_id: str)
         history_user_id = await resolve_history_user_id(chatbot_name, auth_claims)
         if not history_user_id:
             return jsonify({"error": "User history scope not found"}), 401
+        session_item = None
+        session_query = container.query_items(
+            query="SELECT c.source_chatbot FROM c WHERE c.session_id = @session_id AND c.type = @type AND c.chatbot_name = @chatbot_name",
+            parameters=[
+                dict(name="@session_id", value=session_id),
+                dict(name="@type", value="session"),
+                dict(name="@chatbot_name", value=chatbot_name),
+            ],
+            partition_key=[history_user_id, session_id],
+        )
+        async for page in session_query.by_page():
+            async for item in page:
+                session_item = item
+                break
+            if session_item is not None:
+                break
+
+        if session_item is None:
+            return jsonify({"error": "Chat history session not found"}), 404
+
+        source_chatbot = normalize_internal_source_chatbot(session_item.get("source_chatbot"))
+        if chatbot_name == INTERNAL_ROUTER_CHATBOT_NAME and source_chatbot is None:
+            return jsonify({"error": "Chat history session not found"}), 404
+
         res = container.query_items(
             query="SELECT * FROM c WHERE c.session_id = @session_id AND c.type = @type AND c.chatbot_name = @chatbot_name",
             parameters=[
@@ -214,6 +274,7 @@ async def get_chat_history_session(auth_claims: dict[str, Any], session_id: str)
                     "id": session_id,
                     "entra_oid": history_user_id,
                     "answers": message_pairs,
+                    "metadata": {"source_chatbot": source_chatbot} if source_chatbot is not None else None,
                 }
             ),
             200,

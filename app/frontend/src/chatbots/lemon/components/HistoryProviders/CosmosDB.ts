@@ -1,4 +1,4 @@
-import { IHistoryProvider, Answers, HistoryProviderOptions, HistoryMetaData } from "./IProvider";
+import { IHistoryProvider, Answers, HistoryProviderOptions, HistoryMetaData, HistorySessionMetadata } from "./IProvider";
 import { deleteChatHistoryApi, getChatHistoryApi, getChatHistoryListApi, postChatHistoryApi } from "../../api";
 
 export class CosmosDBProvider implements IHistoryProvider {
@@ -26,7 +26,8 @@ export class CosmosDBProvider implements IHistoryProvider {
             return response.sessions.map(session => ({
                 id: session.id,
                 title: session.title,
-                timestamp: session.timestamp
+                timestamp: session.timestamp,
+                metadata: session.metadata
             }));
         } catch (e) {
             console.error(e);
@@ -34,14 +35,22 @@ export class CosmosDBProvider implements IHistoryProvider {
         }
     }
 
-    async addItem(id: string, answers: Answers, idToken?: string): Promise<void> {
-        await postChatHistoryApi({ id, answers }, idToken || "");
+    async addItem(id: string, answers: Answers, idToken?: string, metadata?: HistorySessionMetadata): Promise<void> {
+        await postChatHistoryApi({ id, answers, metadata }, idToken || "");
         return;
     }
 
     async getItem(id: string, idToken?: string): Promise<Answers | null> {
         const response = await getChatHistoryApi(id, idToken || "");
-        return response.answers || null;
+        if (!response.answers) {
+            return null;
+        }
+
+        const answers = response.answers as Answers & { metadata?: HistorySessionMetadata | null };
+        if (response.metadata !== undefined) {
+            answers.metadata = response.metadata;
+        }
+        return answers;
     }
 
     async deleteItem(id: string, idToken?: string): Promise<void> {

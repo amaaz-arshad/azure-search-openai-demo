@@ -2,12 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { Link, Outlet } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { IconButton } from "@fluentui/react";
-import { ArrowUpload24Regular, ChatAdd24Regular, History24Regular, Settings24Regular } from "@fluentui/react-icons";
+import { ChatAdd24Regular, History24Regular, Settings24Regular } from "@fluentui/react-icons";
 
 import { useLogin } from "../../authConfig";
-import { UploadManagerModal } from "../../../demo/components/UploadManagerModal/UploadManagerModal";
 import { LoginButton } from "../../../lemon/components/LoginButton";
-import lemonChatbotLogo from "../../../lemon/assets/lemon-chatbot.png";
+import appLogo from "../../../../assets/applogo.svg";
 import styles from "../../../lemon/pages/layout/Layout.module.css";
 
 let globalClearChat: () => void = () => {};
@@ -25,7 +24,6 @@ const Layout = () => {
     const { t } = useTranslation();
     const dropdownRef = useRef<HTMLDivElement | null>(null);
     const [dropdownOpen, setDropdownOpen] = useState(false);
-    const [isUploadManagerOpen, setIsUploadManagerOpen] = useState(false);
     const [recentChatsAction, setRecentChatsAction] = useState<{ run: () => void } | null>(null);
     const [developerOptionsAction, setDeveloperOptionsAction] = useState<{ run: () => void } | null>(null);
 
@@ -54,11 +52,6 @@ const Layout = () => {
         recentChatsAction?.run();
     };
 
-    const handleOpenUploadManager = () => {
-        setDropdownOpen(false);
-        setIsUploadManagerOpen(true);
-    };
-
     const handleOpenDeveloperOptions = () => {
         setDropdownOpen(false);
         developerOptionsAction?.run();
@@ -70,7 +63,7 @@ const Layout = () => {
                 <div className={styles.headerContainer}>
                     <Link className={styles.logoContainer} to="/internal">
                         <div className={styles.logoCircle}>
-                            <img alt="Internal Bot logo" src={lemonChatbotLogo} />
+                            <img alt="Internal Bot logo" src={appLogo} />
                         </div>
                     </Link>
 
@@ -100,12 +93,6 @@ const Layout = () => {
                                         </button>
                                     </li>
                                     <li>
-                                        <button className={styles.dropdownItem} onClick={handleOpenUploadManager}>
-                                            <ArrowUpload24Regular />
-                                            <span>{t("upload.menuLabel")}</span>
-                                        </button>
-                                    </li>
-                                    <li>
                                         <button className={styles.dropdownItem} onClick={handleOpenDeveloperOptions}>
                                             <Settings24Regular />
                                             <span>{t("developerSettings")}</span>
@@ -121,8 +108,6 @@ const Layout = () => {
             <main className={styles.main} id="main-content">
                 <Outlet context={{ setRecentChatsAction, setDeveloperOptionsAction }} />
             </main>
-
-            <UploadManagerModal chatbotName="internal" isOpen={isUploadManagerOpen} onClose={() => setIsUploadManagerOpen(false)} />
         </div>
     );
 };

@@ -85,6 +85,11 @@
         "duplicateQueuedFile": "{{filename}} befindet sich bereits in der aktiven Warteschlange."
     },
     "developerSettings": "Entwicklereinstellungen",
+    "sourceBotSelection": {
+        "title": "Quell-Bot auswählen",
+        "description": "Öffnen Sie die Entwicklereinstellungen und wählen Sie den Bot aus, dessen Retrieval und Systemanweisungen der Internal Bot verwenden soll.",
+        "placeholder": "Wählen Sie zuerst in den Entwicklereinstellungen einen Quell-Bot aus"
+    },
     "disclaimer": {
         "label": "Wichtiger Hinweis",
         "message": "KI-gestützter Assistent. Antworten werden automatisiert aus den bereitgestellten Inhalten generiert, verbindlich sind offizielle Quellen.",
@@ -136,17 +141,13 @@
         "minimumSearchScore": "Minimale Suchpunktzahl",
         "minimumRerankerScore": "Minimale Neuranker-Punktzahl",
         "retrieveCount": "Anzahl der abzurufenden Suchergebnisse:",
+        "sourceBot": "Quell-Bot",
         "agenticReasoningEffort": "Rückfrage-Ressourceneinsatz",
         "agenticReasoningEffortOptions": {
             "minimal": "Minimal",
             "low": "Gering",
             "medium": "Mittel"
         },
-        "includeCategory": "Kategorie einschließen",
-        "includeCategoryOptions": {
-            "all": "Alle"
-        },
-        "excludeCategory": "Kategorie ausschließen",
         "useSemanticRanker": "Semantischen Ranker verwenden",
         "useSemanticCaptions": "Semantische Beschriftungen verwenden",
         "useQueryRewriting": "Abfrageumschreibung verwenden",
@@ -196,9 +197,8 @@
         "searchScore": "Legt die minimale Punktzahl für Suchergebnisse aus Azure AI Search fest. Der Bereich hängt vom gewählten Modus ab (Hybrid, Vektoren, Text).",
         "rerankerScore": "Legt die minimale Punktzahl des semantischen Rankers fest. Werte zwischen 0-4, höher = relevanter.",
         "retrieveNumber": "Anzahl der Suchergebnisse, die von Azure AI Search abgerufen werden. Mehr Ergebnisse erhöhen Chancen auf korrekte Antwort, können aber Ablenkung verursachen.",
+        "sourceBot": "Legt fest, welchen bestehenden Chatbot der Internal Bot für Prompt, Retrieval-Kategorie und Zitate verwenden soll.",
         "agenticReasoningEffort": "Steuert, wie viel Agent reasoning bei Multi-Query-Plänen verwendet. Höherer Aufwand = bessere Recall, aber mehr Token und Latenz.",
-        "includeCategory": "Kategorie für Suchergebnisse einschließen. Standard-Dataset hat keine Kategorien.",
-        "excludeCategory": "Kategorie von Suchergebnissen ausschließen. Standard-Dataset hat keine Kategorien.",
         "useSemanticReranker": "Aktiviert semantisches Ranking der Suchergebnisse basierend auf Ähnlichkeit zur Nutzeranfrage.",
         "useSemanticCaptions": "Semantische Beschriftungen anstelle kompletter Ergebnisse an LLM senden.",
         "useQueryRewriting": "Abfrageumschreibung aktivieren, um Suchergebnisse zu verbessern. Semantischer Ranker erforderlich.",

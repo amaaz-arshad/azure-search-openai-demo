@@ -138,6 +138,51 @@ async def test_chathistory_newitem(auth_public_documents_client, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_chathistory_newitem_internal_requires_source_chatbot(auth_public_documents_client):
+    response = await auth_public_documents_client.post(
+        "/chat_history",
+        headers={"Authorization": "Bearer MockToken"},
+        json={
+            "id": "123",
+            "chatbot_name": "internal",
+            "answers": [["This is a test message", "This is a test answer"]],
+        },
+    )
+
+    assert response.status_code == 400
+    assert await response.get_json() == {"error": "Internal Bot requires a valid source bot selection."}
+
+
+@pytest.mark.asyncio
+async def test_chathistory_newitem_internal_stores_source_chatbot(auth_public_documents_client, monkeypatch):
+
+    async def mock_execute_item_batch(container_proxy, **kwargs):
+        partition_key = kwargs["partition_key"]
+        assert partition_key == ["OID_X", "123"]
+        operations = kwargs["batch_operations"]
+        session = operations[0][1][0]
+        assert session["chatbot_name"] == "internal"
+        assert session["source_chatbot"] == "lemon"
+        message = operations[1][1][0]
+        assert message["chatbot_name"] == "internal"
+
+    monkeypatch.setattr(ContainerProxy, "execute_item_batch", mock_execute_item_batch)
+
+    response = await auth_public_documents_client.post(
+        "/chat_history",
+        headers={"Authorization": "Bearer MockToken"},
+        json={
+            "id": "123",
+            "chatbot_name": "internal",
+            "answers": [["This is a test message", "This is a test answer"]],
+            "metadata": {"source_chatbot": "lemon"},
+        },
+    )
+
+    assert response.status_code == 201
+
+
+@pytest.mark.asyncio
 async def test_chathistory_newitem_public_test_user_scope(auth_public_documents_client, monkeypatch):
     public_test_history_user_id = f"public-test:{hashlib.sha256('person@example.com'.encode('utf-8')).hexdigest()}"
 
@@ -280,7 +325,53 @@ async def test_chathistory_query(auth_public_documents_client, monkeypatch, snap
     )
     assert response.status_code == 200
     result = await response.get_json()
+    assert result["sessions"][0]["metadata"] is None
+    result["sessions"][0].pop("metadata", None)
     snapshot.assert_match(json.dumps(result, indent=4), "result.json")
+
+
+@pytest.mark.asyncio
+async def test_chathistory_query_internal_filters_legacy_sessions_and_returns_metadata(auth_public_documents_client, monkeypatch):
+
+    def mock_query_items(container_proxy, query, **kwargs):
+        assert "c.chatbot_name = @chatbot_name" in query
+        assert "IS_DEFINED(c.source_chatbot)" in query
+        assert kwargs["parameters"][2]["value"] == "internal"
+        return MockCosmosDBResultsIterator(
+            [
+                [
+                    {
+                        "id": "123",
+                        "session_id": "123",
+                        "entra_oid": "OID_X",
+                        "title": "This is a test message",
+                        "timestamp": 123456789,
+                        "type": "session",
+                        "source_chatbot": "lemon",
+                    }
+                ]
+            ]
+        )
+
+    monkeypatch.setattr(ContainerProxy, "query_items", mock_query_items)
+
+    response = await auth_public_documents_client.get(
+        "/chat_history/sessions?count=20&chatbot_name=internal",
+        headers={"Authorization": "Bearer MockToken"},
+    )
+    assert response.status_code == 200
+    assert await response.get_json() == {
+        "sessions": [
+            {
+                "id": "123",
+                "entra_oid": "OID_X",
+                "title": "This is a test message",
+                "timestamp": 123456789,
+                "metadata": {"source_chatbot": "lemon"},
+            }
+        ],
+        "continuation_token": "next",
+    }
 
 
 @pytest.mark.asyncio
@@ -304,7 +395,10 @@ async def test_chathistory_query_public_test_user_scope(auth_public_documents_cl
 
     monkeypatch.setattr(ContainerProxy, "query_items", mock_query_items)
 
-    response = await auth_public_documents_client.get("/chat_history/sessions?count=20&chatbot_name=free")
+    response = await auth_public_documents_client.get(
+        "/chat_history/sessions?count=20&chatbot_name=free",
+        headers={"Authorization": "Bearer MockToken"},
+    )
     assert response.status_code == 200
 
 
@@ -390,9 +484,15 @@ async def test_chathistory_query_error_runtime(auth_public_documents_client, mon
 @pytest.mark.asyncio
 async def test_chathistory_getitem(auth_public_documents_client, monkeypatch, snapshot):
 
+    query_count = 0
+
     def mock_query_items(container_proxy, query, **kwargs):
+        nonlocal query_count
+        query_count += 1
         assert "c.chatbot_name = @chatbot_name" in query
         assert kwargs["parameters"][2]["value"] == "demo"
+        if query_count == 1:
+            return MockCosmosDBResultsIterator([[{"source_chatbot": None}]])
         return MockCosmosDBResultsIterator(for_message_pairs_query)
 
     monkeypatch.setattr(ContainerProxy, "query_items", mock_query_items)
@@ -403,10 +503,69 @@ async def test_chathistory_getitem(auth_public_documents_client, monkeypatch, sn
     )
     assert response.status_code == 200
     result = await response.get_json()
+    assert result["metadata"] is None
+    result.pop("metadata", None)
     snapshot.assert_match(json.dumps(result, indent=4), "result.json")
 
 
-# Error handling tests for getting an individual chat history item
+@pytest.mark.asyncio
+async def test_chathistory_getitem_internal_returns_metadata(auth_public_documents_client, monkeypatch):
+
+    query_count = 0
+
+    def mock_query_items(container_proxy, query, **kwargs):
+        nonlocal query_count
+        query_count += 1
+        assert kwargs["parameters"][2]["value"] == "internal"
+        if query_count == 1:
+            assert "SELECT c.source_chatbot" in query
+            return MockCosmosDBResultsIterator([[{"source_chatbot": "lemon"}]])
+        return MockCosmosDBResultsIterator(for_message_pairs_query)
+
+    monkeypatch.setattr(ContainerProxy, "query_items", mock_query_items)
+
+    response = await auth_public_documents_client.get(
+        "/chat_history/sessions/123?chatbot_name=internal",
+        headers={"Authorization": "Bearer MockToken"},
+    )
+    assert response.status_code == 200
+    assert await response.get_json() == {
+        "id": "123",
+        "entra_oid": "OID_X",
+        "answers": [
+            [
+                "What does a Product Manager do?",
+                {
+                    "delta": {"role": "assistant"},
+                    "session_state": "143c0240-b2ee-4090-8e90-2a1c58124894",
+                    "message": {
+                        "content": "A Product Manager is responsible for leading the product management team and providing guidance on product strategy, design, development, and launch. They collaborate with internal teams and external partners to ensure successful product execution. They also develop and implement product life-cycle management processes, monitor industry trends, develop product marketing plans, research customer needs, collaborate with internal teams, develop pricing strategies, oversee product portfolio, analyze product performance, and identify areas for improvement [role_library.pdf#page=29][role_library.pdf#page=12][role_library.pdf#page=23].",
+                        "role": "assistant",
+                    },
+                },
+            ]
+        ],
+        "metadata": {"source_chatbot": "lemon"},
+    }
+
+
+@pytest.mark.asyncio
+async def test_chathistory_getitem_internal_legacy_session_returns_404(auth_public_documents_client, monkeypatch):
+
+    def mock_query_items(container_proxy, query, **kwargs):
+        assert kwargs["parameters"][2]["value"] == "internal"
+        return MockCosmosDBResultsIterator([[{"source_chatbot": None}]])
+
+    monkeypatch.setattr(ContainerProxy, "query_items", mock_query_items)
+
+    response = await auth_public_documents_client.get(
+        "/chat_history/sessions/123?chatbot_name=internal",
+        headers={"Authorization": "Bearer MockToken"},
+    )
+    assert response.status_code == 404
+    assert await response.get_json() == {"error": "Chat history session not found"}
+
+
 @pytest.mark.asyncio
 async def test_chathistory_getitem_error_disabled(client, monkeypatch):
 
@@ -438,10 +597,10 @@ async def test_chathistory_getitem_error_entra(auth_public_documents_client, mon
 @pytest.mark.asyncio
 async def test_chathistory_getitem_error_runtime(auth_public_documents_client, monkeypatch):
 
-    async def mock_read_item(container_proxy, item, partition_key, **kwargs):
+    def mock_query_items(container_proxy, query, **kwargs):
         raise Exception("Test Exception")
 
-    monkeypatch.setattr(ContainerProxy, "read_item", mock_read_item)
+    monkeypatch.setattr(ContainerProxy, "query_items", mock_query_items)
 
     response = await auth_public_documents_client.get(
         "/chat_history/sessions/123",

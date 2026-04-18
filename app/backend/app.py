@@ -205,6 +205,8 @@ PUBLIC_TEST_CHATBOT_NAME = "free"
 FREE_CHATBOT_ROUTE_NAME = "free"
 RAK_CHATBOT_NAME = "rak"
 RAK_ALLOWED_USERNAMES = frozenset({"12345", "67890"})
+INTERNAL_ROUTER_CHATBOT_NAME = "internal"
+INTERNAL_INVALID_SOURCE_BOTS = frozenset({INTERNAL_ROUTER_CHATBOT_NAME, PUBLIC_TEST_CHATBOT_NAME, RAK_CHATBOT_NAME})
 
 NON_CHATBOT_FRONTEND_PREFIXES = {
     "assets",
@@ -266,6 +268,32 @@ DEVELOPER_CHAT_MODELS = (
 DEFAULT_DEVELOPER_CHAT_MODEL = "gpt-4.1-mini"
 
 
+def get_request_route_chatbot_name() -> str | None:
+    header_chatbot_name = normalize_chatbot_name(request.headers.get("X-Chatbot-Name"))
+    if header_chatbot_name in KNOWN_CHATBOT_NAMES:
+        return header_chatbot_name
+
+    referer = request.headers.get("Referer")
+    if referer:
+        referer_first_segment = normalize_chatbot_name(urlparse(referer).path.strip("/").split("/", 1)[0])
+        if referer_first_segment in KNOWN_CHATBOT_NAMES:
+            return referer_first_segment
+
+    return None
+
+
+def get_internal_source_bot_options() -> list[dict[str, str]]:
+    return [
+        {"id": chatbot_name, "label": chatbot_name}
+        for chatbot_name in sorted(get_registered_chatbot_names())
+        if chatbot_name not in INTERNAL_INVALID_SOURCE_BOTS
+    ]
+
+
+def get_internal_allowed_source_bot_names() -> set[str]:
+    return {entry["id"] for entry in get_internal_source_bot_options()}
+
+
 def get_chatbot_upload_manager(chatbot_name: str) -> ChatbotUploadStrategy:
     managers: dict[str, ChatbotUploadStrategy] = current_app.config.get(CONFIG_CHATBOT_UPLOAD_MANAGERS, {})
     normalized_chatbot_name = normalize_chatbot_name(chatbot_name) or chatbot_name.strip().lower()
@@ -322,16 +350,32 @@ def normalize_chatbot_request_overrides(request_json: dict[str, Any]) -> None:
 
     context = request_json.get("context")
     if not isinstance(context, dict):
-        return
+        context = {}
+        request_json["context"] = context
 
     overrides = context.get("overrides")
     if not isinstance(overrides, dict):
-        return
+        overrides = {}
+        context["overrides"] = overrides
 
     for key in ("include_category", "exclude_category"):
         raw_value = overrides.get(key)
         if isinstance(raw_value, str):
             overrides[key] = normalize_chatbot_category_list(raw_value)
+
+    if get_request_route_chatbot_name() != INTERNAL_ROUTER_CHATBOT_NAME:
+        return
+
+    raw_source_chatbot = overrides.get("source_chatbot")
+    normalized_source_chatbot = normalize_chatbot_name(raw_source_chatbot) if isinstance(raw_source_chatbot, str) else None
+    if normalized_source_chatbot is None:
+        raise ValueError("Internal Bot requires a source bot selection.")
+    if normalized_source_chatbot not in get_internal_allowed_source_bot_names():
+        raise ValueError("Internal Bot source bot is invalid.")
+
+    overrides["source_chatbot"] = normalized_source_chatbot
+    overrides["include_category"] = normalized_source_chatbot
+    overrides.pop("exclude_category", None)
 
 
 def build_chat_model_deployments(default_model: str, default_deployment: str | None) -> dict[str, str | None]:
@@ -425,15 +469,9 @@ def resolve_requested_chatbot_name(request_json: dict[str, Any] | None = None, *
     if requested_chatbot_name:
         return requested_chatbot_name
 
-    header_chatbot_name = normalize_chatbot_name(request.headers.get("X-Chatbot-Name"))
-    if header_chatbot_name in KNOWN_CHATBOT_NAMES:
-        return header_chatbot_name
-
-    referer = request.headers.get("Referer")
-    if referer:
-        referer_first_segment = normalize_chatbot_name(urlparse(referer).path.strip("/").split("/", 1)[0])
-        if referer_first_segment in KNOWN_CHATBOT_NAMES:
-            return referer_first_segment
+    route_chatbot_name = get_request_route_chatbot_name()
+    if route_chatbot_name in KNOWN_CHATBOT_NAMES:
+        return route_chatbot_name
 
     return DEFAULT_CHATBOT_NAME if fallback_to_default else None
 
@@ -1154,8 +1192,11 @@ async def chat(auth_claims: dict[str, Any]):
     if not request.is_json:
         return jsonify({"error": "request must be json"}), 415
     request_json = await request.get_json()
-    normalize_chatbot_request_overrides(request_json)
     error_context = get_request_error_context(request_json)
+    try:
+        normalize_chatbot_request_overrides(request_json)
+    except ValueError as error:
+        return jsonify({"error": str(error)}), 400
     context = request_json.get("context", {})
     requested_chatbot_name = await apply_saved_chatbot_prompt_override(request_json)
     if requested_chatbot_name in {PUBLIC_TEST_CHATBOT_NAME, RAK_CHATBOT_NAME}:
@@ -1193,8 +1234,11 @@ async def chat_stream(auth_claims: dict[str, Any]):
     if not request.is_json:
         return jsonify({"error": "request must be json"}), 415
     request_json = await request.get_json()
-    normalize_chatbot_request_overrides(request_json)
     error_context = get_request_error_context(request_json)
+    try:
+        normalize_chatbot_request_overrides(request_json)
+    except ValueError as error:
+        return jsonify({"error": str(error)}), 400
     context = request_json.get("context", {})
     requested_chatbot_name = await apply_saved_chatbot_prompt_override(request_json)
     if requested_chatbot_name in {PUBLIC_TEST_CHATBOT_NAME, RAK_CHATBOT_NAME}:
@@ -1266,6 +1310,7 @@ def config():
             "ragSendImageSources": current_app.config[CONFIG_RAG_SEND_IMAGE_SOURCES],
             "webSourceEnabled": current_app.config[CONFIG_WEB_SOURCE_ENABLED],
             "sharepointSourceEnabled": current_app.config[CONFIG_SHAREPOINT_SOURCE_ENABLED],
+            "internalSourceBots": get_internal_source_bot_options(),
         }
     )
 
@@ -1942,14 +1987,6 @@ async def setup_clients():
     current_app.config[CONFIG_CHATBOT_UPLOAD_MANAGERS] = {
         "demo": ChatbotUploadStrategy(
             chatbot_name="demo",
-            search_info=chatbot_upload_search_info,
-            file_processors=chatbot_upload_file_processors,
-            embeddings=chatbot_upload_embeddings,
-            search_field_name_embedding=AZURE_SEARCH_FIELD_NAME_EMBEDDING,
-            blob_manager=global_blob_manager,
-        ),
-        "internal": ChatbotUploadStrategy(
-            chatbot_name="internal",
             search_info=chatbot_upload_search_info,
             file_processors=chatbot_upload_file_processors,
             embeddings=chatbot_upload_embeddings,

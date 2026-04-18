@@ -33,11 +33,6 @@ def test_chatbot_config_registry_loads_known_configs() -> None:
     assert lemon.prompt_mode == "override"
     assert lemon.support_email == "info@lemon-systems.de"
 
-    internal = get_chatbot_config("internal")
-    assert internal is not None
-    assert internal.prompt_mode == "override"
-    assert internal.support_email == "info@lemon-systems.de"
-
 
 def test_chatbot_config_registry_returns_defaults_for_unknown_chatbots() -> None:
     load_chatbot_config.cache_clear()
@@ -52,4 +47,6 @@ def test_load_all_chatbot_configs_discovers_only_bots_with_config_files() -> Non
 
     configs = load_all_chatbot_configs()
 
+    assert "internal" not in get_registered_chatbot_names()
+    assert "internal" not in configs
     assert set(get_registered_chatbot_names()) == set(configs.keys())

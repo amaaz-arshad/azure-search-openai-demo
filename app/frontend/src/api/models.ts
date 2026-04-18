@@ -6,6 +6,7 @@ export const enum RetrievalMode {
 
 export type ChatAppRequestOverrides = {
     chat_model?: string;
+    source_chatbot?: string;
     retrieval_mode?: RetrievalMode;
     semantic_ranker?: boolean;
     semantic_captions?: boolean;
@@ -111,6 +112,7 @@ export type ChatAppRequest = {
 
 export type Config = {
     availableChatModels?: string[];
+    internalSourceBots?: { id: string; label: string }[];
     defaultChatModel?: string;
     defaultReasoningEffort: string;
     defaultRetrievalReasoningEffort: string;
@@ -156,6 +158,7 @@ export type HistoryListApiResponse = {
         entra_oid: string;
         title: string;
         timestamp: number;
+        metadata?: Record<string, any> | null;
     }[];
     continuation_token?: string;
 };
@@ -164,4 +167,5 @@ export type HistoryApiResponse = {
     id: string;
     entra_oid: string;
     answers: any;
+    metadata?: Record<string, any> | null;
 };

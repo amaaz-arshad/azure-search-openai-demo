@@ -1,8 +1,6 @@
 import {
-    chatApi as lemonChatApi,
     configApi as lemonConfigApi,
     deleteChatHistoryApi,
-    getCitationFilePath,
     getChatHistoryApi,
     getChatHistoryListApi,
     getHeaders,
@@ -14,6 +12,8 @@ import {
 } from "../../lemon/api/api";
 import type { ChatAppRequest, Config } from "./models";
 
+const BACKEND_URI = "";
+
 export async function configApi(): Promise<Config> {
     return (await lemonConfigApi()) as Config;
 }
@@ -24,13 +24,33 @@ export async function chatApi(
     idToken: string | undefined,
     signal: AbortSignal
 ): Promise<Response> {
-    return lemonChatApi(request as any, shouldStream, idToken, signal);
+    let url = `${BACKEND_URI}/chat`;
+    if (shouldStream) {
+        url += "/stream";
+    }
+    const headers = await getHeaders(idToken);
+    return await fetch(url, {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json", "X-Chatbot-Name": "internal" },
+        body: JSON.stringify(request),
+        signal
+    });
+}
+
+export function getCitationFilePath(citation: string, sourceChatbot?: string): string {
+    const cleanedCitation = citation.replace(/\s*\(.*?\)\s*$/, "").trim();
+    const [pathWithoutFragment, fragment] = cleanedCitation.split("#", 2);
+    const fragmentSuffix = fragment ? `#${fragment}` : "";
+    if (!sourceChatbot) {
+        return `${BACKEND_URI}/content/${pathWithoutFragment}${fragmentSuffix}`;
+    }
+
+    return `${BACKEND_URI}/content/${sourceChatbot}/${pathWithoutFragment}${fragmentSuffix}`;
 }
 
 export {
     deleteChatHistoryApi,
     deleteUploadedFileApi,
-    getCitationFilePath,
     getChatHistoryApi,
     getChatHistoryListApi,
     getHeaders,

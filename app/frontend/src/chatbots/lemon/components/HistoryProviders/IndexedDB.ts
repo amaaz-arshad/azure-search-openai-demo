@@ -1,5 +1,5 @@
 import { IDBPDatabase, openDB } from "idb";
-import { IHistoryProvider, Answers, HistoryProviderOptions, HistoryMetaData } from "./IProvider";
+import { IHistoryProvider, Answers, HistoryProviderOptions, HistoryMetaData, HistorySessionMetadata } from "./IProvider";
 
 export class IndexedDBProvider implements IHistoryProvider {
     getProviderName = () => HistoryProviderOptions.IndexedDB;
@@ -74,16 +74,16 @@ export class IndexedDBProvider implements IHistoryProvider {
         return loadedItems;
     }
 
-    async addItem(id: string, answers: Answers): Promise<void> {
+    async addItem(id: string, answers: Answers, _idToken?: string, metadata?: HistorySessionMetadata): Promise<void> {
         const timestamp = new Date().getTime();
         const db = await this.init(); // 自動的に初期化
         const tx = db.transaction(this.storeName, "readwrite");
         const current = await tx.objectStore(this.storeName).get(id);
         if (current) {
-            await tx.objectStore(this.storeName).put({ ...current, id, timestamp, answers });
+            await tx.objectStore(this.storeName).put({ ...current, id, timestamp, answers, metadata });
         } else {
             const title = answers[0][0].length > 50 ? answers[0][0].substring(0, 50) + "..." : answers[0][0];
-            await tx.objectStore(this.storeName).add({ id, title, timestamp, answers });
+            await tx.objectStore(this.storeName).add({ id, title, timestamp, answers, metadata });
         }
         await tx.done;
         return;
@@ -93,7 +93,15 @@ export class IndexedDBProvider implements IHistoryProvider {
         const db = await this.init();
         const tx = db.transaction(this.storeName, "readonly");
         const item = await tx.objectStore(this.storeName).get(id);
-        return item ? item.answers : null;
+        if (!item) {
+            return null;
+        }
+
+        const answers = item.answers as Answers & { metadata?: HistorySessionMetadata | null };
+        if (item.metadata !== undefined) {
+            answers.metadata = item.metadata;
+        }
+        return answers;
     }
 
     async deleteItem(id: string): Promise<void> {

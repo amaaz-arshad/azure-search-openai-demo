@@ -176,7 +176,7 @@ def test_get_system_prompt_variables_uses_saved_prompt_with_injected_mode_for_in
     assert injected_prompt == "You are a saved prompt for info@snap.de. Keep {{N}} unchanged."
 
 
-@pytest.mark.parametrize("chatbot_name", ["lemon", "internal"])
+@pytest.mark.parametrize("chatbot_name", ["lemon"])
 def test_get_system_prompt_variables_renders_support_email_for_request_override_prompts(chat_approach, chatbot_name):
     variables = chat_approach.get_system_prompt_variables(
         "Please contact {{SUPPORT_EMAIL}} for assistance.",
@@ -186,7 +186,7 @@ def test_get_system_prompt_variables_renders_support_email_for_request_override_
     assert variables["override_prompt"] == "Please contact info@lemon-systems.de for assistance."
 
 
-@pytest.mark.parametrize("chatbot_name", ["lemon", "internal"])
+@pytest.mark.parametrize("chatbot_name", ["lemon"])
 def test_get_system_prompt_variables_renders_support_email_for_request_injected_prompts(chat_approach, chatbot_name):
     variables = chat_approach.get_system_prompt_variables(
         ">>>Please contact {{SUPPORT_EMAIL}} for assistance.",

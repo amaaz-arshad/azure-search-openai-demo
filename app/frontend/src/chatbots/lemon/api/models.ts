@@ -10,6 +10,7 @@ export type ChatAppRequestOverrides = {
     semantic_captions?: boolean;
     query_rewriting?: boolean;
     reasoning_effort?: string;
+    source_chatbot?: string;
     include_category?: string;
     exclude_category?: string;
     seed?: number;
@@ -131,6 +132,7 @@ export type Config = {
     ragSendImageSources: boolean;
     webSourceEnabled: boolean;
     sharepointSourceEnabled: boolean;
+    internalSourceBots?: { id: string; label: string }[];
 };
 
 export type SimpleAPIResponse = {
@@ -151,6 +153,7 @@ export type HistoryListApiResponse = {
         entra_oid: string;
         title: string;
         timestamp: number;
+        metadata?: Record<string, any> | null;
     }[];
     continuation_token?: string;
 };
@@ -159,4 +162,5 @@ export type HistoryApiResponse = {
     id: string;
     entra_oid: string;
     answers: any;
+    metadata?: Record<string, any> | null;
 };

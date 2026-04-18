@@ -3,30 +3,12 @@ import LanguageDetector from "i18next-browser-languagedetector";
 import HttpApi from "i18next-http-backend";
 import { initReactI18next } from "react-i18next";
 
-import daTranslation from "../locales/da/translation.json";
-import enTranslation from "../locales/en/translation.json";
-import esTranslation from "../locales/es/translation.json";
-import frTranslation from "../locales/fr/translation.json";
-import jaTranslation from "../locales/ja/translation.json";
-import nlTranslation from "../locales/nl/translation.json";
-import ptBRTranslation from "../locales/ptBR/translation.json";
-import trTranslation from "../locales/tr/translation.json";
-import itTranslation from "../locales/it/translation.json";
-import plTranslation from "../locales/pl/translation.json";
 import deTranslation from "../locales/de/translation.json";
-
-/* =======================
-   🔍 BROWSER LANGUAGE LOGS
-   ======================= */
-console.log("navigator.language:", navigator.language);
-console.log("navigator.languages:", navigator.languages);
+import enTranslation from "../locales/en/translation.json";
+import nlTranslation from "../locales/nl/translation.json";
 
 export const supportedLngs: { [key: string]: { name: string; locale: string } } = {
     de: {
-        name: "Deutsch",
-        locale: "de-DE"
-    },
-    "de-DE": {
         name: "Deutsch",
         locale: "de-DE"
     },
@@ -37,98 +19,27 @@ export const supportedLngs: { [key: string]: { name: string; locale: string } } 
     nl: {
         name: "Nederlands",
         locale: "nl-NL"
-    },
-    "nl-NL": {
-        name: "Nederlands",
-        locale: "nl-NL"
-    },
-    "nl-BE": {
-        name: "Nederlands (België)",
-        locale: "nl-BE"
     }
-    // da: {
-    //     name: "Dansk",
-    //     locale: "da-DK"
-    // },
-    // es: {
-    //     name: "Español",
-    //     locale: "es-ES"
-    // },
-    // fr: {
-    //     name: "Français",
-    //     locale: "fr-FR"
-    // },
-    // ja: {
-    //     name: "日本語",
-    //     locale: "ja-JP"
-    // },
-    //     ptBR: {
-    //         name: "Português Brasileiro",
-    //         locale: "pt-BR"
-    //     },
-    //     tr: {
-    //         name: "Türkçe",
-    //         locale: "tr-TR"
-    //     },
-    //     it: {
-    //         name: "Italiano",
-    //         locale: "it-IT"
-    //     },
-    //     pl: {
-    //         name: "Polski",
-    //         locale: "pl-PL"
-    //     }
 };
 
 const i18next = createInstance();
 
-i18next
-    .use(HttpApi)
-    .use(LanguageDetector)
-    .use(initReactI18next)
-    // init i18next
-    // for all options read: https://www.i18next.com/overview/configuration-options
-    .init({
-        resources: {
-            de: { translation: deTranslation },
-            en: { translation: enTranslation },
-            nl: { translation: nlTranslation }
-            // da: { translation: daTranslation },
-            // es: { translation: esTranslation },
-            // fr: { translation: frTranslation },
-            // ja: { translation: jaTranslation },
-            // ptBR: { translation: ptBRTranslation },
-            // tr: { translation: trTranslation },
-            // it: { translation: itTranslation },
-            // pl: { translation: plTranslation }
-        },
-        supportedLngs: Object.keys(supportedLngs),
-        fallbackLng: "en",
-        load: "languageOnly",
-        detection: {
-            order: ["navigator"], // ONLY navigator
-            caches: [] // NO cookies / localStorage
-        },
-        interpolation: {
-            escapeValue: false
-        }
-    });
-
-/* =======================
-   🔍 I18NEXT RESOLUTION LOGS
-   ======================= */
-i18next.on("initialized", () => {
-    console.log("i18next resolved language:", i18next.language);
-    console.log("i18next language chain:", i18next.languages);
-
-    const detector = i18next.services.languageDetector;
-    if (detector) {
-        console.log("languageDetector.detect():", detector.detect());
+i18next.use(HttpApi).use(LanguageDetector).use(initReactI18next).init({
+    resources: {
+        de: { translation: deTranslation },
+        en: { translation: enTranslation },
+        nl: { translation: nlTranslation }
+    },
+    supportedLngs: Object.keys(supportedLngs),
+    fallbackLng: "en",
+    load: "languageOnly",
+    detection: {
+        order: ["navigator"],
+        caches: []
+    },
+    interpolation: {
+        escapeValue: false
     }
-});
-
-i18next.on("languageChanged", lng => {
-    console.log("languageChanged →", lng);
 });
 
 export default i18next;
