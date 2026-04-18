@@ -1,0 +1,773 @@
+{
+  "nodes": [
+    {
+      "id": "figure_processor_function_app",
+      "label": "Figure Processor Function App",
+      "file_type": "code",
+      "source_file": "app/functions/figure_processor/function_app.py",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "figure_processor_http_trigger",
+      "label": "process_figure HTTP Trigger",
+      "file_type": "code",
+      "source_file": "app/functions/figure_processor/function_app.py",
+      "source_location": "line 127-188",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "figure_processor_global_settings",
+      "label": "Figure Processor GlobalSettings",
+      "file_type": "code",
+      "source_file": "app/functions/figure_processor/function_app.py",
+      "source_location": "line 39-44",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "figure_processor_configure_global_settings",
+      "label": "Figure Processor configure_global_settings",
+      "file_type": "code",
+      "source_file": "app/functions/figure_processor/function_app.py",
+      "source_location": "line 49-124",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "moodle_auto_indexer_function_app",
+      "label": "Moodle Auto Indexer Function App",
+      "file_type": "code",
+      "source_file": "app/functions/moodle_auto_indexer/function_app.py",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "moodle_auto_indexer_feed_definition",
+      "label": "FeedDefinition dataclass",
+      "file_type": "code",
+      "source_file": "app/functions/moodle_auto_indexer/function_app.py",
+      "source_location": "line 39-49",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "moodle_auto_indexer_moodle_trigger",
+      "label": "moodle_auto_index Event Grid Trigger",
+      "file_type": "code",
+      "source_file": "app/functions/moodle_auto_indexer/function_app.py",
+      "source_location": "line 264-271",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "moodle_auto_indexer_moodle_delete_trigger",
+      "label": "moodle_delete_sync Event Grid Trigger",
+      "file_type": "code",
+      "source_file": "app/functions/moodle_auto_indexer/function_app.py",
+      "source_location": "line 274-281",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "moodle_auto_indexer_publishone_trigger",
+      "label": "publishone_auto_index Event Grid Trigger",
+      "file_type": "code",
+      "source_file": "app/functions/moodle_auto_indexer/function_app.py",
+      "source_location": "line 284-291",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "moodle_auto_indexer_publishone_delete_trigger",
+      "label": "publishone_delete_sync Event Grid Trigger",
+      "file_type": "code",
+      "source_file": "app/functions/moodle_auto_indexer/function_app.py",
+      "source_location": "line 294-301",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "moodle_auto_indexer_build_auto_indexer",
+      "label": "build_auto_indexer helper",
+      "file_type": "code",
+      "source_file": "app/functions/moodle_auto_indexer/function_app.py",
+      "source_location": "line 96-134",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "moodle_auto_indexer_handle_create_event",
+      "label": "handle_create_event",
+      "file_type": "code",
+      "source_file": "app/functions/moodle_auto_indexer/function_app.py",
+      "source_location": "line 137-159",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "moodle_auto_indexer_handle_delete_event",
+      "label": "handle_delete_event",
+      "file_type": "code",
+      "source_file": "app/functions/moodle_auto_indexer/function_app.py",
+      "source_location": "line 162-182",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "moodle_auto_indexer_configure_global_settings",
+      "label": "Moodle Auto Indexer configure_global_settings",
+      "file_type": "code",
+      "source_file": "app/functions/moodle_auto_indexer/function_app.py",
+      "source_location": "line 185-261",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "prepdocslib_duplicate_trees",
+      "label": "prepdocslib duplicate trees (under app/functions)",
+      "file_type": "code",
+      "source_file": "app/functions",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "backend_prepdocslib_module",
+      "label": "backend prepdocslib module (canonical)",
+      "file_type": "code",
+      "source_file": "app/backend/prepdocslib",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "document_extractor_prepdocslib_tree",
+      "label": "document_extractor prepdocslib duplicate",
+      "file_type": "code",
+      "source_file": "app/functions/document_extractor/prepdocslib",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "figure_processor_prepdocslib_tree",
+      "label": "figure_processor prepdocslib duplicate",
+      "file_type": "code",
+      "source_file": "app/functions/figure_processor/prepdocslib",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "prepdocslib_blobmanager_class_ref",
+      "label": "BlobManager (prepdocslib.blobmanager)",
+      "file_type": "code",
+      "source_file": "app/functions/figure_processor/prepdocslib/blobmanager.py",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "prepdocslib_image_embeddings_class_ref",
+      "label": "ImageEmbeddings (prepdocslib.embeddings)",
+      "file_type": "code",
+      "source_file": "app/functions/figure_processor/prepdocslib/embeddings.py",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "prepdocslib_figure_processor_class_ref",
+      "label": "FigureProcessor (prepdocslib.figureprocessor)",
+      "file_type": "code",
+      "source_file": "app/functions/figure_processor/prepdocslib/figureprocessor.py",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "prepdocslib_process_page_image_ref",
+      "label": "process_page_image (prepdocslib.figureprocessor)",
+      "file_type": "code",
+      "source_file": "app/functions/figure_processor/prepdocslib/figureprocessor.py",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "prepdocslib_image_on_page_ref",
+      "label": "ImageOnPage (prepdocslib.page)",
+      "file_type": "code",
+      "source_file": "app/functions/figure_processor/prepdocslib/page.py",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "prepdocslib_servicesetup_ref",
+      "label": "servicesetup helpers (prepdocslib.servicesetup)",
+      "file_type": "code",
+      "source_file": "app/functions/figure_processor/prepdocslib/servicesetup.py",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "prepdocslib_auto_blob_indexer_ref",
+      "label": "AutoBlobIndexer (prepdocslib.blobautoindex)",
+      "file_type": "code",
+      "source_file": "app/functions/moodle_auto_indexer/prepdocslib/blobautoindex.py",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "prepdocslib_publishone_feed_ref",
+      "label": "build_publishone_feed_sections (prepdocslib.publishonefeed)",
+      "file_type": "code",
+      "source_file": "app/functions/moodle_auto_indexer/prepdocslib/publishonefeed.py",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "prepdocslib_search_manager_ref",
+      "label": "SearchManager (prepdocslib.searchmanager)",
+      "file_type": "code",
+      "source_file": "app/functions/moodle_auto_indexer/prepdocslib/searchmanager.py",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "azure_search_custom_skill_event_source",
+      "label": "Azure AI Search Custom Skill (HTTP POST)",
+      "file_type": "code",
+      "source_file": "app/functions/figure_processor/function_app.py",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "azure_event_grid_blob_event_source",
+      "label": "Azure Event Grid Blob Storage Events",
+      "file_type": "code",
+      "source_file": "app/functions/moodle_auto_indexer/function_app.py",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    }
+  ],
+  "edges": [
+    {
+      "source": "figure_processor_function_app",
+      "target": "figure_processor_http_trigger",
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/figure_processor/function_app.py",
+      "source_location": "line 127-128",
+      "weight": 1.0
+    },
+    {
+      "source": "figure_processor_http_trigger",
+      "target": "azure_search_custom_skill_event_source",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.95,
+      "source_file": "app/functions/figure_processor/function_app.py",
+      "source_location": "line 130",
+      "weight": 1.0
+    },
+    {
+      "source": "figure_processor_function_app",
+      "target": "figure_processor_global_settings",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/figure_processor/function_app.py",
+      "source_location": "line 46",
+      "weight": 1.0
+    },
+    {
+      "source": "figure_processor_function_app",
+      "target": "figure_processor_configure_global_settings",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/figure_processor/function_app.py",
+      "source_location": "line 194",
+      "weight": 1.0
+    },
+    {
+      "source": "figure_processor_configure_global_settings",
+      "target": "prepdocslib_blobmanager_class_ref",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/figure_processor/function_app.py",
+      "source_location": "line 78-83",
+      "weight": 1.0
+    },
+    {
+      "source": "figure_processor_configure_global_settings",
+      "target": "prepdocslib_figure_processor_class_ref",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/figure_processor/function_app.py",
+      "source_location": "line 103-111",
+      "weight": 1.0
+    },
+    {
+      "source": "figure_processor_configure_global_settings",
+      "target": "prepdocslib_image_embeddings_class_ref",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/figure_processor/function_app.py",
+      "source_location": "line 116",
+      "weight": 1.0
+    },
+    {
+      "source": "figure_processor_configure_global_settings",
+      "target": "prepdocslib_servicesetup_ref",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/figure_processor/function_app.py",
+      "source_location": "line 26-31",
+      "weight": 1.0
+    },
+    {
+      "source": "figure_processor_http_trigger",
+      "target": "prepdocslib_image_on_page_ref",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/figure_processor/function_app.py",
+      "source_location": "line 156",
+      "weight": 1.0
+    },
+    {
+      "source": "figure_processor_http_trigger",
+      "target": "prepdocslib_process_page_image_ref",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/figure_processor/function_app.py",
+      "source_location": "line 157-163",
+      "weight": 1.0
+    },
+    {
+      "source": "moodle_auto_indexer_function_app",
+      "target": "moodle_auto_indexer_moodle_trigger",
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/moodle_auto_indexer/function_app.py",
+      "source_location": "line 264-271",
+      "weight": 1.0
+    },
+    {
+      "source": "moodle_auto_indexer_function_app",
+      "target": "moodle_auto_indexer_moodle_delete_trigger",
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/moodle_auto_indexer/function_app.py",
+      "source_location": "line 274-281",
+      "weight": 1.0
+    },
+    {
+      "source": "moodle_auto_indexer_function_app",
+      "target": "moodle_auto_indexer_publishone_trigger",
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/moodle_auto_indexer/function_app.py",
+      "source_location": "line 284-291",
+      "weight": 1.0
+    },
+    {
+      "source": "moodle_auto_indexer_function_app",
+      "target": "moodle_auto_indexer_publishone_delete_trigger",
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/moodle_auto_indexer/function_app.py",
+      "source_location": "line 294-301",
+      "weight": 1.0
+    },
+    {
+      "source": "moodle_auto_indexer_moodle_trigger",
+      "target": "azure_event_grid_blob_event_source",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.95,
+      "source_file": "app/functions/moodle_auto_indexer/function_app.py",
+      "source_location": "line 265",
+      "weight": 1.0
+    },
+    {
+      "source": "moodle_auto_indexer_moodle_delete_trigger",
+      "target": "azure_event_grid_blob_event_source",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.95,
+      "source_file": "app/functions/moodle_auto_indexer/function_app.py",
+      "source_location": "line 275",
+      "weight": 1.0
+    },
+    {
+      "source": "moodle_auto_indexer_publishone_trigger",
+      "target": "azure_event_grid_blob_event_source",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.95,
+      "source_file": "app/functions/moodle_auto_indexer/function_app.py",
+      "source_location": "line 285",
+      "weight": 1.0
+    },
+    {
+      "source": "moodle_auto_indexer_publishone_delete_trigger",
+      "target": "azure_event_grid_blob_event_source",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.95,
+      "source_file": "app/functions/moodle_auto_indexer/function_app.py",
+      "source_location": "line 295",
+      "weight": 1.0
+    },
+    {
+      "source": "moodle_auto_indexer_moodle_trigger",
+      "target": "moodle_auto_indexer_handle_create_event",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/moodle_auto_indexer/function_app.py",
+      "source_location": "line 268",
+      "weight": 1.0
+    },
+    {
+      "source": "moodle_auto_indexer_publishone_trigger",
+      "target": "moodle_auto_indexer_handle_create_event",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/moodle_auto_indexer/function_app.py",
+      "source_location": "line 288",
+      "weight": 1.0
+    },
+    {
+      "source": "moodle_auto_indexer_moodle_delete_trigger",
+      "target": "moodle_auto_indexer_handle_delete_event",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/moodle_auto_indexer/function_app.py",
+      "source_location": "line 278",
+      "weight": 1.0
+    },
+    {
+      "source": "moodle_auto_indexer_publishone_delete_trigger",
+      "target": "moodle_auto_indexer_handle_delete_event",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/moodle_auto_indexer/function_app.py",
+      "source_location": "line 298",
+      "weight": 1.0
+    },
+    {
+      "source": "moodle_auto_indexer_function_app",
+      "target": "moodle_auto_indexer_configure_global_settings",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/moodle_auto_indexer/function_app.py",
+      "source_location": "line 306",
+      "weight": 1.0
+    },
+    {
+      "source": "moodle_auto_indexer_configure_global_settings",
+      "target": "moodle_auto_indexer_build_auto_indexer",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/moodle_auto_indexer/function_app.py",
+      "source_location": "line 250",
+      "weight": 1.0
+    },
+    {
+      "source": "moodle_auto_indexer_build_auto_indexer",
+      "target": "prepdocslib_auto_blob_indexer_ref",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/moodle_auto_indexer/function_app.py",
+      "source_location": "line 112",
+      "weight": 1.0
+    },
+    {
+      "source": "moodle_auto_indexer_build_auto_indexer",
+      "target": "prepdocslib_search_manager_ref",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/moodle_auto_indexer/function_app.py",
+      "source_location": "line 122-131",
+      "weight": 1.0
+    },
+    {
+      "source": "moodle_auto_indexer_build_auto_indexer",
+      "target": "prepdocslib_publishone_feed_ref",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/moodle_auto_indexer/function_app.py",
+      "source_location": "line 133",
+      "weight": 1.0
+    },
+    {
+      "source": "moodle_auto_indexer_configure_global_settings",
+      "target": "prepdocslib_servicesetup_ref",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/moodle_auto_indexer/function_app.py",
+      "source_location": "line 24-31",
+      "weight": 1.0
+    },
+    {
+      "source": "moodle_auto_indexer_handle_create_event",
+      "target": "prepdocslib_auto_blob_indexer_ref",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.9,
+      "source_file": "app/functions/moodle_auto_indexer/function_app.py",
+      "source_location": "line 151",
+      "weight": 1.0
+    },
+    {
+      "source": "moodle_auto_indexer_handle_delete_event",
+      "target": "prepdocslib_auto_blob_indexer_ref",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.9,
+      "source_file": "app/functions/moodle_auto_indexer/function_app.py",
+      "source_location": "line 175",
+      "weight": 1.0
+    },
+    {
+      "source": "figure_processor_function_app",
+      "target": "moodle_auto_indexer_function_app",
+      "relation": "semantically_similar_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.7,
+      "source_file": "app/functions",
+      "source_location": null,
+      "weight": 0.7
+    },
+    {
+      "source": "figure_processor_configure_global_settings",
+      "target": "moodle_auto_indexer_configure_global_settings",
+      "relation": "semantically_similar_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "app/functions",
+      "source_location": null,
+      "weight": 0.85
+    },
+    {
+      "source": "prepdocslib_duplicate_trees",
+      "target": "backend_prepdocslib_module",
+      "relation": "semantically_similar_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.98,
+      "source_file": "app/functions",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "document_extractor_prepdocslib_tree",
+      "target": "backend_prepdocslib_module",
+      "relation": "semantically_similar_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.98,
+      "source_file": "app/functions/document_extractor/prepdocslib",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "figure_processor_prepdocslib_tree",
+      "target": "backend_prepdocslib_module",
+      "relation": "semantically_similar_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.98,
+      "source_file": "app/functions/figure_processor/prepdocslib",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "document_extractor_prepdocslib_tree",
+      "target": "figure_processor_prepdocslib_tree",
+      "relation": "semantically_similar_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.97,
+      "source_file": "app/functions",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "document_extractor_prepdocslib_tree",
+      "target": "prepdocslib_duplicate_trees",
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "figure_processor_prepdocslib_tree",
+      "target": "prepdocslib_duplicate_trees",
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions",
+      "source_location": null,
+      "weight": 1.0
+    }
+  ],
+  "hyperedges": [
+    {
+      "id": "azure_functions_trigger_set",
+      "label": "Azure Functions triggers in app/functions",
+      "nodes": [
+        "figure_processor_http_trigger",
+        "moodle_auto_indexer_moodle_trigger",
+        "moodle_auto_indexer_moodle_delete_trigger",
+        "moodle_auto_indexer_publishone_trigger",
+        "moodle_auto_indexer_publishone_delete_trigger"
+      ],
+      "relation": "participate_in",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.95,
+      "source_file": "app/functions"
+    },
+    {
+      "id": "prepdocslib_duplication_group",
+      "label": "Duplicated prepdocslib copies across functions",
+      "nodes": [
+        "backend_prepdocslib_module",
+        "document_extractor_prepdocslib_tree",
+        "figure_processor_prepdocslib_tree",
+        "prepdocslib_duplicate_trees"
+      ],
+      "relation": "form",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.95,
+      "source_file": "app/functions"
+    },
+    {
+      "id": "moodle_auto_indexer_feed_pipeline",
+      "label": "Moodle/PublishOne auto-indexer feed pipeline",
+      "nodes": [
+        "moodle_auto_indexer_feed_definition",
+        "moodle_auto_indexer_build_auto_indexer",
+        "moodle_auto_indexer_handle_create_event",
+        "moodle_auto_indexer_handle_delete_event",
+        "prepdocslib_auto_blob_indexer_ref",
+        "prepdocslib_search_manager_ref",
+        "prepdocslib_publishone_feed_ref"
+      ],
+      "relation": "implement",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.9,
+      "source_file": "app/functions/moodle_auto_indexer/function_app.py"
+    },
+    {
+      "id": "figure_processor_enrichment_pipeline",
+      "label": "Figure Processor enrichment pipeline",
+      "nodes": [
+        "figure_processor_http_trigger",
+        "figure_processor_configure_global_settings",
+        "prepdocslib_blobmanager_class_ref",
+        "prepdocslib_figure_processor_class_ref",
+        "prepdocslib_image_embeddings_class_ref",
+        "prepdocslib_image_on_page_ref",
+        "prepdocslib_process_page_image_ref",
+        "prepdocslib_servicesetup_ref"
+      ],
+      "relation": "implement",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.9,
+      "source_file": "app/functions/figure_processor/function_app.py"
+    }
+  ],
+  "input_tokens": 0,
+  "output_tokens": 0
+}

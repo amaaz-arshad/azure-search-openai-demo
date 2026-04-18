@@ -1,0 +1,295 @@
+{
+  "nodes": [
+    {
+      "id": "function_app_text_processor",
+      "label": "Text Processor Azure Function",
+      "file_type": "code",
+      "source_file": "app/functions/text_processor/function_app.py",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "function_app_global_settings",
+      "label": "GlobalSettings Dataclass (text_processor)",
+      "file_type": "code",
+      "source_file": "app/functions/text_processor/function_app.py",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "function_app_configure_global_settings",
+      "label": "configure_global_settings (text_processor)",
+      "file_type": "code",
+      "source_file": "app/functions/text_processor/function_app.py",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "function_app_process_text_entry",
+      "label": "process_text_entry HTTP Route",
+      "file_type": "code",
+      "source_file": "app/functions/text_processor/function_app.py",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "function_app_process_document",
+      "label": "process_document (text_processor)",
+      "file_type": "code",
+      "source_file": "app/functions/text_processor/function_app.py",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    }
+  ],
+  "edges": [
+    {
+      "source": "function_app_text_processor",
+      "target": "function_app_global_settings",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/text_processor/function_app.py",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "function_app_text_processor",
+      "target": "function_app_configure_global_settings",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/text_processor/function_app.py",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "function_app_text_processor",
+      "target": "function_app_process_text_entry",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/text_processor/function_app.py",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "function_app_process_text_entry",
+      "target": "function_app_process_document",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/text_processor/function_app.py",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "function_app_configure_global_settings",
+      "target": "prepdocslib_servicesetup_build_file_processors",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/text_processor/function_app.py",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "function_app_configure_global_settings",
+      "target": "prepdocslib_servicesetup_setup_openai_client",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/text_processor/function_app.py",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "function_app_configure_global_settings",
+      "target": "prepdocslib_servicesetup_setup_embeddings_service",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/text_processor/function_app.py",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "function_app_configure_global_settings",
+      "target": "prepdocslib_servicesetup_OpenAIHost",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/text_processor/function_app.py",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "function_app_process_document",
+      "target": "prepdocslib_textprocessor_process_text",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/text_processor/function_app.py",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "function_app_process_document",
+      "target": "prepdocslib_page_Page",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/text_processor/function_app.py",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "function_app_process_document",
+      "target": "prepdocslib_page_ImageOnPage",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/text_processor/function_app.py",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "function_app_process_document",
+      "target": "prepdocslib_listfilestrategy_File",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/text_processor/function_app.py",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "function_app_process_document",
+      "target": "prepdocslib_servicesetup_select_processor_for_filename",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/text_processor/function_app.py",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "function_app_process_document",
+      "target": "prepdocslib_blobmanager_BlobManager",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/text_processor/function_app.py",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "function_app_process_document",
+      "target": "prepdocslib_embeddings_OpenAIEmbeddings",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/text_processor/function_app.py",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "function_app_global_settings",
+      "target": "prepdocslib_fileprocessor_FileProcessor",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/text_processor/function_app.py",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "function_app_text_processor",
+      "target": "function_app_document_extractor",
+      "relation": "semantically_similar_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "app/functions/text_processor/function_app.py",
+      "source_location": null,
+      "weight": 0.8
+    },
+    {
+      "source": "function_app_text_processor",
+      "target": "function_app_figure_processor",
+      "relation": "semantically_similar_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.82,
+      "source_file": "app/functions/text_processor/function_app.py",
+      "source_location": null,
+      "weight": 0.82
+    },
+    {
+      "source": "function_app_text_processor",
+      "target": "function_app_moodle_auto_indexer",
+      "relation": "semantically_similar_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.75,
+      "source_file": "app/functions/text_processor/function_app.py",
+      "source_location": null,
+      "weight": 0.75
+    },
+    {
+      "source": "function_app_process_text_entry",
+      "target": "function_app_text_processor",
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/text_processor/function_app.py",
+      "source_location": null,
+      "weight": 1.0
+    }
+  ],
+  "hyperedges": [
+    {
+      "id": "text_processor_custom_skill_pipeline",
+      "label": "Text Processor Custom Skill Pipeline",
+      "nodes": [
+        "function_app_process_text_entry",
+        "function_app_process_document",
+        "prepdocslib_textprocessor_process_text",
+        "prepdocslib_page_Page",
+        "prepdocslib_page_ImageOnPage",
+        "prepdocslib_embeddings_OpenAIEmbeddings"
+      ],
+      "relation": "participate_in",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.9,
+      "source_file": "app/functions/text_processor/function_app.py"
+    },
+    {
+      "id": "azure_function_apps_family",
+      "label": "Azure Function Apps Family (shared prepdocslib pattern)",
+      "nodes": [
+        "function_app_text_processor",
+        "function_app_document_extractor",
+        "function_app_figure_processor",
+        "function_app_moodle_auto_indexer"
+      ],
+      "relation": "form",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "app/functions/text_processor/function_app.py"
+    }
+  ],
+  "input_tokens": 0,
+  "output_tokens": 0
+}

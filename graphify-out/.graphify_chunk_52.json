@@ -1,0 +1,458 @@
+{
+  "nodes": [
+    {
+      "id": "internalToolsAccess_sessionStorageGate",
+      "label": "Internal Tools Session Storage Gate",
+      "file_type": "code",
+      "source_file": "app/frontend/src/pages/internalToolsAccess.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "useInternalAdminAccess_hook",
+      "label": "useInternalAdminAccess React Hook",
+      "file_type": "code",
+      "source_file": "app/frontend/src/pages/useInternalAdminAccess.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "promptAdminApi_client",
+      "label": "Prompt Admin API Client",
+      "file_type": "code",
+      "source_file": "app/frontend/src/pages/promptAdminApi.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "ManagePromptsPage_component",
+      "label": "Manage Prompts Admin Page",
+      "file_type": "code",
+      "source_file": "app/frontend/src/pages/ManagePromptsPage.tsx",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "publicTestUsersApi_client",
+      "label": "Public Test / Nerilio Users API Client",
+      "file_type": "code",
+      "source_file": "app/frontend/src/pages/publicTestUsersApi.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "PublicTestUsersPage_component",
+      "label": "Nerilio Bot Users Admin Page",
+      "file_type": "code",
+      "source_file": "app/frontend/src/pages/PublicTestUsersPage.tsx",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "uploadFilesApi_client",
+      "label": "Managed Uploads API Client",
+      "file_type": "code",
+      "source_file": "app/frontend/src/pages/uploadFilesApi.ts",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "UploadFilesPage_component",
+      "label": "Upload Files Admin Page",
+      "file_type": "code",
+      "source_file": "app/frontend/src/pages/UploadFilesPage.tsx",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "functions_package_init",
+      "label": "Azure Functions Package __init__",
+      "file_type": "code",
+      "source_file": "app/functions/__init__.py",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "document_extractor_function_app",
+      "label": "Azure Function document_extractor (extract route)",
+      "file_type": "code",
+      "source_file": "app/functions/document_extractor/function_app.py",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "document_extractor_extract_route",
+      "label": "extract HTTP route (Azure Search Custom Skill)",
+      "file_type": "code",
+      "source_file": "app/functions/document_extractor/function_app.py",
+      "source_location": "extract_document",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "document_extractor_process_document",
+      "label": "process_document pipeline (download->parse->ACL)",
+      "file_type": "code",
+      "source_file": "app/functions/document_extractor/function_app.py",
+      "source_location": "process_document",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "document_extractor_get_file_acls",
+      "label": "get_file_acls (ADLS Gen2 ACL extractor)",
+      "file_type": "code",
+      "source_file": "app/functions/document_extractor/function_app.py",
+      "source_location": "get_file_acls",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "document_extractor_global_settings",
+      "label": "GlobalSettings dataclass + configure_global_settings",
+      "file_type": "code",
+      "source_file": "app/functions/document_extractor/function_app.py",
+      "source_location": "GlobalSettings",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "docextractor_prepdocslib_copy",
+      "label": "document_extractor/prepdocslib (near-identical copy of backend prepdocslib)",
+      "file_type": "code",
+      "source_file": "app/functions/document_extractor/prepdocslib/",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    }
+  ],
+  "edges": [
+    {
+      "source": "useInternalAdminAccess_hook",
+      "target": "internalToolsAccess_sessionStorageGate",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/frontend/src/pages/useInternalAdminAccess.ts",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "ManagePromptsPage_component",
+      "target": "useInternalAdminAccess_hook",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/frontend/src/pages/ManagePromptsPage.tsx",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "ManagePromptsPage_component",
+      "target": "promptAdminApi_client",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/frontend/src/pages/ManagePromptsPage.tsx",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "PublicTestUsersPage_component",
+      "target": "useInternalAdminAccess_hook",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/frontend/src/pages/PublicTestUsersPage.tsx",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "PublicTestUsersPage_component",
+      "target": "publicTestUsersApi_client",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/frontend/src/pages/PublicTestUsersPage.tsx",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "UploadFilesPage_component",
+      "target": "useInternalAdminAccess_hook",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/frontend/src/pages/UploadFilesPage.tsx",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "UploadFilesPage_component",
+      "target": "uploadFilesApi_client",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/frontend/src/pages/UploadFilesPage.tsx",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "promptAdminApi_client",
+      "target": "internal_admin_prompts_backend",
+      "relation": "references",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "app/frontend/src/pages/promptAdminApi.ts",
+      "source_location": "/internal-admin/prompts",
+      "weight": 0.8
+    },
+    {
+      "source": "publicTestUsersApi_client",
+      "target": "free_admin_users_backend",
+      "relation": "references",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "app/frontend/src/pages/publicTestUsersApi.ts",
+      "source_location": "/free-admin/users",
+      "weight": 0.8
+    },
+    {
+      "source": "uploadFilesApi_client",
+      "target": "managed_uploads_backend",
+      "relation": "references",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "app/frontend/src/pages/uploadFilesApi.ts",
+      "source_location": "/managed_uploads",
+      "weight": 0.8
+    },
+    {
+      "source": "ManagePromptsPage_component",
+      "target": "UploadFilesPage_component",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.9,
+      "source_file": "app/frontend/src/pages/ManagePromptsPage.tsx",
+      "source_location": "Link to /upload-files",
+      "weight": 0.6
+    },
+    {
+      "source": "ManagePromptsPage_component",
+      "target": "PublicTestUsersPage_component",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.9,
+      "source_file": "app/frontend/src/pages/ManagePromptsPage.tsx",
+      "source_location": "Link to /free-users",
+      "weight": 0.6
+    },
+    {
+      "source": "PublicTestUsersPage_component",
+      "target": "ManagePromptsPage_component",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.9,
+      "source_file": "app/frontend/src/pages/PublicTestUsersPage.tsx",
+      "source_location": "Link to /manage-prompts",
+      "weight": 0.6
+    },
+    {
+      "source": "document_extractor_function_app",
+      "target": "document_extractor_extract_route",
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/document_extractor/function_app.py",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "document_extractor_extract_route",
+      "target": "document_extractor_process_document",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/document_extractor/function_app.py",
+      "source_location": "await process_document(data)",
+      "weight": 1.0
+    },
+    {
+      "source": "document_extractor_process_document",
+      "target": "document_extractor_get_file_acls",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "app/functions/document_extractor/function_app.py",
+      "source_location": "if settings.storage_is_adls",
+      "weight": 1.0
+    },
+    {
+      "source": "document_extractor_process_document",
+      "target": "docextractor_prepdocslib_copy",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.95,
+      "source_file": "app/functions/document_extractor/function_app.py",
+      "source_location": "BlobManager.download_blob + parser.parse",
+      "weight": 1.0
+    },
+    {
+      "source": "document_extractor_global_settings",
+      "target": "docextractor_prepdocslib_copy",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.95,
+      "source_file": "app/functions/document_extractor/function_app.py",
+      "source_location": "build_file_processors, setup_blob_manager",
+      "weight": 1.0
+    },
+    {
+      "source": "docextractor_prepdocslib_copy",
+      "target": "backend_prepdocslib_aggregate",
+      "relation": "semantically_similar_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.95,
+      "source_file": "app/functions/document_extractor/prepdocslib/",
+      "source_location": "near-identical copy of app/backend/prepdocslib/",
+      "weight": 1.0
+    },
+    {
+      "source": "document_extractor_function_app",
+      "target": "azure_ai_search_custom_skill",
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.95,
+      "source_file": "app/functions/document_extractor/function_app.py",
+      "source_location": "Custom skill contract: values[].recordId/data",
+      "weight": 1.0
+    },
+    {
+      "source": "document_extractor_get_file_acls",
+      "target": "adls_gen2_access_control",
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.95,
+      "source_file": "app/functions/document_extractor/function_app.py",
+      "source_location": "file_client.get_access_control",
+      "weight": 1.0
+    },
+    {
+      "source": "document_extractor_function_app",
+      "target": "managed_identity_credential",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.95,
+      "source_file": "app/functions/document_extractor/function_app.py",
+      "source_location": "ManagedIdentityCredential",
+      "weight": 0.9
+    },
+    {
+      "source": "ManagePromptsPage_component",
+      "target": "PublicTestUsersPage_component",
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "app/frontend/src/pages/",
+      "source_location": "shared admin panel pattern",
+      "weight": 0.7
+    },
+    {
+      "source": "UploadFilesPage_component",
+      "target": "ManagePromptsPage_component",
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "app/frontend/src/pages/",
+      "source_location": "shared admin panel pattern",
+      "weight": 0.7
+    }
+  ],
+  "hyperedges": [
+    {
+      "id": "internal_admin_panel_cluster",
+      "label": "Internal Admin Panel (shared auth + cross-linked pages)",
+      "nodes": [
+        "useInternalAdminAccess_hook",
+        "internalToolsAccess_sessionStorageGate",
+        "ManagePromptsPage_component",
+        "PublicTestUsersPage_component",
+        "UploadFilesPage_component"
+      ],
+      "relation": "participate_in",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.95,
+      "source_file": "app/frontend/src/pages/"
+    },
+    {
+      "id": "document_extractor_custom_skill_pipeline",
+      "label": "Document Extractor Azure Function Pipeline",
+      "nodes": [
+        "document_extractor_function_app",
+        "document_extractor_extract_route",
+        "document_extractor_process_document",
+        "document_extractor_get_file_acls",
+        "document_extractor_global_settings"
+      ],
+      "relation": "form",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.95,
+      "source_file": "app/functions/document_extractor/function_app.py"
+    },
+    {
+      "id": "prepdocslib_duplication_pattern",
+      "label": "prepdocslib duplication: backend copy vs Azure Function copy",
+      "nodes": [
+        "docextractor_prepdocslib_copy",
+        "document_extractor_global_settings",
+        "document_extractor_process_document"
+      ],
+      "relation": "participate_in",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.9,
+      "source_file": "app/functions/document_extractor/prepdocslib/"
+    }
+  ],
+  "input_tokens": 0,
+  "output_tokens": 0
+}
