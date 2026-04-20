@@ -60,6 +60,17 @@ export const chatbotThemes: Record<string, ChatbotThemeSeed> = {
         primary: "#313335",
         pageTone: "light"
     },
+    "internal-v2": {
+        primary: "#8b5cf6",
+        pageTone: "light",
+        loginButtonStyle: "solid",
+        overrides: {
+            userBubble: {
+                background: "#8b5cf6",
+                text: "#ffffff"
+            }
+        }
+    },
     knoll: {
         primary: "#0199fe",
         pageTone: "light",

@@ -1,0 +1,23 @@
+.container {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 1.25rem;
+    width: 100%;
+}
+
+.bubble {
+    position: relative;
+    max-width: 78%;
+    padding: 0.9rem 1.1rem;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.9) 0%, rgba(109, 40, 217, 0.9) 100%);
+    color: #fff;
+    font-size: 0.96rem;
+    line-height: 1.55;
+    border-radius: 18px 18px 4px 18px;
+    box-shadow:
+        0 6px 18px rgba(109, 40, 217, 0.25),
+        0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}

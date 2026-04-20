@@ -6,6 +6,7 @@ import { demoChatbot } from "./demo";
 import { fbnChatbot } from "./fbn";
 import { fhgChatbot } from "./fhg";
 import { internalChatbot } from "./internal";
+import { internalV2Chatbot } from "./internal-v2";
 import { knollChatbot } from "./knoll";
 import { lemonChatbot } from "./lemon";
 import { moodleChatbot } from "./moodle";
@@ -34,6 +35,7 @@ export const chatbotDefinitions: ChatbotDefinition[] = [
     knollChatbot,
     lemonChatbot,
     internalChatbot,
+    internalV2Chatbot,
     moodleChatbot,
     publishoneChatbot,
     sartoriusChatbot,
