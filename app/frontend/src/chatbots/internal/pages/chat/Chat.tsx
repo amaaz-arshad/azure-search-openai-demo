@@ -82,9 +82,11 @@ const buildInitialAssistantPair = (initialAssistantMessageContent?: string | nul
 };
 
 const getHistorySourceBot = (historyAnswers: [user: string, response: ChatAppResponse][]): string | null => {
-    const historyMetadata = (historyAnswers as [user: string, response: ChatAppResponse][] & {
-        metadata?: { source_chatbot?: string } | null;
-    }).metadata;
+    const historyMetadata = (
+        historyAnswers as [user: string, response: ChatAppResponse][] & {
+            metadata?: { source_chatbot?: string } | null;
+        }
+    ).metadata;
     return typeof historyMetadata?.source_chatbot === "string" ? historyMetadata.source_chatbot : null;
 };
 
@@ -156,17 +158,13 @@ const Chat = () => {
     const [useAgenticKnowledgeBase, setUseAgenticRetrieval] = useState<boolean>(false);
     const [hideMinimalRetrievalReasoningOption, setHideMinimalRetrievalReasoningOption] = useState<boolean>(false);
     const streamingDisabledByOverrides = useAgenticKnowledgeBase && webSourceEnabled;
-    const supportedReasoningEfforts =
-        chatModelReasoningEfforts[chatModel] ?? getLegacyReasoningEffortOptions(chatModel, reasoningCapableChatModels);
+    const supportedReasoningEfforts = chatModelReasoningEfforts[chatModel] ?? getLegacyReasoningEffortOptions(chatModel, reasoningCapableChatModels);
     const showReasoningEffortOption = supportedReasoningEfforts.length > 0;
     const sourceBotWelcome = useMemo(
         () => (selectedSourceBot ? getSourceBotWelcome(selectedSourceBot, i18n.language) : null),
         [i18n.language, selectedSourceBot]
     );
-    const initialAssistantPair = useMemo(
-        () => buildInitialAssistantPair(sourceBotWelcome?.initialAssistantMsg),
-        [sourceBotWelcome?.initialAssistantMsg]
-    );
+    const initialAssistantPair = useMemo(() => buildInitialAssistantPair(sourceBotWelcome?.initialAssistantMsg), [sourceBotWelcome?.initialAssistantMsg]);
     const localizedSourceBots = useMemo(
         () =>
             availableSourceBots.map(bot => ({
@@ -225,15 +223,16 @@ const Chat = () => {
             setShowSpeechOutputAzure(effectiveConfig.showSpeechOutputAzure);
             setShowChatHistoryBrowser(config.showChatHistoryBrowser);
             setShowChatHistoryCosmos(config.showChatHistoryCosmos);
-            setShowAgenticRetrievalOption(config.showAgenticRetrievalOption);
+            setShowAgenticRetrievalOption(true);
             setUseAgenticRetrieval(config.showAgenticRetrievalOption);
             setWebSourceSupported(config.webSourceEnabled);
             setWebSourceEnabled(config.webSourceEnabled);
             setSharePointSourceSupported(config.sharepointSourceEnabled);
             setSharePointSourceEnabled(config.sharepointSourceEnabled);
-            if (config.showAgenticRetrievalOption) {
-                setRetrieveCount(10);
-            }
+            // if (config.showAgenticRetrievalOption) {
+            //     setRetrieveCount(10);
+            // }
+            setRetrieveCount(10);
             const defaultRetrievalEffort = config.defaultRetrievalReasoningEffort ?? "minimal";
             setHideMinimalRetrievalReasoningOption(config.webSourceEnabled);
             setRetrievalReasoningEffort(defaultRetrievalEffort);
@@ -392,8 +391,7 @@ const Chat = () => {
         }
     };
 
-    const isSyntheticInitialPair = ([user]: [user: string, response: ChatAppResponse]) =>
-        user === INITIAL_ASSISTANT_SENTINEL_USER_MESSAGE;
+    const isSyntheticInitialPair = ([user]: [user: string, response: ChatAppResponse]) => user === INITIAL_ASSISTANT_SENTINEL_USER_MESSAGE;
 
     const stripLeadingSyntheticInitialPairs = (chatAnswers: [user: string, response: ChatAppResponse][]) => {
         let startIndex = 0;
@@ -534,9 +532,7 @@ const Chat = () => {
                             ? parsedResponse.session_state
                             : localHistorySessionIdRef.current;
                     const normalizedResponse =
-                        typeof sessionState === "string" && sessionState !== ""
-                            ? { ...parsedResponse, session_state: sessionState }
-                            : parsedResponse;
+                        typeof sessionState === "string" && sessionState !== "" ? { ...parsedResponse, session_state: sessionState } : parsedResponse;
                     setAnswers([...answers, [question, normalizedResponse]]);
                     if (typeof sessionState === "string" && sessionState !== "") {
                         const token = client ? await getToken(client) : undefined;
@@ -560,9 +556,7 @@ const Chat = () => {
                         ? chatResponse.session_state
                         : localHistorySessionIdRef.current;
                 const normalizedResponse =
-                    typeof sessionState === "string" && sessionState !== ""
-                        ? { ...chatResponse, session_state: sessionState }
-                        : chatResponse;
+                    typeof sessionState === "string" && sessionState !== "" ? { ...chatResponse, session_state: sessionState } : chatResponse;
                 setAnswers([...answers, [question, normalizedResponse]]);
                 if (typeof sessionState === "string" && sessionState !== "") {
                     const token = client ? await getToken(client) : undefined;
