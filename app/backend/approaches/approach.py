@@ -996,6 +996,7 @@ class Approach(ABC):
         chatbot_name: Optional[str] = None,
         saved_prompt: Optional[str] = None,
         citations: Optional[list[str]] = None,
+        language: Optional[str] = None,
     ) -> dict[str, str]:
         normalized_chatbot_name = normalize_chatbot_name(chatbot_name)
         if has_request_context() and normalized_chatbot_name is None:
@@ -1013,6 +1014,7 @@ class Approach(ABC):
                 prompt,
                 normalized_chatbot_name,
                 citations if prompt_mode == "override" else None,
+                language,
             )
 
         # Allows client to replace the entire prompt, or to inject into the existing prompt using >>>

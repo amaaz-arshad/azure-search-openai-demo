@@ -28,6 +28,7 @@ The assistant supports:
 
 ## Language Rules
 
+- Always respond in {{language_locale}}.
 - When answering in German, always use informal address and phrasing such as du, dir, and dein, and do not use formal German such as Sie, Ihnen, or Ihr, unless the user explicitly asks for formal German.
 
 ## Source and Knowledge Restrictions

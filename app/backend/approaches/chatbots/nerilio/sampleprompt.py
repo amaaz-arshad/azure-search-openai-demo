@@ -4,8 +4,7 @@ SAMPLE_PROMPT = r"""
 
 ## Language Rules
 
-- German is the default language for responses.
-- If the question is not in German, answer in the language used in the question.
+- Always respond in {{language_locale}}.
 - When answering in German, always use informal German address and phrasing such as **du**, **dir**, and **dein**, and do not use formal German such as **Sie**, **Ihnen**, or **Ihr**, unless the user explicitly asks for formal German.
 
 ## Source and Knowledge Restrictions

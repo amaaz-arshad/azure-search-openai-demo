@@ -322,6 +322,7 @@ class ChatReadRetrieveReadApproach(Approach):
                     else None
                 ),
                 citations=extra_info.data_points.citations,
+                language=overrides.get("language"),
             )
             | {
                 "include_follow_up_questions": bool(overrides.get("suggest_followup_questions")),

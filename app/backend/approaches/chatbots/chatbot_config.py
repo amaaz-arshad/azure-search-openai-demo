@@ -12,5 +12,6 @@ class ChatbotConfig:
     # Prompt configuration
     support_email: Optional[str] = None
     prompt_mode: Literal["inject", "override"] = "override"
+    language_locale: Optional[str] = None  # defaults to "German" if None
     # Retrieval
     citation_target: Literal["sourcepage", "url"] = "sourcepage"
