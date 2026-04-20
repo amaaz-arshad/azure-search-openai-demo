@@ -937,6 +937,12 @@ def test_demo_upload_manager_modal(page: Page, live_server_url: str):
     expect(page.get_by_role("button", name="Delete all")).to_be_visible()
 
 
+def login_internal_bot(page: Page):
+    page.get_by_label("Username").fill("internal")
+    page.get_by_label("Password").fill("internal")
+    page.get_by_role("button", name="Login").click()
+
+
 def test_internal_bot_dropdown_uses_source_bot_router_settings(page: Page, live_server_url: str):
 
     def handle_config(route: Route):
@@ -977,6 +983,7 @@ def test_internal_bot_dropdown_uses_source_bot_router_settings(page: Page, live_
     page.route("*/**/config", handle_config)
 
     page.goto(f"{live_server_url}internal")
+    login_internal_bot(page)
 
     expect(page.get_by_text("Select a source bot")).to_be_visible()
     expect(page.get_by_text("Open Developer settings and choose which bot Internal Bot should use for retrieval and system instructions.")).to_be_visible()
@@ -1009,6 +1016,16 @@ def test_internal_bot_dropdown_uses_source_bot_router_settings(page: Page, live_
     expect(page.get_by_text("Hi there! I know the user manual for vjoon K4 version 16 really well. Just ask away.")).to_be_visible()
     expect(page.get_by_text("Hello, I'm nerilio. How can I assist you today?")).to_have_count(0)
     expect(page.get_by_text("Internal Bot")).to_be_visible()
+
+
+def test_internal_bot_no_page_requires_basic_auth(page: Page, live_server_url: str):
+    page.goto(f"{live_server_url}internal/does-not-exist")
+
+    expect(page.get_by_role("button", name="Login")).to_be_visible()
+
+    login_internal_bot(page)
+
+    expect(page.get_by_text("This page does not exist")).to_be_visible()
 
 
 def test_internal_bot_model_selector_controls_reasoning_options(page: Page, live_server_url: str):
@@ -1089,6 +1106,7 @@ def test_internal_bot_model_selector_controls_reasoning_options(page: Page, live
     page.route("*/**/chat", handle_chat)
 
     page.goto(f"{live_server_url}internal")
+    login_internal_bot(page)
 
     page.get_by_role("button", name="Toggle menu").click()
     page.get_by_role("button", name="Developer settings").click()

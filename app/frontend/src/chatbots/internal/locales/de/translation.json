@@ -8,6 +8,13 @@
     "login": "Anmelden",
     "logout": "Abmelden",
     "clearChat": "Chat löschen",
+    "loginPage": {
+        "title": "Willkommen",
+        "username": "Benutzername",
+        "password": "Passwort",
+        "login": "Anmelden",
+        "invalidCredentials": "Ungültiger Benutzername oder Passwort"
+    },
     "noPage": {
         "title": "Diese Seite gibt es nicht",
         "info": "Du bist auf <strong>chat.nerilio.ai</strong> gelandet, aber ohne deine persönliche Chatbot-URL.<br/><br/>Bitte nutze die <strong>spezifische URL</strong>, die du von nerilio erhalten hast.",

@@ -42,6 +42,7 @@ High-signal entrypoints:
 Keep `AGENTS.md` focused on workflow, invariants, and change guides. Do not rebuild a detailed code inventory here when `graphify-out/` already provides that navigation layer.
 
 * Frontend chatbot routing is `/<chatbot_name>` inside each bot's `LayoutWrapper`, while `/<chatbot_name>/*` renders that bot's `NoPage` outside the layout so the fallback page appears without chatbot navbar/header chrome.
+* Chatbots that use frontend basic auth must guard both `LayoutWrapper` and the standalone `NoPage` route so `/<chatbot_name>/*` cannot bypass the auth gate. `/internal` now follows this pattern too.
 * Backend `/config` is the frontend capability contract for model selection and reasoning effort. When models diverge, update backend metadata instead of hardcoding frontend assumptions.
 * `/internal` is a router shell, not its own retrieval category. Internal requests must carry `context.overrides.source_chatbot`; backend validation then derives the effective bot identity, prompt, and `include_category` from that selected source bot.
 * `/config` now includes `internalSourceBots` for the `/internal` source-bot dropdown. Do not reintroduce `All` for internal; only one real source bot can be active per internal session.

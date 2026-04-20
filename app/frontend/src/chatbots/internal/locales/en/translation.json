@@ -7,6 +7,13 @@
     "login": "Login",
     "logout": "Logout",
     "clearChat": "Clear chat",
+    "loginPage": {
+        "title": "Welcome",
+        "username": "Username",
+        "password": "Password",
+        "login": "Login",
+        "invalidCredentials": "Invalid username or password"
+    },
     "noPage": {
         "title": "This page does not exist",
         "info": "You landed on <strong>chat.nerilio.ai</strong> without your personal chatbot URL.<br/><br/>Please use the <strong>specific URL</strong> that you received from nerilio.",

@@ -7,6 +7,13 @@
     "login": "Inloggen",
     "logout": "Uitloggen",
     "clearChat": "Chat wissen",
+    "loginPage": {
+        "title": "Welkom",
+        "username": "Gebruikersnaam",
+        "password": "Wachtwoord",
+        "login": "Inloggen",
+        "invalidCredentials": "Ongeldige gebruikersnaam of wachtwoord"
+    },
     "noPage": {
         "title": "Deze pagina bestaat niet",
         "info": "Je bent op <strong>chat.nerilio.ai</strong> terechtgekomen, maar zonder je persoonlijke chatbot-URL.<br/><br/>Gebruik de <strong>specifieke URL</strong> die je van nerilio hebt ontvangen.",
