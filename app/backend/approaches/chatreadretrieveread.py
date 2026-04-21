@@ -3,6 +3,75 @@ from collections.abc import AsyncGenerator, Awaitable
 from dataclasses import asdict
 from typing import Any, Optional, cast
 
+# --- Lemon-specific output sanitization -----------------------------------
+# Lemon must never expose source labels, filenames, or structural identifiers.
+# These patterns scrub anything the model might leak from the retrieval context.
+_LEMON_SOURCE_LINE_RE = re.compile(
+    r"""^\s*(?:>\s*)?[*_]{0,3}\s*
+        (?:Source|Sources|Quelle|Quellen|
+           Reference|References|Referenz|Referenzen|
+           Citation|Citations|Zitat|Zitate|
+           Quellenangabe|Quellenangaben|Fundstelle|Fundstellen)
+        [*_]{0,3}\s*[:\-—–].*$""",
+    re.IGNORECASE | re.VERBOSE,
+)
+_LEMON_INLINE_FILENAME_RE = re.compile(
+    r"""[\[\(]\s*[^\[\]\(\)\s]+?\.(?:json|pdf|docx?|xlsx?|md|html?|txt|csv|pptx?)
+        (?:[#?][^\[\]\(\)]*)?\s*[\]\)]""",
+    re.IGNORECASE | re.VERBOSE,
+)
+_LEMON_INLINE_ID_RE = re.compile(r"[\[\(]\s*ID[-_]?\d+\s*[\]\)]", re.IGNORECASE)
+
+
+def _is_lemon_chatbot(overrides: dict[str, Any]) -> bool:
+    raw = overrides.get("include_category")
+    if not isinstance(raw, str):
+        return False
+    primary = raw.split(",", 1)[0].strip().lower()
+    return primary == "lemon"
+
+
+def _sanitize_lemon_text(text: str) -> str:
+    """Strip source labels, filename markers, and ID brackets from a complete text."""
+    if not text:
+        return text
+    cleaned_lines = [line for line in text.split("\n") if not _LEMON_SOURCE_LINE_RE.match(line)]
+    cleaned = "\n".join(cleaned_lines)
+    cleaned = _LEMON_INLINE_FILENAME_RE.sub("", cleaned)
+    cleaned = _LEMON_INLINE_ID_RE.sub("", cleaned)
+    return cleaned.rstrip()
+
+
+class _LemonStreamSanitizer:
+    """Buffers streaming deltas line-by-line so source-style lines can be dropped before reaching the client."""
+
+    def __init__(self) -> None:
+        self._buffer = ""
+
+    def feed(self, chunk: Optional[str]) -> str:
+        if not chunk:
+            return ""
+        self._buffer += chunk
+        out_parts: list[str] = []
+        while "\n" in self._buffer:
+            line, self._buffer = self._buffer.split("\n", 1)
+            if _LEMON_SOURCE_LINE_RE.match(line):
+                continue
+            line = _LEMON_INLINE_FILENAME_RE.sub("", line)
+            line = _LEMON_INLINE_ID_RE.sub("", line)
+            out_parts.append(line + "\n")
+        return "".join(out_parts)
+
+    def flush(self) -> str:
+        tail = self._buffer
+        self._buffer = ""
+        if _LEMON_SOURCE_LINE_RE.match(tail):
+            return ""
+        tail = _LEMON_INLINE_FILENAME_RE.sub("", tail)
+        tail = _LEMON_INLINE_ID_RE.sub("", tail)
+        return tail
+# ---------------------------------------------------------------------------
+
 from azure.search.documents.aio import SearchClient
 from azure.search.documents.knowledgebases.aio import KnowledgeBaseRetrievalClient
 from azure.search.documents.models import VectorQuery
@@ -136,6 +205,8 @@ class ChatReadRetrieveReadApproach(Approach):
         if overrides.get("suggest_followup_questions"):
             content, followup_questions = self.extract_followup_questions(content)
             extra_info.followup_questions = followup_questions
+        if _is_lemon_chatbot(overrides) and isinstance(content, str):
+            content = _sanitize_lemon_text(content)
         # Assume last thought is for generating answer
         # TODO: Update for agentic? This isn't still true?
         if self.include_token_usage and extra_info.thoughts and chat_completion_response.usage:
@@ -168,6 +239,8 @@ class ChatReadRetrieveReadApproach(Approach):
         followup_questions_started = False
         followup_content = ""
         chat_result = await chat_coroutine
+        is_lemon = _is_lemon_chatbot(overrides)
+        lemon_stream_sanitizer = _LemonStreamSanitizer() if is_lemon else None
 
         if isinstance(chat_result, ChatCompletion):
             message = chat_result.choices[0].message
@@ -178,6 +251,9 @@ class ChatReadRetrieveReadApproach(Approach):
             if overrides.get("suggest_followup_questions"):
                 content, followup_questions = self.extract_followup_questions(content)
                 extra_info.followup_questions = followup_questions
+
+            if is_lemon:
+                content = _sanitize_lemon_text(content)
 
             if self.include_token_usage and extra_info.thoughts and chat_result.usage:
                 extra_info.thoughts[-1].update_token_usage(chat_result.usage)
@@ -218,12 +294,23 @@ class ChatReadRetrieveReadApproach(Approach):
                     followup_questions_started = True
                     earlier_content = delta_content[: delta_content.index("<<")]
                     if earlier_content:
-                        completion["delta"]["content"] = earlier_content
-                        yield completion
+                        if lemon_stream_sanitizer is not None:
+                            earlier_content = lemon_stream_sanitizer.feed(earlier_content)
+                            if not earlier_content:
+                                # everything in this chunk was buffered; nothing to emit yet
+                                pass
+                        if earlier_content:
+                            completion["delta"]["content"] = earlier_content
+                            yield completion
                     followup_content += delta_content[delta_content.index("<<") :]
                 elif followup_questions_started:
                     followup_content += delta_content
                 else:
+                    if lemon_stream_sanitizer is not None:
+                        sanitized = lemon_stream_sanitizer.feed(delta_content)
+                        if not sanitized:
+                            continue
+                        completion["delta"]["content"] = sanitized
                     yield completion
             else:
                 # Final chunk at end of streaming should contain usage
@@ -231,6 +318,11 @@ class ChatReadRetrieveReadApproach(Approach):
                 if event_chunk.usage and extra_info.thoughts and self.include_token_usage:
                     extra_info.thoughts[-1].update_token_usage(event_chunk.usage)
                     yield {"delta": {"role": "assistant"}, "context": extra_info, "session_state": session_state}
+
+        if lemon_stream_sanitizer is not None:
+            tail = lemon_stream_sanitizer.flush()
+            if tail:
+                yield {"delta": {"role": "assistant", "content": tail}}
 
         if followup_content:
             _, followup_questions = self.extract_followup_questions(followup_content)
@@ -311,6 +403,9 @@ class ChatReadRetrieveReadApproach(Approach):
         chatbot_name_override = overrides.get("include_category")
         if isinstance(chatbot_name_override, str) and "," in chatbot_name_override:
             chatbot_name_override = chatbot_name_override.split(",", 1)[0].strip()
+        user_template_path = (
+            "chat_answer.user.lemon.jinja2" if _is_lemon_chatbot(overrides) else "chat_answer.user.jinja2"
+        )
         messages = self.prompt_manager.build_conversation(
             system_template_path="chat_answer.system.jinja2",
             system_template_variables=self.get_system_prompt_variables(
@@ -329,7 +424,7 @@ class ChatReadRetrieveReadApproach(Approach):
                 "image_sources": extra_info.data_points.images,
                 "citations": extra_info.data_points.citations,
             },
-            user_template_path="chat_answer.user.jinja2",
+            user_template_path=user_template_path,
             user_template_variables={
                 "user_query": original_user_query,
                 "text_sources": extra_info.data_points.text,

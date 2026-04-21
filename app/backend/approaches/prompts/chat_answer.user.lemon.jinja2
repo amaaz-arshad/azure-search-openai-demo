@@ -1,0 +1,12 @@
+{{ user_query }}
+
+{% if text_sources is defined and text_sources %}
+
+Background information:
+
+{% for text_source in text_sources %}
+{% set parts = text_source.split(': ', 1) %}
+{{ parts[1] if parts|length > 1 else parts[0] }}
+
+{% endfor %}
+{% endif %}
