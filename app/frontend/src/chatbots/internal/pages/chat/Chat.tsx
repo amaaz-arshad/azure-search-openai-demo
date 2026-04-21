@@ -223,8 +223,8 @@ const Chat = () => {
             setShowSpeechOutputAzure(effectiveConfig.showSpeechOutputAzure);
             setShowChatHistoryBrowser(config.showChatHistoryBrowser);
             setShowChatHistoryCosmos(config.showChatHistoryCosmos);
-            setShowAgenticRetrievalOption(true);
-            setUseAgenticRetrieval(config.showAgenticRetrievalOption);
+            setShowAgenticRetrievalOption(config.showAgenticRetrievalOption);
+            setUseAgenticRetrieval(false);
             setWebSourceSupported(config.webSourceEnabled);
             setWebSourceEnabled(config.webSourceEnabled);
             setSharePointSourceSupported(config.sharepointSourceEnabled);
@@ -232,7 +232,6 @@ const Chat = () => {
             // if (config.showAgenticRetrievalOption) {
             //     setRetrieveCount(10);
             // }
-            setRetrieveCount(10);
             const defaultRetrievalEffort = config.defaultRetrievalReasoningEffort ?? "minimal";
             setHideMinimalRetrievalReasoningOption(config.webSourceEnabled);
             setRetrievalReasoningEffort(defaultRetrievalEffort);
@@ -715,6 +714,7 @@ const Chat = () => {
                 break;
             case "useAgenticKnowledgeBase": {
                 setUseAgenticRetrieval(value);
+                setRetrieveCount(value ? 10 : 5);
                 let effectiveWebSource = webSourceEnabled;
                 if (!value && webSourceEnabled) {
                     effectiveWebSource = false;
