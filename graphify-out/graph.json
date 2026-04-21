@@ -3209,9 +3209,9 @@
     {
       "label": "config.py",
       "file_type": "code",
-      "source_file": "app\\backend\\approaches\\chatbots\\lemon\\config.py",
+      "source_file": "C:\\D Drive\\snap\\azure-search-openai-demo\\app\\backend\\approaches\\chatbots\\lemon\\config.py",
       "source_location": "L1",
-      "id": "app_backend_approaches_chatbots_lemon_config_py",
+      "id": "c_d_drive_snap_azure_search_openai_demo_app_backend_approaches_chatbots_lemon_config_py",
       "community": 95,
       "norm_label": "config.py"
     },

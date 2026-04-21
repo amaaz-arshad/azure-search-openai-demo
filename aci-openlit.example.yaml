@@ -1,7 +1,8 @@
 # Local OpenLIT ACI manifest template.
-# Copy this file to `aci-openlit.yaml`, replace the placeholder secrets locally,
+# Copy this file to `aci-openlit.yaml`, replace the placeholder account values and secrets locally,
 # and use the local file for `az container create --file aci-openlit.yaml`.
 # Do not commit real storage keys or custom app secrets.
+# Ensure the `otel-config` Azure Files share exists first.
 apiVersion: '2021-09-01'
 location: germanywestcentral
 name: openlit-nerilio
@@ -20,16 +21,13 @@ properties:
         port: 4317
   volumes:
     - name: clickhouse-data
-      azureFile:
-        shareName: clickhouse-data
-        storageAccountName: openlitneriilio
-        storageAccountKey: REPLACE_WITH_STORAGE_ACCOUNT_KEY
+      emptyDir: {}
     - name: openlit-data
       emptyDir: {}
     - name: otel-config
       azureFile:
         shareName: otel-config
-        storageAccountName: openlitneriilio
+        storageAccountName: REPLACE_WITH_STORAGE_ACCOUNT_NAME
         storageAccountKey: REPLACE_WITH_STORAGE_ACCOUNT_KEY
   containers:
     - name: clickhouse

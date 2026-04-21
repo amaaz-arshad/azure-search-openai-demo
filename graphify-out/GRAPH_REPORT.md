@@ -1,7 +1,7 @@
 # Graph Report - C:\D Drive\snap\azure-search-openai-demo  (2026-04-21)
 
 ## Corpus Check
-- 1305 files · ~1,090,992 words
+- 1305 files · ~1,070,967 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -4893,9 +4893,11 @@ Nodes (1): agindo-chatbot.png asset
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `set()` connect `Community 2` to `Community 0`, `Community 1`, `Community 3`, `Community 4`, `Community 5`, `Community 8`, `Community 9`, `Community 11`, `Community 12`, `Community 15`?**
-  _High betweenness centrality (0.082) - this node is a cross-community bridge._
+  _High betweenness centrality (0.073) - this node is a cross-community bridge._
 - **Why does `update()` connect `Community 5` to `Community 0`, `Community 3`, `Community 4`, `Community 6`, `Community 8`?**
-  _High betweenness centrality (0.022) - this node is a cross-community bridge._
+  _High betweenness centrality (0.033) - this node is a cross-community bridge._
+- **Why does `r()` connect `Community 6` to `Community 0`, `Community 1`, `Community 2`, `Community 3`, `Community 5`, `Community 9`, `Community 11`?**
+  _High betweenness centrality (0.024) - this node is a cross-community bridge._
 - **Are the 71 inferred relationships involving `set()` (e.g. with `save_internal_admin_prompt()` and `delete_internal_admin_prompt()`) actually correct?**
   _`set()` has 71 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 121 inferred relationships involving `SentenceTextSplitter` (e.g. with `split_oversized_paragraph()` and `build_file_processors()`) actually correct?**
@@ -4904,5 +4906,3 @@ _Questions this graph is uniquely positioned to answer:_
   _`Page` has 129 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 110 inferred relationships involving `BlobManager` (e.g. with `LLMOnlySpanExporter` and `JSONEncoder`) actually correct?**
   _`BlobManager` has 110 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 114 inferred relationships involving `FileProcessor` (e.g. with `ChatbotUploadManifest` and `ChatbotUploadRules`) actually correct?**
-  _`FileProcessor` has 114 INFERRED edges - model-reasoned connections that need verification._

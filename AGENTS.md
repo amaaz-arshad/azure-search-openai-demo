@@ -34,7 +34,7 @@ High-signal entrypoints:
 * `app/frontend/src/pages/`: internal tool pages such as chatbot directory, upload manager, prompt manager, and Free Bot user admin.
 * `infra/main.bicep` and `infra/main.parameters.json`: Azure provisioning and azd env-var wiring.
 * `scripts/setup_moodle_delete_event_subscription.py`: post-deploy Event Grid sync setup for Moodle and PublishOne feed automation; requires Azure CLI on `PATH`.
-* `docker-compose.openlit.yml`, `otel-collector-config.yaml`, and `otel-collector-config.aci.yaml`: local/cloud OpenLIT stack and LLM-only trace filtering.
+* `docker-compose.openlit.yml`, `otel-collector-config.yaml`, `otel-collector-config.aci.yaml`, and `aci-openlit.example.yaml`: local/cloud OpenLIT stack, persistence wiring, and LLM-only trace filtering.
 * `tests/`: e2e, app integration, and unit tests.
 
 ## Critical contracts
@@ -44,6 +44,9 @@ Keep `AGENTS.md` focused on workflow, invariants, and change guides. Do not rebu
 * Frontend chatbot routing is `/<chatbot_name>` inside each bot's `LayoutWrapper`, while `/<chatbot_name>/*` renders that bot's `NoPage` outside the layout so the fallback page appears without chatbot navbar/header chrome.
 * Chatbots that use frontend basic auth must guard both `LayoutWrapper` and the standalone `NoPage` route so `/<chatbot_name>/*` cannot bypass the auth gate. `/internal` now follows this pattern too.
 * Backend `/config` is the frontend capability contract for model selection and reasoning effort. When models diverge, update backend metadata instead of hardcoding frontend assumptions.
+* `OPENLIT_ENDPOINT` only points the app at an already-running OpenLIT backend. The repo's `azd up` flow does not provision or repair the standalone OpenLIT Container App.
+* In this environment, Azure Files SMB is not a safe data volume for OpenLIT's bundled ClickHouse. Mounting `/var/lib/clickhouse` there caused insert and migration failures with `Operation not permitted`, so new requests stopped appearing even though `/v1/traces` was still being posted.
+* The currently working OpenLIT Container App setup keeps both `clickhousedata` and `openlitdata` on `EmptyDir`, with only config volumes on Azure Files. That means requests appear in the dashboard again, but history is still non-persistent across replica recreation.
 * `/internal` is a router shell, not its own retrieval category. Internal requests must carry `context.overrides.source_chatbot`; backend validation then derives the effective bot identity, prompt, and `include_category` from that selected source bot.
 * `/config` now includes `internalSourceBots` for the `/internal` source-bot dropdown. Do not reintroduce `All` for internal; only one real source bot can be active per internal session.
 * Internal chat history sessions must persist `source_chatbot` metadata. Legacy internal sessions without that metadata are intentionally hidden and non-restorable.
