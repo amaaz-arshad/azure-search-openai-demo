@@ -1,20 +1,23 @@
-<!--
----
+## <!--
+
 name: RAG chat app with your data (Python)
 description: Chat with your domain data using Azure OpenAI and Azure AI Search.
 languages:
+
 - python
 - typescript
 - bicep
 - azdeveloper
-products:
+  products:
 - azure-openai
 - azure-cognitive-search
 - azure-app-service
 - azure
-page_type: sample
-urlFragment: azure-search-openai-demo
+  page_type: sample
+  urlFragment: azure-search-openai-demo
+
 ---
+
 -->
 
 # RAG chat app with Azure OpenAI and Azure AI Search (Python)
@@ -87,7 +90,7 @@ However, you can try the [Azure pricing calculator](https://azure.com/e/e3490de2
 
 - Azure Container Apps: Default host for app deployment as of 10/28/2024. See more details in [the ACA deployment guide](docs/azure_container_apps.md). Consumption plan with 1 CPU core, 2 GB RAM, minimum of 0 replicas. Pricing with Pay-as-You-Go. [Pricing](https://azure.microsoft.com/pricing/details/container-apps/)
 - Azure Container Registry: Basic tier. [Pricing](https://azure.microsoft.com/pricing/details/container-registry/)
-- Azure App Service: Only provisioned if you deploy to Azure App Service following [the App Service deployment guide](docs/azure_app_service.md).  Basic Tier with 1 CPU core, 1.75 GB RAM. Pricing per hour. [Pricing](https://azure.microsoft.com/pricing/details/app-service/linux/)
+- Azure App Service: Only provisioned if you deploy to Azure App Service following [the App Service deployment guide](docs/azure_app_service.md). Basic Tier with 1 CPU core, 1.75 GB RAM. Pricing per hour. [Pricing](https://azure.microsoft.com/pricing/details/app-service/linux/)
 - Azure OpenAI: Standard tier, GPT and Ada models. Pricing per 1K tokens used, and at least 1K tokens are used per question. [Pricing](https://azure.microsoft.com/pricing/details/cognitive-services/openai-service/)
 - Azure AI Document Intelligence: SO (Standard) tier using pre-built layout. Pricing per document page, sample documents have 261 pages total. [Pricing](https://azure.microsoft.com/pricing/details/form-recognizer/)
 - Azure AI Search: Basic tier, 1 replica, free level of semantic search. Pricing per hour. [Pricing](https://azure.microsoft.com/pricing/details/search/)
@@ -123,34 +126,33 @@ A related option is VS Code Dev Containers, which will open the project in your 
 
 1. Start Docker Desktop (install it if not already installed)
 2. Open the project:
-    [![Open in Dev Containers](https://img.shields.io/static/v1?style=for-the-badge&label=Dev%20Containers&message=Open&color=blue&logo=visualstudiocode)](https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/azure-samples/azure-search-openai-demo)
+   [![Open in Dev Containers](https://img.shields.io/static/v1?style=for-the-badge&label=Dev%20Containers&message=Open&color=blue&logo=visualstudiocode)](https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/azure-samples/azure-search-openai-demo)
 
 3. In the VS Code window that opens, once the project files show up (this may take several minutes), open a terminal window.
 
 ### Local environment
 
 1. Install the required tools:
-
-    - [Azure Developer CLI](https://aka.ms/azure-dev/install)
-    - [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli)
-      - **Important**: Ensure you can run `az` from the same terminal. This repo's `moodle_auto_indexer` post-deploy hook configures Event Grid subscriptions by shelling out to Azure CLI.
-    - [Python 3.10, 3.11, 3.12, 3.13, or 3.14](https://www.python.org/downloads/)
-      - **Important**: Python and the pip package manager must be in the path in Windows for the setup scripts to work.
-      - **Important**: Ensure you can run `python --version` from console. On Ubuntu, you might need to run `sudo apt install python-is-python3` to link `python` to `python3`.
-      - **Important**: This repo's Windows helper scripts default to Python `3.11` to match Azure, and the current pinned backend dependencies are safest with a repo `.venv` on Python `3.11` or `3.12`.
-    - [Node.js 20+](https://nodejs.org/download/)
-    - [Git](https://git-scm.com/downloads)
-    - [Powershell 7+ (pwsh)](https://github.com/powershell/powershell) - For Windows users only.
-      - **Important**: Ensure you can run `pwsh.exe` from a PowerShell terminal. If this fails, you likely need to upgrade PowerShell.
+   - [Azure Developer CLI](https://aka.ms/azure-dev/install)
+   - [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli)
+     - **Important**: Ensure you can run `az` from the same terminal. This repo's `moodle_auto_indexer` post-deploy hook configures Event Grid subscriptions by shelling out to Azure CLI.
+   - [Python 3.10, 3.11, 3.12, 3.13, or 3.14](https://www.python.org/downloads/)
+     - **Important**: Python and the pip package manager must be in the path in Windows for the setup scripts to work.
+     - **Important**: Ensure you can run `python --version` from console. On Ubuntu, you might need to run `sudo apt install python-is-python3` to link `python` to `python3`.
+     - **Important**: This repo's Windows helper scripts default to Python `3.11` to match Azure, and the current pinned backend dependencies are safest with a repo `.venv` on Python `3.11` or `3.12`.
+   - [Node.js 20+](https://nodejs.org/download/)
+   - [Git](https://git-scm.com/downloads)
+   - [Powershell 7+ (pwsh)](https://github.com/powershell/powershell) - For Windows users only.
+     - **Important**: Ensure you can run `pwsh.exe` from a PowerShell terminal. If this fails, you likely need to upgrade PowerShell.
 
 2. Create a new folder and switch to it in the terminal.
 3. Run this command to download the project code:
 
-    ```shell
-    azd init -t azure-search-openai-demo
-    ```
+   ```shell
+   azd init -t azure-search-openai-demo
+   ```
 
-    Note that this command will initialize a git repository, so you do not need to clone this repository.
+   Note that this command will initialize a git repository, so you do not need to clone this repository.
 
 ## Deploying
 
@@ -158,30 +160,31 @@ The steps below will provision Azure resources and deploy the application code t
 
 1. Login to your Azure account:
 
-    ```shell
-    azd auth login
-    ```
+   ```shell
+   azd auth login
+   ```
 
-    For GitHub Codespaces users, if the previous command fails, try:
+   For GitHub Codespaces users, if the previous command fails, try:
 
    ```shell
     azd auth login --use-device-code
-    ```
+   ```
 
 1. Create a new azd environment:
 
-    ```shell
-    azd env new
-    ```
+   ```shell
+   azd env new
+   ```
 
-    Enter a name that will be used for the resource group.
-    This will create a new folder in the `.azure` folder, and set it as the active environment for any calls to `azd` going forward.
+   Enter a name that will be used for the resource group.
+   This will create a new folder in the `.azure` folder, and set it as the active environment for any calls to `azd` going forward.
+
 1. (Optional) This is the point where you can customize the deployment by setting environment variables, in order to [use existing resources](docs/deploy_existing.md), [enable optional features (such as auth or vision)](docs/deploy_features.md), or [deploy low-cost options](docs/deploy_lowcost.md), or [deploy with the Azure free trial](docs/deploy_freetrial.md).
 1. Run `azd up` - This will provision Azure resources and deploy this sample to those resources, including building the search index based on the files found in the `./data` folder.
-    - **Important**: Beware that the resources created by this command will incur immediate costs, primarily from the AI Search resource. These resources may accrue costs even if you interrupt the command before it is fully executed. You can run `azd down` or delete the resources manually to avoid unnecessary spending.
-    - You will be prompted to select two locations, one for the majority of resources and one for the OpenAI resource, which is currently a short list. That location list is based on the [OpenAI model availability table](https://learn.microsoft.com/azure/cognitive-services/openai/concepts/models#model-summary-table-and-region-availability) and may become outdated as availability changes.
-1. After the application has been successfully deployed you will see a URL printed to the console.  Click that URL to interact with the application in your browser.
-It will look like the following:
+   - **Important**: Beware that the resources created by this command will incur immediate costs, primarily from the AI Search resource. These resources may accrue costs even if you interrupt the command before it is fully executed. You can run `azd down` or delete the resources manually to avoid unnecessary spending.
+   - You will be prompted to select two locations, one for the majority of resources and one for the OpenAI resource, which is currently a short list. That location list is based on the [OpenAI model availability table](https://learn.microsoft.com/azure/cognitive-services/openai/concepts/models#model-summary-table-and-region-availability) and may become outdated as availability changes.
+1. After the application has been successfully deployed you will see a URL printed to the console. Click that URL to interact with the application in your browser.
+   It will look like the following:
 
 !['Output from running azd up'](docs/images/endpoint.png)
 
@@ -208,19 +211,19 @@ You can only run a development server locally **after** having successfully run 
 1. Run `azd auth login` if you have not logged in recently.
 2. Start the server:
 
-  Windows:
+Windows:
 
-  ```shell
-  ./app/start.ps1
-  ```
+```shell
+./app/start.ps1
+```
 
-  Linux/Mac:
+Linux/Mac:
 
-  ```shell
-  ./app/start.sh
-  ```
+```shell
+./app/start.sh
+```
 
-  VS Code: Run the "VS Code Task: Start App" task.
+VS Code: Run the "VS Code Task: Start App" task.
 
 It's also possible to enable hotloading or the VS Code debugger.
 See more tips in [the local development guide](docs/localdev.md).
@@ -302,4 +305,4 @@ join the Azure AI Foundry Developer Community:
 
 ### Note
 
->Note: The PDF documents used in this demo contain information generated using a language model (Azure OpenAI Service). The information contained in these documents is only for demonstration purposes and does not reflect the opinions or beliefs of Microsoft. Microsoft makes no representations or warranties of any kind, express or implied, about the completeness, accuracy, reliability, suitability or availability with respect to the information contained in this document. All rights reserved to Microsoft.
+> Note: The PDF documents used in this demo contain information generated using a language model (Azure OpenAI Service). The information contained in these documents is only for demonstration purposes and does not reflect the opinions or beliefs of Microsoft. Microsoft makes no representations or warranties of any kind, express or implied, about the completeness, accuracy, reliability, suitability or availability with respect to the information contained in this document. All rights reserved to Microsoft.
