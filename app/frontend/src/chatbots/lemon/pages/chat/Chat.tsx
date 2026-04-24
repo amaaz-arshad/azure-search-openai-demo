@@ -54,10 +54,7 @@ const Chat = () => {
         },
         session_state: null
     };
-    const initialAssistantPair: [user: string, response: ChatAppResponse] = [
-        INITIAL_ASSISTANT_SENTINEL_USER_MESSAGE,
-        initialAssistantResponse
-    ];
+    const initialAssistantPair: [user: string, response: ChatAppResponse] = [INITIAL_ASSISTANT_SENTINEL_USER_MESSAGE, initialAssistantResponse];
     const [isConfigPanelOpen, setIsConfigPanelOpen] = useState(false);
     const [isHistoryPanelOpen, setIsHistoryPanelOpen] = useState(false);
     const [promptTemplate, setPromptTemplate] = useState<string>("");
@@ -166,7 +163,7 @@ const Chat = () => {
             setShowChatHistoryBrowser(config.showChatHistoryBrowser);
             setShowChatHistoryCosmos(config.showChatHistoryCosmos);
             setShowAgenticRetrievalOption(config.showAgenticRetrievalOption);
-            setUseAgenticRetrieval(false);
+            setUseAgenticRetrieval(config.showAgenticRetrievalOption);
             setWebSourceSupported(config.webSourceEnabled);
             setWebSourceEnabled(config.webSourceEnabled);
             setSharePointSourceSupported(config.sharepointSourceEnabled);
@@ -426,9 +423,7 @@ const Chat = () => {
                             ? parsedResponse.session_state
                             : localHistorySessionIdRef.current;
                     const normalizedResponse =
-                        typeof sessionState === "string" && sessionState !== ""
-                            ? { ...parsedResponse, session_state: sessionState }
-                            : parsedResponse;
+                        typeof sessionState === "string" && sessionState !== "" ? { ...parsedResponse, session_state: sessionState } : parsedResponse;
                     setAnswers([...answers, [question, normalizedResponse]]);
                     if (typeof sessionState === "string" && sessionState !== "") {
                         const token = client ? await getToken(client) : undefined;
@@ -450,9 +445,7 @@ const Chat = () => {
                         ? chatResponse.session_state
                         : localHistorySessionIdRef.current;
                 const normalizedResponse =
-                    typeof sessionState === "string" && sessionState !== ""
-                        ? { ...chatResponse, session_state: sessionState }
-                        : chatResponse;
+                    typeof sessionState === "string" && sessionState !== "" ? { ...chatResponse, session_state: sessionState } : chatResponse;
                 setAnswers([...answers, [question, normalizedResponse]]);
                 if (typeof sessionState === "string" && sessionState !== "") {
                     const token = client ? await getToken(client) : undefined;
