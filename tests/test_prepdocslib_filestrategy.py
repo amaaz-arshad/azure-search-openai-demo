@@ -7,13 +7,14 @@ from prepdocslib.blobmanager import BlobManager
 from prepdocslib.figureprocessor import FigureProcessor, MediaDescriptionStrategy
 from prepdocslib.fileprocessor import FileProcessor
 from prepdocslib.filestrategy import FileStrategy, parse_file
+from prepdocslib.jsonparser import JsonParser
 from prepdocslib.listfilestrategy import (
     File,
     ListFileStrategy,
     LocalListFileStrategy,
 )
 from prepdocslib.page import ImageOnPage, Page
-from prepdocslib.strategy import SearchInfo
+from prepdocslib.strategy import DocumentAction, SearchInfo
 from prepdocslib.textparser import TextParser
 from prepdocslib.textsplitter import SimpleTextSplitter
 
@@ -96,6 +97,76 @@ async def test_parse_file_with_images(monkeypatch):
     )
 
     assert sections == []
+
+
+def build_hyrox_stream():
+    content = (
+        b'[{"id":"ID040","title":"Level 1 Module 1 HYROX365 philosophy in depth explained",'
+        b'"category":"HYROX Academy Level 1","author":"HYROX","date":"2025-09-30","version":"v1.0",'
+        b'"lms_id":"17818","url":"https://web.lemon-mobile-learning.com/hyrox/#/inhalt/17818",'
+        b'"tags":["philosophy","depth"],"summary":"ignored summary","content":"Exact HYROX content."}]'
+    )
+    stream = BytesIO(content)
+    stream.name = "HYROX_Level_1.json"
+    return stream
+
+
+@pytest.mark.asyncio
+async def test_parse_file_uses_hyrox_mapping_for_lemon_hyrox_json():
+    file = File(content=build_hyrox_stream())
+
+    sections = await parse_file(
+        file,
+        {".json": FileProcessor(JsonParser(), SimpleTextSplitter())},
+        category="lemon",
+    )
+
+    assert len(sections) == 1
+    section = sections[0]
+    assert section.id == "hyrox-level-1-17818-chunk-001"
+    assert section.category == "lemon"
+    assert section.sourcepage == "17818"
+    assert section.sourcefile == "HYROX_Level_1.json"
+    assert section.title == "Level 1 Module 1 HYROX365 philosophy in depth explained"
+    assert section.url == "https://web.lemon-mobile-learning.com/hyrox/#/inhalt/17818"
+    assert section.tags == ["philosophy", "depth", "HYROX Academy Level 1"]
+    assert section.chunk.text == "Exact HYROX content."
+    assert "ignored summary" not in section.chunk.text
+
+
+@pytest.mark.asyncio
+async def test_parse_file_keeps_hyrox_json_generic_for_non_lemon_category():
+    file = File(content=build_hyrox_stream())
+
+    sections = await parse_file(
+        file,
+        {".json": FileProcessor(JsonParser(), SimpleTextSplitter())},
+        category="moodle",
+    )
+
+    assert len(sections) == 1
+    assert sections[0].sourcepage is None
+    assert sections[0].title is None
+    assert '"lms_id": "17818"' in sections[0].chunk.text
+    assert "ignored summary" in sections[0].chunk.text
+
+
+@pytest.mark.asyncio
+async def test_parse_file_keeps_non_hyrox_json_generic_for_lemon_category():
+    stream = BytesIO(b'[{"title":"Plain JSON","category":"Other","content":"Generic content"}]')
+    stream.name = "plain.json"
+    file = File(content=stream)
+
+    sections = await parse_file(
+        file,
+        {".json": FileProcessor(JsonParser(), SimpleTextSplitter())},
+        category="lemon",
+    )
+
+    assert len(sections) == 1
+    assert sections[0].sourcepage is None
+    assert sections[0].title is None
+    assert '"title": "Plain JSON"' in sections[0].chunk.text
 
 
 @pytest.mark.asyncio

@@ -14,6 +14,7 @@ from .blobmanager import AdlsBlobManager, BaseBlobManager, BlobManager
 from .embeddings import ImageEmbeddings, OpenAIEmbeddings
 from .figureprocessor import FigureProcessor, MediaDescriptionStrategy, process_page_image
 from .fileprocessor import FileProcessor
+from .hyroxjson import build_hyrox_sections_if_applicable
 from .listfilestrategy import File, ListFileStrategy
 from .mediadescriber import ContentUnderstandingDescriber
 from .searchmanager import SearchManager, Section
@@ -60,6 +61,14 @@ async def parse_file(
     check_cancel: Optional[Callable[[], Awaitable[None]]] = None,
 ) -> list[Section]:
     key = file.file_extension().lower()
+    hyrox_sections = await build_hyrox_sections_if_applicable(
+        file=file,
+        category=category,
+        check_cancel=check_cancel,
+    )
+    if hyrox_sections is not None:
+        return hyrox_sections
+
     processor = file_processors.get(key)
     if processor is None:
         logger.info("Skipping '%s', no parser found.", file.filename())
