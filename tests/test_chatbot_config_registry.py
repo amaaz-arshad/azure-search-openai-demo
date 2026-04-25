@@ -24,6 +24,12 @@ def test_chatbot_config_registry_loads_known_configs() -> None:
     assert moodle.citation_target == "url"
     assert moodle.prompt_mode == "override"
 
+    publishone = get_chatbot_config("publishone")
+    assert publishone is not None
+    assert publishone.language_locale == "English"
+    assert publishone.citation_target == "url"
+    assert publishone.prompt_mode == "override"
+
     vjoonk4 = get_chatbot_config("vjoonk4")
     assert vjoonk4 is not None
     assert vjoonk4.prompt_mode == "inject"

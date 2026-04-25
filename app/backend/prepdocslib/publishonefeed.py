@@ -13,7 +13,7 @@ from .xmlparser import cleanup_xml_text, normalize_tag
 
 logger = logging.getLogger("scripts")
 
-PUBLISHONE_DOCUMENT_URL_TEMPLATE = "https://snap.publishone.nl/document/{document_id}/content"
+PUBLISHONE_DOCUMENT_URL_TEMPLATE = "https://amsterdam.publishone.nl/document/{document_id}/content"
 HEADING_LEVELS = {f"h{level}": level for level in range(1, 7)}
 INLINE_BREAK_TAGS = {"br"}
 SKIPPED_CONTENT_TAGS = {"naam", "lastmodified", "meta"}

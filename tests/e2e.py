@@ -11,11 +11,30 @@ import pytest
 import requests
 import uvicorn
 from axe_playwright_python.sync_playwright import Axe
-from playwright.sync_api import Page, Route, expect
+from playwright.sync_api import Browser, Page, Route, expect
 
 import app
 
 expect.set_options(timeout=10_000)
+
+WINDOWS_PROCESS_ENV_KEYS = (
+    "APPDATA",
+    "COMSPEC",
+    "HOMEDRIVE",
+    "HOMEPATH",
+    "LOCALAPPDATA",
+    "PATH",
+    "PATHEXT",
+    "ProgramData",
+    "SystemRoot",
+    "TEMP",
+    "TMP",
+    "USERPROFILE",
+    "WINDIR",
+)
+WINDOWS_PROCESS_ENV = {
+    key: value for key in WINDOWS_PROCESS_ENV_KEYS if (value := os.environ.get(key)) is not None
+}
 
 
 def wait_for_server_ready(url: str, timeout: float = 10.0, check_interval: float = 0.5) -> bool:
@@ -54,10 +73,12 @@ def run_server(port: int):
     with mock.patch.dict(
         os.environ,
         {
+            **WINDOWS_PROCESS_ENV,
             "AZURE_STORAGE_ACCOUNT": "test-storage-account",
             "AZURE_STORAGE_CONTAINER": "test-storage-container",
             "AZURE_STORAGE_RESOURCE_GROUP": "test-storage-rg",
             "AZURE_SUBSCRIPTION_ID": "test-storage-subid",
+            "AZURE_SERVER_APP_SECRET": "SECRET",
             "ENABLE_LANGUAGE_PICKER": "false",
             "USE_SPEECH_INPUT_BROWSER": "false",
             "USE_SPEECH_OUTPUT_AZURE": "false",
@@ -67,6 +88,7 @@ def run_server(port: int):
             "AZURE_SPEECH_SERVICE_LOCATION": "eastus",
             "AZURE_OPENAI_SERVICE": "test-openai-service",
             "AZURE_OPENAI_CHATGPT_MODEL": "gpt-4.1-mini",
+            "AZURE_OPENAI_EMB_DEPLOYMENT": "test-ada",
             "AZURE_OPENAI_EMB_MODEL_NAME": "text-embedding-3-large",
             "AZURE_OPENAI_EMB_DIMENSIONS": "3072",
         },
@@ -77,12 +99,13 @@ def run_server(port: int):
 
 @pytest.fixture()
 def live_server_url(mock_env, mock_acs_search, free_port: int) -> Generator[str, None, None]:
-    proc = Process(target=run_server, args=(free_port,), daemon=True)
-    proc.start()
-    url = f"http://localhost:{free_port}/"
-    wait_for_server_ready(url, timeout=10.0, check_interval=0.5)
-    yield url
-    proc.kill()
+    with mock.patch.dict(os.environ, WINDOWS_PROCESS_ENV, clear=False):
+        proc = Process(target=run_server, args=(free_port,), daemon=True)
+        proc.start()
+        url = f"http://localhost:{free_port}/"
+        wait_for_server_ready(url, timeout=10.0, check_interval=0.5)
+        yield url
+        proc.kill()
 
 
 @pytest.fixture(params=[(480, 800), (600, 1024), (768, 1024), (992, 1024), (1024, 768)])
@@ -324,7 +347,7 @@ def test_publishone_answer_keeps_wordmark_logo_wrapper(page: Page, live_server_u
 
     page.goto(f"{live_server_url}publishone")
 
-    question_input = page.get_by_placeholder("Type a new question (e.g. does my plan cover annual eye exams?)")
+    question_input = page.get_by_placeholder("Type your message")
     question_input.click()
     question_input.fill("Whats the dental plan?")
     page.get_by_label("Submit question").click()
@@ -339,6 +362,39 @@ def test_publishone_answer_keeps_wordmark_logo_wrapper(page: Page, live_server_u
         "assistantWordmark" in class_name and "wordmarkLogo" in class_name
         for class_name in publishone_answer_logo_classes
     )
+
+
+def test_publishone_forces_english_for_german_browser_locale(browser: Browser, live_server_url: str):
+    context = browser.new_context(locale="de-DE")
+    page = context.new_page()
+    captured_language: dict[str, str] = {}
+
+    def handle_chat_stream(route: Route):
+        post_data = route.request.post_data_json
+        captured_language["value"] = post_data["context"]["overrides"]["language"]
+        fulfill_chat_stream_snapshot(route, "tests/snapshots/test_app/test_chat_stream_text/client0/result.jsonlines")
+
+    page.route("*/**/chat/stream", handle_chat_stream)
+
+    try:
+        page.goto(f"{live_server_url}publishone")
+
+        expect(page.get_by_text("Welcome! Glad you're here.")).to_be_visible()
+        question_input = page.get_by_placeholder("Type your message")
+        expect(question_input).to_be_visible()
+
+        page.locator("header button").last.click()
+        expect(page.get_by_role("button", name="New chat")).to_be_visible()
+        expect(page.get_by_role("button", name="View recent chats")).to_be_visible()
+        expect(page.get_by_text("Neuer Chat")).to_have_count(0)
+
+        question_input.fill("Whats the dental plan?")
+        page.get_by_label("Submit question").click()
+
+        expect(page.get_by_text("The capital of France is Paris.")).to_be_visible()
+        assert captured_language["value"] == "en"
+    finally:
+        context.close()
 
 
 def test_nerilio_answer_places_avatar_outside_card(page: Page, live_server_url: str):
