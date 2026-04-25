@@ -1,5 +1,6 @@
 .wrapper {
     width: 100%;
+    max-width: 64.25rem;
     padding: 1rem 1rem 0;
     box-sizing: border-box;
 }
@@ -81,5 +82,11 @@
 
     .message {
         font-size: var(--chatbot-disclaimer-message-font-size-mobile, 0.9rem);
+    }
+}
+
+@media (min-width: 992px) {
+    .wrapper {
+        padding: 1rem 1.5rem 0;
     }
 }
