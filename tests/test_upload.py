@@ -44,6 +44,14 @@ class MockBlobClient:
         return self.name in self.existing_blobs
 
 
+async def login_simple_chatbot(client, chatbot_name: str, username: str, password: str):
+    response = await client.post(
+        f"/chatbot-auth/{chatbot_name}/login",
+        json={"username": username, "password": password},
+    )
+    assert response.status_code == 200
+
+
 def create_pdf_bytes(page_count: int) -> BytesIO:
     writer = PdfWriter()
     for _ in range(page_count):
@@ -299,6 +307,7 @@ async def test_delete_uploaded(auth_client, monkeypatch, mock_data_lake_service_
 
 @pytest.mark.asyncio
 async def test_chatbot_upload_file(client, monkeypatch):
+    await login_simple_chatbot(client, "demo", "demouser", "demo@123")
     existing_blobs = set()
     uploaded_blob_names = []
 
@@ -454,6 +463,8 @@ async def test_managed_upload_file_uses_category_prefix(client, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_list_chatbot_uploaded_files(client, monkeypatch):
+    await login_simple_chatbot(client, "demo", "demouser", "demo@123")
+
     async def mock_exists(*args, **kwargs):
         return True
 
@@ -524,6 +535,7 @@ async def test_list_managed_uploaded_files(client, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_delete_chatbot_uploaded_file(client, monkeypatch):
+    await login_simple_chatbot(client, "demo", "demouser", "demo@123")
     existing_blobs = {
         "chatbot-uploads/demo/files/ZGVtby1ub3Rlcy50eHQ/dXBsb2FkLTE/demo-notes.txt",
         "chatbot-uploads/demo/.manifests/ZGVtby1ub3Rlcy50eHQ.json",
@@ -574,7 +586,7 @@ async def test_delete_chatbot_uploaded_file(client, monkeypatch):
                         "sourcefile": "demo-notes.txt",
                         "category": "demo",
                         "storageUrl": "https://test.blob.core.windows.net/test-storage-container/demo/demo-notes.txt",
-                    }
+                    },
                 ]
             )
         return SearchResultsIterator([])
@@ -650,6 +662,7 @@ async def test_delete_managed_uploaded_files_by_category(client, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_delete_all_chatbot_uploaded_files(client, monkeypatch):
+    await login_simple_chatbot(client, "demo", "demouser", "demo@123")
     existing_blobs = {
         "chatbot-uploads/demo/files/YWxwaGEudHh0/dXBsb2FkLTE/alpha.txt",
         "chatbot-uploads/demo/.manifests/YWxwaGEudHh0.json",
@@ -749,6 +762,8 @@ async def test_delete_all_chatbot_uploaded_files(client, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_chatbot_upload_rejects_filename_conflict_with_builtin_demo_content(client, monkeypatch):
+    await login_simple_chatbot(client, "demo", "demouser", "demo@123")
+
     async def mock_exists(*args, **kwargs):
         return True
 
@@ -789,6 +804,7 @@ async def test_chatbot_upload_rejects_filename_conflict_with_builtin_demo_conten
 
 @pytest.mark.asyncio
 async def test_cancel_chatbot_upload_prevents_indexing(client, monkeypatch):
+    await login_simple_chatbot(client, "demo", "demouser", "demo@123")
     existing_blobs = set()
     uploaded_blob_names = []
     deleted_blob_names = []
@@ -1063,6 +1079,7 @@ async def test_public_test_upload_indexes_user_and_uses_user_scoped_blob_path(cl
 
 @pytest.mark.asyncio
 async def test_rak_upload_indexes_username_and_uses_user_scoped_blob_path(client, monkeypatch):
+    await login_simple_chatbot(client, "rak", "12345", "rak99#")
     existing_blobs = set()
     uploaded_blob_names = []
 

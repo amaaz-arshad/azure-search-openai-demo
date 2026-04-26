@@ -875,8 +875,8 @@ const UploadFilesPage = () => {
                                 <div className={styles.inputWrap}>
                                     <input
                                         id="upload-manager-password"
-                                        className={`${styles.input} ${!isPasswordVisible ? styles.maskedInput : ""}`}
-                                        type="text"
+                                        className={styles.input}
+                                        type={isPasswordVisible ? "text" : "password"}
                                         name="upload-manager-access-code"
                                         value={password}
                                         onChange={event => {

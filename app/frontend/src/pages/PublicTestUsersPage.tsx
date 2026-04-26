@@ -254,8 +254,8 @@ const PublicTestUsersPage = () => {
                                 <div className={styles.inputWrap}>
                                     <input
                                         id="free-users-password"
-                                        className={`${styles.input} ${!isPasswordVisible ? styles.maskedInput : ""}`}
-                                        type="text"
+                                        className={styles.input}
+                                        type={isPasswordVisible ? "text" : "password"}
                                         name="free-user-admin-password"
                                         value={password}
                                         onChange={event => {
@@ -386,8 +386,8 @@ const PublicTestUsersPage = () => {
                                                     <div className={styles.inputWrap}>
                                                         <input
                                                             id={`reset-password-${user.email}`}
-                                                            className={`${styles.input} ${!isNewPasswordVisible ? styles.maskedInput : ""}`}
-                                                            type="text"
+                                                            className={styles.input}
+                                                            type={isNewPasswordVisible ? "text" : "password"}
                                                             value={newPassword}
                                                             onChange={event => setNewPassword(event.target.value)}
                                                             placeholder="Enter new password"
@@ -412,8 +412,8 @@ const PublicTestUsersPage = () => {
                                                     <div className={styles.inputWrap}>
                                                         <input
                                                             id={`reset-password-confirm-${user.email}`}
-                                                            className={`${styles.input} ${!isConfirmPasswordVisible ? styles.maskedInput : ""}`}
-                                                            type="text"
+                                                            className={styles.input}
+                                                            type={isConfirmPasswordVisible ? "text" : "password"}
                                                             value={confirmNewPassword}
                                                             onChange={event => setConfirmNewPassword(event.target.value)}
                                                             placeholder="Confirm new password"

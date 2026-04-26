@@ -14,32 +14,35 @@ from config import (
     CONFIG_COSMOS_HISTORY_VERSION,
     CONFIG_CREDENTIAL,
     CONFIG_PUBLIC_TEST_AUTH_SERVICE,
+    CONFIG_SIMPLE_CHATBOT_AUTH_SERVICE,
 )
 from core.publictestauth import PublicTestAuthStore
+from core.simplechatbotauth import SimpleChatbotAuthStore
 from decorators import authenticated
 from error import error_response
 
 chat_history_cosmosdb_bp = Blueprint("chat_history_cosmos", __name__, static_folder="static")
 
 PUBLIC_TEST_CHATBOT_NAME = "public-test"
+PUBLIC_TEST_ROUTE_CHATBOT_NAME = "free"
 PUBLIC_TEST_HISTORY_USER_PREFIX = "public-test:"
 RAK_CHATBOT_NAME = "rak"
 RAK_HISTORY_USER_PREFIX = "rak:"
-RAK_ALLOWED_USERNAMES = {"12345", "67890"}
 INTERNAL_ROUTER_CHATBOT_NAME = "internal"
-INTERNAL_INVALID_SOURCE_BOTS = frozenset({INTERNAL_ROUTER_CHATBOT_NAME, "free", RAK_CHATBOT_NAME})
+INTERNAL_INVALID_SOURCE_BOTS = frozenset(
+    {INTERNAL_ROUTER_CHATBOT_NAME, PUBLIC_TEST_ROUTE_CHATBOT_NAME, RAK_CHATBOT_NAME}
+)
 
 
-def normalize_rak_history_username(raw_username: str | None) -> str | None:
-    normalized_username = (raw_username or "").strip()
-    if not normalized_username:
-        return None
-
-    return normalized_username if normalized_username in RAK_ALLOWED_USERNAMES else None
+def normalize_history_chatbot_name(chatbot_name: Any) -> str:
+    normalized_chatbot_name = normalize_chatbot_name(chatbot_name)
+    if normalized_chatbot_name == PUBLIC_TEST_ROUTE_CHATBOT_NAME:
+        return PUBLIC_TEST_CHATBOT_NAME
+    return normalized_chatbot_name or ""
 
 
 async def resolve_history_user_id(chatbot_name: str, auth_claims: dict[str, Any]) -> str | None:
-    chatbot_name = normalize_chatbot_name(chatbot_name) or chatbot_name.strip().lower()
+    chatbot_name = normalize_history_chatbot_name(chatbot_name)
     if chatbot_name == PUBLIC_TEST_CHATBOT_NAME:
         auth_service = current_app.config.get(CONFIG_PUBLIC_TEST_AUTH_SERVICE)
         if auth_service is None:
@@ -55,10 +58,31 @@ async def resolve_history_user_id(chatbot_name: str, auth_claims: dict[str, Any]
         return f"{PUBLIC_TEST_HISTORY_USER_PREFIX}{PublicTestAuthStore.hash_email(session.email)}"
 
     if chatbot_name == RAK_CHATBOT_NAME:
-        rak_username = normalize_rak_history_username(request.headers.get("X-Chatbot-User"))
-        if rak_username is None:
-            rak_username = normalize_rak_history_username(request.args.get("chatbot_user"))
-        return f"{RAK_HISTORY_USER_PREFIX}{rak_username}" if rak_username is not None else None
+        auth_service = current_app.config.get(CONFIG_SIMPLE_CHATBOT_AUTH_SERVICE)
+        if auth_service is None:
+            return None
+
+        simple_chatbot_auth_service = auth_service
+        session = simple_chatbot_auth_service.load_session(
+            chatbot_name,
+            request.cookies.get(simple_chatbot_auth_service.get_session_cookie_name(chatbot_name)),
+        )
+        if session is None:
+            return None
+
+        requested_username = (request.headers.get("X-Chatbot-User") or request.args.get("chatbot_user") or "").strip()
+        if requested_username and requested_username != session.user:
+            return None
+        return f"{RAK_HISTORY_USER_PREFIX}{session.user}"
+
+    auth_service = current_app.config.get(CONFIG_SIMPLE_CHATBOT_AUTH_SERVICE)
+    if isinstance(auth_service, SimpleChatbotAuthStore) and auth_service.is_protected_chatbot(chatbot_name):
+        session = auth_service.load_session(
+            chatbot_name,
+            request.cookies.get(auth_service.get_session_cookie_name(chatbot_name)),
+        )
+        if session is None:
+            return None
 
     entra_oid = auth_claims.get("oid")
     return str(entra_oid) if entra_oid else None
@@ -95,7 +119,7 @@ async def post_chat_history(auth_claims: dict[str, Any]):
         request_json = await request.get_json()
         session_id = request_json.get("id")
         message_pairs = request_json.get("answers")
-        chatbot_name = normalize_chatbot_name(request_json.get("chatbot_name")) or ""
+        chatbot_name = normalize_history_chatbot_name(request_json.get("chatbot_name"))
         metadata = request_json.get("metadata")
         metadata = metadata if isinstance(metadata, dict) else {}
         source_chatbot = (
@@ -145,7 +169,9 @@ async def post_chat_history(auth_claims: dict[str, Any]):
         batch_operations = [("upsert", (session_item,))] + [
             ("upsert", (message_pair_item,)) for message_pair_item in message_pair_items
         ]
-        await container.execute_item_batch(batch_operations=batch_operations, partition_key=[history_user_id, session_id])
+        await container.execute_item_batch(
+            batch_operations=batch_operations, partition_key=[history_user_id, session_id]
+        )
         return jsonify({}), 201
     except Exception as error:
         return error_response(error, "/chat_history")
@@ -164,11 +190,13 @@ async def get_chat_history_sessions(auth_claims: dict[str, Any]):
     try:
         count = int(request.args.get("count", 10))
         continuation_token = request.args.get("continuation_token")
-        chatbot_name = normalize_chatbot_name(request.args.get("chatbot_name")) or ""
+        chatbot_name = normalize_history_chatbot_name(request.args.get("chatbot_name"))
         history_user_id = await resolve_history_user_id(chatbot_name, auth_claims)
         if not history_user_id:
             return jsonify({"error": "User history scope not found"}), 401
-        source_chatbot_filter = " AND IS_DEFINED(c.source_chatbot)" if chatbot_name == INTERNAL_ROUTER_CHATBOT_NAME else ""
+        source_chatbot_filter = (
+            " AND IS_DEFINED(c.source_chatbot)" if chatbot_name == INTERNAL_ROUTER_CHATBOT_NAME else ""
+        )
 
         res = container.query_items(
             query=f"SELECT c.id, c.entra_oid, c.title, c.timestamp, c.source_chatbot FROM c WHERE c.entra_oid = @entra_oid AND c.type = @type AND c.chatbot_name = @chatbot_name{source_chatbot_filter} ORDER BY c.timestamp DESC",
@@ -225,7 +253,7 @@ async def get_chat_history_session(auth_claims: dict[str, Any], session_id: str)
         return jsonify({"error": "Chat history not enabled"}), 400
 
     try:
-        chatbot_name = normalize_chatbot_name(request.args.get("chatbot_name")) or ""
+        chatbot_name = normalize_history_chatbot_name(request.args.get("chatbot_name"))
         history_user_id = await resolve_history_user_id(chatbot_name, auth_claims)
         if not history_user_id:
             return jsonify({"error": "User history scope not found"}), 401
@@ -294,7 +322,7 @@ async def delete_chat_history_session(auth_claims: dict[str, Any], session_id: s
         return jsonify({"error": "Chat history not enabled"}), 400
 
     try:
-        chatbot_name = normalize_chatbot_name(request.args.get("chatbot_name")) or ""
+        chatbot_name = normalize_history_chatbot_name(request.args.get("chatbot_name"))
         history_user_id = await resolve_history_user_id(chatbot_name, auth_claims)
         if not history_user_id:
             return jsonify({"error": "User history scope not found"}), 401
@@ -310,7 +338,9 @@ async def delete_chat_history_session(auth_claims: dict[str, Any], session_id: s
                 ids_to_delete.append(item["id"])
 
         batch_operations = [("delete", (id,)) for id in ids_to_delete]
-        await container.execute_item_batch(batch_operations=batch_operations, partition_key=[history_user_id, session_id])
+        await container.execute_item_batch(
+            batch_operations=batch_operations, partition_key=[history_user_id, session_id]
+        )
         return await make_response("", 204)
     except Exception as error:
         return error_response(error, f"/chat_history/sessions/{session_id}")

@@ -21,6 +21,14 @@ from .mocks import (
 )
 
 
+async def login_simple_chatbot(client, chatbot_name: str, username: str, password: str):
+    response = await client.post(
+        f"/chatbot-auth/{chatbot_name}/login",
+        json={"username": username, "password": password},
+    )
+    assert response.status_code == 200
+
+
 @pytest.mark.asyncio
 async def test_content_file(monkeypatch, mock_env, mock_acs_search, mock_blob_container_client_exists):
 
@@ -178,6 +186,7 @@ async def test_content_file_useruploaded_notfound(
 
 @pytest.mark.asyncio
 async def test_content_file_chatbot_uploaded_found(monkeypatch, client):
+    await login_simple_chatbot(client, "demo", "demouser", "demo@123")
     quart_app = client.app
 
     class MockChatbotUploadManager:
@@ -186,11 +195,7 @@ async def test_content_file_chatbot_uploaded_found(monkeypatch, client):
                 return None
             return (
                 b"demo upload content",
-                {
-                    "content_settings": {
-                        "content_type": "text/plain"
-                    }
-                },
+                {"content_settings": {"content_type": "text/plain"}},
             )
 
     quart_app.config[app.CONFIG_CHATBOT_UPLOAD_MANAGERS] = {"demo": MockChatbotUploadManager()}
@@ -203,6 +208,7 @@ async def test_content_file_chatbot_uploaded_found(monkeypatch, client):
 
 @pytest.mark.asyncio
 async def test_content_file_category_prefixed_blob_found(monkeypatch, client):
+    await login_simple_chatbot(client, "knoll", "knolluser", "knoll@123")
     quart_app = client.app
     quart_app.config[app.CONFIG_CHATBOT_UPLOAD_MANAGERS] = {}
 
@@ -213,11 +219,7 @@ async def test_content_file_category_prefixed_blob_found(monkeypatch, client):
         if path == "knoll/role_library.pdf":
             return (
                 b"category content",
-                {
-                    "content_settings": {
-                        "content_type": "application/pdf"
-                    }
-                },
+                {"content_settings": {"content_type": "application/pdf"}},
             )
         return None
 
@@ -232,6 +234,7 @@ async def test_content_file_category_prefixed_blob_found(monkeypatch, client):
 
 @pytest.mark.asyncio
 async def test_content_file_direct_category_path_found(monkeypatch, client):
+    await login_simple_chatbot(client, "knoll", "knolluser", "knoll@123")
     quart_app = client.app
     quart_app.config[app.CONFIG_CHATBOT_UPLOAD_MANAGERS] = {}
 
@@ -242,11 +245,7 @@ async def test_content_file_direct_category_path_found(monkeypatch, client):
         if path == "knoll/role_library.pdf":
             return (
                 b"category content",
-                {
-                    "content_settings": {
-                        "content_type": "application/pdf"
-                    }
-                },
+                {"content_settings": {"content_type": "application/pdf"}},
             )
         return None
 
@@ -261,6 +260,7 @@ async def test_content_file_direct_category_path_found(monkeypatch, client):
 
 @pytest.mark.asyncio
 async def test_content_file_infers_category_from_referer(monkeypatch, client):
+    await login_simple_chatbot(client, "knoll", "knolluser", "knoll@123")
     quart_app = client.app
     quart_app.config[app.CONFIG_CHATBOT_UPLOAD_MANAGERS] = {}
 
@@ -271,11 +271,7 @@ async def test_content_file_infers_category_from_referer(monkeypatch, client):
         if path == "knoll/role_library.pdf":
             return (
                 b"category content",
-                {
-                    "content_settings": {
-                        "content_type": "application/pdf"
-                    }
-                },
+                {"content_settings": {"content_type": "application/pdf"}},
             )
         return None
 

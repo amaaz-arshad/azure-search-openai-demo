@@ -54,9 +54,9 @@ const Layout = () => {
         setIsUploadManagerOpen(true);
     };
 
-    const handleBasicLogout = () => {
+    const handleBasicLogout = async () => {
         setDropdownOpen(false);
-        logout();
+        await logout();
         window.location.reload();
     };
 

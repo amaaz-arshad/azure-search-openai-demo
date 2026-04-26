@@ -12,7 +12,12 @@ from openai import BadRequestError
 from quart import Response as QuartResponse
 
 import app
-from core.internaladminauth import INTERNAL_ADMIN_AUTH_COOKIE, INTERNAL_ADMIN_INVALID_PASSWORD_MESSAGE, INTERNAL_ADMIN_REQUIRED_MESSAGE
+from core.internaladminauth import (
+    INTERNAL_ADMIN_AUTH_COOKIE,
+    INTERNAL_ADMIN_INVALID_PASSWORD_MESSAGE,
+    INTERNAL_ADMIN_REQUIRED_MESSAGE,
+)
+from core.simplechatbotauth import SIMPLE_CHATBOT_AUTH_REQUIRED_MESSAGE, SIMPLE_CHATBOT_AUTH_COOKIE_PREFIX
 
 
 def fake_response(http_code):
@@ -69,6 +74,17 @@ async def login_internal_admin(client, password: str = "chatbot123"):
     payload = await response.get_json()
     assert response.status_code == 200
     assert payload == {"authenticated": True}
+    return response
+
+
+async def login_simple_chatbot(client, chatbot_name: str, username: str, password: str):
+    response = await client.post(
+        f"/chatbot-auth/{chatbot_name}/login",
+        json={"username": username, "password": password},
+    )
+    payload = await response.get_json()
+    assert response.status_code == 200
+    assert payload == {"authenticated": True, "user": username}
     return response
 
 
@@ -463,6 +479,55 @@ async def test_internal_admin_login_session_logout_flow(client):
 
 
 @pytest.mark.asyncio
+async def test_simple_chatbot_login_session_logout_flow(client):
+    response = await client.get("/chatbot-auth/demo/session")
+    payload = await response.get_json()
+    assert response.status_code == 200
+    assert payload == {"authenticated": False}
+
+    response = await client.post(
+        "/chatbot-auth/demo/login",
+        json={"username": "demouser", "password": "wrong-password"},
+    )
+    payload = await response.get_json()
+    assert response.status_code == 401
+    assert payload["authenticated"] is False
+
+    response = await login_simple_chatbot(client, "demo", "demouser", "demo@123")
+    assert f"{SIMPLE_CHATBOT_AUTH_COOKIE_PREFIX}_demo" in response.headers["Set-Cookie"]
+
+    response = await client.get("/chatbot-auth/demo/session")
+    payload = await response.get_json()
+    assert response.status_code == 200
+    assert payload == {"authenticated": True, "user": "demouser"}
+
+    response = await client.post("/chatbot-auth/demo/logout")
+    payload = await response.get_json()
+    assert response.status_code == 200
+    assert payload == {"authenticated": False}
+    assert f"{SIMPLE_CHATBOT_AUTH_COOKIE_PREFIX}_demo" in response.headers["Set-Cookie"]
+
+    response = await client.get("/chatbot-auth/demo/session")
+    payload = await response.get_json()
+    assert response.status_code == 200
+    assert payload == {"authenticated": False}
+
+
+@pytest.mark.asyncio
+async def test_simple_chatbot_chat_route_requires_session(client):
+    response = await client.post(
+        "/chat",
+        json={
+            "messages": [{"content": "What is the capital of France?", "role": "user"}],
+            "context": {"overrides": {"retrieval_mode": "text", "include_category": "demo"}},
+        },
+    )
+    payload = await response.get_json()
+    assert response.status_code == 401
+    assert payload == {"message": SIMPLE_CHATBOT_AUTH_REQUIRED_MESSAGE, "chatbotName": "demo"}
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("path", ["/internal-admin/prompts", "/managed_uploads", "/free-admin/users"])
 async def test_internal_admin_routes_require_session(client, path):
     response = await client.get(path)
@@ -496,9 +561,9 @@ async def test_internal_admin_prompt_list_excludes_internal_router_bot(client):
 
 
 def test_chat_history_scope_marks_internal_admin_routes_as_non_chatbot():
-    chat_history_scope = (Path(app.__file__).resolve().parent.parent / "frontend" / "src" / "chatHistoryScope.ts").read_text(
-        encoding="utf-8"
-    )
+    chat_history_scope = (
+        Path(app.__file__).resolve().parent.parent / "frontend" / "src" / "chatHistoryScope.ts"
+    ).read_text(encoding="utf-8")
     assert '"free-users"' in chat_history_scope
     assert '"public-test-users"' in chat_history_scope
     assert '"manage-prompts"' in chat_history_scope
@@ -514,6 +579,7 @@ async def test_legacy_public_test_route_redirects_to_free(client):
 @pytest.mark.asyncio
 async def test_prompt_override_is_used_for_next_chat_request_and_delete_restores_default(client, monkeypatch):
     await login_internal_admin(client)
+    await login_simple_chatbot(client, "demo", "demouser", "demo@123")
 
     prompt_store = client.app.config[app.CONFIG_CHATBOT_PROMPT_STORE]
     override_state = {"prompt": None}
@@ -675,7 +741,15 @@ async def test_public_test_admin_user_password_reset_updates_account(client, mon
 
 
 @pytest.mark.asyncio
-async def test_chat_rak_applies_user_filter_from_header(client):
+async def test_chat_rak_applies_user_filter_from_simple_auth_session(client, monkeypatch):
+    await login_simple_chatbot(client, "rak", "12345", "rak99#")
+    prompt_store = client.app.config[app.CONFIG_CHATBOT_PROMPT_STORE]
+
+    async def mock_load_prompt(_chatbot_name: str):
+        return None
+
+    monkeypatch.setattr(prompt_store, "load_prompt", mock_load_prompt)
+
     response = await client.post(
         "/chat",
         headers={"X-Chatbot-User": "12345"},
@@ -691,7 +765,7 @@ async def test_chat_rak_applies_user_filter_from_header(client):
     )
 
     assert response.status_code == 200
-    assert client.app.config[app.CONFIG_SEARCH_CLIENT].filter == "(category eq 'rak') and user eq '12345'"
+    assert client.app.config[app.CONFIG_SEARCH_CLIENT].filter == "category eq 'rak' and user eq '12345'"
 
 
 @pytest.mark.asyncio
@@ -726,6 +800,7 @@ async def test_internal_chat_rejects_invalid_source_bot(client):
 
 @pytest.mark.asyncio
 async def test_internal_chat_uses_selected_source_bot_for_prompt_and_category(client):
+    await login_simple_chatbot(client, "internal", "internal", "internal")
     prompt_store = client.app.config[app.CONFIG_CHATBOT_PROMPT_STORE]
 
     async def mock_load_prompt(_chatbot_name: str):
@@ -852,7 +927,14 @@ async def test_chat_handle_exception_contentsafety_streaming(client, monkeypatch
 
 @pytest.mark.asyncio
 async def test_chat_handle_exception_contentsafety_streaming_chatbot_override(client, monkeypatch, caplog):
+    await login_simple_chatbot(client, "fhg", "fhg", "1nnsbruck#")
     chat_client = client.app.config[app.CONFIG_OPENAI_CLIENT]
+    prompt_store = client.app.config[app.CONFIG_CHATBOT_PROMPT_STORE]
+
+    async def mock_load_prompt(_chatbot_name: str):
+        return None
+
+    monkeypatch.setattr(prompt_store, "load_prompt", mock_load_prompt)
     monkeypatch.setattr(chat_client.chat.completions, "create", mock.Mock(side_effect=filtered_response))
     monkeypatch.setattr(
         "approaches.chatbot_content_filter_registry.load_chatbot_content_filter_messages",
