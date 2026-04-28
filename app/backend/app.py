@@ -1291,9 +1291,6 @@ async def chat(auth_claims: dict[str, Any]):
     except ValueError as error:
         return jsonify({"error": str(error)}), 400
     context = request_json.get("context", {})
-    simple_auth_chatbot_name = get_simple_auth_required_chatbot_name(resolve_requested_chatbot_name(request_json))
-    if simple_auth_chatbot_name and get_authenticated_simple_chatbot_session(simple_auth_chatbot_name) is None:
-        return build_simple_auth_required_response(simple_auth_chatbot_name)
     requested_chatbot_name = await apply_saved_chatbot_prompt_override(request_json)
     if requested_chatbot_name in {PUBLIC_TEST_CHATBOT_NAME, RAK_CHATBOT_NAME}:
         chatbot_user = await get_user_scoped_chatbot_user(requested_chatbot_name)
@@ -1340,9 +1337,6 @@ async def chat_stream(auth_claims: dict[str, Any]):
     except ValueError as error:
         return jsonify({"error": str(error)}), 400
     context = request_json.get("context", {})
-    simple_auth_chatbot_name = get_simple_auth_required_chatbot_name(resolve_requested_chatbot_name(request_json))
-    if simple_auth_chatbot_name and get_authenticated_simple_chatbot_session(simple_auth_chatbot_name) is None:
-        return build_simple_auth_required_response(simple_auth_chatbot_name)
     requested_chatbot_name = await apply_saved_chatbot_prompt_override(request_json)
     if requested_chatbot_name in {PUBLIC_TEST_CHATBOT_NAME, RAK_CHATBOT_NAME}:
         chatbot_user = await get_user_scoped_chatbot_user(requested_chatbot_name)

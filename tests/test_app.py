@@ -17,7 +17,7 @@ from core.internaladminauth import (
     INTERNAL_ADMIN_INVALID_PASSWORD_MESSAGE,
     INTERNAL_ADMIN_REQUIRED_MESSAGE,
 )
-from core.simplechatbotauth import SIMPLE_CHATBOT_AUTH_REQUIRED_MESSAGE, SIMPLE_CHATBOT_AUTH_COOKIE_PREFIX
+from core.simplechatbotauth import SIMPLE_CHATBOT_AUTH_COOKIE_PREFIX
 
 
 def fake_response(http_code):
@@ -514,7 +514,14 @@ async def test_simple_chatbot_login_session_logout_flow(client):
 
 
 @pytest.mark.asyncio
-async def test_simple_chatbot_chat_route_requires_session(client):
+async def test_simple_chatbot_chat_route_allows_missing_simple_auth_session(client, monkeypatch):
+    prompt_store = client.app.config[app.CONFIG_CHATBOT_PROMPT_STORE]
+
+    async def mock_load_prompt(_chatbot_name: str):
+        return None
+
+    monkeypatch.setattr(prompt_store, "load_prompt", mock_load_prompt)
+
     response = await client.post(
         "/chat",
         json={
@@ -523,8 +530,8 @@ async def test_simple_chatbot_chat_route_requires_session(client):
         },
     )
     payload = await response.get_json()
-    assert response.status_code == 401
-    assert payload == {"message": SIMPLE_CHATBOT_AUTH_REQUIRED_MESSAGE, "chatbotName": "demo"}
+    assert response.status_code == 200
+    assert payload["context"]["thoughts"][1]["props"]["use_text_search"] is True
 
 
 @pytest.mark.asyncio
