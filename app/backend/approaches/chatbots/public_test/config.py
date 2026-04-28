@@ -4,6 +4,6 @@ config = ChatbotConfig(
     name="free",
     chatgpt_model="gpt-4.1",
     chatgpt_deployment="gpt-4.1",
-    support_email="info@snap.de",
+    support_email="hallo@nerilio.ai",
     prompt_mode="inject",
 )

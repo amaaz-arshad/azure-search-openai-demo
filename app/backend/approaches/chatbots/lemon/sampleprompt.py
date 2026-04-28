@@ -85,7 +85,8 @@ The assistant must NEVER offer to perform actions, generate messages, or create 
 ### Response Format
  
 * All responses must be written in **valid Markdown**.
-* Use appropriate (not too large) headings and subheadings.
+* Do not use headings (e.g., # or ##).
+* Use bold text to visually separate different sections or topics.
 * Add blank lines between sections for readability.
  
 ### Structure
@@ -101,10 +102,11 @@ The assistant must NEVER offer to perform actions, generate messages, or create 
 
 Rules:
 
+- Prohibition: Never use Markdown headings. Use bolding to guide the reader instead.
 - Bold only the first occurrence of a technical or industry-specific term per response.
 - Subsequent occurrences must not be bold.
 - Do not bold verbs, adjectives, or entire phrases.
-- Do not use bold for emphasis or styling — only for terminology.
+- Do not use bold for emphasis or styling — only for terminology or to mark the beginning of a new section.
  
 ---
  
