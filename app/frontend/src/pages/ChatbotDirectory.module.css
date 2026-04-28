@@ -319,7 +319,7 @@
 
 .directoryGrid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: 14px;
     align-content: start;
 }
@@ -391,6 +391,44 @@
     overflow-wrap: anywhere;
 }
 
+.cardMeta {
+    display: grid;
+    gap: 6px;
+    margin: 4px 0 0;
+    padding: 12px 0 0;
+    border-top: 1px solid rgba(172, 68, 198, 0.1);
+    list-style: none;
+}
+
+.cardMetaItem {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 0.82rem;
+    line-height: 1.2;
+}
+
+.cardMetaLabel {
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.cardMetaValue {
+    color: var(--text-strong);
+    font-weight: 600;
+    text-align: right;
+    overflow-wrap: anywhere;
+}
+
+.cardMetaOn {
+    color: var(--highlight);
+}
+
+.cardMetaOff {
+    color: var(--text-muted);
+}
+
 .emptyState {
     min-height: 240px;
     border: 1px dashed rgba(172, 68, 198, 0.16);
@@ -451,7 +489,7 @@
     }
 
     .directoryGrid {
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     }
 
     .chatbotCard {

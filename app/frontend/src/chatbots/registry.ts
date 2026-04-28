@@ -17,7 +17,16 @@ import { sartoriusChatbot } from "./sartorius";
 import { steuertippsChatbot } from "./steuertipps";
 import { vjoonk4Chatbot } from "./vjoonk4";
 
-export interface ChatbotDefinition {
+export type ChatbotMode = "qna" | "tutor-qna";
+
+export interface ChatbotMetadata {
+    llm: string;
+    reasoningEffort?: string;
+    mode: ChatbotMode;
+    agenticRetrievalDefault: boolean;
+}
+
+export interface ChatbotDefinition extends ChatbotMetadata {
     name: string;
     LayoutWrapper: ComponentType;
     Chat: ComponentType;
@@ -26,19 +35,19 @@ export interface ChatbotDefinition {
 }
 
 export const chatbotDefinitions: ChatbotDefinition[] = [
-    agindoChatbot,
-    nerilioChatbot,
-    freeChatbot,
-    rakChatbot,
-    steuertippsChatbot,
-    knollChatbot,
-    lemonChatbot,
-    internalChatbot,
-    moodleChatbot,
-    publishoneChatbot,
-    sartoriusChatbot,
-    fbnChatbot,
-    demoChatbot,
-    fhgChatbot,
-    vjoonk4Chatbot
+    { ...agindoChatbot, llm: "gpt-4.1", mode: "qna", agenticRetrievalDefault: false },
+    { ...nerilioChatbot, llm: "gpt-4.1-mini", mode: "qna", agenticRetrievalDefault: false },
+    { ...freeChatbot, llm: "gpt-4.1", mode: "qna", agenticRetrievalDefault: false },
+    { ...rakChatbot, llm: "gpt-4.1", mode: "qna", agenticRetrievalDefault: false },
+    { ...steuertippsChatbot, llm: "gpt-5.4-mini", reasoningEffort: "medium", mode: "tutor-qna", agenticRetrievalDefault: false },
+    { ...knollChatbot, llm: "gpt-5.4-mini", reasoningEffort: "medium", mode: "tutor-qna", agenticRetrievalDefault: false },
+    { ...lemonChatbot, llm: "gpt-5.4-mini", reasoningEffort: "medium", mode: "tutor-qna", agenticRetrievalDefault: true },
+    { ...internalChatbot, llm: "gpt-5.4-mini", reasoningEffort: "medium", mode: "tutor-qna", agenticRetrievalDefault: false },
+    { ...moodleChatbot, llm: "gpt-5.4-mini", reasoningEffort: "medium", mode: "tutor-qna", agenticRetrievalDefault: false },
+    { ...publishoneChatbot, llm: "gpt-5.4-mini", reasoningEffort: "medium", mode: "tutor-qna", agenticRetrievalDefault: false },
+    { ...sartoriusChatbot, llm: "gpt-4.1", mode: "qna", agenticRetrievalDefault: false },
+    { ...fbnChatbot, llm: "gpt-5.4-mini", reasoningEffort: "medium", mode: "tutor-qna", agenticRetrievalDefault: false },
+    { ...demoChatbot, llm: "gpt-5.4-mini", reasoningEffort: "medium", mode: "tutor-qna", agenticRetrievalDefault: false },
+    { ...fhgChatbot, llm: "gpt-4.1", mode: "qna", agenticRetrievalDefault: false },
+    { ...vjoonk4Chatbot, llm: "gpt-4.1", mode: "qna", agenticRetrievalDefault: false }
 ];

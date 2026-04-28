@@ -164,6 +164,34 @@ const ChatbotDirectory = () => {
                                                 </div>
                                                 <strong className={styles.cardTitle}>{formatChatbotLabel(chatbot.name)}</strong>
                                                 <span className={styles.cardRoute}>/{chatbot.name}</span>
+                                                <ul className={styles.cardMeta}>
+                                                    <li className={styles.cardMetaItem}>
+                                                        <span className={styles.cardMetaLabel}>LLM</span>
+                                                        <span className={styles.cardMetaValue}>{chatbot.llm}</span>
+                                                    </li>
+                                                    {chatbot.reasoningEffort ? (
+                                                        <li className={styles.cardMetaItem}>
+                                                            <span className={styles.cardMetaLabel}>Reasoning</span>
+                                                            <span className={styles.cardMetaValue}>{chatbot.reasoningEffort}</span>
+                                                        </li>
+                                                    ) : null}
+                                                    <li className={styles.cardMetaItem}>
+                                                        <span className={styles.cardMetaLabel}>Mode</span>
+                                                        <span className={styles.cardMetaValue}>
+                                                            {chatbot.mode === "tutor-qna" ? "Tutor + Q&A" : "Q&A"}
+                                                        </span>
+                                                    </li>
+                                                    <li className={styles.cardMetaItem}>
+                                                        <span className={styles.cardMetaLabel}>Agentic retrieval</span>
+                                                        <span
+                                                            className={`${styles.cardMetaValue} ${
+                                                                chatbot.agenticRetrievalDefault ? styles.cardMetaOn : styles.cardMetaOff
+                                                            }`}
+                                                        >
+                                                            {chatbot.agenticRetrievalDefault ? "On" : "Off"}
+                                                        </span>
+                                                    </li>
+                                                </ul>
                                             </Link>
                                         ))}
                                     </div>
