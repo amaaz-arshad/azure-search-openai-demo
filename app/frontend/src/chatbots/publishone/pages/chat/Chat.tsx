@@ -22,7 +22,6 @@ import { useLogin, getToken, requireAccessControl } from "../../authConfig";
 import { useMsal } from "@azure/msal-react";
 import { TokenClaimsDisplay } from "../../components/TokenClaimsDisplay";
 import { LoginContext } from "../../loginContext";
-import { LanguagePicker } from "../../i18n/LanguagePicker";
 import { Settings } from "../../components/Settings/Settings";
 import { setGlobalClearChat } from "../layout/Layout";
 import { applyChatbotSpeechFeatureFlags } from "../../../shared/speech/chatbotSpeechFeatureFlags";
@@ -39,7 +38,7 @@ const createClientSessionId = () => {
 };
 
 const Chat = () => {
-    const { t, i18n } = useTranslation();
+    const { t } = useTranslation();
     const chatbotCategory = "publishone";
     const legacyInitialUserMessage: string = t("initialUserMsg");
     const initialAssistantMessageContent: string = t("initialAssistantMsg");
@@ -108,7 +107,6 @@ const Chat = () => {
     const [showReasoningEffortOption, setShowReasoningEffortOption] = useState<boolean>(false);
     const [showVectorOption, setShowVectorOption] = useState<boolean>(false);
     const [showUserUpload, setShowUserUpload] = useState<boolean>(false);
-    const [showLanguagePicker, setshowLanguagePicker] = useState<boolean>(false);
     const [showSpeechInput, setShowSpeechInput] = useState<boolean>(false);
     const [showSpeechOutputBrowser, setShowSpeechOutputBrowser] = useState<boolean>(false);
     const [showSpeechOutputAzure, setShowSpeechOutputAzure] = useState<boolean>(false);
@@ -159,7 +157,6 @@ const Chat = () => {
                 setRetrievalMode(RetrievalMode.Text);
             }
             setShowUserUpload(config.showUserUpload);
-            setshowLanguagePicker(config.showLanguagePicker);
             setShowSpeechInput(effectiveConfig.showSpeechInput);
             setShowSpeechOutputBrowser(effectiveConfig.showSpeechOutputBrowser);
             setShowSpeechOutputAzure(effectiveConfig.showSpeechOutputAzure);
@@ -398,7 +395,7 @@ const Chat = () => {
                         search_image_embeddings: searchImageEmbeddings,
                         send_text_sources: sendTextSources,
                         send_image_sources: sendImageSources,
-                        language: i18n.language,
+                        language: "en",
                         use_agentic_knowledgebase: useAgenticKnowledgeBase,
                         use_web_source: webSourceSupported ? webSourceEnabled : false,
                         use_sharepoint_source: sharePointSourceSupported ? sharePointSourceEnabled : false,
@@ -703,7 +700,6 @@ const Chat = () => {
                             <img src={appLogo} alt="App logo" width="120" height="120" />
                             <h1 className={styles.chatEmptyStateTitle}>{t("chatEmptyStateTitle")}</h1>
                             <h2 className={styles.chatEmptyStateSubtitle}>{t("chatEmptyStateSubtitle")}</h2>
-                            {showLanguagePicker && <LanguagePicker onLanguageChange={newLang => i18n.changeLanguage(newLang)} />}
                             <ExampleList onExampleClicked={onExampleClicked} useMultimodalAnswering={showMultimodalOptions} />
                         </div>
                     ) : ( */}

@@ -58,9 +58,9 @@ const Layout = () => {
         recentChatsAction?.run();
     };
 
-    const handleBasicLogout = () => {
+    const handleBasicLogout = async () => {
         setDropdownOpen(false);
-        logout();
+        await logout();
         window.location.reload();
     };
 

@@ -90,6 +90,8 @@ def get_openlit_llm_only_disabled_instrumentors() -> list[str]:
     extra_disabled = os.getenv("OPENLIT_DISABLED_INSTRUMENTORS", "")
     configured_instrumentors = [name.strip() for name in extra_disabled.split(",") if name.strip()]
     return list(dict.fromkeys((*OPENLIT_LLM_ONLY_DISABLED_INSTRUMENTORS, *configured_instrumentors)))
+
+
 from quart import (
     Blueprint,
     Quart,
@@ -153,6 +155,7 @@ from config import (
     CONFIG_SEARCH_CLIENT,
     CONFIG_SEMANTIC_RANKER_DEPLOYED,
     CONFIG_SHAREPOINT_SOURCE_ENABLED,
+    CONFIG_SIMPLE_CHATBOT_AUTH_SERVICE,
     CONFIG_SPEECH_INPUT_ENABLED,
     CONFIG_SPEECH_OUTPUT_AZURE_ENABLED,
     CONFIG_SPEECH_OUTPUT_BROWSER_ENABLED,
@@ -175,6 +178,13 @@ from core.internaladminauth import (
 )
 from core.publictestauth import PublicTestAuthError, PublicTestAuthStore, PublicTestSession, normalize_public_test_email
 from core.sessionhelper import create_session_id
+from core.simplechatbotauth import (
+    SIMPLE_CHATBOT_AUTH_INVALID_CREDENTIALS_MESSAGE,
+    SIMPLE_CHATBOT_AUTH_REQUIRED_MESSAGE,
+    SimpleChatbotAuthStore,
+    SimpleChatbotCredentials,
+    SimpleChatbotSession,
+)
 from decorators import authenticated, authenticated_path, internal_admin_required
 from error import ErrorContext, error_dict, error_response, get_request_error_context
 from prepdocs import (
@@ -212,6 +222,7 @@ NON_CHATBOT_FRONTEND_PREFIXES = {
     "assets",
     "auth_setup",
     "chat",
+    "chatbot-auth",
     "chatbot_uploads",
     "chatbots",
     "chat_history",
@@ -252,6 +263,20 @@ KNOWN_CHATBOT_NAMES = {
     "demo",
     "fhg",
     "vjoonk4",
+}
+
+SIMPLE_CHATBOT_AUTH_CREDENTIALS = {
+    "agindo": SimpleChatbotCredentials(usernames=frozenset({"agindo"}), password="agindo@123"),
+    "demo": SimpleChatbotCredentials(usernames=frozenset({"demouser"}), password="demo@123"),
+    "fbn": SimpleChatbotCredentials(usernames=frozenset({"fbnuser"}), password="fbn@123"),
+    "fhg": SimpleChatbotCredentials(usernames=frozenset({"fhg"}), password="1nnsbruck#"),
+    "internal": SimpleChatbotCredentials(usernames=frozenset({"internal"}), password="internal"),
+    "knoll": SimpleChatbotCredentials(usernames=frozenset({"knolluser"}), password="knoll@123"),
+    "moodle": SimpleChatbotCredentials(usernames=frozenset({"moodle"}), password="H8mburg#"),
+    "rak": SimpleChatbotCredentials(usernames=RAK_ALLOWED_USERNAMES, password="rak99#"),
+    "sartorius": SimpleChatbotCredentials(usernames=frozenset({"sarto"}), password="G8tting3n#"),
+    "steuertipps": SimpleChatbotCredentials(usernames=frozenset({"wks"}), password="Steuer2026#"),
+    "vjoonk4": SimpleChatbotCredentials(usernames=frozenset({"vjoon"}), password="k4k4k4"),
 }
 
 DEVELOPER_CHAT_MODELS = (
@@ -310,7 +335,9 @@ def get_category_upload_manager() -> CategoryUploadStrategy:
     return cast(CategoryUploadStrategy, manager)
 
 
-def parse_positive_int_query_param(param_name: str, default: int, min_value: int = 1, max_value: int | None = None) -> int:
+def parse_positive_int_query_param(
+    param_name: str, default: int, min_value: int = 1, max_value: int | None = None
+) -> int:
     raw_value = (request.args.get(param_name) or "").strip()
     if not raw_value:
         return default
@@ -367,7 +394,9 @@ def normalize_chatbot_request_overrides(request_json: dict[str, Any]) -> None:
         return
 
     raw_source_chatbot = overrides.get("source_chatbot")
-    normalized_source_chatbot = normalize_chatbot_name(raw_source_chatbot) if isinstance(raw_source_chatbot, str) else None
+    normalized_source_chatbot = (
+        normalize_chatbot_name(raw_source_chatbot) if isinstance(raw_source_chatbot, str) else None
+    )
     if normalized_source_chatbot is None:
         raise ValueError("Internal Bot requires a source bot selection.")
     if normalized_source_chatbot not in get_internal_allowed_source_bot_names():
@@ -379,7 +408,7 @@ def normalize_chatbot_request_overrides(request_json: dict[str, Any]) -> None:
 
 
 def build_chat_model_deployments(default_model: str, default_deployment: str | None) -> dict[str, str | None]:
-    deployments = {model: model for model in DEVELOPER_CHAT_MODELS}
+    deployments: dict[str, str | None] = {model: model for model in DEVELOPER_CHAT_MODELS}
     if default_model in deployments and default_deployment:
         deployments[default_model] = default_deployment
     raw_overrides = (os.getenv("AZURE_OPENAI_CHAT_MODEL_DEPLOYMENTS") or "").strip()
@@ -412,6 +441,13 @@ def get_internal_admin_auth_service() -> InternalAdminAuthStore:
     return cast(InternalAdminAuthStore, auth_service)
 
 
+def get_simple_chatbot_auth_service() -> SimpleChatbotAuthStore:
+    auth_service = current_app.config.get(CONFIG_SIMPLE_CHATBOT_AUTH_SERVICE)
+    if auth_service is None:
+        raise RuntimeError("Simple chatbot auth service is not configured")
+    return cast(SimpleChatbotAuthStore, auth_service)
+
+
 def get_chatbot_prompt_store() -> ChatbotPromptStore:
     prompt_store = current_app.config.get(CONFIG_CHATBOT_PROMPT_STORE)
     if prompt_store is None:
@@ -429,6 +465,42 @@ async def get_authenticated_internal_admin():
     return await auth_service.load_session(request.cookies.get(auth_service.session_cookie_name))
 
 
+def get_authenticated_simple_chatbot_session(chatbot_name: str) -> SimpleChatbotSession | None:
+    auth_service = get_simple_chatbot_auth_service()
+    normalized_chatbot_name = normalize_chatbot_name(chatbot_name) or chatbot_name.strip().lower()
+    if not auth_service.is_protected_chatbot(normalized_chatbot_name):
+        return None
+    return auth_service.load_session(
+        normalized_chatbot_name,
+        request.cookies.get(auth_service.get_session_cookie_name(normalized_chatbot_name)),
+    )
+
+
+def get_simple_auth_required_chatbot_name(requested_chatbot_name: str | None = None) -> str | None:
+    auth_service = get_simple_chatbot_auth_service()
+    route_chatbot_name = get_request_route_chatbot_name()
+    if auth_service.is_protected_chatbot(route_chatbot_name):
+        return route_chatbot_name
+    if auth_service.is_protected_chatbot(requested_chatbot_name):
+        return requested_chatbot_name
+    return None
+
+
+def build_simple_auth_required_response(chatbot_name: str):
+    return jsonify({"message": SIMPLE_CHATBOT_AUTH_REQUIRED_MESSAGE, "chatbotName": chatbot_name}), 401
+
+
+def require_simple_chatbot_route_session(chatbot_name: str):
+    normalized_chatbot_name = normalize_chatbot_name(chatbot_name) or chatbot_name.strip().lower()
+    auth_service = get_simple_chatbot_auth_service()
+    if (
+        auth_service.is_protected_chatbot(normalized_chatbot_name)
+        and get_authenticated_simple_chatbot_session(normalized_chatbot_name) is None
+    ):
+        return build_simple_auth_required_response(normalized_chatbot_name)
+    return None
+
+
 def normalize_rak_username(raw_username: str | None) -> str | None:
     normalized_username = (raw_username or "").strip()
     if not normalized_username:
@@ -443,12 +515,16 @@ async def get_user_scoped_chatbot_user(chatbot_name: str, *, allow_query_param: 
         return public_test_user.email if public_test_user is not None else None
 
     if chatbot_name == RAK_CHATBOT_NAME:
-        rak_username = normalize_rak_username(request.headers.get("X-Chatbot-User"))
-        if rak_username is not None:
-            return rak_username
-        if allow_query_param:
-            return normalize_rak_username(request.args.get("chatbot_user"))
-        return None
+        rak_session = get_authenticated_simple_chatbot_session(chatbot_name)
+        if rak_session is None:
+            return None
+
+        requested_username = normalize_rak_username(request.headers.get("X-Chatbot-User"))
+        if requested_username is None and allow_query_param:
+            requested_username = normalize_rak_username(request.args.get("chatbot_user"))
+        if requested_username is not None and requested_username != rak_session.user:
+            return None
+        return rak_session.user
 
     return None
 
@@ -464,7 +540,9 @@ def should_set_secure_session_cookie() -> bool:
     )
 
 
-def resolve_requested_chatbot_name(request_json: dict[str, Any] | None = None, *, fallback_to_default: bool = False) -> str | None:
+def resolve_requested_chatbot_name(
+    request_json: dict[str, Any] | None = None, *, fallback_to_default: bool = False
+) -> str | None:
     requested_chatbot_name = get_chatbot_name_from_request_json(request_json or {})
     if requested_chatbot_name:
         return requested_chatbot_name
@@ -615,7 +693,9 @@ async def content_file(path: str, auth_claims: dict[str, Any]):
         path = path_parts[0]
     current_app.logger.info("Opening file %s", path)
     result = None
-    chatbot_upload_managers: dict[str, ChatbotUploadStrategy] = current_app.config.get(CONFIG_CHATBOT_UPLOAD_MANAGERS, {})
+    chatbot_upload_managers: dict[str, ChatbotUploadStrategy] = current_app.config.get(
+        CONFIG_CHATBOT_UPLOAD_MANAGERS, {}
+    )
     requested_chatbot_name = normalize_chatbot_name(request.args.get("chatbot_name"))
     normalized_path = path
     path_chatbot_name = None
@@ -633,6 +713,10 @@ async def content_file(path: str, auth_claims: dict[str, Any]):
             referer_first_segment = normalize_chatbot_name(urlparse(referer).path.strip("/").split("/", 1)[0])
             if referer_first_segment in KNOWN_CHATBOT_NAMES:
                 requested_chatbot_name = referer_first_segment
+    simple_auth_chatbot_name = get_simple_auth_required_chatbot_name(requested_chatbot_name)
+    if simple_auth_chatbot_name and get_authenticated_simple_chatbot_session(simple_auth_chatbot_name) is None:
+        abort(401)
+
     requested_user_identifier = None
     if requested_chatbot_name in {PUBLIC_TEST_CHATBOT_NAME, RAK_CHATBOT_NAME}:
         requested_user_identifier = await get_user_scoped_chatbot_user(requested_chatbot_name, allow_query_param=True)
@@ -642,19 +726,25 @@ async def content_file(path: str, auth_claims: dict[str, Any]):
     if requested_chatbot_name:
         chatbot_upload_manager = chatbot_upload_managers.get(requested_chatbot_name)
         if chatbot_upload_manager is not None:
-            result = await chatbot_upload_manager.download_file(
-                normalized_path,
-                user_identifier=requested_user_identifier if requested_chatbot_name in {PUBLIC_TEST_CHATBOT_NAME, RAK_CHATBOT_NAME} else None,
-            )
+            if requested_chatbot_name in {PUBLIC_TEST_CHATBOT_NAME, RAK_CHATBOT_NAME}:
+                result = await chatbot_upload_manager.download_file(
+                    normalized_path,
+                    user_identifier=requested_user_identifier,
+                )
+            else:
+                result = await chatbot_upload_manager.download_file(normalized_path)
 
     if result is None and requested_chatbot_name is None:
+        auth_service = get_simple_chatbot_auth_service()
         for chatbot_name, chatbot_upload_manager in chatbot_upload_managers.items():
             if chatbot_name in {PUBLIC_TEST_CHATBOT_NAME, RAK_CHATBOT_NAME}:
                 continue
-            result = await chatbot_upload_manager.download_file(
-                normalized_path,
-                user_identifier=None,
-            )
+            if (
+                auth_service.is_protected_chatbot(chatbot_name)
+                and get_authenticated_simple_chatbot_session(chatbot_name) is None
+            ):
+                continue
+            result = await chatbot_upload_manager.download_file(normalized_path)
             if result is not None:
                 break
 
@@ -1150,7 +1240,10 @@ async def delete_public_test_admin_user(email: str):
     if not deleted_account:
         return jsonify({"message": "Nerilio Bot user not found.", "deletedUploadCount": len(deleted_uploads)}), 404
 
-    return jsonify({"message": "Nerilio Bot user deleted successfully.", "deletedUploadCount": len(deleted_uploads)}), 200
+    return (
+        jsonify({"message": "Nerilio Bot user deleted successfully.", "deletedUploadCount": len(deleted_uploads)}),
+        200,
+    )
 
 
 @bp.post("/free-admin/users/<path:email>/password")
@@ -1208,7 +1301,11 @@ async def chat(auth_claims: dict[str, Any]):
     context["auth_claims"] = auth_claims
     try:
         chatbot_approaches: dict[str, Approach] = current_app.config.get(CONFIG_CHATBOT_CHAT_APPROACHES, {})
-        approach: Approach = chatbot_approaches.get(requested_chatbot_name, current_app.config[CONFIG_CHAT_APPROACH]) if requested_chatbot_name else current_app.config[CONFIG_CHAT_APPROACH]
+        approach: Approach = (
+            chatbot_approaches.get(requested_chatbot_name, current_app.config[CONFIG_CHAT_APPROACH])
+            if requested_chatbot_name
+            else current_app.config[CONFIG_CHAT_APPROACH]
+        )
 
         # If session state is provided, persists the session state,
         # else creates a new session_id depending on the chat history options enabled.
@@ -1250,7 +1347,11 @@ async def chat_stream(auth_claims: dict[str, Any]):
     context["auth_claims"] = auth_claims
     try:
         chatbot_approaches: dict[str, Approach] = current_app.config.get(CONFIG_CHATBOT_CHAT_APPROACHES, {})
-        approach: Approach = chatbot_approaches.get(requested_chatbot_name, current_app.config[CONFIG_CHAT_APPROACH]) if requested_chatbot_name else current_app.config[CONFIG_CHAT_APPROACH]
+        approach: Approach = (
+            chatbot_approaches.get(requested_chatbot_name, current_app.config[CONFIG_CHAT_APPROACH])
+            if requested_chatbot_name
+            else current_app.config[CONFIG_CHAT_APPROACH]
+        )
 
         # If session state is provided, persists the session state,
         # else creates a new session_id depending on the chat history options enabled.
@@ -1278,6 +1379,55 @@ async def chat_stream(auth_claims: dict[str, Any]):
 def auth_setup():
     auth_helper = current_app.config[CONFIG_AUTH_CLIENT]
     return jsonify(auth_helper.get_auth_setup_for_client())
+
+
+@bp.post("/chatbot-auth/<chatbot_name>/login")
+async def simple_chatbot_login(chatbot_name: str):
+    normalized_chatbot_name = normalize_chatbot_name(chatbot_name) or chatbot_name.strip().lower()
+    auth_service = get_simple_chatbot_auth_service()
+    if not auth_service.is_protected_chatbot(normalized_chatbot_name):
+        return jsonify({"message": "Unknown protected chatbot.", "authenticated": False}), 404
+    if not request.is_json:
+        return jsonify({"message": "Request must be JSON.", "authenticated": False}), 415
+
+    request_json = await request.get_json()
+    if not isinstance(request_json, dict):
+        return jsonify({"message": "Request payload must be an object.", "authenticated": False}), 400
+
+    username = str(request_json.get("username", ""))
+    password = str(request_json.get("password", ""))
+    session = auth_service.verify_credentials(normalized_chatbot_name, username, password)
+    if session is None:
+        return jsonify({"message": SIMPLE_CHATBOT_AUTH_INVALID_CREDENTIALS_MESSAGE, "authenticated": False}), 401
+
+    response = jsonify({"authenticated": True, "user": session.user})
+    auth_service.set_session_cookie(response, session, secure=should_set_secure_session_cookie())
+    return response, 200
+
+
+@bp.get("/chatbot-auth/<chatbot_name>/session")
+async def simple_chatbot_session(chatbot_name: str):
+    normalized_chatbot_name = normalize_chatbot_name(chatbot_name) or chatbot_name.strip().lower()
+    auth_service = get_simple_chatbot_auth_service()
+    if not auth_service.is_protected_chatbot(normalized_chatbot_name):
+        return jsonify({"message": "Unknown protected chatbot.", "authenticated": False}), 404
+
+    session = get_authenticated_simple_chatbot_session(normalized_chatbot_name)
+    if session is None:
+        return jsonify({"authenticated": False}), 200
+    return jsonify({"authenticated": True, "user": session.user}), 200
+
+
+@bp.post("/chatbot-auth/<chatbot_name>/logout")
+async def simple_chatbot_logout(chatbot_name: str):
+    normalized_chatbot_name = normalize_chatbot_name(chatbot_name) or chatbot_name.strip().lower()
+    auth_service = get_simple_chatbot_auth_service()
+    if not auth_service.is_protected_chatbot(normalized_chatbot_name):
+        return jsonify({"message": "Unknown protected chatbot.", "authenticated": False}), 404
+
+    response = jsonify({"authenticated": False})
+    auth_service.clear_session_cookie(response, normalized_chatbot_name)
+    return response, 200
 
 
 @bp.route("/config", methods=["GET"])
@@ -1418,6 +1568,9 @@ async def list_uploaded(auth_claims: dict[str, Any]):
 @bp.get("/chatbot_uploads/<chatbot_name>")
 async def list_chatbot_uploaded(chatbot_name: str):
     chatbot_upload_manager = get_chatbot_upload_manager(chatbot_name)
+    simple_auth_response = require_simple_chatbot_route_session(chatbot_name)
+    if simple_auth_response is not None:
+        return simple_auth_response
     user_identifier = None
     if chatbot_name in {PUBLIC_TEST_CHATBOT_NAME, RAK_CHATBOT_NAME}:
         user_identifier = await get_user_scoped_chatbot_user(chatbot_name)
@@ -1429,6 +1582,10 @@ async def list_chatbot_uploaded(chatbot_name: str):
 
 @bp.post("/chatbot_uploads/<chatbot_name>")
 async def upload_chatbot_files(chatbot_name: str):
+    simple_auth_response = require_simple_chatbot_route_session(chatbot_name)
+    if simple_auth_response is not None:
+        return simple_auth_response
+
     request_files = await request.files
     uploaded_files = request_files.getlist("files") or request_files.getlist("file")
     uploaded_files = [file for file in uploaded_files if file and file.filename]
@@ -1493,6 +1650,10 @@ async def upload_chatbot_files(chatbot_name: str):
 
 @bp.post("/chatbot_uploads/<chatbot_name>/cancel/<upload_id>")
 async def cancel_chatbot_upload(chatbot_name: str, upload_id: str):
+    simple_auth_response = require_simple_chatbot_route_session(chatbot_name)
+    if simple_auth_response is not None:
+        return simple_auth_response
+
     upload_id = upload_id.strip()
     if not upload_id:
         return jsonify({"message": "Upload id is required"}), 400
@@ -1510,6 +1671,9 @@ async def cancel_chatbot_upload(chatbot_name: str, upload_id: str):
 @bp.delete("/chatbot_uploads/<chatbot_name>/<path:filename>")
 async def delete_chatbot_uploaded(chatbot_name: str, filename: str):
     chatbot_upload_manager = get_chatbot_upload_manager(chatbot_name)
+    simple_auth_response = require_simple_chatbot_route_session(chatbot_name)
+    if simple_auth_response is not None:
+        return simple_auth_response
     user_identifier = None
     if chatbot_name in {PUBLIC_TEST_CHATBOT_NAME, RAK_CHATBOT_NAME}:
         user_identifier = await get_user_scoped_chatbot_user(chatbot_name)
@@ -1523,6 +1687,9 @@ async def delete_chatbot_uploaded(chatbot_name: str, filename: str):
 @bp.delete("/chatbot_uploads/<chatbot_name>")
 async def delete_all_chatbot_uploaded(chatbot_name: str):
     chatbot_upload_manager = get_chatbot_upload_manager(chatbot_name)
+    simple_auth_response = require_simple_chatbot_route_session(chatbot_name)
+    if simple_auth_response is not None:
+        return simple_auth_response
     user_identifier = None
     if chatbot_name in {PUBLIC_TEST_CHATBOT_NAME, RAK_CHATBOT_NAME}:
         user_identifier = await get_user_scoped_chatbot_user(chatbot_name)
@@ -1541,7 +1708,11 @@ async def delete_all_chatbot_uploaded(chatbot_name: str):
     if not deleted:
         return jsonify({"message": "No uploaded files to delete.", "deletedFiles": [], "failedFiles": []}), 200
 
-    message = f"{len(deleted)} file deleted successfully." if len(deleted) == 1 else f"{len(deleted)} files deleted successfully."
+    message = (
+        f"{len(deleted)} file deleted successfully."
+        if len(deleted) == 1
+        else f"{len(deleted)} files deleted successfully."
+    )
     return jsonify({"message": message, "deletedFiles": deleted, "failedFiles": []}), 200
 
 
@@ -1565,18 +1736,21 @@ async def list_managed_uploads():
         category_counts = await manager.list_category_counts() if include_categories else {}
     except ValueError as error:
         return jsonify({"message": str(error)}), 400
-    return jsonify(
-        {
-            "files": [dataclasses.asdict(entry) for entry in page_result.entries],
-            "categories": sorted(category_counts),
-            "categoryCounts": category_counts,
-            "totalCount": page_result.total_count,
-            "totalAllCount": sum(category_counts.values()) if include_categories else None,
-            "page": page_result.page,
-            "pageSize": page_result.page_size,
-            "totalPages": max(1, (page_result.total_count + page_result.page_size - 1) // page_result.page_size),
-        }
-    ), 200
+    return (
+        jsonify(
+            {
+                "files": [dataclasses.asdict(entry) for entry in page_result.entries],
+                "categories": sorted(category_counts),
+                "categoryCounts": category_counts,
+                "totalCount": page_result.total_count,
+                "totalAllCount": sum(category_counts.values()) if include_categories else None,
+                "page": page_result.page,
+                "pageSize": page_result.page_size,
+                "totalPages": max(1, (page_result.total_count + page_result.page_size - 1) // page_result.page_size),
+            }
+        ),
+        200,
+    )
 
 
 @bp.post("/managed_uploads")
@@ -1608,7 +1782,9 @@ async def upload_managed_files():
             if upload_id and await manager.is_cancel_requested(category, upload_id):
                 failed.append({"category": category, "filename": uploaded_file.filename, "message": "Upload canceled"})
                 for skipped_file in uploaded_files[file_index + 1 :]:
-                    failed.append({"category": category, "filename": skipped_file.filename, "message": "Upload canceled"})
+                    failed.append(
+                        {"category": category, "filename": skipped_file.filename, "message": "Upload canceled"}
+                    )
                 break
             try:
                 upload_result = await manager.add_file(
@@ -1625,13 +1801,19 @@ async def upload_managed_files():
             except ChatbotUploadCancelled:
                 failed.append({"category": category, "filename": uploaded_file.filename, "message": "Upload canceled"})
                 for skipped_file in uploaded_files[file_index + 1 :]:
-                    failed.append({"category": category, "filename": skipped_file.filename, "message": "Upload canceled"})
+                    failed.append(
+                        {"category": category, "filename": skipped_file.filename, "message": "Upload canceled"}
+                    )
                 break
             except ValueError as error:
                 failed.append({"category": category, "filename": uploaded_file.filename, "message": str(error)})
             except Exception as error:
-                current_app.logger.error("Error uploading managed file '%s' into '%s': %s", uploaded_file.filename, category, error)
-                failed.append({"category": category, "filename": uploaded_file.filename, "message": "Unexpected upload failure"})
+                current_app.logger.error(
+                    "Error uploading managed file '%s' into '%s': %s", uploaded_file.filename, category, error
+                )
+                failed.append(
+                    {"category": category, "filename": uploaded_file.filename, "message": "Unexpected upload failure"}
+                )
     finally:
         if upload_id:
             await manager.clear_cancel_request(category, upload_id)
@@ -1970,6 +2152,13 @@ async def setup_clients():
     )
     await internal_admin_auth_service.setup()
     current_app.config[CONFIG_INTERNAL_ADMIN_AUTH_SERVICE] = internal_admin_auth_service
+    simple_chatbot_session_secret = internal_admin_auth_service.session_secret
+    if not simple_chatbot_session_secret:
+        raise RuntimeError("Simple chatbot auth session secret is not configured")
+    current_app.config[CONFIG_SIMPLE_CHATBOT_AUTH_SERVICE] = SimpleChatbotAuthStore(
+        session_secret=simple_chatbot_session_secret,
+        credentials=SIMPLE_CHATBOT_AUTH_CREDENTIALS,
+    )
 
     public_test_auth_service = PublicTestAuthStore(
         blob_manager=global_blob_manager,
@@ -2221,7 +2410,9 @@ async def setup_clients():
     chatbot_approaches: dict[str, ChatReadRetrieveReadApproach] = {}
     for bot_name, bot_cfg in load_all_chatbot_configs().items():
         model_differs = bot_cfg.chatgpt_model and bot_cfg.chatgpt_model != OPENAI_CHATGPT_MODEL
-        deployment_differs = bot_cfg.chatgpt_deployment and bot_cfg.chatgpt_deployment != AZURE_OPENAI_CHATGPT_DEPLOYMENT
+        deployment_differs = (
+            bot_cfg.chatgpt_deployment and bot_cfg.chatgpt_deployment != AZURE_OPENAI_CHATGPT_DEPLOYMENT
+        )
         reasoning_differs = bot_cfg.reasoning_effort is not None and bot_cfg.reasoning_effort != OPENAI_REASONING_EFFORT
         if model_differs or deployment_differs or reasoning_differs:
             model = bot_cfg.chatgpt_model or OPENAI_CHATGPT_MODEL
@@ -2229,7 +2420,9 @@ async def setup_clients():
             chatbot_approaches[bot_name] = ChatReadRetrieveReadApproach(
                 chatgpt_model=model,
                 chatgpt_deployment=deployment if OPENAI_HOST == OpenAIHost.AZURE else None,
-                reasoning_effort=bot_cfg.reasoning_effort if bot_cfg.reasoning_effort is not None else OPENAI_REASONING_EFFORT,
+                reasoning_effort=(
+                    bot_cfg.reasoning_effort if bot_cfg.reasoning_effort is not None else OPENAI_REASONING_EFFORT
+                ),
                 **shared_approach_kwargs,
             )
     current_app.config[CONFIG_CHATBOT_CHAT_APPROACHES] = chatbot_approaches

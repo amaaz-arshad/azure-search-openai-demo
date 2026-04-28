@@ -99,8 +99,17 @@ class MockCosmosDBResultsIterator:
         return self
 
 
+async def login_simple_chatbot(client, chatbot_name: str, username: str, password: str):
+    response = await client.post(
+        f"/chatbot-auth/{chatbot_name}/login",
+        json={"username": username, "password": password},
+    )
+    assert response.status_code == 200
+
+
 @pytest.mark.asyncio
 async def test_chathistory_newitem(auth_public_documents_client, monkeypatch):
+    await login_simple_chatbot(auth_public_documents_client, "demo", "demouser", "demo@123")
 
     async def mock_execute_item_batch(container_proxy, **kwargs):
         partition_key = kwargs["partition_key"]
@@ -139,6 +148,8 @@ async def test_chathistory_newitem(auth_public_documents_client, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_chathistory_newitem_internal_requires_source_chatbot(auth_public_documents_client):
+    await login_simple_chatbot(auth_public_documents_client, "internal", "internal", "internal")
+
     response = await auth_public_documents_client.post(
         "/chat_history",
         headers={"Authorization": "Bearer MockToken"},
@@ -155,6 +166,7 @@ async def test_chathistory_newitem_internal_requires_source_chatbot(auth_public_
 
 @pytest.mark.asyncio
 async def test_chathistory_newitem_internal_stores_source_chatbot(auth_public_documents_client, monkeypatch):
+    await login_simple_chatbot(auth_public_documents_client, "internal", "internal", "internal")
 
     async def mock_execute_item_batch(container_proxy, **kwargs):
         partition_key = kwargs["partition_key"]
@@ -220,6 +232,7 @@ async def test_chathistory_newitem_public_test_user_scope(auth_public_documents_
 
 @pytest.mark.asyncio
 async def test_chathistory_newitem_rak_user_scope(auth_public_documents_client, monkeypatch):
+    await login_simple_chatbot(auth_public_documents_client, "rak", "12345", "rak99#")
     rak_history_user_id = "rak:12345"
 
     async def mock_execute_item_batch(container_proxy, **kwargs):
@@ -311,6 +324,7 @@ async def test_chathistory_newitem_error_runtime(auth_public_documents_client, m
 
 @pytest.mark.asyncio
 async def test_chathistory_query(auth_public_documents_client, monkeypatch, snapshot):
+    await login_simple_chatbot(auth_public_documents_client, "demo", "demouser", "demo@123")
 
     def mock_query_items(container_proxy, query, **kwargs):
         assert "c.chatbot_name = @chatbot_name" in query
@@ -331,7 +345,10 @@ async def test_chathistory_query(auth_public_documents_client, monkeypatch, snap
 
 
 @pytest.mark.asyncio
-async def test_chathistory_query_internal_filters_legacy_sessions_and_returns_metadata(auth_public_documents_client, monkeypatch):
+async def test_chathistory_query_internal_filters_legacy_sessions_and_returns_metadata(
+    auth_public_documents_client, monkeypatch
+):
+    await login_simple_chatbot(auth_public_documents_client, "internal", "internal", "internal")
 
     def mock_query_items(container_proxy, query, **kwargs):
         assert "c.chatbot_name = @chatbot_name" in query
@@ -404,6 +421,7 @@ async def test_chathistory_query_public_test_user_scope(auth_public_documents_cl
 
 @pytest.mark.asyncio
 async def test_chathistory_query_rak_user_scope(auth_public_documents_client, monkeypatch):
+    await login_simple_chatbot(auth_public_documents_client, "rak", "12345", "rak99#")
     rak_history_user_id = "rak:12345"
 
     def mock_query_items(container_proxy, query, **kwargs):
@@ -424,6 +442,7 @@ async def test_chathistory_query_rak_user_scope(auth_public_documents_client, mo
 
 @pytest.mark.asyncio
 async def test_chathistory_query_continuation(auth_public_documents_client, monkeypatch, snapshot):
+    await login_simple_chatbot(auth_public_documents_client, "demo", "demouser", "demo@123")
 
     def mock_query_items(container_proxy, query, **kwargs):
         assert "c.chatbot_name = @chatbot_name" in query
@@ -483,6 +502,7 @@ async def test_chathistory_query_error_runtime(auth_public_documents_client, mon
 # Tests for getting an individual chat history item
 @pytest.mark.asyncio
 async def test_chathistory_getitem(auth_public_documents_client, monkeypatch, snapshot):
+    await login_simple_chatbot(auth_public_documents_client, "demo", "demouser", "demo@123")
 
     query_count = 0
 
@@ -510,6 +530,7 @@ async def test_chathistory_getitem(auth_public_documents_client, monkeypatch, sn
 
 @pytest.mark.asyncio
 async def test_chathistory_getitem_internal_returns_metadata(auth_public_documents_client, monkeypatch):
+    await login_simple_chatbot(auth_public_documents_client, "internal", "internal", "internal")
 
     query_count = 0
 
@@ -551,6 +572,7 @@ async def test_chathistory_getitem_internal_returns_metadata(auth_public_documen
 
 @pytest.mark.asyncio
 async def test_chathistory_getitem_internal_legacy_session_returns_404(auth_public_documents_client, monkeypatch):
+    await login_simple_chatbot(auth_public_documents_client, "internal", "internal", "internal")
 
     def mock_query_items(container_proxy, query, **kwargs):
         assert kwargs["parameters"][2]["value"] == "internal"
@@ -612,6 +634,7 @@ async def test_chathistory_getitem_error_runtime(auth_public_documents_client, m
 # Tests for deleting an individual chat history item
 @pytest.mark.asyncio
 async def test_chathistory_deleteitem(auth_public_documents_client, monkeypatch):
+    await login_simple_chatbot(auth_public_documents_client, "demo", "demouser", "demo@123")
 
     def mock_query_items(container_proxy, query, **kwargs):
         assert "c.chatbot_name = @chatbot_name" in query

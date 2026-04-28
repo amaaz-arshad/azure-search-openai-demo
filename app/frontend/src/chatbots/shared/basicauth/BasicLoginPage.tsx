@@ -15,7 +15,7 @@ type BasicLoginPageProps = {
     invalidCredentials: string;
     learnMoreHref?: string;
     learnMoreLabel?: string;
-    onLogin: (username: string, password: string) => boolean;
+    onLogin: (username: string, password: string) => boolean | Promise<boolean>;
     onSuccess: () => void;
 };
 
@@ -38,17 +38,21 @@ const BasicLoginPage = ({
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const handleSubmit = (event: React.FormEvent) => {
+    const handleSubmit = async (event: React.FormEvent) => {
         event.preventDefault();
-        const ok = onLogin(username, password);
+        setIsSubmitting(true);
+        const ok = await Promise.resolve(onLogin(username, password)).catch(() => false);
 
         if (ok) {
+            setIsSubmitting(false);
             onSuccess();
             return;
         }
 
         setError(invalidCredentials);
+        setIsSubmitting(false);
     };
 
     const handleUsernameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -114,7 +118,7 @@ const BasicLoginPage = ({
                             </button>
                         </div>
 
-                        <button className={styles.button} type="submit">
+                        <button className={styles.button} type="submit" disabled={isSubmitting}>
                             {loginLabel}
                         </button>
 

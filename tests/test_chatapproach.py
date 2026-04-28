@@ -176,6 +176,17 @@ def test_get_system_prompt_variables_uses_saved_prompt_with_injected_mode_for_in
     assert injected_prompt == "You are a saved prompt for info@snap.de. Keep {{N}} unchanged."
 
 
+@pytest.mark.parametrize("request_language", ["de-DE", "nl-NL"])
+def test_get_system_prompt_variables_publishone_forces_english_language_locale(chat_approach, request_language):
+    variables = chat_approach.get_system_prompt_variables(
+        "Answer in {{language_locale}}.",
+        chatbot_name="publishone",
+        language=request_language,
+    )
+
+    assert variables["override_prompt"] == "Answer in English."
+
+
 @pytest.mark.parametrize("chatbot_name", ["lemon"])
 def test_get_system_prompt_variables_renders_support_email_for_request_override_prompts(chat_approach, chatbot_name):
     variables = chat_approach.get_system_prompt_variables(
@@ -678,7 +689,7 @@ async def test_get_sources_content_includes_document_metadata_for_url_citations(
             sourcepage="8786",
             sourcefile="feed.xml",
             title="erste_hilfe_elearning",
-            url="https://snap.publishone.nl/document/8786/content",
+            url="https://amsterdam.publishone.nl/document/8786/content",
             content="Erste Hilfe umfasst alle Massnahmen im Notfall.",
         ),
         Document(
@@ -686,7 +697,7 @@ async def test_get_sources_content_includes_document_metadata_for_url_citations(
             sourcepage="8786",
             sourcefile="feed.xml",
             title="erste_hilfe_elearning",
-            url="https://snap.publishone.nl/document/8786/content",
+            url="https://amsterdam.publishone.nl/document/8786/content",
             content="Weitere Details",
         ),
     ]
@@ -703,7 +714,7 @@ async def test_get_sources_content_includes_document_metadata_for_url_citations(
         {
             "id": "doc1",
             "title": "erste_hilfe_elearning",
-            "url": "https://snap.publishone.nl/document/8786/content",
+            "url": "https://amsterdam.publishone.nl/document/8786/content",
             "snippet": "Erste Hilfe umfasst alle Massnahmen im Notfall.",
             "activity": None,
         }

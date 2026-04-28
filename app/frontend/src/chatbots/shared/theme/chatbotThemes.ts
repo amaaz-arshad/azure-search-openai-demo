@@ -75,9 +75,6 @@ export const chatbotThemes: Record<string, ChatbotThemeSeed> = {
                 button: {
                     text: "#ffffff"
                 }
-            },
-            userBubble: {
-                text: "#ffffff"
             }
         }
     },
@@ -217,6 +214,15 @@ function getReadableText(background: string): string {
     return whiteContrast >= blackContrast ? "#ffffff" : "#000000";
 }
 
+function getReadableTextForGradient(gradient: ThemeGradient): string {
+    const stops = [gradient.start, gradient.mid, gradient.end].filter((color): color is string => Boolean(color));
+    const whiteContrast = Math.min(...stops.map(color => getContrastRatio("#ffffff", color)));
+    const darkText = "#111827";
+    const darkContrast = Math.min(...stops.map(color => getContrastRatio(darkText, color)));
+
+    return whiteContrast >= darkContrast ? "#ffffff" : darkText;
+}
+
 function isDark(color: string): boolean {
     return getRelativeLuminance(color) < 0.28;
 }
@@ -245,6 +251,27 @@ function createPageGradient(primary: string, pageTone: ChatbotThemeSeed["pageTon
         mid: lighten(primary, 0.78),
         end: lighten(primary, 0.62)
     };
+}
+
+function createUserBubbleGradient(primary: string): ThemeGradient {
+    if (getReadableText(primary) === "#ffffff") {
+        return {
+            start: darken(primary, 0.12),
+            end: primary
+        };
+    }
+
+    return {
+        start: lighten(primary, 0.06),
+        end: darken(primary, 0.08)
+    };
+}
+
+function toLinearGradient(gradient: ThemeGradient): string {
+    const midStop = gradient.mid ? `${gradient.mid} 52%, ` : "";
+    const end = gradient.end ?? gradient.mid ?? gradient.start;
+
+    return `linear-gradient(135deg, ${gradient.start} 0%, ${midStop}${end} 100%)`;
 }
 
 function mergeTheme(base: ChatbotTheme, overrides?: DeepPartial<ChatbotTheme>): ChatbotTheme {
@@ -281,6 +308,7 @@ function mergeTheme(base: ChatbotTheme, overrides?: DeepPartial<ChatbotTheme>): 
 function resolveChatbotTheme(seed: ChatbotThemeSeed): ChatbotTheme {
     const primaryText = getReadableText(seed.primary);
     const loginButtonBackground = seed.loginButtonStyle === "solid" ? seed.primary : createSurfaceColor(seed.primary);
+    const userBubbleGradient = createUserBubbleGradient(seed.primary);
 
     const baseTheme: ChatbotTheme = {
         navbar: {
@@ -299,8 +327,8 @@ function resolveChatbotTheme(seed: ChatbotThemeSeed): ChatbotTheme {
             }
         },
         userBubble: {
-            background: seed.primary,
-            text: primaryText
+            background: toLinearGradient(userBubbleGradient),
+            text: getReadableTextForGradient(userBubbleGradient)
         }
     };
 

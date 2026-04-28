@@ -97,8 +97,8 @@ const ChatbotDirectory = () => {
                                 <div className={styles.inputWrap}>
                                     <input
                                         id="directory-password"
-                                        className={`${styles.input} ${!isPasswordVisible ? styles.maskedInput : ""}`}
-                                        type="text"
+                                        className={styles.input}
+                                        type={isPasswordVisible ? "text" : "password"}
                                         name="directory-access-code"
                                         value={password}
                                         onChange={event => {

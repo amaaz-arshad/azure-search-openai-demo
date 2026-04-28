@@ -336,8 +336,8 @@ const ManagePromptsPage = () => {
                                 <div className={styles.inputWrap}>
                                     <input
                                         id="manage-prompts-password"
-                                        className={`${styles.input} ${!isPasswordVisible ? styles.maskedInput : ""}`}
-                                        type="text"
+                                        className={styles.input}
+                                        type={isPasswordVisible ? "text" : "password"}
                                         name="manage-prompts-password"
                                         value={password}
                                         onChange={event => {

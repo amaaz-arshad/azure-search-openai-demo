@@ -55,7 +55,7 @@ async def test_build_publishone_feed_sections_maps_logical_document_metadata() -
     assert section.sourcepage == "8786"
     assert section.sourcefile == "feed.xml"
     assert section.title == "erste_hilfe_elearning"
-    assert section.url == "https://snap.publishone.nl/document/8786/content"
+    assert section.url == "https://amsterdam.publishone.nl/document/8786/content"
     assert section.id.endswith("-moodle-8786-chunk-001")
     assert section.tags is not None
     assert "Mobile Learning" in section.tags
@@ -105,8 +105,8 @@ async def test_build_publishone_feed_sections_handles_multiple_outer_documents()
     assert {section.sourcepage for section in sections} == {"6446", "6447"}
     assert {section.title for section in sections} == {"Liste", "Zweite Liste"}
     assert {section.url for section in sections} == {
-        "https://snap.publishone.nl/document/6446/content",
-        "https://snap.publishone.nl/document/6447/content",
+        "https://amsterdam.publishone.nl/document/6446/content",
+        "https://amsterdam.publishone.nl/document/6447/content",
     }
 
 
@@ -146,7 +146,7 @@ async def test_build_publishone_feed_sections_preserves_direct_metadata_without_
     section = sections[0]
     assert section.sourcepage == "9001"
     assert section.title == "Safety handbook"
-    assert section.url == "https://snap.publishone.nl/document/9001/content"
+    assert section.url == "https://amsterdam.publishone.nl/document/9001/content"
     assert section.tags is not None
     assert "meta-audience:students" in section.tags
     assert "meta-owner-system:moodle" in section.tags

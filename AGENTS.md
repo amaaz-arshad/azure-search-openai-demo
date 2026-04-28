@@ -10,12 +10,12 @@ Rules:
 
 # Instructions for Coding Agents
 
+Do not make any changes until you have 95% confidence in what you need to build. Ask me follow-up questions until you reach that confidence.
+
 This file captures repo-specific workflow, invariants, and change playbooks for the Azure Search and OpenAI demo application. Use `graphify-out/` for detailed structure discovery; keep this file focused on entrypoints, contracts, and required process rather than a file-by-file code index.
 
 Always keep this file up to date with any changes to the codebase or development process.
 If necessary, edit this file to ensure it accurately reflects the current state of the project.
-
-Do not make any changes until you have 95% confidence in what you need to build. Ask me follow-up questions until you reach that confidence.
 
 ## Codebase map
 
@@ -43,6 +43,7 @@ Keep `AGENTS.md` focused on workflow, invariants, and change guides. Do not rebu
 
 * Frontend chatbot routing is `/<chatbot_name>` inside each bot's `LayoutWrapper`, while `/<chatbot_name>/*` renders that bot's `NoPage` outside the layout so the fallback page appears without chatbot navbar/header chrome.
 * Chatbots that use frontend basic auth must guard both `LayoutWrapper` and the standalone `NoPage` route so `/<chatbot_name>/*` cannot bypass the auth gate. `/internal` now follows this pattern too.
+* Chatbot basic auth for `agindo`, `demo`, `fbn`, `fhg`, `internal`, `knoll`, `moodle`, `rak`, `sartorius`, `steuertipps`, and `vjoonk4` uses server-side `/chatbot-auth/<chatbot_name>/*` HttpOnly session cookies for login state, while `/chat` and `/chat/stream` intentionally remain ungated by that simple-auth cookie for iframe compatibility. Keep frontend login wrappers as API clients only; do not reintroduce hardcoded browser-side credential checks.
 * Backend `/config` is the frontend capability contract for model selection and reasoning effort. When models diverge, update backend metadata instead of hardcoding frontend assumptions.
 * `OPENLIT_ENDPOINT` only points the app at an already-running OpenLIT backend. The repo's `azd up` flow does not provision or repair the standalone OpenLIT Container App.
 * In this environment, Azure Files SMB is not a safe data volume for OpenLIT's bundled ClickHouse. Mounting `/var/lib/clickhouse` there caused insert and migration failures with `Operation not permitted`, so new requests stopped appearing even though `/v1/traces` was still being posted.
@@ -63,7 +64,8 @@ Keep `AGENTS.md` focused on workflow, invariants, and change guides. Do not rebu
 
 New files should be added to the `data` folder, and then either run scripts/prepdocs.sh or scripts/prepdocs.ps1 to ingest the data. When `--category <name>` is passed to the generic `prepdocs` flow, the original source blobs are stored under `content/<name>/` and the indexed `storageUrl` values point to that category-specific blob path.
 For wrapped FHG studies exports such as `data/fhg.json` or `data/fhg_alle_studien_YYYYMMDD.json`, use `python app/backend/prep_fhg_json.py <path-to-json>` instead of the generic `prepdocs` flow so that each `documents[]` entry is chunked as a study record, the indexed `content` contains the study body plus retrieval-relevant metadata, the raw dataset file is uploaded under `content/fhg/`, first-class `title`/`url`/`tags` fields are populated, and embeddings are created for every chunk.
-For the Moodle and PublishOne chatbots' externally synced XML feeds, blobs dropped into `content/nerilio/Nerilio-Moodle/` or `content/nerilio/Nerilio-PublishOne/` are picked up automatically by the `moodle_auto_indexer` Function App, copied into `content/moodle/` or `content/publishone/`, and indexed into Azure AI Search with categories `moodle` and `publishone` so the chatbot `storageUrl` values point at the copied chatbot-owned blobs instead of the external drop folders. The feed parser maps each outer `<document id="...">` to `sourcepage`, maps direct `<naam>` to `title`, maps `url` to `https://snap.publishone.nl/document/<document-id>/content`, renders the logical document subtree into structured plain text inside `content`, preserves folder-level metadata and inline link/image targets there, and stores additional document and direct meta metadata in `tags`. Moodle and PublishOne citations use those first-class `title` and `url` fields so the chat UI shows the document title while linking out to the external PublishOne document URL. When one of those source XML blobs is deleted, the same automation removes the mirrored target blob and the corresponding indexed documents as well.
+For HYROX Academy Level 1 exports such as `data/HYROX_Level_1.json`, use `python app/backend/prep_hyrox_json.py <path-to-json>` so the records are indexed into category `lemon` with `lms_id` as `sourcepage`, first-class `title`/`url`/`tags`, raw `content` chunks only, and the raw dataset uploaded under `content/lemon/`.
+For the Moodle and PublishOne chatbots' externally synced XML feeds, blobs dropped into `content/nerilio/Nerilio-Moodle/` or `content/nerilio/Nerilio-PublishOne/` are picked up automatically by the `moodle_auto_indexer` Function App, copied into `content/moodle/` or `content/publishone/`, and indexed into Azure AI Search with categories `moodle` and `publishone` so the chatbot `storageUrl` values point at the copied chatbot-owned blobs instead of the external drop folders. The feed parser maps each outer `<document id="...">` to `sourcepage`, maps direct `<naam>` to `title`, maps `url` to `https://amsterdam.publishone.nl/document/<document-id>/content`, renders the logical document subtree into structured plain text inside `content`, preserves folder-level metadata and inline link/image targets there, and stores additional document and direct meta metadata in `tags`. Moodle and PublishOne citations use those first-class `title` and `url` fields so the chat UI shows the document title while linking out to the external PublishOne document URL. When one of those source XML blobs is deleted, the same automation removes the mirrored target blob and the corresponding indexed documents as well.
 To purge indexed content for a single category without re-ingesting, use `python app/backend/delete_documents_by_category.py <category>`.
 
 ## Adding a new chatbot UI
