@@ -1,6 +1,6 @@
 {
-    "pageTitle": "Nerilio Bot",
-    "headerTitle": "Nerilio Bot",
+    "pageTitle": "nerilio",
+    "headerTitle": "nerilio",
     "initialUserMsg": "Hallo",
     "initialAssistantMsg": "Hallo! Schreib einfach deine Frage in den Chat.",
     "chat": "Chat",
@@ -10,7 +10,7 @@
     "clearChat": "Chat löschen",
     "newChat": "Neuer Chat",
     "loginPage": {
-        "title": "Willkommen zurück",
+        "title": "Willkommen!",
         "username": "Benutzername",
         "password": "Passwort",
         "login": "Anmelden",
@@ -64,7 +64,7 @@
         "errorDeleting": "Fehler beim Löschen.",
         "fileDeleted": "Datei gelöscht",
         "menuLabel": "Dateien hochladen",
-        "modalTitle": "PDF-Dateien für Nerilio Bot hochladen",
+        "modalTitle": "PDF-Dateien für nerilio hochladen",
         "modalDescription": "Es werden nur PDF-Dateien unterstützt. Über alle Dateien hinweg gilt ein gemeinsames Upload-Limit von 5 MB.",
         "chooseFiles": "Dateien auswählen",
         "refreshList": "Liste aktualisieren",

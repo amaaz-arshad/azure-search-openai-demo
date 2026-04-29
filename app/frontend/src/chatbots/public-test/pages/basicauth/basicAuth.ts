@@ -93,7 +93,7 @@ const readSessionResponse = async (response: Response): Promise<PublicTestSessio
     }
 
     if (!response.ok) {
-        throw new Error(`Nerilio Bot session request failed: ${response.status}`);
+        throw new Error(`nerilio session request failed: ${response.status}`);
     }
 
     const payload = (await response.json()) as { session?: unknown };
@@ -131,13 +131,13 @@ export const getCurrentProfile = async (): Promise<PublicTestProfile> => {
     });
 
     if (!response.ok) {
-        throw new Error(`Nerilio Bot profile request failed: ${response.status}`);
+        throw new Error(`nerilio profile request failed: ${response.status}`);
     }
 
     const payload = (await response.json()) as { profile?: unknown };
     const profile = parseProfile(payload.profile);
     if (!profile) {
-        throw new Error("Nerilio Bot profile payload was invalid");
+        throw new Error("nerilio profile payload was invalid");
     }
 
     return profile;

@@ -66,7 +66,7 @@ const ChatbotDirectory = () => {
                         {isAuthenticated ? (
                             <>
                                 <Link className={styles.secondaryButton} to="/free-users">
-                                    Nerilio Bot users
+                                    nerilio users
                                 </Link>
                                 <Link className={styles.secondaryButton} to="/upload-files">
                                     Manage uploads

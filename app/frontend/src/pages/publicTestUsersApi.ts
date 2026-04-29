@@ -35,7 +35,7 @@ export async function listPublicTestUsersApi(signal?: AbortSignal): Promise<Publ
     });
 
     if (!response.ok) {
-        await parseErrorMessage(response, `Listing Nerilio Bot users failed: ${response.statusText}`);
+        await parseErrorMessage(response, `Listing nerilio users failed: ${response.statusText}`);
     }
 
     return (await response.json()) as PublicTestAdminUsersResponse;
@@ -47,7 +47,7 @@ export async function deletePublicTestUserApi(email: string): Promise<PublicTest
     });
 
     if (!response.ok) {
-        await parseErrorMessage(response, `Deleting Nerilio Bot user failed: ${response.statusText}`);
+        await parseErrorMessage(response, `Deleting nerilio user failed: ${response.statusText}`);
     }
 
     return (await response.json()) as PublicTestDeleteUserResponse;
@@ -65,7 +65,7 @@ export async function resetPublicTestUserPasswordApi(
     });
 
     if (!response.ok) {
-        await parseErrorMessage(response, `Resetting Nerilio Bot user password failed: ${response.statusText}`);
+        await parseErrorMessage(response, `Resetting nerilio user password failed: ${response.statusText}`);
     }
 
     return (await response.json()) as PublicTestResetPasswordResponse;
