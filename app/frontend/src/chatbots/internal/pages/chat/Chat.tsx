@@ -151,11 +151,13 @@ const Chat = () => {
     const [showChatHistoryBrowser, setShowChatHistoryBrowser] = useState<boolean>(false);
     const [showChatHistoryCosmos, setShowChatHistoryCosmos] = useState<boolean>(false);
     const [showAgenticRetrievalOption, setShowAgenticRetrievalOption] = useState<boolean>(false);
+    const [showLlmWikiOption, setShowLlmWikiOption] = useState<boolean>(false);
     const [webSourceSupported, setWebSourceSupported] = useState<boolean>(false);
     const [webSourceEnabled, setWebSourceEnabled] = useState<boolean>(false);
     const [sharePointSourceSupported, setSharePointSourceSupported] = useState<boolean>(false);
     const [sharePointSourceEnabled, setSharePointSourceEnabled] = useState<boolean>(false);
     const [useAgenticKnowledgeBase, setUseAgenticRetrieval] = useState<boolean>(false);
+    const [useLlmWiki, setUseLlmWiki] = useState<boolean>(false);
     const [hideMinimalRetrievalReasoningOption, setHideMinimalRetrievalReasoningOption] = useState<boolean>(false);
     const streamingDisabledByOverrides = useAgenticKnowledgeBase && webSourceEnabled;
     const supportedReasoningEfforts = chatModelReasoningEfforts[chatModel] ?? getLegacyReasoningEffortOptions(chatModel, reasoningCapableChatModels);
@@ -225,6 +227,8 @@ const Chat = () => {
             setShowChatHistoryCosmos(config.showChatHistoryCosmos);
             setShowAgenticRetrievalOption(config.showAgenticRetrievalOption);
             setUseAgenticRetrieval(false);
+            setShowLlmWikiOption(!!config.showLlmWikiOption);
+            setUseLlmWiki(false);
             setWebSourceSupported(config.webSourceEnabled);
             setWebSourceEnabled(config.webSourceEnabled);
             setSharePointSourceSupported(config.sharepointSourceEnabled);
@@ -505,6 +509,7 @@ const Chat = () => {
                         send_image_sources: sendImageSources,
                         language: i18n.language,
                         use_agentic_knowledgebase: useAgenticKnowledgeBase,
+                        use_llm_wiki: showLlmWikiOption ? useLlmWiki : false,
                         use_web_source: webSourceSupported ? webSourceEnabled : false,
                         use_sharepoint_source: sharePointSourceSupported ? sharePointSourceEnabled : false,
                         ...(seed !== null ? { seed: seed } : {})
@@ -714,6 +719,9 @@ const Chat = () => {
                 break;
             case "useAgenticKnowledgeBase": {
                 setUseAgenticRetrieval(value);
+                if (value) {
+                    setUseLlmWiki(false);
+                }
                 setRetrieveCount(value ? 10 : 5);
                 let effectiveWebSource = webSourceEnabled;
                 if (!value && webSourceEnabled) {
@@ -724,6 +732,18 @@ const Chat = () => {
                 // Only web source disables streaming
                 const shouldDisableStreaming = !!value && effectiveWebSource;
                 updateStreamingPreference(streamingEnabled, shouldDisableStreaming);
+                break;
+            }
+            case "useLlmWiki": {
+                const normalizedLlmWiki = !!value;
+                setUseLlmWiki(normalizedLlmWiki);
+                if (normalizedLlmWiki) {
+                    setUseAgenticRetrieval(false);
+                    setWebSourceEnabled(false);
+                    setSharePointSourceEnabled(false);
+                    setHideMinimalRetrievalReasoningOption(false);
+                    updateStreamingPreference(streamingEnabled, false);
+                }
                 break;
             }
             case "useWebSource":
@@ -979,6 +999,8 @@ const Chat = () => {
                         useSuggestFollowupQuestions={useSuggestFollowupQuestions}
                         showAgenticRetrievalOption={showAgenticRetrievalOption}
                         useAgenticKnowledgeBase={useAgenticKnowledgeBase}
+                        showLlmWikiOption={showLlmWikiOption}
+                        useLlmWiki={useLlmWiki}
                         useWebSource={webSourceEnabled}
                         showWebSourceOption={webSourceSupported}
                         useSharePointSource={sharePointSourceEnabled}

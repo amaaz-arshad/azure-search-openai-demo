@@ -1,0 +1,13 @@
+User question:
+{{ user_query }}
+
+LLM Wiki pages:
+{% for page in wiki_pages %}
+---
+Title: {{ page.title }}
+Path: {{ page.relative_path }}
+Citation: {{ page.citation }}
+
+{{ page.content }}
+
+{% endfor %}

@@ -806,6 +806,72 @@ async def test_internal_chat_rejects_invalid_source_bot(client):
 
 
 @pytest.mark.asyncio
+async def test_non_internal_chat_drops_llm_wiki_override(client, monkeypatch):
+    captured_overrides = {}
+    approach = client.app.config[app.CONFIG_CHAT_APPROACH]
+    prompt_store = client.app.config[app.CONFIG_CHATBOT_PROMPT_STORE]
+
+    async def mock_load_prompt(_chatbot_name: str):
+        return None
+
+    async def capture_run(messages, session_state=None, context=None):
+        captured_overrides.update((context or {}).get("overrides", {}))
+        return {
+            "message": {"content": "ok", "role": "assistant"},
+            "context": {"thoughts": [], "data_points": {"text": [], "images": [], "citations": []}},
+            "session_state": session_state,
+        }
+
+    monkeypatch.setattr(approach, "run", capture_run)
+    monkeypatch.setattr(prompt_store, "load_prompt", mock_load_prompt)
+
+    response = await client.post(
+        "/chat",
+        json={
+            "messages": [{"content": "What is the capital of France?", "role": "user"}],
+            "context": {"overrides": {"retrieval_mode": "text", "include_category": "demo", "use_llm_wiki": True}},
+        },
+    )
+
+    assert response.status_code == 200
+    assert "use_llm_wiki" not in captured_overrides
+
+
+@pytest.mark.asyncio
+async def test_internal_chat_preserves_llm_wiki_override_for_selected_source_bot(client, monkeypatch):
+    captured_overrides = {}
+    prompt_store = client.app.config[app.CONFIG_CHATBOT_PROMPT_STORE]
+
+    async def mock_load_prompt(_chatbot_name: str):
+        return None
+
+    async def capture_run(self, messages, session_state=None, context=None):
+        captured_overrides.update((context or {}).get("overrides", {}))
+        return {
+            "message": {"content": "ok", "role": "assistant"},
+            "context": {"thoughts": [], "data_points": {"text": [], "images": [], "citations": []}},
+            "session_state": session_state,
+        }
+
+    monkeypatch.setattr(app.ChatReadRetrieveReadApproach, "run", capture_run)
+    monkeypatch.setattr(prompt_store, "load_prompt", mock_load_prompt)
+
+    response = await client.post(
+        "/chat",
+        headers={"X-Chatbot-Name": "internal"},
+        json={
+            "messages": [{"content": "What is the capital of France?", "role": "user"}],
+            "context": {"overrides": {"retrieval_mode": "text", "source_chatbot": "lemon", "use_llm_wiki": True}},
+        },
+    )
+
+    assert response.status_code == 200
+    assert captured_overrides["source_chatbot"] == "lemon"
+    assert captured_overrides["include_category"] == "lemon"
+    assert captured_overrides["use_llm_wiki"] is True
+
+
+@pytest.mark.asyncio
 async def test_internal_chat_uses_selected_source_bot_for_prompt_and_category(client):
     await login_simple_chatbot(client, "internal", "internal", "internal")
     prompt_store = client.app.config[app.CONFIG_CHATBOT_PROMPT_STORE]

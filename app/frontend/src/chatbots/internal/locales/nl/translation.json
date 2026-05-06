@@ -170,6 +170,7 @@
         },
         "useSuggestFollowupQuestions": "Vervolgvragen voorstellen",
         "useAgenticKnowledgeBase": "Gebruik agentische retrieval",
+        "useLlmWiki": "LLM Wiki gebruiken",
         "useWebSource": "Websearch opnemen",
         "useSharePointSource": "SharePoint-bron opnemen",
         "llmInputs": "Invoer voor LLM",
@@ -222,6 +223,7 @@
         "useOidSecurityFilter": "Filtert zoekresultaten op basis van de OID van de geauthenticeerde gebruiker.",
         "useGroupsSecurityFilter": "Filtert zoekresultaten op basis van de groepen van de geauthenticeerde gebruiker.",
         "useAgenticKnowledgeBase": "Gebruik agentische retrieval van Azure AI Search voor meervoudige query-planning. Gebruikt altijd semantische rangschikking.",
+        "useLlmWiki": "Antwoord alleen vanuit de gecompileerde Markdown LLM Wiki van de geselecteerde bronbot in blobopslag.",
         "useWebSource": "Breid retrieval uit met websearch resultaten naast je geïndexeerde dataset.",
         "useSharePointSource": "Breid retrieval uit met SharePoint-inhoud naast je geïndexeerde dataset."
     },

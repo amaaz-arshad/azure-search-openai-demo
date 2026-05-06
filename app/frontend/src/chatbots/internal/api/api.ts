@@ -41,6 +41,9 @@ export function getCitationFilePath(citation: string, sourceChatbot?: string): s
     const cleanedCitation = citation.replace(/\s*\(.*?\)\s*$/, "").trim();
     const [pathWithoutFragment, fragment] = cleanedCitation.split("#", 2);
     const fragmentSuffix = fragment ? `#${fragment}` : "";
+    if (pathWithoutFragment.startsWith("__llm_wiki__/")) {
+        return `${BACKEND_URI}/content/${pathWithoutFragment}${fragmentSuffix}`;
+    }
     if (!sourceChatbot) {
         return `${BACKEND_URI}/content/${pathWithoutFragment}${fragmentSuffix}`;
     }

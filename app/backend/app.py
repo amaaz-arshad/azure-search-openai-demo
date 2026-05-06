@@ -391,6 +391,7 @@ def normalize_chatbot_request_overrides(request_json: dict[str, Any]) -> None:
             overrides[key] = normalize_chatbot_category_list(raw_value)
 
     if get_request_route_chatbot_name() != INTERNAL_ROUTER_CHATBOT_NAME:
+        overrides.pop("use_llm_wiki", None)
         return
 
     raw_source_chatbot = overrides.get("source_chatbot")
@@ -1454,6 +1455,7 @@ def config():
             "showChatHistoryBrowser": current_app.config[CONFIG_CHAT_HISTORY_BROWSER_ENABLED],
             "showChatHistoryCosmos": current_app.config[CONFIG_CHAT_HISTORY_COSMOS_ENABLED],
             "showAgenticRetrievalOption": current_app.config[CONFIG_AGENTIC_KNOWLEDGEBASE_ENABLED],
+            "showLlmWikiOption": True,
             "ragSearchTextEmbeddings": current_app.config[CONFIG_RAG_SEARCH_TEXT_EMBEDDINGS],
             "ragSearchImageEmbeddings": current_app.config[CONFIG_RAG_SEARCH_IMAGE_EMBEDDINGS],
             "ragSendTextSources": current_app.config[CONFIG_RAG_SEND_TEXT_SOURCES],

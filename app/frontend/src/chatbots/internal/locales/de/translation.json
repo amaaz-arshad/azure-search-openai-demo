@@ -170,6 +170,7 @@
         },
         "useSuggestFollowupQuestions": "Folgefragen vorschlagen",
         "useAgenticKnowledgeBase": "Agentische Suche verwenden",
+        "useLlmWiki": "LLM Wiki verwenden",
         "useWebSource": "Webquelle einbeziehen",
         "useSharePointSource": "SharePoint-Quelle einbeziehen",
         "llmInputs": "LLM-Eingaben",
@@ -222,6 +223,7 @@
         "useOidSecurityFilter": "Suchergebnisse nach OID des angemeldeten Nutzers filtern.",
         "useGroupsSecurityFilter": "Suchergebnisse nach Gruppen des angemeldeten Nutzers filtern.",
         "useAgenticKnowledgeBase": "Agentische Suche für Multi-Query-Planung nutzen, immer mit semantischem Ranker.",
+        "useLlmWiki": "Nur aus dem kompilierten Markdown-LLM-Wiki des ausgewählten Quell-Bots im Blob-Speicher antworten.",
         "useWebSource": "Web-Suche zur Ergänzung der indexierten Daten verwenden.",
         "useSharePointSource": "SharePoint-Inhalte zur Ergänzung der indexierten Daten verwenden."
     },

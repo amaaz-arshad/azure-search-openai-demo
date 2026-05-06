@@ -48,6 +48,8 @@ export interface SettingsProps {
     promptTemplateSuffix?: string;
     showAgenticRetrievalOption?: boolean;
     useAgenticKnowledgeBase?: boolean;
+    showLlmWikiOption?: boolean;
+    useLlmWiki?: boolean;
     hideMinimalRetrievalReasoningOption?: boolean;
     useWebSource?: boolean;
     showWebSourceOption?: boolean;
@@ -94,6 +96,8 @@ export const Settings = ({
     promptTemplateSuffix,
     showAgenticRetrievalOption,
     useAgenticKnowledgeBase = false,
+    showLlmWikiOption = false,
+    useLlmWiki = false,
     hideMinimalRetrievalReasoningOption = false,
     useWebSource = false,
     showWebSourceOption = false,
@@ -111,6 +115,8 @@ export const Settings = ({
     const chatModelFieldId = useId("chatModelField");
     const seedId = useId("seed");
     const seedFieldId = useId("seedField");
+    const llmWikiId = useId("llmWiki");
+    const llmWikiFieldId = useId("llmWikiField");
     const agenticRetrievalId = useId("agenticRetrieval");
     const agenticRetrievalFieldId = useId("agenticRetrievalField");
     const webSourceId = useId("webSource");
@@ -186,7 +192,7 @@ export const Settings = ({
 
             <h3 className={styles.sectionHeader}>{t("searchSettings")}</h3>
 
-            {showAgenticRetrievalOption && (
+            {showAgenticRetrievalOption && !useLlmWiki && (
                 <Checkbox
                     id={agenticRetrievalFieldId}
                     className={styles.settingsSeparator}
@@ -211,7 +217,19 @@ export const Settings = ({
                 onRenderLabel={props => renderLabel(props, sourceBotId, sourceBotFieldId, t("helpTexts.sourceBot"))}
             />
 
-            {showAgenticRetrievalOption && useAgenticKnowledgeBase && (
+            {showLlmWikiOption && (
+                <Checkbox
+                    id={llmWikiFieldId}
+                    className={styles.settingsSeparator}
+                    checked={useLlmWiki}
+                    label={t("labels.useLlmWiki")}
+                    onChange={(_ev, checked) => onChange("useLlmWiki", !!checked)}
+                    aria-labelledby={llmWikiId}
+                    onRenderLabel={props => renderLabel(props, llmWikiId, llmWikiFieldId, t("helpTexts.useLlmWiki"))}
+                />
+            )}
+
+            {showAgenticRetrievalOption && useAgenticKnowledgeBase && !useLlmWiki && (
                 <Dropdown
                     id={agenticReasoningEffortFieldId}
                     className={styles.settingsSeparator}
@@ -231,7 +249,7 @@ export const Settings = ({
                 />
             )}
 
-            {showAgenticRetrievalOption && useAgenticKnowledgeBase && showWebSourceOption && (
+            {showAgenticRetrievalOption && useAgenticKnowledgeBase && !useLlmWiki && showWebSourceOption && (
                 <Checkbox
                     id={webSourceFieldId}
                     className={styles.settingsSeparator}
@@ -254,7 +272,7 @@ export const Settings = ({
                     onRenderLabel={props => renderLabel(props, webSourceId, webSourceFieldId, t("helpTexts.useWebSource"))}
                 />
             )}
-            {showAgenticRetrievalOption && useAgenticKnowledgeBase && showSharePointSourceOption && (
+            {showAgenticRetrievalOption && useAgenticKnowledgeBase && !useLlmWiki && showSharePointSourceOption && (
                 <Checkbox
                     id={sharePointSourceFieldId}
                     className={styles.settingsSeparator}

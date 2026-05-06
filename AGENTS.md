@@ -65,6 +65,7 @@ Use graphify as the map, then inspect the smallest relevant code surface. The hi
 - The feed parser maps outer `<document id="...">` to `sourcepage`, direct `<naam>` to `title`, `url` to the external PublishOne document URL, structured document text into `content`, and extra metadata into `tags`; citations use first-class `title` and `url`.
 - Deleting one of those source XML blobs must remove the mirrored target blob and matching indexed documents.
 - To purge one indexed category without re-ingesting, run `python app/backend/delete_documents_by_category.py <category>`.
+- LLM Wiki compiled Markdown lives in blob storage under `content/__llm_wiki__/<chatbot>/wiki/`. To compile raw source blobs already in Azure Storage, run `python app/backend/compile_llm_wiki.py --chatbot <chatbot>`. To compile raw files from this repo's `content/<chatbot>/` folders and upload the resulting wiki to blob storage, add `--local-content-root content --overwrite`. Very large raw files may compile into multiple `sources/*-part-NNN.md` pages.
 
 ## Adding A Chatbot
 

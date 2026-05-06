@@ -1,5 +1,6 @@
 import base64
 import json
+from types import SimpleNamespace
 
 import pytest
 from azure.core.credentials import AzureKeyCredential
@@ -16,7 +17,7 @@ from approaches.approach import (
     ThoughtStep,
     WebResult,
 )
-from approaches.chatreadretrieveread import ChatReadRetrieveReadApproach
+from approaches.chatreadretrieveread import ChatReadRetrieveReadApproach, LlmWikiPage
 from approaches.promptmanager import PromptManager
 from prepdocslib.embeddings import ImageEmbeddings
 
@@ -129,6 +130,51 @@ def test_get_document_citation_target_uses_url_for_external_feed_categories() ->
     assert ChatReadRetrieveReadApproach.get_document_citation_target("publishone") == "url"
     assert ChatReadRetrieveReadApproach.get_document_citation_target("fhg") == "url"
     assert ChatReadRetrieveReadApproach.get_document_citation_target("demo") == "sourcepage"
+
+
+def test_llm_wiki_blob_paths_are_scoped_to_source_bot() -> None:
+    assert ChatReadRetrieveReadApproach.get_llm_wiki_blob_prefix("lemon") == "__llm_wiki__/lemon/wiki"
+    assert (
+        ChatReadRetrieveReadApproach.get_llm_wiki_blob_path("lemon", "concepts/hydration")
+        == "__llm_wiki__/lemon/wiki/concepts/hydration.md"
+    )
+
+
+def test_extract_llm_wiki_index_paths_supports_markdown_and_wikilinks() -> None:
+    index_content = """
+    - [[concepts/hydration|Hydration]]
+    - [Fueling](concepts/fueling.md#details)
+    - [External](https://example.com/skip.md)
+    - [Bad](../skip.md)
+    """
+
+    assert ChatReadRetrieveReadApproach.extract_llm_wiki_index_paths(index_content) == [
+        "concepts/hydration.md",
+        "concepts/fueling.md",
+    ]
+
+
+def test_select_llm_wiki_pages_uses_index_first() -> None:
+    pages = [
+        LlmWikiPage(
+            blob_path="__llm_wiki__/lemon/wiki/concepts/hydration.md",
+            relative_path="concepts/hydration.md",
+            citation="__llm_wiki__/lemon/wiki/concepts/hydration.md",
+            title="Hydration",
+            content="# Hydration\nDrink water.",
+        ),
+        LlmWikiPage(
+            blob_path="__llm_wiki__/lemon/wiki/index.md",
+            relative_path="index.md",
+            citation="__llm_wiki__/lemon/wiki/index.md",
+            title="Index",
+            content="# Index\n- [Hydration](concepts/hydration.md)",
+        ),
+    ]
+
+    selected = ChatReadRetrieveReadApproach.select_llm_wiki_pages(pages, "hydration")
+
+    assert [page.relative_path for page in selected] == ["index.md", "concepts/hydration.md"]
 
 
 def test_get_system_prompt_variables_renders_support_email_and_preserves_literal_prompt_placeholders(chat_approach):
@@ -833,3 +879,124 @@ async def test_run_until_final_call_rejects_web_streaming(chat_approach):
             auth_claims={},
             should_stream=True,
         )
+
+
+@pytest.mark.asyncio
+async def test_run_llm_wiki_approach_reads_blob_wiki_without_search(chat_approach, monkeypatch):
+    class FakeBlobManager:
+        async def list_blobs(self, prefix=None):
+            assert prefix == "__llm_wiki__/lemon/wiki/"
+            return [
+                SimpleNamespace(name="__llm_wiki__/lemon/wiki/concepts/hydration.md"),
+                SimpleNamespace(name="__llm_wiki__/lemon/wiki/index.md"),
+            ]
+
+        async def download_blob(self, blob_path, user_oid=None, container=None):
+            pages = {
+                "__llm_wiki__/lemon/wiki/index.md": b"# Index\n- [Hydration](concepts/hydration.md)",
+                "__llm_wiki__/lemon/wiki/concepts/hydration.md": b"# Hydration\nDrink water.",
+            }
+            return pages[blob_path], {"content_settings": {"content_type": "text/markdown; charset=utf-8"}}
+
+    async def fail_search(*args, **kwargs):
+        raise AssertionError("Pure LLM Wiki mode must not call Azure Search")
+
+    async def fake_chat_completion(*args, **kwargs):
+        prompt_messages = kwargs.get("messages") or args[2]
+        prompt = prompt_messages[-1]["content"]
+        assert "Drink water." in prompt
+        return ChatCompletion.model_validate(
+            {
+                "id": "wiki-test",
+                "object": "chat.completion",
+                "created": 0,
+                "model": "gpt-4.1-mini",
+                "choices": [
+                    {
+                        "index": 0,
+                        "finish_reason": "stop",
+                        "message": {
+                            "role": "assistant",
+                            "content": "Use the hydration guidance. [__llm_wiki__/lemon/wiki/concepts/hydration.md]",
+                        },
+                    }
+                ],
+            }
+        )
+
+    chat_approach.global_blob_manager = FakeBlobManager()
+    monkeypatch.setattr(chat_approach, "search", fail_search)
+    monkeypatch.setattr(chat_approach, "create_chat_completion", fake_chat_completion)
+
+    extra_info = await chat_approach.run_llm_wiki_approach(
+        messages=[{"role": "user", "content": "hydration"}],
+        overrides={"source_chatbot": "lemon"},
+        auth_claims={},
+    )
+
+    assert extra_info.answer == "Use the hydration guidance. [__llm_wiki__/lemon/wiki/concepts/hydration.md]"
+    assert extra_info.data_points.citations == [
+        "__llm_wiki__/lemon/wiki/index.md",
+        "__llm_wiki__/lemon/wiki/concepts/hydration.md",
+    ]
+    assert [thought.title for thought in extra_info.thoughts] == [
+        "Load LLM Wiki from blob storage",
+        "Prompt to answer from LLM Wiki",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_run_until_final_call_prefers_llm_wiki_over_agentic(chat_approach, monkeypatch):
+    called = {"llm_wiki": False, "agentic": False}
+
+    async def fake_llm_wiki_approach(messages, overrides, auth_claims):
+        called["llm_wiki"] = True
+        return ExtraInfo(
+            data_points=DataPoints(text=["LLM Wiki - Current page: content"], images=[], citations=[]),
+            thoughts=[],
+            answer="Wiki answer",
+        )
+
+    async def fake_agentic_approach(messages, overrides, auth_claims):
+        called["agentic"] = True
+        return ExtraInfo(data_points=DataPoints(text=[], images=[], citations=[]), thoughts=[], answer="Agentic answer")
+
+    monkeypatch.setattr(chat_approach, "run_llm_wiki_approach", fake_llm_wiki_approach)
+    monkeypatch.setattr(chat_approach, "run_agentic_retrieval_approach", fake_agentic_approach)
+
+    _extra_info, completion = await chat_approach.run_until_final_call(
+        messages=[{"role": "user", "content": "Hello"}],
+        overrides={"use_llm_wiki": True, "source_chatbot": "lemon", "use_agentic_knowledgebase": True},
+        auth_claims={},
+        should_stream=False,
+    )
+    completed = await completion
+
+    assert called == {"llm_wiki": True, "agentic": False}
+    assert completed.choices[0].message.content == "Wiki answer"
+
+
+@pytest.mark.asyncio
+async def test_run_until_final_call_ignores_llm_wiki_without_internal_source(chat_approach, monkeypatch):
+    called = {"search": False}
+
+    async def fake_llm_wiki_approach(messages, overrides, auth_claims):
+        raise AssertionError("LLM Wiki should require a source_chatbot override")
+
+    async def fake_search_approach(messages, overrides, auth_claims):
+        called["search"] = True
+        return ExtraInfo(data_points=DataPoints(text=[], images=[], citations=[]), thoughts=[], answer="Search answer")
+
+    monkeypatch.setattr(chat_approach, "run_llm_wiki_approach", fake_llm_wiki_approach)
+    monkeypatch.setattr(chat_approach, "run_search_approach", fake_search_approach)
+
+    _extra_info, completion = await chat_approach.run_until_final_call(
+        messages=[{"role": "user", "content": "Hello"}],
+        overrides={"use_llm_wiki": True},
+        auth_claims={},
+        should_stream=False,
+    )
+    completed = await completion
+
+    assert called == {"search": True}
+    assert completed.choices[0].message.content == "Search answer"

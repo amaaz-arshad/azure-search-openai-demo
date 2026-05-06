@@ -1,6 +1,6 @@
 import re
 from collections.abc import AsyncGenerator, Awaitable
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from typing import Any, Optional, cast
 
 # --- Lemon-specific output sanitization -----------------------------------
@@ -86,6 +86,7 @@ from openai.types.chat.chat_completion_message import ChatCompletionMessage
 
 from approaches.approach import (
     Approach,
+    DataPoints,
     ExtraInfo,
     ThoughtStep,
 )
@@ -93,6 +94,15 @@ from approaches.chatbot_config_registry import get_chatbot_citation_target
 from approaches.promptmanager import PromptManager
 from prepdocslib.blobmanager import AdlsBlobManager, BlobManager
 from prepdocslib.embeddings import ImageEmbeddings
+
+
+@dataclass(frozen=True)
+class LlmWikiPage:
+    blob_path: str
+    relative_path: str
+    citation: str
+    title: str
+    content: str
 
 
 class ChatReadRetrieveReadApproach(Approach):
@@ -103,6 +113,11 @@ class ChatReadRetrieveReadApproach(Approach):
     """
 
     NO_RESPONSE = Approach.QUERY_REWRITE_NO_RESPONSE
+    LLM_WIKI_BLOB_ROOT = "__llm_wiki__"
+    LLM_WIKI_INDEX_FILE = "index.md"
+    LLM_WIKI_LOG_FILE = "log.md"
+    LLM_WIKI_MAX_CONTEXT_CHARS = 60000
+    LLM_WIKI_MAX_PAGES = 16
 
     def __init__(
         self,
@@ -188,6 +203,198 @@ class ChatReadRetrieveReadApproach(Approach):
             return "sourcepage"
         primary_category = include_category.split(",", 1)[0].strip().lower()
         return get_chatbot_citation_target(primary_category)
+
+    @staticmethod
+    def normalize_llm_wiki_source_chatbot(source_chatbot: str) -> str:
+        normalized_source = source_chatbot.strip().lower()
+        if not re.fullmatch(r"[a-z0-9][a-z0-9_-]*", normalized_source):
+            raise ValueError("Invalid LLM Wiki source chatbot.")
+        return normalized_source
+
+    @classmethod
+    def get_llm_wiki_blob_prefix(cls, source_chatbot: str) -> str:
+        normalized_source = cls.normalize_llm_wiki_source_chatbot(source_chatbot)
+        return f"{cls.LLM_WIKI_BLOB_ROOT}/{normalized_source}/wiki"
+
+    @staticmethod
+    def normalize_llm_wiki_relative_path(relative_path: str) -> str:
+        path_parts = [part for part in relative_path.replace("\\", "/").split("/") if part and part != "."]
+        if not path_parts or any(part == ".." for part in path_parts):
+            raise ValueError("Invalid LLM Wiki page path.")
+        normalized_path = "/".join(path_parts)
+        if not normalized_path.lower().endswith(".md"):
+            normalized_path = f"{normalized_path}.md"
+        return normalized_path
+
+    @classmethod
+    def get_llm_wiki_blob_path(cls, source_chatbot: str, relative_path: str) -> str:
+        return f"{cls.get_llm_wiki_blob_prefix(source_chatbot)}/{cls.normalize_llm_wiki_relative_path(relative_path)}"
+
+    @classmethod
+    def get_llm_wiki_relative_path(cls, source_chatbot: str, blob_path: str) -> str:
+        prefix = f"{cls.get_llm_wiki_blob_prefix(source_chatbot)}/"
+        if not blob_path.startswith(prefix):
+            return blob_path
+        return blob_path[len(prefix) :]
+
+    @staticmethod
+    def get_markdown_title(markdown: str, fallback: str) -> str:
+        for line in markdown.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("#"):
+                return stripped.lstrip("#").strip() or fallback
+        return fallback
+
+    @staticmethod
+    def extract_llm_wiki_index_paths(index_content: str) -> list[str]:
+        candidate_paths: list[str] = []
+
+        for match in re.finditer(r"\[\[([^\]\n]+)\]\]", index_content):
+            target = match.group(1).split("|", 1)[0].split("#", 1)[0].strip()
+            if target:
+                candidate_paths.append(target)
+
+        for match in re.finditer(r"\[[^\]\n]+\]\(([^)\n]+)\)", index_content):
+            target = match.group(1).split("#", 1)[0].strip()
+            if target and not re.match(r"^[a-z][a-z0-9+.-]*:", target, re.IGNORECASE):
+                candidate_paths.append(target)
+
+        normalized_paths: list[str] = []
+        for path in candidate_paths:
+            try:
+                normalized_path = ChatReadRetrieveReadApproach.normalize_llm_wiki_relative_path(path)
+            except ValueError:
+                continue
+            if normalized_path not in normalized_paths:
+                normalized_paths.append(normalized_path)
+        return normalized_paths
+
+    @staticmethod
+    def score_llm_wiki_page(query: str, page: LlmWikiPage) -> int:
+        query_terms = set(re.findall(r"[a-z0-9]{3,}", query.lower()))
+        if not query_terms:
+            return 0
+        title = page.title.lower()
+        path = page.relative_path.lower()
+        content = page.content.lower()
+        score = 0
+        for term in query_terms:
+            if term in title:
+                score += 10
+            if term in path:
+                score += 4
+            if term in content:
+                score += content.count(term)
+        return score
+
+    @classmethod
+    def select_llm_wiki_pages(cls, pages: list[LlmWikiPage], query: str) -> list[LlmWikiPage]:
+        index_pages = [page for page in pages if page.relative_path.lower() == cls.LLM_WIKI_INDEX_FILE]
+        query_pages = [page for page in pages if page.relative_path.lower() != cls.LLM_WIKI_LOG_FILE]
+        index_page = index_pages[0] if index_pages else None
+
+        selected_paths: list[str] = []
+        if index_page:
+            selected_paths.append(index_page.relative_path)
+            selected_paths.extend(cls.extract_llm_wiki_index_paths(index_page.content))
+
+        if len(query_pages) <= cls.LLM_WIKI_MAX_PAGES:
+            selected_paths.extend(page.relative_path for page in query_pages)
+        else:
+            ranked_pages = sorted(
+                (page for page in query_pages if page.relative_path.lower() != cls.LLM_WIKI_INDEX_FILE),
+                key=lambda page: cls.score_llm_wiki_page(query, page),
+                reverse=True,
+            )
+            selected_paths.extend(page.relative_path for page in ranked_pages[: cls.LLM_WIKI_MAX_PAGES])
+
+        pages_by_path = {page.relative_path: page for page in pages}
+        selected_pages: list[LlmWikiPage] = []
+        used_chars = 0
+        for path in dict.fromkeys(selected_paths):
+            page = pages_by_path.get(path)
+            if page is None:
+                continue
+            page_size = len(page.content)
+            if selected_pages and used_chars + page_size > cls.LLM_WIKI_MAX_CONTEXT_CHARS:
+                continue
+            selected_pages.append(page)
+            used_chars += page_size
+            if len(selected_pages) >= cls.LLM_WIKI_MAX_PAGES:
+                break
+        return selected_pages
+
+    async def load_llm_wiki_pages(self, source_chatbot: str) -> list[LlmWikiPage]:
+        if self.global_blob_manager is None:
+            return []
+
+        blob_prefix = self.get_llm_wiki_blob_prefix(source_chatbot)
+        blob_entries = await self.global_blob_manager.list_blobs(f"{blob_prefix}/")
+        blob_paths = sorted(
+            entry.name
+            for entry in blob_entries
+            if getattr(entry, "name", "").lower().endswith(".md")
+        )
+        pages: list[LlmWikiPage] = []
+        for blob_path in blob_paths:
+            download_result = await self.global_blob_manager.download_blob(blob_path)
+            if download_result is None:
+                continue
+            content_bytes, _properties = download_result
+            content = content_bytes.decode("utf-8-sig", errors="replace").strip()
+            if not content:
+                continue
+            relative_path = self.get_llm_wiki_relative_path(source_chatbot, blob_path)
+            pages.append(
+                LlmWikiPage(
+                    blob_path=blob_path,
+                    relative_path=relative_path,
+                    citation=blob_path,
+                    title=self.get_markdown_title(content, relative_path),
+                    content=content,
+                )
+            )
+        return pages
+
+    async def answer_from_llm_wiki(
+        self,
+        *,
+        source_chatbot: str,
+        user_query: str,
+        selected_pages: list[LlmWikiPage],
+        overrides: dict[str, Any],
+        chatgpt_model: str,
+        chatgpt_deployment: Optional[str],
+    ) -> tuple[str, list[ChatCompletionMessageParam], ChatCompletion]:
+        messages = cast(
+            list[ChatCompletionMessageParam],
+            [
+                self.prompt_manager.build_system_prompt(
+                    "llm_wiki_answer.system.jinja2",
+                    {"source_chatbot": source_chatbot},
+                ),
+                self.prompt_manager.build_user_prompt(
+                    "llm_wiki_answer.user.jinja2",
+                    {
+                        "user_query": user_query,
+                        "wiki_pages": selected_pages,
+                    },
+                ),
+            ],
+        )
+        completion = cast(
+            ChatCompletion,
+            await self.create_chat_completion(
+                chatgpt_deployment,
+                chatgpt_model,
+                messages,
+                overrides,
+                response_token_limit=self.get_response_token_limit(chatgpt_model, 1600),
+                temperature=0.0,
+            ),
+        )
+        content = completion.choices[0].message.content or ""
+        return str(content.strip()), messages, completion
 
     async def run_without_streaming(
         self,
@@ -359,6 +566,7 @@ class ChatReadRetrieveReadApproach(Approach):
         should_stream: bool = False,
     ) -> tuple[ExtraInfo, Awaitable[ChatCompletion] | Awaitable[AsyncStream[ChatCompletionChunk]]]:
         use_agentic_knowledgebase = True if overrides.get("use_agentic_knowledgebase") else False
+        use_llm_wiki = bool(overrides.get("use_llm_wiki") and isinstance(overrides.get("source_chatbot"), str))
         original_user_query = messages[-1]["content"]
         effective_chatgpt_model, effective_chatgpt_deployment = self.resolve_chat_model_and_deployment(
             overrides, self.chatgpt_model, self.chatgpt_deployment
@@ -369,7 +577,9 @@ class ChatReadRetrieveReadApproach(Approach):
             raise Exception(
                 f"{effective_chatgpt_model} does not support streaming. Please use a different model or disable streaming."
             )
-        if use_agentic_knowledgebase:
+        if use_llm_wiki:
+            extra_info = await self.run_llm_wiki_approach(messages, overrides, auth_claims)
+        elif use_agentic_knowledgebase:
             if should_stream and overrides.get("use_web_source"):
                 raise Exception(
                     "Streaming is not supported with agentic retrieval when web source is enabled. Please disable streaming or web source."
@@ -379,7 +589,7 @@ class ChatReadRetrieveReadApproach(Approach):
             extra_info = await self.run_search_approach(messages, overrides, auth_claims)
 
         if extra_info.answer:
-            # If agentic retrieval already provided an answer, skip final call to LLM
+            # Some approaches, such as agentic web retrieval and pure LLM Wiki, already provide the final answer.
             async def return_answer() -> ChatCompletion:
                 return ChatCompletion(
                     id="no-final-call",
@@ -573,6 +783,83 @@ class ChatReadRetrieveReadApproach(Approach):
             ],
         )
         return extra_info
+
+    async def run_llm_wiki_approach(
+        self,
+        messages: list[ChatCompletionMessageParam],
+        overrides: dict[str, Any],
+        auth_claims: dict[str, Any],
+    ) -> ExtraInfo:
+        source_chatbot = overrides.get("source_chatbot")
+        if not isinstance(source_chatbot, str) or not source_chatbot.strip():
+            return await self.run_search_approach(messages, overrides, auth_claims)
+
+        original_user_query = messages[-1]["content"]
+        if not isinstance(original_user_query, str):
+            raise ValueError("The most recent message content must be a string.")
+        effective_chatgpt_model, effective_chatgpt_deployment = self.resolve_chat_model_and_deployment(
+            overrides, self.chatgpt_model, self.chatgpt_deployment
+        )
+
+        blob_prefix = self.get_llm_wiki_blob_prefix(source_chatbot)
+        pages = await self.load_llm_wiki_pages(source_chatbot)
+        selected_pages = self.select_llm_wiki_pages(pages, original_user_query)
+        wiki_sources = [
+            f"LLM Wiki - {page.title} ({page.citation}):\n{page.content}" for page in selected_pages
+        ]
+        data_points = DataPoints(
+            text=wiki_sources,
+            images=[],
+            citations=[page.citation for page in selected_pages],
+        )
+        thoughts = [
+            ThoughtStep(
+                "Load LLM Wiki from blob storage",
+                {
+                    "source_chatbot": source_chatbot,
+                    "blob_prefix": blob_prefix,
+                    "pages_found": len(pages),
+                    "pages_loaded": [page.citation for page in selected_pages],
+                },
+            )
+        ]
+
+        if not selected_pages:
+            return ExtraInfo(
+                data_points,
+                thoughts=thoughts,
+                answer=(
+                    f"I do not have an LLM Wiki for '{source_chatbot}' yet. "
+                    f"Upload Markdown pages under '{blob_prefix}/' and try again."
+                ),
+            )
+
+        answer, wiki_answer_messages, wiki_answer_completion = await self.answer_from_llm_wiki(
+            source_chatbot=source_chatbot,
+            user_query=original_user_query,
+            selected_pages=selected_pages,
+            overrides=overrides,
+            chatgpt_model=effective_chatgpt_model,
+            chatgpt_deployment=effective_chatgpt_deployment,
+        )
+        if not answer:
+            answer = "The selected LLM Wiki did not produce an answer for this question."
+        thoughts.append(
+            self.format_thought_step_for_chatcompletion(
+                title="Prompt to answer from LLM Wiki",
+                messages=wiki_answer_messages,
+                overrides=overrides,
+                model=effective_chatgpt_model,
+                deployment=effective_chatgpt_deployment,
+                usage=wiki_answer_completion.usage,
+            )
+        )
+
+        return ExtraInfo(
+            data_points,
+            thoughts=thoughts,
+            answer=answer,
+        )
 
     async def run_agentic_retrieval_approach(
         self,
