@@ -1238,10 +1238,10 @@ async def delete_public_test_admin_user(email: str):
     auth_service = get_public_test_auth_service()
     deleted_account = await auth_service.delete_account(normalized_email)
     if not deleted_account:
-        return jsonify({"message": "Nerilio Bot user not found.", "deletedUploadCount": len(deleted_uploads)}), 404
+        return jsonify({"message": "nerilio user not found.", "deletedUploadCount": len(deleted_uploads)}), 404
 
     return (
-        jsonify({"message": "Nerilio Bot user deleted successfully.", "deletedUploadCount": len(deleted_uploads)}),
+        jsonify({"message": "nerilio user deleted successfully.", "deletedUploadCount": len(deleted_uploads)}),
         200,
     )
 
@@ -1270,7 +1270,7 @@ async def reset_public_test_admin_user_password(email: str):
     return (
         jsonify(
             {
-                "message": "Nerilio Bot user password updated successfully.",
+                "message": "nerilio user password updated successfully.",
                 "email": updated_account.email,
                 "updatedAt": updated_account.updated_at,
             }
@@ -1948,7 +1948,7 @@ async def setup_clients():
     PUBLIC_TEST_SMTP_USERNAME = os.getenv("PUBLIC_TEST_SMTP_USERNAME")
     PUBLIC_TEST_SMTP_PASSWORD = os.getenv("PUBLIC_TEST_SMTP_PASSWORD")
     PUBLIC_TEST_EMAIL_FROM = os.getenv("PUBLIC_TEST_EMAIL_FROM")
-    PUBLIC_TEST_EMAIL_FROM_NAME = os.getenv("PUBLIC_TEST_EMAIL_FROM_NAME", "Nerilio Bot")
+    PUBLIC_TEST_EMAIL_FROM_NAME = os.getenv("PUBLIC_TEST_EMAIL_FROM_NAME", "nerilio")
 
     KB_FIELDS_CONTENT = os.getenv("KB_FIELDS_CONTENT", "content")
     KB_FIELDS_SOURCEPAGE = os.getenv("KB_FIELDS_SOURCEPAGE", "sourcepage")

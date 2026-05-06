@@ -1,6 +1,6 @@
 const chatbotDisplayNames: Record<string, string> = {
-    free: "Nerilio Bot",
-    "public-test": "Nerilio Bot",
+    free: "nerilio",
+    "public-test": "nerilio",
     internal: "Internal Bot"
 };
 

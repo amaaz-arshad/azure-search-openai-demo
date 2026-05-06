@@ -2,9 +2,11 @@ import asyncio
 import base64
 import hashlib
 import hmac
+import html
 import io
 import json
 import logging
+import re
 import secrets
 import smtplib
 import ssl
@@ -12,6 +14,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
 from email.utils import formataddr
+from pathlib import Path
 
 from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
 from azure.storage.blob import ContentSettings
@@ -30,6 +33,8 @@ PUBLIC_TEST_VERIFICATION_CODE_TTL_SECONDS = 15 * 60
 PUBLIC_TEST_VERIFICATION_RESEND_INTERVAL_SECONDS = 45
 PUBLIC_TEST_VERIFICATION_MAX_ATTEMPTS = 5
 PUBLIC_TEST_PASSWORD_MIN_LENGTH = 8
+PUBLIC_TEST_EMAIL_BRAND_NAME = "nerilio"
+PUBLIC_TEST_EMAIL_LOGO_CID = "nerilio-logo"
 
 
 @dataclass(frozen=True)
@@ -122,7 +127,7 @@ class PublicTestAuthStore:
         smtp_username: str | None,
         smtp_password: str | None,
         email_from: str | None,
-        email_from_name: str = "Nerilio Bot",
+        email_from_name: str = PUBLIC_TEST_EMAIL_BRAND_NAME,
         auth_container: str = PUBLIC_TEST_AUTH_CONTAINER,
         session_cookie_name: str = PUBLIC_TEST_AUTH_COOKIE,
         session_max_age_seconds: int = PUBLIC_TEST_SESSION_MAX_AGE_SECONDS,
@@ -139,7 +144,9 @@ class PublicTestAuthStore:
         self.smtp_username = (smtp_username or "").strip()
         self.smtp_password = smtp_password or ""
         self.email_from = (email_from or "").strip()
-        self.email_from_name = email_from_name.strip() or "Nerilio Bot"
+        self.email_from_name = (email_from_name.strip() or PUBLIC_TEST_EMAIL_BRAND_NAME).replace(
+            "Nerilio Bot", PUBLIC_TEST_EMAIL_BRAND_NAME
+        )
         self.running_in_production = running_in_production
 
     async def setup(self):
@@ -503,12 +510,154 @@ class PublicTestAuthStore:
             expires_in_seconds=PUBLIC_TEST_VERIFICATION_CODE_TTL_SECONDS,
         )
 
+    @staticmethod
+    def get_frontend_logo_asset_path() -> Path | None:
+        backend_root = Path(__file__).resolve().parents[1]
+        static_root = backend_root / "static"
+        index_path = static_root / "index.html"
+
+        if index_path.exists():
+            for line in index_path.read_text(encoding="utf-8", errors="ignore").splitlines():
+                if 'rel="icon"' not in line and "rel='icon'" not in line:
+                    continue
+                href_match = re.search(r"href=[\"']([^\"']+)[\"']", line)
+                if not href_match:
+                    continue
+                candidate = static_root / href_match.group(1).lstrip("/")
+                if candidate.exists():
+                    return candidate
+
+        for pattern in ("assets/robo1*.png", "assets/*fbn*.png"):
+            matches = sorted(static_root.glob(pattern))
+            if matches:
+                return matches[0]
+
+        repo_root = backend_root.parents[1]
+        for candidate in (
+            repo_root / "app" / "frontend" / "src" / "assets" / "robo1.png",
+            repo_root / "app" / "frontend" / "src" / "chatbots" / "nerilio" / "assets" / "robo1.png",
+        ):
+            if candidate.exists():
+                return candidate
+
+        return None
+
+    def load_email_logo(self) -> tuple[bytes, str] | None:
+        logo_path = self.get_frontend_logo_asset_path()
+        if logo_path is None:
+            return None
+
+        image_subtype = logo_path.suffix.lower().lstrip(".") or "png"
+        if image_subtype == "jpg":
+            image_subtype = "jpeg"
+        try:
+            return logo_path.read_bytes(), image_subtype
+        except OSError:
+            logger.warning("Unable to read public-test email logo from %s", logo_path)
+            return None
+
+    @staticmethod
+    def build_code_email_html(*, headline: str, intro: str, verification_code: str, include_logo: bool) -> str:
+        escaped_headline = html.escape(headline)
+        escaped_intro = html.escape(intro)
+        escaped_code = html.escape(verification_code)
+        logo_html = (
+            f'<img src="cid:{PUBLIC_TEST_EMAIL_LOGO_CID}" alt="nerilio" width="76" '
+            'style="display:block;width:76px;max-width:76px;height:auto;margin:0 auto 18px;" />'
+            if include_logo
+            else ""
+        )
+
+        return f"""<!doctype html>
+<html lang="de">
+<body style="margin:0;background:#f5f7f2;color:#19231d;font-family:'Segoe UI',Arial,sans-serif;">
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;">Dein nerilio Code: {escaped_code}</div>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f5f7f2;">
+        <tr>
+            <td align="center" style="padding:34px 16px;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border:1px solid #dfe9da;border-radius:24px;overflow:hidden;box-shadow:0 18px 48px rgba(45,68,47,0.14);">
+                    <tr>
+                        <td style="padding:34px 34px 30px;text-align:center;">
+                            {logo_html}
+                            <div style="font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#58745f;">nerilio</div>
+                            <h1 style="margin:12px 0 12px;font-size:28px;line-height:1.2;color:#132017;">{escaped_headline}</h1>
+                            <p style="margin:0 auto 24px;max-width:410px;font-size:16px;line-height:1.6;color:#4b5e50;">{escaped_intro}</p>
+                            <div style="display:inline-block;padding:18px 26px;border-radius:18px;background:#eef6ea;border:1px solid #cfe0c8;color:#132017;font-size:34px;line-height:1;font-weight:800;letter-spacing:0.18em;">{escaped_code}</div>
+                            <p style="margin:24px auto 0;max-width:420px;font-size:14px;line-height:1.6;color:#657669;">Der Code ist 15 Minuten gültig. Wenn du diese E-Mail nicht angefordert hast, kannst du sie einfach ignorieren.</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:18px 34px;background:#fbfcf8;border-top:1px solid #edf2e8;text-align:center;color:#7a887d;font-size:12px;line-height:1.5;">
+                            Diese Nachricht wurde automatisch von nerilio gesendet.
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>"""
+
+    def build_code_email_message(
+        self,
+        *,
+        to_email: str,
+        subject: str,
+        greeting: str,
+        intro: str,
+        verification_code: str,
+    ) -> EmailMessage:
+        logo_payload = self.load_email_logo()
+        email_message = EmailMessage()
+        email_message["Subject"] = subject
+        email_message["From"] = formataddr((self.email_from_name, self.email_from))
+        email_message["To"] = to_email
+        email_message.set_content(
+            "\n".join(
+                [
+                    greeting,
+                    "",
+                    intro,
+                    "",
+                    verification_code,
+                    "",
+                    "Der Code ist 15 Minuten gültig.",
+                    "",
+                    "Wenn du diese E-Mail nicht angefordert hast, kannst du sie einfach ignorieren.",
+                    "",
+                    "nerilio",
+                ]
+            )
+        )
+        email_message.add_alternative(
+            self.build_code_email_html(
+                headline=subject,
+                intro=intro,
+                verification_code=verification_code,
+                include_logo=logo_payload is not None,
+            ),
+            subtype="html",
+        )
+
+        html_part = email_message.get_body(("html",))
+        if logo_payload is not None and html_part is not None:
+            logo_bytes, image_subtype = logo_payload
+            html_part.add_related(
+                logo_bytes,
+                maintype="image",
+                subtype=image_subtype,
+                cid=f"<{PUBLIC_TEST_EMAIL_LOGO_CID}>",
+                filename="nerilio.png",
+            )
+
+        return email_message
+
     async def send_verification_email(self, email: str, verification_code: str) -> None:
         if not self.smtp_host or not self.email_from:
             message = (
                 "Public-test verification email requested, but SMTP is not configured."
                 if self.running_in_production
-                else f"Nerilio Bot verification code for {email}: {verification_code}"
+                else f"nerilio verification code for {email}: {verification_code}"
             )
             if self.running_in_production:
                 logger.error(message)
@@ -516,24 +665,12 @@ class PublicTestAuthStore:
             logger.warning(message)
             return
 
-        email_message = EmailMessage()
-        email_message["Subject"] = "Your Nerilio Bot verification code"
-        email_message["From"] = formataddr((self.email_from_name, self.email_from))
-        email_message["To"] = email
-        email_message.set_content(
-            "\n".join(
-                [
-                    "Dear User,",
-                    "",
-                    "Use the verification code below to finish creating your Nerilio Bot account:",
-                    "",
-                    verification_code,
-                    "",
-                    "This code expires in 15 minutes.",
-                    "",
-                    "If you did not request this email, you can ignore it.",
-                ]
-            )
+        email_message = self.build_code_email_message(
+            to_email=email,
+            subject="Dein nerilio Bestätigungscode",
+            greeting="Hallo,",
+            intro="nutze den folgenden Code, um deine E-Mail-Adresse für dein nerilio-Konto zu bestätigen:",
+            verification_code=verification_code,
         )
 
         try:
@@ -549,7 +686,7 @@ class PublicTestAuthStore:
             message = (
                 "Public-test password reset email requested, but SMTP is not configured."
                 if self.running_in_production
-                else f"Nerilio Bot password reset code for {email}: {verification_code}"
+                else f"nerilio password reset code for {email}: {verification_code}"
             )
             if self.running_in_production:
                 logger.error(message)
@@ -557,24 +694,12 @@ class PublicTestAuthStore:
             logger.warning(message)
             return
 
-        email_message = EmailMessage()
-        email_message["Subject"] = "Your Nerilio Bot password reset code"
-        email_message["From"] = formataddr((self.email_from_name, self.email_from))
-        email_message["To"] = email
-        email_message.set_content(
-            "\n".join(
-                [
-                    "Dear User,",
-                    "",
-                    "Use the verification code below to reset your password:",
-                    "",
-                    verification_code,
-                    "",
-                    "This code expires in 15 minutes.",
-                    "",
-                    "If you did not request this password reset, you can ignore it.",
-                ]
-            )
+        email_message = self.build_code_email_message(
+            to_email=email,
+            subject="Dein nerilio Code zum Zurücksetzen des Passworts",
+            greeting="Hallo,",
+            intro="nutze den folgenden Code, um dein Passwort für dein nerilio-Konto zurückzusetzen:",
+            verification_code=verification_code,
         )
 
         try:
@@ -663,9 +788,10 @@ class PublicTestAuthStore:
             raise PublicTestAuthError("authErrors.accountExists")
 
         now = datetime.now(timezone.utc)
-        if parse_utc(pending_signup.last_sent_at) + timedelta(
-            seconds=PUBLIC_TEST_VERIFICATION_RESEND_INTERVAL_SECONDS
-        ) > now:
+        if (
+            parse_utc(pending_signup.last_sent_at) + timedelta(seconds=PUBLIC_TEST_VERIFICATION_RESEND_INTERVAL_SECONDS)
+            > now
+        ):
             raise PublicTestAuthError("authErrors.verificationResendTooSoon", status_code=429)
 
         verification_code = self.generate_verification_code()
@@ -759,9 +885,12 @@ class PublicTestAuthStore:
 
         now = datetime.now(timezone.utc)
         existing_pending_password_reset = await self.load_pending_password_reset(normalized_email)
-        if existing_pending_password_reset is not None and parse_utc(
-            existing_pending_password_reset.last_sent_at
-        ) + timedelta(seconds=PUBLIC_TEST_VERIFICATION_RESEND_INTERVAL_SECONDS) > now:
+        if (
+            existing_pending_password_reset is not None
+            and parse_utc(existing_pending_password_reset.last_sent_at)
+            + timedelta(seconds=PUBLIC_TEST_VERIFICATION_RESEND_INTERVAL_SECONDS)
+            > now
+        ):
             raise PublicTestAuthError("authErrors.verificationResendTooSoon", status_code=429)
 
         verification_code = self.generate_verification_code()
@@ -770,7 +899,9 @@ class PublicTestAuthStore:
             email=normalized_email,
             verification_salt=verification_salt,
             verification_hash=verification_hash,
-            created_at=existing_pending_password_reset.created_at if existing_pending_password_reset else format_utc(now),
+            created_at=(
+                existing_pending_password_reset.created_at if existing_pending_password_reset else format_utc(now)
+            ),
             updated_at=format_utc(now),
             expires_at=format_utc(now + timedelta(seconds=PUBLIC_TEST_VERIFICATION_CODE_TTL_SECONDS)),
             last_sent_at=format_utc(now),
@@ -796,9 +927,11 @@ class PublicTestAuthStore:
             raise PublicTestAuthError("authErrors.accountNotFound", status_code=404)
 
         now = datetime.now(timezone.utc)
-        if parse_utc(pending_password_reset.last_sent_at) + timedelta(
-            seconds=PUBLIC_TEST_VERIFICATION_RESEND_INTERVAL_SECONDS
-        ) > now:
+        if (
+            parse_utc(pending_password_reset.last_sent_at)
+            + timedelta(seconds=PUBLIC_TEST_VERIFICATION_RESEND_INTERVAL_SECONDS)
+            > now
+        ):
             raise PublicTestAuthError("authErrors.verificationResendTooSoon", status_code=429)
 
         verification_code = self.generate_verification_code()

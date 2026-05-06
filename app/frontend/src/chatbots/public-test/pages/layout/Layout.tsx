@@ -88,7 +88,7 @@ const Layout = () => {
                 setProfile(profileResult);
             })
             .catch(error => {
-                console.error("Nerilio Bot profile load failed", error);
+                console.error("nerilio profile load failed", error);
                 if (!isMounted) {
                     return;
                 }
@@ -122,7 +122,7 @@ const Layout = () => {
                 <div className={styles.headerContainer}>
                     <Link className={styles.logoContainer} to="/free">
                         <div className={styles.logoCircle}>
-                            <img alt="Nerilio Bot logo" src={nerilioLogo} />
+                            <img alt="nerilio logo" src={nerilioLogo} />
                         </div>
                     </Link>
 

@@ -308,7 +308,7 @@ const ManagePromptsPage = () => {
                                     to="/free-users"
                                     onClick={handleGuardedNavigation}
                                 >
-                                    Nerilio Bot users
+                                    nerilio users
                                 </Link>
                                 <button className={styles.secondaryButton} type="button" onClick={handleLockPage}>
                                     Lock page

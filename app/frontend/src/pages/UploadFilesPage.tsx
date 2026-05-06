@@ -848,7 +848,7 @@ const UploadFilesPage = () => {
                                     Back to directory
                                 </Link>
                                 <Link className={styles.secondaryButton} to="/free-users">
-                                    Nerilio Bot users
+                                    nerilio users
                                 </Link>
                                 <Link className={styles.secondaryButton} to="/manage-prompts">
                                     Manage prompts

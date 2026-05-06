@@ -10,207 +10,133 @@ Rules:
 
 # Instructions for Coding Agents
 
-Do not make any changes until you have 95% confidence in what you need to build. Ask me follow-up questions until you reach that confidence.
+Very important: Do not make any changes until you have 95% confidence in what you need to build. Ask me follow-up questions until you reach that confidence.
 
-This file captures repo-specific workflow, invariants, and change playbooks for the Azure Search and OpenAI demo application. Use `graphify-out/` for detailed structure discovery; keep this file focused on entrypoints, contracts, and required process rather than a file-by-file code index.
+This repo is an Azure Search and OpenAI RAG demo with many chatbot-specific forks. Agents should use graphify for structure, but keep the human workflow and safety contracts in this file.
 
-Always keep this file up to date with any changes to the codebase or development process.
-If necessary, edit this file to ensure it accurately reflects the current state of the project.
+## Operating Rules
 
-## Codebase map
+- Keep this file updated when a change affects agent workflow, repo invariants, deployment steps, or feature playbooks. Do not expand it into a file-by-file index.
+- Use Context7 MCP for current documentation whenever a question depends on a library, framework, SDK, API, CLI tool, or cloud service. Start with library resolution unless an exact `/org/project` ID is provided, then query docs. Prefer this over web search for library docs. Do not use it for refactoring, business-logic debugging, code review, or general programming concepts.
 
-Use `graphify-out/GRAPH_REPORT.md` as the primary structural map for this repo. If `graphify-out/wiki/index.md` exists, prefer that for deeper navigation rather than expanding this file into another file-by-file layout dump.
+## Where To Start
 
-High-signal entrypoints:
+Use graphify as the map, then inspect the smallest relevant code surface. The highest-signal entrypoints are:
 
-* `app/start.ps1`: local bootstrap for azd env loading, `app/.venv`, dependency restore, frontend build, and Quart startup.
-* `app/backend/app.py`: main Quart app and backend route surface, including `/config`, chatbot upload routes, managed upload routes, `public-test` auth/admin routes, and internal admin auth/prompt routes.
-* `app/backend/approaches/`: shared RAG logic, prompt rendering, chatbot backend config discovery, and per-bot model/prompt/citation behavior.
-* `app/backend/prepdocslib/`: ingestion, parsers, upload/indexing flows, Azure AI Search schema writes, and feed-specific section builders.
-* `app/functions/`: Azure Functions copies of the shared ingestion pipeline plus `moodle_auto_indexer`; refresh with `python scripts/copy_prepdocslib.py` after changing shared ingestion code.
-* `app/frontend/src/index.tsx`: router for `/`, `/<chatbot_name>`, chatbot catch-all `NoPage`, and internal tool routes.
-* `app/frontend/src/chatbots/registry.ts`: chatbot registration and route wiring.
-* `app/frontend/src/chatbots/shared/`: shared answer, example, theme, speech, disclaimer, basic-auth, and `NoPage` building blocks reused across bots.
-* `app/frontend/src/pages/`: internal tool pages such as chatbot directory, upload manager, prompt manager, and Free Bot user admin.
-* `infra/main.bicep` and `infra/main.parameters.json`: Azure provisioning and azd env-var wiring.
-* `scripts/setup_moodle_delete_event_subscription.py`: post-deploy Event Grid sync setup for Moodle and PublishOne feed automation; requires Azure CLI on `PATH`.
-* `docker-compose.openlit.yml`, `otel-collector-config.yaml`, `otel-collector-config.aci.yaml`, and `aci-openlit.example.yaml`: local/cloud OpenLIT stack, persistence wiring, and LLM-only trace filtering.
-* `tests/`: e2e, app integration, and unit tests.
+- `app/start.ps1`: local bootstrap for azd env loading, `app/.venv`, dependency restore, frontend build, and Quart startup.
+- `app/backend/app.py`: main Quart app and backend route surface.
+- `app/backend/approaches/`: shared RAG logic, prompt rendering, chatbot config discovery, and per-bot behavior.
+- `app/backend/prepdocslib/`: ingestion, parsing, upload/indexing, Azure AI Search schema writes, and feed-specific section builders.
+- `app/functions/`: Azure Functions copies of shared ingestion code plus `moodle_auto_indexer`.
+- `app/frontend/src/index.tsx`: frontend router for root, chatbot routes, chatbot fallbacks, and internal tools.
+- `app/frontend/src/chatbots/registry.ts`: chatbot registration and route wiring.
+- `app/frontend/src/chatbots/shared/`: shared answer, example, theme, speech, disclaimer, auth, and fallback building blocks.
+- `infra/main.bicep` and `infra/main.parameters.json`: Azure provisioning and azd environment wiring.
+- `tests/`: pytest unit, app integration, and Playwright e2e coverage.
 
-## Critical contracts
+## Contracts To Preserve
 
-Keep `AGENTS.md` focused on workflow, invariants, and change guides. Do not rebuild a detailed code inventory here when `graphify-out/` already provides that navigation layer.
+- Frontend chatbot routing is `/<chatbot_name>` inside each bot's `LayoutWrapper`; `/<chatbot_name>/*` renders that bot's `NoPage` outside the layout so fallback pages do not show chatbot chrome.
+- Bots with frontend basic auth must guard both `LayoutWrapper` and standalone `NoPage`; otherwise `/<chatbot_name>/*` can bypass the gate.
+- Chatbot basic auth for `agindo`, `demo`, `fbn`, `fhg`, `internal`, `knoll`, `moodle`, `rak`, `sartorius`, `steuertipps`, and `vjoonk4` uses server-side `/chatbot-auth/<chatbot_name>/*` HttpOnly cookies. `/chat` and `/chat/stream` intentionally remain ungated by that simple-auth cookie for iframe compatibility.
+- Frontend login wrappers are API clients only. Do not reintroduce hardcoded browser-side credential checks.
+- Backend `/config` is the frontend capability contract for model selection and reasoning effort. When model behavior changes, update backend metadata rather than hardcoding frontend assumptions.
+- `/internal` is a router shell, not its own retrieval category. Internal requests must carry `context.overrides.source_chatbot`; backend validation derives the effective bot identity, prompt, and `include_category` from that selected source bot.
+- `/config` includes `internalSourceBots` for the `/internal` source-bot dropdown. Do not reintroduce `All`; only one real source bot can be active per internal session.
+- Internal chat history sessions must persist `source_chatbot` metadata. Legacy internal sessions without that metadata are intentionally hidden and non-restorable.
+- Internal citations resolve against the selected source bot's content path while visible `/internal` branding stays fixed as `Internal Bot`.
+- Backend startup auto-discovers optional chatbot backend modules under `app/backend/approaches/chatbots/<chatbot_name>/`. Do not add manual registration unless the code path truly requires it.
+- Shared internal admin auth gates `/chatbots`, `/upload-files`, `/public-test-users`, and `/manage-prompts`; keep frontend and backend route names aligned.
+- `public-test` keeps some legacy internal identifiers for compatibility even though public branding is "Free Bot". Verify compatibility before renaming storage, auth, or history namespaces.
+- Frontend chatbot locales are standardized to `en`, `de`, and `nl`. Do not add extra locale folders unless expanding the entire bot set intentionally.
+- Generic app marks should import `app/frontend/src/assets/applogo.svg`; avoid duplicate per-bot `applogo.svg` assets.
+- If shared ingestion logic changes under `app/backend/prepdocslib/`, refresh synchronized copies under `app/functions/` with `python scripts/copy_prepdocslib.py`.
+- Moodle/PublishOne XML feed automation must preserve both blob-copy/index behavior and the post-deploy Event Grid subscription script.
+- `OPENLIT_ENDPOINT` points at an already-running OpenLIT backend. `azd up` does not provision or repair the standalone OpenLIT Container App.
+- Azure Files SMB is not safe for OpenLIT ClickHouse data here. The known-working Container App setup uses `EmptyDir` for `clickhousedata` and `openlitdata`, with only config volumes on Azure Files; request history is non-persistent across replica recreation.
 
-* Frontend chatbot routing is `/<chatbot_name>` inside each bot's `LayoutWrapper`, while `/<chatbot_name>/*` renders that bot's `NoPage` outside the layout so the fallback page appears without chatbot navbar/header chrome.
-* Chatbots that use frontend basic auth must guard both `LayoutWrapper` and the standalone `NoPage` route so `/<chatbot_name>/*` cannot bypass the auth gate. `/internal` now follows this pattern too.
-* Chatbot basic auth for `agindo`, `demo`, `fbn`, `fhg`, `internal`, `knoll`, `moodle`, `rak`, `sartorius`, `steuertipps`, and `vjoonk4` uses server-side `/chatbot-auth/<chatbot_name>/*` HttpOnly session cookies for login state, while `/chat` and `/chat/stream` intentionally remain ungated by that simple-auth cookie for iframe compatibility. Keep frontend login wrappers as API clients only; do not reintroduce hardcoded browser-side credential checks.
-* Backend `/config` is the frontend capability contract for model selection and reasoning effort. When models diverge, update backend metadata instead of hardcoding frontend assumptions.
-* `OPENLIT_ENDPOINT` only points the app at an already-running OpenLIT backend. The repo's `azd up` flow does not provision or repair the standalone OpenLIT Container App.
-* In this environment, Azure Files SMB is not a safe data volume for OpenLIT's bundled ClickHouse. Mounting `/var/lib/clickhouse` there caused insert and migration failures with `Operation not permitted`, so new requests stopped appearing even though `/v1/traces` was still being posted.
-* The currently working OpenLIT Container App setup keeps both `clickhousedata` and `openlitdata` on `EmptyDir`, with only config volumes on Azure Files. That means requests appear in the dashboard again, but history is still non-persistent across replica recreation.
-* `/internal` is a router shell, not its own retrieval category. Internal requests must carry `context.overrides.source_chatbot`; backend validation then derives the effective bot identity, prompt, and `include_category` from that selected source bot.
-* `/config` now includes `internalSourceBots` for the `/internal` source-bot dropdown. Do not reintroduce `All` for internal; only one real source bot can be active per internal session.
-* Internal chat history sessions must persist `source_chatbot` metadata. Legacy internal sessions without that metadata are intentionally hidden and non-restorable.
-* Internal citations resolve against the selected source bot's content path, while the visible `/internal` shell branding stays fixed as `Internal Bot`.
-* Backend startup auto-discovers optional chatbot backend modules under `app/backend/approaches/chatbots/<chatbot_name>/`; do not add manual registration unless the code path truly requires it.
-* Shared internal admin auth gates `/chatbots`, `/upload-files`, `/public-test-users`, and `/manage-prompts`; keep frontend and backend route names aligned.
-* `public-test` still keeps some legacy internal identifiers for compatibility even though the public branding is now "Free Bot"; verify compatibility before renaming storage/auth/history namespaces.
-* Frontend chatbot locale support is standardized to `en`, `de`, and `nl`; do not add or keep extra chatbot locale folders unless the entire bot set is intentionally expanded together.
-* If a chatbot uses the generic app mark on its empty state or similar generic surfaces, import the shared `app/frontend/src/assets/applogo.svg` instead of keeping duplicate per-bot `applogo.svg` assets.
-* If you change shared ingestion logic in `app/backend/prepdocslib/`, refresh the synchronized copies under `app/functions/`.
-* For Moodle/PublishOne XML feed automation, preserve both the blob-copy/index flow and the post-deploy Event Grid subscription script.
+## Adding Data
 
-## Adding new data
+- Put new source files in `data/`, then ingest with `scripts/prepdocs.sh` or `scripts/prepdocs.ps1`.
+- With generic `prepdocs --category <name>`, source blobs go under `content/<name>/` and indexed `storageUrl` values point to that category-specific path.
+- For FHG wrapped study exports such as `data/fhg.json` or `data/fhg_alle_studien_YYYYMMDD.json`, use `python app/backend/prep_fhg_json.py <path-to-json>`.
+- For HYROX Academy Level 1 exports such as `data/HYROX_Level_1.json`, use `python app/backend/prep_hyrox_json.py <path-to-json>`; records are indexed into category `lemon`.
+- Moodle and PublishOne XML feeds are auto-indexed from `content/nerilio/Nerilio-Moodle/` and `content/nerilio/Nerilio-PublishOne/`, mirrored into `content/moodle/` or `content/publishone/`, and indexed into Azure AI Search with categories `moodle` and `publishone`.
+- The feed parser maps outer `<document id="...">` to `sourcepage`, direct `<naam>` to `title`, `url` to the external PublishOne document URL, structured document text into `content`, and extra metadata into `tags`; citations use first-class `title` and `url`.
+- Deleting one of those source XML blobs must remove the mirrored target blob and matching indexed documents.
+- To purge one indexed category without re-ingesting, run `python app/backend/delete_documents_by_category.py <category>`.
 
-New files should be added to the `data` folder, and then either run scripts/prepdocs.sh or scripts/prepdocs.ps1 to ingest the data. When `--category <name>` is passed to the generic `prepdocs` flow, the original source blobs are stored under `content/<name>/` and the indexed `storageUrl` values point to that category-specific blob path.
-For wrapped FHG studies exports such as `data/fhg.json` or `data/fhg_alle_studien_YYYYMMDD.json`, use `python app/backend/prep_fhg_json.py <path-to-json>` instead of the generic `prepdocs` flow so that each `documents[]` entry is chunked as a study record, the indexed `content` contains the study body plus retrieval-relevant metadata, the raw dataset file is uploaded under `content/fhg/`, first-class `title`/`url`/`tags` fields are populated, and embeddings are created for every chunk.
-For HYROX Academy Level 1 exports such as `data/HYROX_Level_1.json`, use `python app/backend/prep_hyrox_json.py <path-to-json>` so the records are indexed into category `lemon` with `lms_id` as `sourcepage`, first-class `title`/`url`/`tags`, raw `content` chunks only, and the raw dataset uploaded under `content/lemon/`.
-For the Moodle and PublishOne chatbots' externally synced XML feeds, blobs dropped into `content/nerilio/Nerilio-Moodle/` or `content/nerilio/Nerilio-PublishOne/` are picked up automatically by the `moodle_auto_indexer` Function App, copied into `content/moodle/` or `content/publishone/`, and indexed into Azure AI Search with categories `moodle` and `publishone` so the chatbot `storageUrl` values point at the copied chatbot-owned blobs instead of the external drop folders. The feed parser maps each outer `<document id="...">` to `sourcepage`, maps direct `<naam>` to `title`, maps `url` to `https://amsterdam.publishone.nl/document/<document-id>/content`, renders the logical document subtree into structured plain text inside `content`, preserves folder-level metadata and inline link/image targets there, and stores additional document and direct meta metadata in `tags`. Moodle and PublishOne citations use those first-class `title` and `url` fields so the chat UI shows the document title while linking out to the external PublishOne document URL. When one of those source XML blobs is deleted, the same automation removes the mirrored target blob and the corresponding indexed documents as well.
-To purge indexed content for a single category without re-ingesting, use `python app/backend/delete_documents_by_category.py <category>`.
+## Adding A Chatbot
 
-## Adding a new chatbot UI
+Frontend:
 
-Frontend chatbot UIs are routed by path segment (`/<chatbot_name>`). To add a new chatbot:
+1. Create `app/frontend/src/chatbots/<chatbot_name>/`.
+2. Export `name`, `LayoutWrapper`, `Chat`, `NoPage`, and `i18n` from `app/frontend/src/chatbots/<chatbot_name>/index.ts`.
+3. Register it in `app/frontend/src/chatbots/registry.ts`. The entry must also supply `ChatbotMetadata` shown on the chatbot directory cards: `llm`, optional `reasoningEffort` (only when the model is in the backend `GPT_REASONING_MODELS` map), `mode` (`"qna"` for Q&A-only prompts, `"tutor-qna"` for dual-mode prompts), and `agenticRetrievalDefault` (`true` only when the chatbot's `Chat.tsx` auto-checks the agentic-retrieval toggle, e.g. `lemon`'s `setUseAgenticRetrieval(config.showAgenticRetrievalOption)`). For chatbots whose `config.py` leaves `chatgpt_model`/`reasoning_effort` unset, mirror the values from the deployment `.env` (currently `.azure/agentic-retrieval-nerilio/.env` is the active one).
+4. Add its theme in `app/frontend/src/chatbots/shared/theme/chatbotThemes.ts`; prefer a single `primary` color unless overrides are needed.
+5. Add chatbot-specific i18n setup and `en`, `de`, `nl` translation files.
+6. Prefer re-exporting shared `Example` and building answers with `app/frontend/src/chatbots/shared/answer/createBotAnswer.tsx`.
+7. If chatbot auth is needed, gate it in that chatbot's `layoutWrapper.tsx` and standalone `NoPage` route.
 
-1. Create `app/frontend/src/chatbots/<chatbot_name>/` with that chatbot's pages/components/layout.
-1. Export its definition (`name`, `LayoutWrapper`, `Chat`, `NoPage`, `i18n`) from `app/frontend/src/chatbots/<chatbot_name>/index.ts`.
-1. Register it in `app/frontend/src/chatbots/registry.ts`.
-1. Add that chatbot's theme entry in `app/frontend/src/chatbots/shared/theme/chatbotThemes.ts`. Usually a single `primary` color is enough; only add overrides if the auto-derived theme needs adjustment.
-1. Add chatbot-specific i18n setup in `app/frontend/src/chatbots/<chatbot_name>/i18n/` and chatbot-specific translations in `app/frontend/src/chatbots/<chatbot_name>/locales/`.
-1. Prefer re-exporting `app/frontend/src/chatbots/shared/components/Example/Example.tsx` for example cards unless the chatbot needs special example-card behavior.
-1. Prefer building `components/Answer/Answer.tsx` from `app/frontend/src/chatbots/shared/answer/createBotAnswer.tsx`; only keep a handwritten wrapper when the chatbot needs custom citation-path handling or branding options that differ from the factory defaults.
-1. If chatbot-specific auth is needed (for example, a basic username/password page), implement the gate in that chatbot's `layoutWrapper.tsx` so it applies only to that chatbot route.
+Backend, only when custom behavior is needed:
 
-If the chatbot also needs backend-specific behavior, add the matching backend modules under `app/backend/approaches/chatbots/<chatbot_name>/`:
+1. Add `sampleprompt.py` under `app/backend/approaches/chatbots/<chatbot_name>/` for default prompt variables.
+2. Add `contentfilter.py` only if the default localized copy is insufficient.
+3. Add `config.py` for different model, deployment, reasoning effort, prompt-time values, prompt mode, or citation target.
 
-1. Add `sampleprompt.py` for chatbot-specific prompt variables. Keep it as the default raw prompt; `/manage-prompts` saves runtime overrides elsewhere and falls back to this file when no override exists.
-1. Add `contentfilter.py` only if the default localized content-filter copy is not enough.
-1. Add `config.py` when the bot needs a different `chatgpt_model`, `chatgpt_deployment`, `reasoning_effort`, prompt-time values such as `support_email`, a specific `prompt_mode`, or citation target. Startup auto-discovers these files; you do not need to register them manually anywhere else.
+`internal` is the exception: it has a frontend shell but no active backend `sampleprompt.py` or upload manager at runtime. Internal behavior routes through the selected `source_chatbot`.
 
-`internal` is the exception: it keeps its own frontend shell, but it does not use an active backend `sampleprompt.py` or upload manager at runtime. Internal behavior is routed through the selected `source_chatbot` instead.
+## Adding An azd Variable
 
-## Adding a new azd environment variable
+When adding an azd environment variable, update:
 
-An azd environment variable is stored by the azd CLI for each environment. It is passed to the "azd up" command and can configure both provisioning options and application settings.
-When adding new azd environment variables, update:
+1. `infra/main.parameters.json`
+2. `infra/main.bicep`
+3. `.azdo/pipelines/azure-dev.yml`
+4. `.github/workflows/azure-dev.yml`
 
-1. infra/main.parameters.json : Add the new parameter with a Bicep-friendly variable name and map to the new environment variable
-1. infra/main.bicep: Add the new Bicep parameter at the top, and add it to `appEnvVariables`, App Service app settings, or Container Apps secrets/envSecrets as appropriate for whether the value is public config or a secret. If the value is optional and goes into Azure Container Apps secrets, conditionally omit the secret and matching `envSecrets` entry when the value is empty.
-1. .azdo/pipelines/azure-dev.yml: Add the new environment variable under `env` section
-1. .github/workflows/azure-dev.yml: Add the new environment variable under `env` section
+If the value is optional and goes into Azure Container Apps secrets, omit both the secret and matching `envSecrets` entry when empty. Also update `app/backend/prepdocs.py` or `app/backend/app.py` if ingestion or runtime code needs the variable.
 
-You may also need to update:
+## Adding Developer Settings
 
-1. app/backend/prepdocs.py: If the variable is used in the ingestion script, retrieve it from environment variables here. Not always needed.
-1. app/backend/app.py: If the variable is used in the backend application, retrieve it from environment variables in setup_clients() function. Not always needed.
+Frontend:
 
-## Adding a new setting to "Developer Settings" in RAG app
+- Add the setting to `app/frontend/src/api/models.ts`.
+- Add the UI element in the relevant chatbot `components/Settings/Settings.tsx`.
+- Add translations for all supported locales of that chatbot.
+- Pass the setting through the relevant chatbot `pages/chat/Chat.tsx`.
 
-When adding a new developer setting, update:
+Backend:
 
-* frontend:
-  * app/frontend/src/api/models.ts : Add to ChatAppRequestOverrides
-  * app/frontend/src/chatbots/<chatbot_name>/components/Settings/Settings.tsx : Add a UI element for the setting
-  * app/frontend/src/chatbots/<chatbot_name>/locales/*/translation.json: Add a translation for the setting label/tooltip for all languages of that chatbot
-  * app/frontend/src/chatbots/<chatbot_name>/pages/chat/Chat.tsx: Add the setting to the component, pass it to Settings
+- Read the override in `app/backend/approaches/chatreadretrieveread.py`.
+- Use `/config` from `app/backend/app.py` for frontend capability metadata.
+- Model-selection config uses `availableChatModels`, `defaultChatModel`, and `reasoningCapableChatModels`. If Azure deployment names differ from model IDs, use `AZURE_OPENAI_CHAT_MODEL_DEPLOYMENTS` as a JSON object.
 
-* backend:
-  * app/backend/approaches/chatreadretrieveread.py :  Retrieve from overrides parameter
-  * app/backend/app.py: Some settings may need to be sent down in the /config route. Model-selection settings now use `availableChatModels`, `defaultChatModel`, and `reasoningCapableChatModels` from `/config`. When Azure deployment names do not match the model ids, override the selector mapping with `AZURE_OPENAI_CHAT_MODEL_DEPLOYMENTS` as a JSON object.
+## Tests And Checks
 
-## When adding tests for a new feature
+- Use pytest for backend and integration tests. Activate the virtual environment first.
+- UI changes need Playwright e2e coverage where behavior matters. Build the frontend before e2e tests with `npm run build` in `app/frontend`.
+- API endpoints need app integration tests, usually in `tests/test_app.py`.
+- Functions and methods need focused unit tests.
+- Use mocks from `tests/conftest.py`; prefer HTTP/request-level mocking when practical.
+- Changing chatbot backend config loading requires tests for `app/backend/approaches/chatbot_config_registry.py` plus startup behavior for per-bot `ChatReadRetrieveReadApproach` overrides.
+- Changing shared chatbot UI wrappers such as `createBotAnswer.tsx` or shared `Example` needs e2e coverage for bot-specific behavior that still matters, such as `rak` user-scoped citations or wordmark answer branding for `publishone`, `sartorius`, and `steuertipps`.
+- For coverage, run `pytest --cov --cov-report=annotate:cov_annotate`; inspect generated files and add tests for lines marked with `!`.
+- Type-check application code and scripts with `ty check`.
+- Backend dependency upgrades use `cd app/backend && uv pip compile requirements.in -o requirements.txt --python-version 3.10 --upgrade-package <package-name>`.
 
-All tests are in the `tests` folder and use the pytest framework.
-There are three styles of tests:
+## Deployment
 
-* e2e tests: These use playwright to run the app in a browser and test the UI end-to-end. They are in e2e.py and they mock the backend using the snapshots from the app tests. (Before running e2e tests, make sure to run `npm run build` in app/frontend first to build the frontend code.)
-* app integration tests: Mostly in test_app.py, these test the app's API endpoints and use mocks for services like Azure OpenAI and Azure Search.
-* unit tests: The rest of the tests are unit tests that test individual functions and methods. They are in test_*.py files.
+- `azd up` provisions Azure resources and deploys application code.
+- Windows deployments also need Azure CLI (`az`) on `PATH` because `scripts/setup_moodle_delete_event_subscription.py` configures Event Grid subscriptions after deploy.
+- Use `azd provision` for Bicep-only changes.
+- Use `azd deploy` for app-code-only changes.
+- For individual cloud ingestion functions, use commands such as `azd deploy document-extractor`, `azd deploy figure-processor`, or `azd deploy text-processor`.
+- Azure Container Apps custom-domain portal bindings can be overwritten by provisioning. Preserve existing binding with `SERVICE_BACKEND_RESOURCE_EXISTS`, or manage it with `AZURE_CONTAINER_APP_CUSTOM_DOMAIN` and `AZURE_CONTAINER_APP_CUSTOM_DOMAIN_CERTIFICATE_ID`.
+- `AZURE_SPEECH_DISABLE_LOCAL_AUTH=false` keeps Speech "Allow API key based authentication" enabled across `azd up`; set it to `true` only for intentional Microsoft Entra ID-only access.
 
-When adding a new feature, add tests for it in the appropriate file.
-If the feature is a UI element, add an e2e test for it.
-If it is an API endpoint, add an app integration test for it.
-If it is a function or method, add a unit test for it.
-Use mocks from tests/conftest.py to mock external services. Prefer mocking at the HTTP/requests level when possible.
-When changing chatbot backend config loading, add or update unit tests for `app/backend/approaches/chatbot_config_registry.py` and app-startup tests that verify per-bot `ChatReadRetrieveReadApproach` overrides are created only for bots whose model, deployment, or reasoning effort differs from the global defaults.
-When changing shared chatbot UI wrappers such as `createBotAnswer.tsx` or the shared `Example` component, add e2e coverage for the bot-specific behavior that still matters after deduplication, for example user-scoped citation URLs (`rak`) or wordmark answer branding (`publishone`, `sartorius`, `steuertipps`).
+## Style
 
-When you're running tests, make sure you activate the .venv virtual environment first:
-
-```shell
-source .venv/bin/activate
-```
-
-To check for coverage, run the following command:
-
-```shell
-pytest --cov --cov-report=annotate:cov_annotate
-```
-
-Open the cov_annotate directory to view the annotated source code. There will be one file per source file. If a file has 100% source coverage, it means all lines are covered by tests, so you do not need to open the file.
-
-For each file that has less than 100% test coverage, find the matching file in cov_annotate and review the file.
-
-If a line starts with a ! (exclamation mark), it means that the line is not covered by tests. Add tests to cover the missing lines.
-
-## Sending pull requests
-
-When sending pull requests, make sure to follow the PULL_REQUEST_TEMPLATE.md format.
-
-## Upgrading dependencies
-
-To upgrade a particular package in the backend, use the following command, replacing `<package-name>` with the name of the package you want to upgrade:
-
-```shell
-cd app/backend && uv pip compile requirements.in -o requirements.txt --python-version 3.10 --upgrade-package package-name
-```
-
-## Checking Python type hints
-
-To check Python type hints, use the following command:
-
-```shell
-ty check
-```
-
-Note that we do not currently enforce type hints in the tests folder, as it would require adding a lot of `# type: ignore` comments to the existing tests.
-We only enforce type hints in the main application code and scripts.
-
-## Python code style
-
-Do not use single underscores in front of "private" methods or variables in Python code. We do not follow that convention in this codebase, since this is an application and not a library.
-
-## Deploying the application
-
-To deploy the application, use the `azd` CLI tool. Make sure you have the latest version of the `azd` CLI installed. Then, run the following command from the root of the repository:
-
-```shell
-azd up
-```
-
-That command will BOTH provision the Azure resources AND deploy the application code.
-On this repo, Windows deployments also expect Azure CLI (`az`) to be installed and available on `PATH`, because the `moodle_auto_indexer` post-deploy hook configures Event Grid subscriptions through `scripts/setup_moodle_delete_event_subscription.py`.
-
-If you only changed the Bicep templates and want to re-provision the Azure resources, run:
-
-```shell
-azd provision
-```
-
-If you only changed the application code and want to re-deploy the code, run:
-
-```shell
-azd deploy
-```
-
-If you are using cloud ingestion and only want to deploy individual functions, run the necessary deploy commands, for example:
-
-```shell
-azd deploy document-extractor
-azd deploy figure-processor
-azd deploy text-processor
-```
-
-For Azure Container Apps deployments, manual portal custom-domain bindings can be overwritten by provisioning updates. To keep the backend Container App domain stable through `azd up`, either rely on the preserved existing binding when `SERVICE_BACKEND_RESOURCE_EXISTS` is present, or explicitly set `AZURE_CONTAINER_APP_CUSTOM_DOMAIN` plus `AZURE_CONTAINER_APP_CUSTOM_DOMAIN_CERTIFICATE_ID` so the ingress custom domain is managed in IaC.
-
-For Azure Speech resources, `AZURE_SPEECH_DISABLE_LOCAL_AUTH=false` keeps portal setting "Allow API key based authentication" enabled across `azd up`. Set it to `true` only if you intentionally want Microsoft Entra ID-only access.
+- Python code in this repo does not use leading single underscores for private methods or variables.
+- Keep changes narrowly scoped and aligned with existing patterns.
+- When sending pull requests, follow `PULL_REQUEST_TEMPLATE.md`.

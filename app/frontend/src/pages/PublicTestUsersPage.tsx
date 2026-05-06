@@ -79,7 +79,7 @@ const PublicTestUsersPage = () => {
                 setQuery("");
                 return;
             }
-            setStatusMessage(error instanceof Error ? error.message : "Could not load Nerilio Bot users.");
+            setStatusMessage(error instanceof Error ? error.message : "Could not load nerilio users.");
         } finally {
             setIsLoading(false);
         }
@@ -120,7 +120,7 @@ const PublicTestUsersPage = () => {
 
     const handleDeleteUser = async (user: PublicTestAdminUser) => {
         const confirmed = window.confirm(
-            `Delete the Nerilio Bot user ${user.email}? This will also remove ${user.uploadCount} uploaded file(s).`
+            `Delete the nerilio user ${user.email}? This will also remove ${user.uploadCount} uploaded file(s).`
         );
         if (!confirmed) {
             return;
@@ -139,7 +139,7 @@ const PublicTestUsersPage = () => {
                 setDeletingEmail(null);
                 return;
             }
-            setStatusMessage(error instanceof Error ? error.message : "Could not delete Nerilio Bot user.");
+            setStatusMessage(error instanceof Error ? error.message : "Could not delete nerilio user.");
         } finally {
             setDeletingEmail(null);
         }
@@ -196,7 +196,7 @@ const PublicTestUsersPage = () => {
                 setIsConfirmPasswordVisible(false);
                 return;
             }
-            setStatusMessage(error instanceof Error ? error.message : "Could not reset the Nerilio Bot password.");
+            setStatusMessage(error instanceof Error ? error.message : "Could not reset the nerilio password.");
         } finally {
             setResettingEmail(null);
         }
@@ -205,7 +205,7 @@ const PublicTestUsersPage = () => {
     return (
         <main className={styles.page}>
             <Helmet>
-                <title>Nerilio Bot Users</title>
+                <title>nerilio users</title>
             </Helmet>
 
             <div className={styles.glowOne} aria-hidden="true" />
@@ -215,7 +215,7 @@ const PublicTestUsersPage = () => {
                 <header className={styles.header}>
                     <div>
                         <span className={styles.badge}>Internal tool</span>
-                        <h1 className={styles.title}>Nerilio Bot Users</h1>
+                        <h1 className={styles.title}>nerilio users</h1>
                         <p className={styles.subtitle}>Review registered users, their uploads, and remove accounts when needed.</p>
                     </div>
                     <div className={styles.headerActions}>
@@ -297,7 +297,7 @@ const PublicTestUsersPage = () => {
                                     value={query}
                                     onChange={event => setQuery(event.target.value)}
                                     placeholder="Search by name, email, or uploaded file"
-                                    aria-label="Search Nerilio Bot users"
+                                    aria-label="Search nerilio users"
                                 />
                                 <button className={styles.primaryButton} type="button" onClick={() => void loadUsers()} disabled={isLoading}>
                                     {isLoading ? "Refreshing..." : "Refresh"}

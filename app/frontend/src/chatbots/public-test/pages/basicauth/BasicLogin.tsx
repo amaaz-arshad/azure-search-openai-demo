@@ -197,7 +197,7 @@ const BasicLogin = ({ onSuccess }: { onSuccess: (session: PublicTestSession) => 
 
             await handleStartPasswordReset();
         } catch (authError) {
-            console.error("Nerilio Bot auth failed", authError);
+            console.error("nerilio auth failed", authError);
             setError(t("authErrors.unexpected"));
         } finally {
             setIsSubmitting(false);
@@ -220,7 +220,7 @@ const BasicLogin = ({ onSuccess }: { onSuccess: (session: PublicTestSession) => 
                 })
             );
         } catch (authError) {
-            console.error("Nerilio Bot verification resend failed", authError);
+            console.error("nerilio verification resend failed", authError);
             setError(t("authErrors.unexpected"));
         } finally {
             setIsResending(false);
@@ -253,7 +253,7 @@ const BasicLogin = ({ onSuccess }: { onSuccess: (session: PublicTestSession) => 
                 <section className={sharedStyles.card}>
                     <div className={sharedStyles.header}>
                         <div className={sharedStyles.logoFrame}>
-                            <img className={sharedStyles.logo} src={nerilioLogo} alt="Nerilio Bot logo" />
+                            <img className={sharedStyles.logo} src={nerilioLogo} alt="nerilio logo" />
                         </div>
                     </div>
 

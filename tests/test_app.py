@@ -714,7 +714,7 @@ async def test_public_test_admin_user_delete_removes_uploads_and_account(client,
     payload = await response.get_json()
     assert response.status_code == 200
     assert payload == {
-        "message": "Nerilio Bot user deleted successfully.",
+        "message": "nerilio user deleted successfully.",
         "deletedUploadCount": 1,
     }
     upload_manager.remove_all_files.assert_awaited_once_with(user_identifier="user@example.com")
@@ -741,7 +741,7 @@ async def test_public_test_admin_user_password_reset_updates_account(client, mon
     payload = await response.get_json()
     assert response.status_code == 200
     assert payload == {
-        "message": "Nerilio Bot user password updated successfully.",
+        "message": "nerilio user password updated successfully.",
         "email": "user@example.com",
         "updatedAt": "2026-03-31T12:00:00+00:00",
     }
