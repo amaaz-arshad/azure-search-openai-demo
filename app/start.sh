@@ -48,6 +48,11 @@ echo ""
 
 cd ../backend
 
+# Load environment variables from azd env file
+set -a
+. "../../.azure/agentic-retrieval-nerilio/env"
+set +a
+
 port=50505
 host=localhost
 ../../.venv/bin/python -m quart --app main:app run --port "$port" --host "$host" --reload
