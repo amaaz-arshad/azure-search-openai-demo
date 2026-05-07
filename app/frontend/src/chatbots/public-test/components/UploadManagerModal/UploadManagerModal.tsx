@@ -47,6 +47,9 @@ type UploadQueueItem = {
 const acceptedFileTypes = ".pdf";
 const acceptedExtensions = new Set([".pdf"]);
 const activeStatuses: QueueItemStatus[] = ["queued", "uploading", "canceling"];
+const MAX_FILE_COUNT = 1;
+const MAX_FILE_SIZE_MB = 5;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 const formatExtension = (filename: string) => {
     const extension = filename.split(".").pop();
@@ -286,9 +289,13 @@ export const UploadManagerModal = ({ chatbotName, isOpen, onClose }: Props) => {
                 .filter(item => activeStatuses.includes(item.status))
                 .map(item => item.filename.toLowerCase())
         );
+        const uploadedFilenameKeys = new Set(uploadedFiles.map(name => name.toLowerCase()));
         const selectionFilenames = new Set<string>();
         const nextItems: UploadQueueItem[] = [];
         const issues: string[] = [];
+
+        const reservedSlotKeys = new Set<string>([...activeFilenames, ...uploadedFilenameKeys]);
+        let countLimitReported = false;
 
         for (const file of files) {
             const filename = file.name;
@@ -304,7 +311,22 @@ export const UploadManagerModal = ({ chatbotName, isOpen, onClose }: Props) => {
                 continue;
             }
 
+            if (file.size > MAX_FILE_SIZE_BYTES) {
+                issues.push(t("upload.fileTooLarge", { filename, limitMb: MAX_FILE_SIZE_MB }));
+                continue;
+            }
+
+            const slotsInUse = reservedSlotKeys.size;
+            if (slotsInUse >= MAX_FILE_COUNT && !reservedSlotKeys.has(filenameKey)) {
+                if (!countLimitReported) {
+                    issues.push(t("upload.fileCountLimitReached", { limit: MAX_FILE_COUNT }));
+                    countLimitReported = true;
+                }
+                continue;
+            }
+
             selectionFilenames.add(filenameKey);
+            reservedSlotKeys.add(filenameKey);
             nextItems.push({
                 id: createUniqueId(),
                 uploadId: createUniqueId(),
