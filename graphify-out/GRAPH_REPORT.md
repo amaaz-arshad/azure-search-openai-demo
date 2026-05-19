@@ -1,12 +1,12 @@
-# Graph Report - agentic-retrieval  (2026-05-05)
+# Graph Report - agentic-retrieval  (2026-05-19)
 
 ## Corpus Check
-- 1333 files · ~2,190,603 words
+- 1333 files · ~2,387,914 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 6851 nodes · 19975 edges · 98 communities detected
-- Extraction: 71% EXTRACTED · 29% INFERRED · 0% AMBIGUOUS · INFERRED: 5745 edges (avg confidence: 0.68)
+- 6200 nodes · 18207 edges · 98 communities detected
+- Extraction: 72% EXTRACTED · 28% INFERRED · 0% AMBIGUOUS · INFERRED: 5147 edges (avg confidence: 0.66)
 - Token cost: 0 input · 0 output
 
 ## Community Hubs (Navigation)
@@ -110,27 +110,27 @@
 - [[_COMMUNITY_Community 727|Community 727]]
 
 ## God Nodes (most connected - your core abstractions)
-1. `BlobManager` - 159 edges
-2. `set()` - 144 edges
-3. `Page` - 137 edges
+1. `BlobManager` - 164 edges
+2. `Page` - 143 edges
+3. `File` - 138 edges
 4. `SentenceTextSplitter` - 136 edges
-5. `File` - 135 edges
-6. `ImageEmbeddings` - 128 edges
-7. `FileProcessor` - 127 edges
-8. `SearchManager` - 100 edges
-9. `OpenAIEmbeddings` - 98 edges
-10. `OE()` - 96 edges
+5. `ImageEmbeddings` - 131 edges
+6. `FileProcessor` - 130 edges
+7. `SearchManager` - 103 edges
+8. `OpenAIEmbeddings` - 101 edges
+9. `set()` - 98 edges
+10. `TextParser` - 97 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `build_publishone_feed_sections()` --semantically_similar_to--> `XmlParser`  [INFERRED] [semantically similar]
   app\functions\text_processor\prepdocslib\publishonefeed.py → app\functions\text_processor\prepdocslib\xmlparser.py
-- `delete_documents_by_category function` --shares_data_with--> `run()`  [INFERRED]
-  app/backend/delete_documents_by_category.py → app\backend\prep_fhg_json.py
+- `blob_name_from_file_name()` --calls--> `test_blob_name_from_file_name()`  [INFERRED]
+  app\functions\text_processor\prepdocslib\blobmanager.py → tests\test_blob_manager.py
+- `Manager for Azure Data Lake Storage blob operations, particularly for user-speci` --uses--> `File`  [INFERRED]
+  app\functions\text_processor\prepdocslib\blobmanager.py → app\functions\text_processor\prepdocslib\listfilestrategy.py
+- `Initializes the AdlsBlobManager with the necessary parameters.          Args:` --uses--> `File`  [INFERRED]
+  app\functions\text_processor\prepdocslib\blobmanager.py → app\functions\text_processor\prepdocslib\listfilestrategy.py
 - `Ensures that a directory path exists and has proper permissions.         Create` --uses--> `File`  [INFERRED]
-  app\functions\text_processor\prepdocslib\blobmanager.py → app\functions\text_processor\prepdocslib\listfilestrategy.py
-- `Downloads a blob from Azure Data Lake Storage.          Args:             blo` --uses--> `File`  [INFERRED]
-  app\functions\text_processor\prepdocslib\blobmanager.py → app\functions\text_processor\prepdocslib\listfilestrategy.py
-- `Downloads a blob from Azure Blob Storage.          Args:             blob_pat` --uses--> `File`  [INFERRED]
   app\functions\text_processor\prepdocslib\blobmanager.py → app\functions\text_processor\prepdocslib\listfilestrategy.py
 
 ## Hyperedges (group relationships)
@@ -211,116 +211,116 @@
 ## Communities
 
 ### Community 0 - "Community 0"
-Cohesion: 0.01
-Nodes (847): a(), h(), R(), e(), _i(), _o(), pd(), _s() (+839 more)
+Cohesion: 0.0
+Nodes (895): a(), h(), R(), df(), e(), hf(), _i(), ju() (+887 more)
 
 ### Community 1 - "Community 1"
 Cohesion: 0.01
-Nodes (157): clearStoredSession(), writeStoredSession(), kp(), rfe(), wx(), $Z(), setInternalAuthenticationState(), $2() (+149 more)
+Nodes (444): ABC, BaseBlobManager, BlobListEntry, BlobProperties, Downloads a blob from Azure Storage.         If user_oid is provided, it checks, Properties of a blob, with optional fields for content settings, Base class for Azure Storage operations, providing common file naming and path u, Adds citation text to an image from a document.         Args:             imag (+436 more)
 
 ### Community 2 - "Community 2"
 Cohesion: 0.01
-Nodes (474): hf(), A6(), ab(), ad(), ade(), af(), afe(), ag() (+466 more)
+Nodes (116): clearStoredSession(), writeStoredSession(), setInternalAuthenticationState(), $2(), aE(), aG(), AK(), Ao() (+108 more)
 
 ### Community 3 - "Community 3"
-Cohesion: 0.02
-Nodes (312): ABC, JSONEncoder, list_managed_uploads(), list_uploaded(), LLMOnlySpanExporter, Lists the uploaded documents for the current user.     Only returns files direc, Lists the uploaded documents for the current user.     Only returns files direc, Lists the uploaded documents for the current user.     Only returns files direc (+304 more)
+Cohesion: 0.01
+Nodes (302): apply_saved_chatbot_prompt_override(), build_chat_model_deployments(), build_prompt_admin_payload(), build_simple_auth_required_response(), cancel_chatbot_upload(), chat(), chat_stream(), chatbot_directory() (+294 more)
 
 ### Community 4 - "Community 4"
 Cohesion: 0.02
-Nodes (392): Downloads a blob from Azure Data Lake Storage.          Args:             blo, build_document_intelligence_parser(), CompiledPage, ExtractedPage, guess_parser(), RawBlob, run(), CsvParser (+384 more)
+Nodes (222): cancel_managed_upload(), delete_managed_uploaded_file(), delete_uploaded(), get_category_upload_manager(), JSONEncoder, list_managed_uploads(), LLMOnlySpanExporter, Lists the uploaded documents for the current user.     Only returns files direc (+214 more)
 
 ### Community 5 - "Community 5"
-Cohesion: 0.01
-Nodes (211): create_app(), get_openlit_llm_only_disabled_instrumentors(), AsyncHttpTransport, Ensures that a directory path exists and has proper permissions.         Create, /chat JSON API contract, ChatbotConfig, build_possible_citations_prompt(), get_chatbot_citation_target() (+203 more)
+Cohesion: 0.02
+Nodes (153): AdlsGen2Setup, main(), Sets up a Data Lake Storage Gen 2 account with sample data and access control, Initializes the command          Parameters         ----------         data_, close_clients(), upload(), BaseMetric, add_image_citation() (+145 more)
 
 ### Community 6 - "Community 6"
 Cohesion: 0.02
-Nodes (152): apply_saved_chatbot_prompt_override(), auth_setup(), build_chat_model_deployments(), build_prompt_admin_payload(), build_simple_auth_required_response(), cancel_chatbot_upload(), cancel_managed_upload(), chat() (+144 more)
+Nodes (234): ab(), Ac(), ad(), Ag(), ah(), Ai(), An(), ao() (+226 more)
 
 ### Community 7 - "Community 7"
-Cohesion: 0.02
-Nodes (260): ab(), Ac(), ad(), Ag(), ah(), Ai(), An(), ao() (+252 more)
+Cohesion: 0.03
+Nodes (148): askApi(), cancelChatbotUploadApi(), chatApi(), configApi(), deleteAllChatbotUploadedFilesApi(), deleteChatbotUploadedFileApi(), deleteChatHistoryApi(), deleteUploadedFileApi() (+140 more)
 
 ### Community 8 - "Community 8"
-Cohesion: 0.02
-Nodes (119): AdlsGen2Setup, main(), Sets up a Data Lake Storage Gen 2 account with sample data and access control, Initializes the command          Parameters         ----------         data_, close_clients(), AsyncTokenCredential, getSpeechRecognitionLocale(), getSpeechToken() (+111 more)
+Cohesion: 0.03
+Nodes (35): handleSubmit(), $v(), AppGate(), test_document_extractor_module_init_key_error(), test_moodle_auto_indexer_warns_when_env_missing(), test_text_processor_module_init_logs_warning(), are(), cO() (+27 more)
 
 ### Community 9 - "Community 9"
-Cohesion: 0.02
-Nodes (108): getCurrentProfile(), getCurrentSession(), isAuthenticated(), isEmailValid(), login(), logout(), normalizeEmail(), parseProfile() (+100 more)
+Cohesion: 0.05
+Nodes (87): AutoBlobIndexer, AutoBlobIndexerConfig, AutoBlobIndexResult, blob_name_from_event_grid_subject(), build_file(), content_type_for_filename(), normalize_blob_name(), normalize_prefix() (+79 more)
 
 ### Community 10 - "Community 10"
 Cohesion: 0.02
 Nodes (107): Managed Identity & RBAC, RAG Chunking Pattern (token limits), Semantic Ranker, Vector Search (embeddings), Data Categorization (--category), Cloud Ingestion (Azure Functions Skills), Data Ingestion Guide, Document Extraction Stage (+99 more)
 
 ### Community 11 - "Community 11"
-Cohesion: 0.04
-Nodes (25): handleSubmit(), test_chat_history_scope_marks_internal_admin_routes_as_non_chatbot(), test_document_extractor_module_init_key_error(), test_moodle_auto_indexer_warns_when_env_missing(), test_text_processor_module_init_logs_warning(), are(), CT(), dO (+17 more)
+Cohesion: 0.03
+Nodes (58): AsyncTokenCredential, get_application(), test_authentication_enabled(), add_client_secret(), client_app(), create_application(), create_or_update_application_with_secret(), grant_application_admin_consent() (+50 more)
 
 ### Community 12 - "Community 12"
-Cohesion: 0.09
-Nodes (47): askApi(), cancelChatbotUploadApi(), chatApi(), configApi(), deleteAllChatbotUploadedFilesApi(), deleteChatbotUploadedFileApi(), deleteChatHistoryApi(), deleteUploadedFileApi() (+39 more)
+Cohesion: 0.05
+Nodes (10): zf(), Es(), gue(), Hn, Ji(), que(), rde, xp() (+2 more)
 
 ### Community 13 - "Community 13"
-Cohesion: 0.05
-Nodes (10): zf(), Es(), GT(), gue(), Hn, Ji(), que(), rde (+2 more)
+Cohesion: 0.13
+Nodes (26): buildInitialAssistantPair(), buildInitialConversation(), clearChat(), createClientSessionId(), getConfig(), getCurrentSessionState(), getLastRealQuestion(), handleAsyncRequest() (+18 more)
 
 ### Community 14 - "Community 14"
-Cohesion: 0.04
-Nodes (47): AuthError, get_token_auth_header(), Validate an access token is issued by Entra, Decorator for routes that request a specific file that might require access cont, Decorator for routes that might require access control. Unpacks Authorization he, mock_retrieval_response(), mock_retrieval_response_with_sharepoint(), mock_retrieval_response_with_sorting() (+39 more)
+Cohesion: 0.06
+Nodes (35): auth_setup(), AuthError, get_token_auth_header(), Validate an access token is issued by Entra, getSpeechRecognitionLocale(), getSpeechToken(), Decorator for routes that request a specific file that might require access cont, Decorator for routes that might require access control. Unpacks Authorization he (+27 more)
 
 ### Community 15 - "Community 15"
-Cohesion: 0.11
-Nodes (27): buildInitialAssistantPair(), buildInitialConversation(), clearChat(), createClientSessionId(), getConfig(), getCurrentSessionState(), getLastRealQuestion(), handleAsyncRequest() (+19 more)
-
-### Community 16 - "Community 16"
 Cohesion: 0.2
 Nodes (43): append_tag(), build_document_content(), build_feed_document(), build_folder_context_lines(), build_publishone_feed_sections(), build_tags(), collect_direct_meta_fields(), collect_direct_value_fields() (+35 more)
 
+### Community 16 - "Community 16"
+Cohesion: 0.06
+Nodes (22): free_port(), fulfill_chat_stream_snapshot(), live_server_url(), login_internal_bot(), Test that selecting 'Minimal' effort deselects and disables the web source check, Make requests to provided url until it responds without error., Test that the stop button feature works without breaking the chat flow.      N, Test that when streaming returns no content, the question is restored to input. (+14 more)
+
 ### Community 17 - "Community 17"
-Cohesion: 0.08
-Nodes (45): build_arg_parser(), build_final_from_notes_prompt(), build_index_markdown(), build_log_markdown(), build_source_page_prompt(), chunk_text(), clean_markdown_response(), compile_chatbot_wiki() (+37 more)
+Cohesion: 0.09
+Nodes (20): CosmosDBMigrator, migrate_cosmosdb_data(), A migration script to migrate data from CosmosDB to a new format. The old schem, Close the CosmosDB client., Legacy function for backward compatibility.     Migrate data from CosmosDB to a, Migrator class for CosmosDB data migration., Initialize the migrator with CosmosDB account and database.          Args:, Connect to CosmosDB and initialize containers. (+12 more)
 
 ### Community 18 - "Community 18"
-Cohesion: 0.14
-Nodes (28): AutoBlobIndexer, AutoBlobIndexerConfig, AutoBlobIndexResult, blob_name_from_event_grid_subject(), build_file(), content_type_for_filename(), normalize_blob_name(), normalize_prefix() (+20 more)
-
-### Community 19 - "Community 19"
-Cohesion: 0.09
-Nodes (33): get_application(), test_authentication_enabled(), add_client_secret(), client_app(), create_application(), create_or_update_application_with_secret(), grant_application_admin_consent(), GrantDefinition (+25 more)
-
-### Community 20 - "Community 20"
-Cohesion: 0.2
-Nodes (9): appServicesLogout(), checkLoggedIn(), fetchAuthSetup(), getAppServicesToken(), getRedirectUri(), getToken(), getTokenClaims(), getUsername() (+1 more)
-
-### Community 21 - "Community 21"
 Cohesion: 0.25
 Nodes (24): build_chunk_texts(), build_metadata_lines(), FhgPreparedDataset, FhgPreparedDocument, get_optional_string_field(), get_text_field(), make_sourcepage_value(), prepare_fhg_dataset() (+16 more)
 
-### Community 22 - "Community 22"
-Cohesion: 0.26
-Nodes (24): build_hyrox_sections_if_applicable(), choose_split_boundary(), dedupe_preserve_order(), find_max_token_end(), get_optional_string_field(), get_required_string_field(), get_required_string_list_field(), has_hyrox_source_category() (+16 more)
-
-### Community 23 - "Community 23"
+### Community 19 - "Community 19"
 Cohesion: 0.06
 Nodes (2): useHistoryManager(), HistoryPanel()
 
-### Community 24 - "Community 24"
+### Community 20 - "Community 20"
+Cohesion: 0.29
+Nodes (24): build_hyrox_sections_if_applicable(), choose_split_boundary(), dedupe_preserve_order(), find_max_token_end(), get_optional_string_field(), get_required_string_field(), get_required_string_list_field(), has_hyrox_source_category() (+16 more)
+
+### Community 21 - "Community 21"
+Cohesion: 0.3
+Nodes (8): globalClearChat(), handleBasicLogout(), handleClickOutside(), handleOpenDeveloperOptions(), handleOpenRecentChats(), handleOpenUploadManager(), handleStartNewChat(), setGlobalClearChat()
+
+### Community 22 - "Community 22"
 Cohesion: 0.08
 Nodes (23): Adding a New azd Environment Variable Guide, Adding New Data Guide, Adding a New Developer Setting Guide, Adding Tests for a New Feature Guide, Overall Code Layout Guide, Python Code Style Guide, Deploying the Application Guide, AGENTS.md - Coding Agent Instructions (+15 more)
 
-### Community 25 - "Community 25"
+### Community 23 - "Community 23"
+Cohesion: 0.51
+Nodes (8): appServicesLogout(), checkLoggedIn(), fetchAuthSetup(), getAppServicesToken(), getRedirectUri(), getToken(), getTokenClaims(), getUsername()
+
+### Community 24 - "Community 24"
 Cohesion: 0.24
 Nodes (20): createPageGradient(), createSurfaceColor(), createUserBubbleGradient(), darken(), getChatbotTheme(), getChatbotThemeCssVariables(), getContrastRatio(), getReadableText() (+12 more)
 
-### Community 26 - "Community 26"
+### Community 25 - "Community 25"
 Cohesion: 0.47
 Nodes (6): buildActivityStepMap(), collectCitations(), extractCitationDetails(), isWebCitation(), normalizeAnswerText(), parseAnswerToHtml()
 
-### Community 27 - "Community 27"
+### Community 26 - "Community 26"
 Cohesion: 0.46
 Nodes (6): handleCompositionEnd(), handleCompositionStart(), onEnterPress(), onQuestionChange(), sendQuestion(), StopCircleIcon()
+
+### Community 27 - "Community 27"
+Cohesion: 0.12
+Nodes (1): LayoutWrapper()
 
 ### Community 28 - "Community 28"
 Cohesion: 0.31
@@ -328,43 +328,43 @@ Nodes (3): onRetrievalModeChange(), onSearchImageEmbeddingsChange(), onSearchTex
 
 ### Community 29 - "Community 29"
 Cohesion: 0.24
-Nodes (2): fetchMarkdown(), removeAnchorLinks()
-
-### Community 30 - "Community 30"
-Cohesion: 0.24
 Nodes (2): getResultsForStep(), getStepQuery()
 
-### Community 31 - "Community 31"
+### Community 30 - "Community 30"
 Cohesion: 0.12
 Nodes (1): renderLabel()
 
-### Community 32 - "Community 32"
+### Community 31 - "Community 31"
 Cohesion: 0.13
 Nodes (1): AnalysisPanel()
 
-### Community 33 - "Community 33"
+### Community 32 - "Community 32"
 Cohesion: 0.13
 Nodes (1): AnswerError()
 
-### Community 34 - "Community 34"
+### Community 33 - "Community 33"
 Cohesion: 0.13
 Nodes (1): AnswerIcon()
 
-### Community 35 - "Community 35"
+### Community 34 - "Community 34"
 Cohesion: 0.13
 Nodes (1): startOrStopSpeech()
 
-### Community 36 - "Community 36"
+### Community 35 - "Community 35"
 Cohesion: 0.13
 Nodes (1): ClearChatButton()
 
-### Community 37 - "Community 37"
+### Community 36 - "Community 36"
 Cohesion: 0.13
 Nodes (1): HistoryButton()
 
-### Community 38 - "Community 38"
+### Community 37 - "Community 37"
 Cohesion: 0.13
 Nodes (1): HistoryItem()
+
+### Community 38 - "Community 38"
+Cohesion: 0.13
+Nodes (1): LoginButton()
 
 ### Community 39 - "Community 39"
 Cohesion: 0.13
@@ -440,11 +440,11 @@ Nodes (2): Graphify Integration Rules, CLAUDE.md - Claude Agent Rules
 
 ### Community 69 - "Community 69"
 Cohesion: 1.0
-Nodes (2): Simple Figure expected content (figure extraction fixture), Simple Figure PDF (figure extraction fixture)
+Nodes (2): Simple HTML Table expected content (table extraction fixture), Simple Table PDF (table extraction fixture)
 
 ### Community 70 - "Community 70"
 Cohesion: 1.0
-Nodes (2): Simple HTML Table expected content (table extraction fixture), Simple Table PDF (table extraction fixture)
+Nodes (2): Simple Figure expected content (figure extraction fixture), Simple Figure PDF (figure extraction fixture)
 
 ### Community 71 - "Community 71"
 Cohesion: 1.0
@@ -605,27 +605,29 @@ Nodes (1): agindo-chatbot.png asset
 ## Knowledge Gaps
 - **210 isolated node(s):** `ChatUser Locust Load Test`, `/chat JSON API contract`, `authenticated decorator`, `internal_admin_required decorator`, `app/backend/delete_documents_by_category.py` (+205 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **Thin community `Community 23`** (32 nodes): `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `getPublicTestUserScope()`, `getRakUserScope()`, `useHistoryManager()`, `HistoryPanel()`
+- **Thin community `Community 19`** (32 nodes): `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `getPublicTestUserScope()`, `getRakUserScope()`, `useHistoryManager()`, `HistoryPanel()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 29`** (16 nodes): `MarkdownViewer.tsx`, `MarkdownViewer.tsx`, `MarkdownViewer.tsx`, `MarkdownViewer.tsx`, `MarkdownViewer.tsx`, `MarkdownViewer.tsx`, `MarkdownViewer.tsx`, `MarkdownViewer.tsx`, `MarkdownViewer.tsx`, `MarkdownViewer.tsx`, `MarkdownViewer.tsx`, `MarkdownViewer.tsx`, `MarkdownViewer.tsx`, `MarkdownViewer.tsx`, `fetchMarkdown()`, `removeAnchorLinks()`
+- **Thin community `Community 27`** (17 nodes): `layoutWrapper.tsx`, `layoutWrapper.tsx`, `layoutWrapper.tsx`, `layoutWrapper.tsx`, `layoutWrapper.tsx`, `layoutWrapper.tsx`, `layoutWrapper.tsx`, `layoutWrapper.tsx`, `layoutWrapper.tsx`, `layoutWrapper.tsx`, `layoutWrapper.tsx`, `layoutWrapper.tsx`, `layoutWrapper.tsx`, `layoutWrapper.tsx`, `layoutWrapper.tsx`, `InternalLayout()`, `LayoutWrapper()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 30`** (16 nodes): `getResultsForStep()`, `getStepQuery()`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`
+- **Thin community `Community 29`** (16 nodes): `getResultsForStep()`, `getStepQuery()`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 31`** (16 nodes): `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `renderLabel()`
+- **Thin community `Community 30`** (16 nodes): `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `renderLabel()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 32`** (15 nodes): `AnalysisPanel()`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`
+- **Thin community `Community 31`** (15 nodes): `AnalysisPanel()`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 33`** (15 nodes): `AnswerError()`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`
+- **Thin community `Community 32`** (15 nodes): `AnswerError()`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 34`** (15 nodes): `AnswerIcon()`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`
+- **Thin community `Community 33`** (15 nodes): `AnswerIcon()`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 35`** (15 nodes): `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `startOrStopSpeech()`
+- **Thin community `Community 34`** (15 nodes): `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `startOrStopSpeech()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 36`** (15 nodes): `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton()`
+- **Thin community `Community 35`** (15 nodes): `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 37`** (15 nodes): `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton()`
+- **Thin community `Community 36`** (15 nodes): `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 38`** (15 nodes): `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem()`
+- **Thin community `Community 37`** (15 nodes): `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem()`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 38`** (15 nodes): `LoginButton.tsx`, `LoginButton.tsx`, `LoginButton.tsx`, `LoginButton.tsx`, `LoginButton.tsx`, `LoginButton.tsx`, `LoginButton.tsx`, `LoginButton.tsx`, `LoginButton.tsx`, `LoginButton.tsx`, `LoginButton.tsx`, `LoginButton.tsx`, `LoginButton.tsx`, `LoginButton.tsx`, `LoginButton()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Community 39`** (15 nodes): `SpeechInput.tsx`, `SpeechInput.tsx`, `SpeechInput.tsx`, `SpeechInput.tsx`, `SpeechInput.tsx`, `SpeechInput.tsx`, `SpeechInput.tsx`, `SpeechInput.tsx`, `SpeechInput.tsx`, `SpeechInput.tsx`, `SpeechInput.tsx`, `SpeechInput.tsx`, `SpeechInput.tsx`, `SpeechInput.tsx`, `SpeechInput()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
@@ -649,9 +651,9 @@ Nodes (1): agindo-chatbot.png asset
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Community 68`** (2 nodes): `Graphify Integration Rules`, `CLAUDE.md - Claude Agent Rules`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 69`** (2 nodes): `Simple Figure expected content (figure extraction fixture)`, `Simple Figure PDF (figure extraction fixture)`
+- **Thin community `Community 69`** (2 nodes): `Simple HTML Table expected content (table extraction fixture)`, `Simple Table PDF (table extraction fixture)`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 70`** (2 nodes): `Simple HTML Table expected content (table extraction fixture)`, `Simple Table PDF (table extraction fixture)`
+- **Thin community `Community 70`** (2 nodes): `Simple Figure expected content (figure extraction fixture)`, `Simple Figure PDF (figure extraction fixture)`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Community 71`** (1 nodes): `Answer component (demo)`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
@@ -735,17 +737,17 @@ Nodes (1): agindo-chatbot.png asset
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `set()` connect `Community 1` to `Community 0`, `Community 2`, `Community 3`, `Community 4`, `Community 5`, `Community 6`, `Community 8`, `Community 9`, `Community 12`, `Community 15`, `Community 16`, `Community 22`?**
+- **Why does `set()` connect `Community 0` to `Community 1`, `Community 2`, `Community 3`, `Community 4`, `Community 5`, `Community 7`, `Community 8`, `Community 12`, `Community 15`, `Community 20`?**
   _High betweenness centrality (0.079) - this node is a cross-community bridge._
-- **Why does `update()` connect `Community 5` to `Community 0`, `Community 3`, `Community 4`, `Community 7`?**
-  _High betweenness centrality (0.031) - this node is a cross-community bridge._
-- **Why does `ImageEmbeddings` connect `Community 3` to `Community 8`, `Community 4`, `Community 6`?**
-  _High betweenness centrality (0.025) - this node is a cross-community bridge._
-- **Are the 139 inferred relationships involving `BlobManager` (e.g. with `LLMOnlySpanExporter` and `JSONEncoder`) actually correct?**
-  _`BlobManager` has 139 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 77 inferred relationships involving `set()` (e.g. with `save_internal_admin_prompt()` and `delete_internal_admin_prompt()`) actually correct?**
-  _`set()` has 77 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 131 inferred relationships involving `Page` (e.g. with `CsvParser` and `Parse CSV-like tabular files into one Page per logical row.      Goals:     -`) actually correct?**
-  _`Page` has 131 INFERRED edges - model-reasoned connections that need verification._
+- **Why does `update()` connect `Community 3` to `Community 0`, `Community 1`, `Community 4`, `Community 5`, `Community 6`, `Community 9`?**
+  _High betweenness centrality (0.049) - this node is a cross-community bridge._
+- **Why does `Page` connect `Community 1` to `Community 9`, `Community 18`, `Community 15`?**
+  _High betweenness centrality (0.023) - this node is a cross-community bridge._
+- **Are the 144 inferred relationships involving `BlobManager` (e.g. with `LLMOnlySpanExporter` and `JSONEncoder`) actually correct?**
+  _`BlobManager` has 144 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 137 inferred relationships involving `Page` (e.g. with `RawBlob` and `ExtractedPage`) actually correct?**
+  _`Page` has 137 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 126 inferred relationships involving `File` (e.g. with `LLMOnlySpanExporter` and `JSONEncoder`) actually correct?**
+  _`File` has 126 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 121 inferred relationships involving `SentenceTextSplitter` (e.g. with `FhgPreparedDocument` and `FhgPreparedDataset`) actually correct?**
   _`SentenceTextSplitter` has 121 INFERRED edges - model-reasoned connections that need verification._
