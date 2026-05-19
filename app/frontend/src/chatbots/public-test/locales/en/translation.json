@@ -64,14 +64,14 @@
         "fileDeleted": "File deleted",
         "menuLabel": "Upload files",
         "modalTitle": "Upload PDF files to nerilio",
-        "modalDescription": "Only PDF files are supported. The combined upload limit is 5 MB across all files.",
+        "modalDescription": "Only PDF files are supported. You can upload 1 PDF file with a maximum size of 5 MB.",
         "chooseFiles": "Choose files",
         "refreshList": "Refresh list",
         "stopUploads": "Stop uploads",
         "close": "Close",
         "dropzoneTitle": "Drop files here",
         "dropzoneHint": "or click to browse your device",
-        "supportedFormats": "Supported format: PDF only. Total upload limit: 5 MB.",
+        "supportedFormats": "Supported format: PDF only. Limit: 1 file, up to 5 MB.",
         "queueSectionTitle": "Queue",
         "uploadQueueLabel": "Current upload queue",
         "sectionTitle": "Library",
@@ -95,7 +95,9 @@
         "queueFailed": "Failed",
         "queueCanceled": "Canceled",
         "unsupportedFileType": "{{filename}} is not a supported file type.",
-        "duplicateQueuedFile": "{{filename}} is already in the active queue."
+        "duplicateQueuedFile": "{{filename}} is already in the active queue.",
+        "fileTooLarge": "{{filename}} exceeds the {{limitMb}} MB upload limit.",
+        "fileCountLimitReached": "Only {{limit}} PDF file can be uploaded. Delete the existing file before uploading another."
     },
     "developerSettings": "Developer settings",
     "disclaimer": {

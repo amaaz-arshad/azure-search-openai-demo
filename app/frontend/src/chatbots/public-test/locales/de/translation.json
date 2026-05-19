@@ -65,14 +65,14 @@
         "fileDeleted": "Datei gelöscht",
         "menuLabel": "Dateien hochladen",
         "modalTitle": "PDF-Dateien für nerilio hochladen",
-        "modalDescription": "Es werden nur PDF-Dateien unterstützt. Über alle Dateien hinweg gilt ein gemeinsames Upload-Limit von 5 MB.",
+        "modalDescription": "Es werden nur PDF-Dateien unterstützt. Sie können 1 PDF-Datei mit einer maximalen Größe von 5 MB hochladen.",
         "chooseFiles": "Dateien auswählen",
         "refreshList": "Liste aktualisieren",
         "stopUploads": "Uploads stoppen",
         "close": "Schließen",
         "dropzoneTitle": "Dateien hier ablegen",
         "dropzoneHint": "oder klicken, um Dateien auszuwählen",
-        "supportedFormats": "Unterstütztes Format: nur PDF. Gesamtes Upload-Limit: 5 MB.",
+        "supportedFormats": "Unterstütztes Format: nur PDF. Limit: 1 Datei, max. 5 MB.",
         "queueSectionTitle": "Warteschlange",
         "uploadQueueLabel": "Aktuelle Upload-Warteschlange",
         "sectionTitle": "Bibliothek",
@@ -96,7 +96,9 @@
         "queueFailed": "Fehlgeschlagen",
         "queueCanceled": "Abgebrochen",
         "unsupportedFileType": "{{filename}} ist kein unterstützter Dateityp.",
-        "duplicateQueuedFile": "{{filename}} befindet sich bereits in der aktiven Warteschlange."
+        "duplicateQueuedFile": "{{filename}} befindet sich bereits in der aktiven Warteschlange.",
+        "fileTooLarge": "{{filename}} überschreitet das Upload-Limit von {{limitMb}} MB.",
+        "fileCountLimitReached": "Es kann nur {{limit}} PDF-Datei hochgeladen werden. Löschen Sie die vorhandene Datei, bevor Sie eine weitere hochladen."
     },
     "developerSettings": "Entwicklereinstellungen",
     "disclaimer": {

@@ -41,6 +41,7 @@ class ChatbotUploadRules:
     allowed_extensions: Optional[frozenset[str]] = None
     max_total_pdf_pages: Optional[int] = None
     max_total_file_size_mb: Optional[float] = None
+    max_total_file_count: Optional[int] = None
     user_scoped: bool = False
 
 
@@ -717,6 +718,22 @@ class ChatbotUploadStrategy:
                 raise ValueError(
                     f"{self.chatbot_name} version allows up to {self.rules.max_total_file_size_mb} MB of uploaded files in total. "
                     f"Existing uploads use {existing_mb} MB and {filename} adds {file_mb} MB."
+                )
+
+        if self.rules.max_total_file_count is not None:
+            normalized_filename = self.logical_filename(filename)
+            existing_filenames = [
+                self.logical_filename(existing_filename)
+                for existing_filename in await self.list_files(user_identifier=user_identifier)
+            ]
+            existing_count = sum(
+                1 for existing_filename in existing_filenames if existing_filename != normalized_filename
+            )
+
+            if existing_count + 1 > self.rules.max_total_file_count:
+                raise ValueError(
+                    f"{self.chatbot_name} version allows up to {self.rules.max_total_file_count} uploaded file(s) in total. "
+                    f"Delete an existing upload before adding {filename}."
                 )
 
         return pdf_page_count, file_size

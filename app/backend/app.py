@@ -2144,6 +2144,7 @@ async def setup_clients():
     # To switch back to page-based limiting, set page limit and clear size limit.
     public_test_upload_page_limit = None  # e.g. 30 for 30 pages
     public_test_upload_size_limit_mb = 5  # e.g. 5 for 5 MB
+    public_test_upload_file_count_limit = 1  # e.g. 1 for a single PDF
     chatbot_prompt_store = ChatbotPromptStore(blob_manager=global_blob_manager)
     current_app.config[CONFIG_CHATBOT_PROMPT_STORE] = chatbot_prompt_store
 
@@ -2195,6 +2196,7 @@ async def setup_clients():
                 allowed_extensions=frozenset({".pdf"}),
                 max_total_pdf_pages=public_test_upload_page_limit,
                 max_total_file_size_mb=public_test_upload_size_limit_mb,
+                max_total_file_count=public_test_upload_file_count_limit,
                 user_scoped=True,
             ),
         ),

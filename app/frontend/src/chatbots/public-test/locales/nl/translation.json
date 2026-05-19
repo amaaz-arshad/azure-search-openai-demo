@@ -64,14 +64,14 @@
         "fileDeleted": "Bestand verwijderd",
         "menuLabel": "Bestanden uploaden",
         "modalTitle": "PDF-bestanden uploaden naar nerilio",
-        "modalDescription": "Alleen PDF-bestanden worden ondersteund. De gezamenlijke uploadlimiet is 5 MB over alle bestanden heen.",
+        "modalDescription": "Alleen PDF-bestanden worden ondersteund. Je kunt 1 PDF-bestand uploaden van maximaal 5 MB.",
         "chooseFiles": "Bestanden kiezen",
         "refreshList": "Lijst vernieuwen",
         "stopUploads": "Uploads stoppen",
         "close": "Sluiten",
         "dropzoneTitle": "Sleep bestanden hierheen",
         "dropzoneHint": "of klik om bestanden te kiezen",
-        "supportedFormats": "Ondersteund formaat: alleen PDF. Totale uploadlimiet: 5 MB.",
+        "supportedFormats": "Ondersteund formaat: alleen PDF. Limiet: 1 bestand, max. 5 MB.",
         "queueSectionTitle": "Wachtrij",
         "uploadQueueLabel": "Huidige uploadwachtrij",
         "sectionTitle": "Bibliotheek",
@@ -95,7 +95,9 @@
         "queueFailed": "Mislukt",
         "queueCanceled": "Geannuleerd",
         "unsupportedFileType": "{{filename}} is geen ondersteund bestandstype.",
-        "duplicateQueuedFile": "{{filename}} staat al in de actieve wachtrij."
+        "duplicateQueuedFile": "{{filename}} staat al in de actieve wachtrij.",
+        "fileTooLarge": "{{filename}} overschrijdt de uploadlimiet van {{limitMb}} MB.",
+        "fileCountLimitReached": "Er kan slechts {{limit}} PDF-bestand worden geüpload. Verwijder het bestaande bestand voordat je een ander uploadt."
     },
     "developerSettings": "Ontwikkelaarinstellingen",
     "disclaimer": {
