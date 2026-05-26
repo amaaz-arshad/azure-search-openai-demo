@@ -17,6 +17,15 @@ import ChatbotDirectory from "./pages/ChatbotDirectory";
 import ManagePromptsPage from "./pages/ManagePromptsPage";
 import PublicTestUsersPage from "./pages/PublicTestUsersPage";
 import UploadFilesPage from "./pages/UploadFilesPage";
+import {
+    ConfigurePage,
+    CustomersPage,
+    DashboardPage,
+    KnowledgeBasesPage,
+    PortalPage,
+    UsersPage,
+    VerwaltungLayout
+} from "./pages/verwaltung";
 import { msalConfig, useLogin } from "./authConfig";
 
 initializeIcons();
@@ -72,6 +81,23 @@ const router = createBrowserRouter([
     {
         path: "/manage-prompts",
         element: <ManagePromptsPage />
+    },
+    {
+        path: "/verwaltung",
+        element: <VerwaltungLayout />,
+        children: [
+            { index: true, element: <Navigate to="/verwaltung/dashboard" replace /> },
+            { path: "dashboard", element: <DashboardPage /> },
+            { path: "customers", element: <CustomersPage /> },
+            { path: "users", element: <UsersPage /> },
+            { path: "knowledge-bases", element: <KnowledgeBasesPage /> },
+            { path: "configure", element: <ConfigurePage /> },
+            { path: "configure/:botId", element: <ConfigurePage /> }
+        ]
+    },
+    {
+        path: "/verwaltung/portal",
+        element: <PortalPage />
     },
     ...chatbotRoutes,
     {

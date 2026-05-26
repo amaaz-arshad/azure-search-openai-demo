@@ -71,7 +71,7 @@ Use graphify as the map, then inspect the smallest relevant code surface. The hi
 - Internal chat history sessions must persist `source_chatbot` metadata. Legacy internal sessions without that metadata are intentionally hidden and non-restorable.
 - Internal citations resolve against the selected source bot's content path while visible `/internal` branding stays fixed as `Internal Bot`.
 - Backend startup auto-discovers optional chatbot backend modules under `app/backend/approaches/chatbots/<chatbot_name>/`. Do not add manual registration unless the code path truly requires it.
-- Shared internal admin auth gates `/chatbots`, `/upload-files`, `/public-test-users`, and `/manage-prompts`; keep frontend and backend route names aligned.
+- Shared internal admin auth gates `/chatbots`, `/upload-files`, `/public-test-users`, `/manage-prompts`, and `/verwaltung/*` (excluding `/verwaltung/portal`); keep frontend and backend route names aligned.
 - `public-test` keeps some legacy internal identifiers for compatibility even though public branding is "Free Bot". Verify compatibility before renaming storage, auth, or history namespaces.
 - Frontend chatbot locales are standardized to `en`, `de`, and `nl`. Do not add extra locale folders unless expanding the entire bot set intentionally.
 - Generic app marks should import `app/frontend/src/assets/applogo.svg`; avoid duplicate per-bot `applogo.svg` assets.

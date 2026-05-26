@@ -244,6 +244,7 @@ NON_CHATBOT_FRONTEND_PREFIXES = {
     "upload",
     "upload-files",
     "internal-admin",
+    "verwaltung",
 }
 
 # Keep in sync with frontend chatbot routes in app/frontend/src/chatbots/registry.ts.
@@ -707,6 +708,13 @@ async def public_test_users_page(subpath: str | None = None):
 @bp.route("/manage-prompts/")
 @bp.route("/manage-prompts/<path:subpath>")
 async def manage_prompts_page(subpath: str | None = None):
+    return await serve_spa_index()
+
+
+@bp.route("/verwaltung")
+@bp.route("/verwaltung/")
+@bp.route("/verwaltung/<path:subpath>")
+async def verwaltung_page(subpath: str | None = None):
     return await serve_spa_index()
 
 
