@@ -6,6 +6,7 @@ import mimetypes
 import os
 import time
 from collections.abc import AsyncGenerator, Awaitable, Callable
+from contextlib import nullcontext
 from pathlib import Path
 from typing import Any, cast
 from urllib.parse import urlparse
@@ -405,6 +406,53 @@ def normalize_chatbot_request_overrides(request_json: dict[str, Any]) -> None:
     overrides["source_chatbot"] = normalized_source_chatbot
     overrides["include_category"] = normalized_source_chatbot
     overrides.pop("exclude_category", None)
+
+
+def get_openlit_chatbot_attributes(request_json: dict[str, Any], requested_chatbot_name: str | None) -> dict[str, str]:
+    context = request_json.get("context", {})
+    overrides = context.get("overrides", {}) if isinstance(context, dict) else {}
+    route_chatbot_name = get_request_route_chatbot_name()
+    chatbot_name = route_chatbot_name or requested_chatbot_name
+
+    attributes: dict[str, str] = {}
+    if chatbot_name:
+        attributes["chatbot.name"] = chatbot_name
+    if requested_chatbot_name:
+        attributes["chatbot.effective_name"] = requested_chatbot_name
+
+    source_chatbot = overrides.get("source_chatbot") if isinstance(overrides, dict) else None
+    normalized_source_chatbot = normalize_chatbot_name(source_chatbot) if isinstance(source_chatbot, str) else None
+    if normalized_source_chatbot:
+        attributes["chatbot.source_name"] = normalized_source_chatbot
+
+    return attributes
+
+
+def openlit_chatbot_attributes_context(attributes: dict[str, str]):
+    if not attributes or not os.getenv("OPENLIT_ENDPOINT"):
+        return nullcontext()
+
+    try:
+        import openlit
+
+        using_attributes = getattr(openlit, "using_attributes", None)
+        if not callable(using_attributes):
+            return nullcontext()
+        context_manager = using_attributes(attributes)
+        if not hasattr(context_manager, "__enter__") or not hasattr(context_manager, "__exit__"):
+            return nullcontext()
+        return context_manager
+    except Exception as error:
+        current_app.logger.warning("Failed to attach OpenLIT chatbot attributes: %s", error)
+        return nullcontext()
+
+
+async def stream_with_openlit_chatbot_attributes(
+    stream: AsyncGenerator[dict, None], attributes: dict[str, str]
+) -> AsyncGenerator[dict, None]:
+    with openlit_chatbot_attributes_context(attributes):
+        async for event in stream:
+            yield event
 
 
 def build_chat_model_deployments(default_model: str, default_deployment: str | None) -> dict[str, str | None]:
@@ -1315,11 +1363,13 @@ async def chat(auth_claims: dict[str, Any]):
                 current_app.config[CONFIG_CHAT_HISTORY_COSMOS_ENABLED],
                 current_app.config[CONFIG_CHAT_HISTORY_BROWSER_ENABLED],
             )
-        result = await approach.run(
-            request_json["messages"],
-            context=context,
-            session_state=session_state,
-        )
+        openlit_attributes = get_openlit_chatbot_attributes(request_json, requested_chatbot_name)
+        with openlit_chatbot_attributes_context(openlit_attributes):
+            result = await approach.run(
+                request_json["messages"],
+                context=context,
+                session_state=session_state,
+            )
         return jsonify(result)
     except Exception as error:
         return error_response(error, "/chat", error_context=error_context)
@@ -1361,11 +1411,14 @@ async def chat_stream(auth_claims: dict[str, Any]):
                 current_app.config[CONFIG_CHAT_HISTORY_COSMOS_ENABLED],
                 current_app.config[CONFIG_CHAT_HISTORY_BROWSER_ENABLED],
             )
-        result = await approach.run_stream(
-            request_json["messages"],
-            context=context,
-            session_state=session_state,
-        )
+        openlit_attributes = get_openlit_chatbot_attributes(request_json, requested_chatbot_name)
+        with openlit_chatbot_attributes_context(openlit_attributes):
+            result = await approach.run_stream(
+                request_json["messages"],
+                context=context,
+                session_state=session_state,
+            )
+        result = stream_with_openlit_chatbot_attributes(result, openlit_attributes)
         response = await make_response(format_as_ndjson(result, error_context=error_context))
         response.timeout = None  # type: ignore
         response.mimetype = "application/json-lines"

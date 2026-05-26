@@ -1,8 +1,9 @@
 import json
 import os
+import sys
 from pathlib import Path
-from typing import Any
 from types import SimpleNamespace
+from typing import Any
 from unittest import mock
 
 import pytest
@@ -86,6 +87,28 @@ async def login_simple_chatbot(client, chatbot_name: str, username: str, passwor
     assert response.status_code == 200
     assert payload == {"authenticated": True, "user": username}
     return response
+
+
+class OpenLitAttributeRecorder:
+    def __init__(self):
+        self.entries: list[dict[str, str]] = []
+        self.exits: list[dict[str, str]] = []
+        self.active: list[dict[str, str]] = []
+
+    def using_attributes(self, attributes: dict[str, str]):
+        recorder = self
+
+        class OpenLitAttributeContext:
+            def __enter__(self):
+                captured_attributes = dict(attributes)
+                recorder.entries.append(captured_attributes)
+                recorder.active.append(captured_attributes)
+
+            def __exit__(self, exc_type, exc_value, traceback):
+                recorder.exits.append(dict(attributes))
+                recorder.active.pop()
+
+        return OpenLitAttributeContext()
 
 
 @pytest.mark.asyncio
@@ -226,6 +249,103 @@ async def test_chat_stream_request_must_be_json(client):
     assert response.status_code == 415
     result = await response.get_json()
     assert result["error"] == "request must be json"
+
+
+@pytest.mark.asyncio
+async def test_chat_adds_openlit_chatbot_attributes(client, monkeypatch):
+    recorder = OpenLitAttributeRecorder()
+    monkeypatch.setenv("OPENLIT_ENDPOINT", "http://openlit.internal")
+    monkeypatch.setitem(sys.modules, "openlit", SimpleNamespace(using_attributes=recorder.using_attributes))
+
+    prompt_store = client.app.config[app.CONFIG_CHATBOT_PROMPT_STORE]
+
+    async def mock_load_prompt(_chatbot_name: str):
+        return None
+
+    monkeypatch.setattr(prompt_store, "load_prompt", mock_load_prompt)
+
+    response = await client.post(
+        "/chat",
+        headers={"X-Chatbot-Name": "demo"},
+        json={
+            "messages": [{"content": "What is the capital of France?", "role": "user"}],
+            "context": {"overrides": {"retrieval_mode": "text", "include_category": "demo"}},
+        },
+    )
+
+    assert response.status_code == 200
+    assert recorder.entries == [{"chatbot.name": "demo", "chatbot.effective_name": "demo"}]
+    assert recorder.exits == recorder.entries
+
+
+@pytest.mark.asyncio
+async def test_internal_chat_adds_openlit_route_and_source_attributes(client, monkeypatch):
+    recorder = OpenLitAttributeRecorder()
+    monkeypatch.setenv("OPENLIT_ENDPOINT", "http://openlit.internal")
+    monkeypatch.setitem(sys.modules, "openlit", SimpleNamespace(using_attributes=recorder.using_attributes))
+
+    prompt_store = client.app.config[app.CONFIG_CHATBOT_PROMPT_STORE]
+
+    async def mock_load_prompt(_chatbot_name: str):
+        return None
+
+    monkeypatch.setattr(prompt_store, "load_prompt", mock_load_prompt)
+
+    response = await client.post(
+        "/chat",
+        headers={"X-Chatbot-Name": "internal"},
+        json={
+            "messages": [{"content": "What is the capital of France?", "role": "user"}],
+            "context": {"overrides": {"retrieval_mode": "text", "source_chatbot": "lemon"}},
+        },
+    )
+
+    assert response.status_code == 200
+    assert recorder.entries == [
+        {
+            "chatbot.name": "internal",
+            "chatbot.effective_name": "lemon",
+            "chatbot.source_name": "lemon",
+        }
+    ]
+    assert recorder.exits == recorder.entries
+
+
+@pytest.mark.asyncio
+async def test_chat_stream_keeps_openlit_chatbot_attributes_active_while_streaming(client, monkeypatch):
+    recorder = OpenLitAttributeRecorder()
+    active_attributes_during_stream: list[list[dict[str, str]]] = []
+    monkeypatch.setenv("OPENLIT_ENDPOINT", "http://openlit.internal")
+    monkeypatch.setitem(sys.modules, "openlit", SimpleNamespace(using_attributes=recorder.using_attributes))
+
+    prompt_store = client.app.config[app.CONFIG_CHATBOT_PROMPT_STORE]
+
+    async def mock_load_prompt(_chatbot_name: str):
+        return None
+
+    class StreamingApproach:
+        async def run_stream(self, messages, session_state=None, context=None):
+            async def stream():
+                active_attributes_during_stream.append(list(recorder.active))
+                yield {"delta": {"role": "assistant", "content": "Hello"}}
+
+            return stream()
+
+    monkeypatch.setattr(prompt_store, "load_prompt", mock_load_prompt)
+    client.app.config[app.CONFIG_CHAT_APPROACH] = StreamingApproach()
+    client.app.config[app.CONFIG_CHATBOT_CHAT_APPROACHES] = {}
+
+    response = await client.post(
+        "/chat/stream",
+        json={
+            "messages": [{"content": "What is the capital of France?", "role": "user"}],
+            "context": {"overrides": {"retrieval_mode": "text", "include_category": "demo"}},
+        },
+    )
+
+    assert response.status_code == 200
+    assert (await response.get_data()).decode("utf-8") == '{"delta": {"role": "assistant", "content": "Hello"}}\n'
+    assert active_attributes_during_stream == [[{"chatbot.name": "demo", "chatbot.effective_name": "demo"}]]
 
 
 def test_json_encoder_drops_optional_fields():
