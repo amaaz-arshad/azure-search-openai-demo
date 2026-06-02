@@ -45,11 +45,6 @@
         "fileDeleted": "Bestand verwijderd"
     },
     "developerSettings": "Ontwikkelaarinstellingen",
-    "disclaimer": {
-        "label": "Belangrijke melding",
-        "message": "AI-ondersteunde assistent. Antwoorden worden automatisch gegenereerd op basis van de aangeleverde inhoud; officiële bronnen zijn bindend.",
-        "dismiss": "Melding sluiten"
-    },
     "chatEmptyStateTitle": "Chat met je gegevens",
     "chatEmptyStateSubtitle": "Stel een vraag of probeer een voorbeeld",
     "defaultExamples": {

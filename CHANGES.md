@@ -19,6 +19,52 @@ Two categories per date:
 
 ### Decisions
 
+- **Auto-advance: `/hyrox-assessment` now presents the next question
+  automatically after grading.** Previously a finalisation turn emitted only the
+  `[[SCORE]]` + feedback, so the next question appeared only on the *following*
+  turn — which forced the learner to send a throwaway message ("next") because
+  the bot is stateless and only responds to a user turn. The backend now **chains
+  the next pinned question into the same message** as the score (header + exact
+  text from `questions.py`), so the learner answers continuously. Everything else
+  is unchanged: the chain fires only when a `[[SCORE]]` is finalised this turn and
+  the run is not on its last question; a correction-offer turn (no score) does not
+  chain, and the 20th question completes instead of chaining. The one-correction
+  protocol, counter, no-repeat plan, per-question score, and final tally are
+  untouched.
+  - **Robust "asked?" tracking via a hidden `[[ASKED q=K]]` marker.** Chaining
+    puts the ask in the *same* message as the previous question's `[[SCORE]]`,
+    which broke the old message-boundary heuristic for "has this question already
+    been asked". The backend now writes a hidden `[[ASKED]]` marker whenever it
+    renders a question (standalone or chained), and `derive_turn_state` decides
+    ask-vs-grade purely from markers — so the chained question is recognised as
+    already presented and is graded, never re-asked. The marker replays in history
+    and is hidden by the frontend like the others.
+
+- **`/hyrox-assessment` model updated to `gpt-5.4-mini` / reasoning effort
+  `high`** (supersedes the earlier `gpt-5-mini` / `medium` choice; user decision
+  for grading quality). `config.py`, the registry metadata, and the config test
+  are aligned.
+
+- **Moved `/hyrox-assessment` visible question text fully into the backend.**
+  The previous deterministic refactor owned the plan/counter/scoring, but still
+  let the LLM write the visible question text after `[[ASK]]` by looking up the
+  pinned pool number in the large rubric prompt. In production the model
+  displayed Q8 (12-13 standards) while the backend had pinned Q3 (penalty
+  system), so the backend correctly graded Q3, advanced, and then displayed the
+  actual Q8 next — making Q8 appear repeated. `[[ASK]]` is now only a placement
+  token; the backend replaces it with the exact pinned question text from
+  `questions.py` and discards any model-written question text.
+
+- **Hardened `/hyrox-assessment` against the repeated-question loop.** The
+  deterministic counter was already backend-owned, but the model still had to
+  infer from transcript text whether the pinned question had already been asked.
+  If it failed that inference, it could emit `[[ASK]]` again instead of
+  `[[SCORE]]`; no score marker meant the backend counter correctly stayed on
+  the same question, causing the visible repeat. The backend now derives the
+  current question phase from replayed roles/markers and injects an explicit
+  `ASK` vs `GRADE` vs `FINALISE NOW` action so answered questions are not
+  repeated.
+
 - **Refactored `/hyrox-assessment` into a backend-owned deterministic state
   machine.** The first cut was prompt-driven: the LLM chose the 20 questions
   (`[[PLAN]]`), counted "Question N of 20", and computed the running total /
@@ -78,6 +124,69 @@ Two categories per date:
     Brutal font, Lemon chatbot logo asset reused for the visible bot mark.
 
 ### Changes
+
+- Backend `hyrox_assessment/results.py`: `render_assessment_turn` now **auto-chains
+  the next pinned question** (header + exact text) right after a `[[SCORE]]`
+  finalisation when the run is not on its last question; added the hidden
+  `[[ASKED q=K]]` marker (`ASKED_MARKER_RE`, `format_asked_marker`,
+  `parse_asked_ids`) and persists it whenever the backend renders a question;
+  rewrote `_current_question_interaction` (+ new `_assistant_index_that_asked`,
+  removing `_has_plan_score_marker`) to derive the question phase from
+  `[[ASKED]]`/`[[SCORE]]` markers instead of message boundaries; `ANY_MARKER_RE`
+  and `build_state_injection` (AUTO-NEXT note, only when not the last question)
+  updated.
+- Backend `hyrox_assessment/sampleprompt.py`: per-question protocol step 4 now
+  states the system auto-presents the next question; the model must not write it
+  or place `[[ASK]]` on a finalisation message.
+- Backend `hyrox_assessment/config.py`: `gpt-5.4-mini` / `reasoning_effort="high"`.
+- Frontend `hyrox-assessment/components/Answer/assessmentMarkers.ts`: strips the
+  new `[[ASKED ...]]` marker (listed before `ASK` so the `\b` boundary matches the
+  whole token).
+- Frontend `registry.ts`: hyrox entry → `gpt-5.4-mini` / `high`.
+- Tests `tests/test_hyrox_assessment.py`: added `_asked_marker`; updated the
+  "answer pending / repeated-question / forbid-repeat" state tests to include the
+  `[[ASKED]]` marker the backend now writes; replaced the old "finalisation shows
+  score, no header" test with `test_render_assessment_turn_chains_next_question_after_finalization`;
+  added the end-to-end auto-advance regression
+  `test_chained_next_question_is_recognized_as_asked_not_reasked`; updated the
+  config test to `gpt-5.4-mini` / `high`.
+
+- Backend `hyrox_assessment/results.py`: `[[ASK]]` now renders the localized
+  progress header plus exact pinned question text from `questions.py`; model
+  text after `[[ASK]]` is discarded, and a fresh ask turn without `[[ASK]]`
+  still renders the backend-pinned question instead of exposing model-authored
+  text.
+- Backend `hyrox_assessment/sampleprompt.py`: updated the assessment contract so
+  the model never writes, translates, or rephrases visible question text; it only
+  places `[[ASK]]` and emits per-key-point `[[SCORE]]` markers.
+- Tests `tests/test_hyrox_assessment.py`: added regressions for the observed
+  Q3/Q8 mismatch, proving model-authored wrong question text is dropped and the
+  backend-pinned question is rendered.
+
+- Frontend `hyrox-assessment`: removed the shared disclaimer banner from
+  `Chat.tsx` and removed the now-unused disclaimer locale copy from `en`, `de`,
+  and `nl` translations.
+- Frontend `hyrox-assessment`: made Brutal the bot-wide font by setting the
+  route base font in `index.css` and adding a layout-scoped override for nested
+  text, Fluent controls, markdown/code, buttons, and inputs while preserving the
+  Fluent icon font.
+- Frontend `hyrox-assessment`: narrowed the Brutal override from a universal
+  descendant selector to text-bearing elements and excludes Fluent icon glyph
+  nodes so their per-icon `FabricMDL2Icons-*` inline font families render copy,
+  speech, and menu icons correctly.
+- Frontend `hyrox-assessment`: locked UI and bot request language to English by
+  removing browser-locale detection from the bot i18n config, registering only
+  the English resources/language option, disabling the language-picker wiring,
+  and sending `language: "en"` to the backend.
+
+- Backend `hyrox_assessment/results.py`: added current-question interaction
+  derivation after the latest plan/score marker, including answer-attempt count,
+  correction/repeat detection, skip/give-up/meta detection, and stronger state
+  injection that forbids `[[ASK]]` after a learner answer and requires
+  finalisation when the loop has already repeated.
+- Tests `tests/test_hyrox_assessment.py`: added regressions for answer-pending
+  state, repeated-question loop finalisation, and normal transition to the next
+  question after a score marker.
 
 - Determinism refactor (backend state machine):
   - `questions.py`: added `QUESTIONS_BY_NUMBER` + accessors `get_question`,

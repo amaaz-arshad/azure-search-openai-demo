@@ -5,9 +5,9 @@ from approaches.chatbots.chatbot_config import ChatbotConfig
 # language supplied by the LMS (resolved from the request "language" override).
 config = ChatbotConfig(
     name="hyrox-assessment",
-    chatgpt_model="gpt-5-mini",
-    chatgpt_deployment="gpt-5-mini",
-    reasoning_effort="medium",
+    chatgpt_model="gpt-5.4-mini",
+    chatgpt_deployment="gpt-5.4-mini",
+    reasoning_effort="high",
     prompt_mode="override",
     support_email="info@lemon-systems.de",
 )

@@ -43,7 +43,7 @@ export const chatbotDefinitions: ChatbotDefinition[] = [
     { ...steuertippsChatbot, llm: "gpt-5.4-mini", reasoningEffort: "medium", mode: "tutor-qna", agenticRetrievalDefault: false },
     { ...knollChatbot, llm: "gpt-5.4-mini", reasoningEffort: "medium", mode: "tutor-qna", agenticRetrievalDefault: false },
     { ...lemonChatbot, llm: "gpt-5.4-mini", reasoningEffort: "medium", mode: "tutor-qna", agenticRetrievalDefault: true },
-    { ...hyroxAssessmentChatbot, llm: "gpt-5-mini", reasoningEffort: "medium", mode: "assessment", agenticRetrievalDefault: false },
+    { ...hyroxAssessmentChatbot, llm: "gpt-5.4-mini", reasoningEffort: "high", mode: "assessment", agenticRetrievalDefault: false },
     { ...internalChatbot, llm: "gpt-5.4-mini", reasoningEffort: "medium", mode: "tutor-qna", agenticRetrievalDefault: false },
     { ...moodleChatbot, llm: "gpt-5.4-mini", reasoningEffort: "medium", mode: "tutor-qna", agenticRetrievalDefault: false },
     { ...publishoneChatbot, llm: "gpt-5.4-mini", reasoningEffort: "medium", mode: "tutor-qna", agenticRetrievalDefault: false },

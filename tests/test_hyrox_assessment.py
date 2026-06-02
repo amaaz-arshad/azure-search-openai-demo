@@ -14,6 +14,7 @@ from approaches.chatbots.hyrox_assessment.questions import (
     TOTAL_MAX_POINTS,
     TOTAL_QUESTIONS,
     category_of,
+    get_question,
     key_point_count,
     max_points,
 )
@@ -34,6 +35,16 @@ def _score_marker(qid: int, all_correct: bool = True) -> str:
     bit = "1" if all_correct else "0"
     pts = ",".join([bit] * key_point_count(qid))
     return f'[[SCORE q={qid} points="{pts}" max={max_points(qid)} cat="{category_of(qid)}"]]'
+
+
+def _asked_marker(qid: int) -> str:
+    return results.format_asked_marker(qid)
+
+
+def _question_text(qid: int) -> str:
+    question = get_question(qid)
+    assert question is not None
+    return str(question["question"])
 
 
 # --- Question pool --------------------------------------------------------
@@ -81,8 +92,8 @@ def test_config_loads_with_expected_values() -> None:
     cfg = get_chatbot_config(CHATBOT_NAME)
     assert cfg is not None
     assert cfg.name == CHATBOT_NAME
-    assert cfg.chatgpt_model == "gpt-5-mini"
-    assert cfg.reasoning_effort == "medium"
+    assert cfg.chatgpt_model == "gpt-5.4-mini"
+    assert cfg.reasoning_effort == "high"
     assert cfg.prompt_mode == "override"
     assert cfg.support_email == "info@lemon-systems.de"
     # language_locale must stay None so the per-request LMS language is honoured.
@@ -95,6 +106,7 @@ def test_prompt_loads_and_renders_placeholders() -> None:
     # The model emits only the per-key-point SCORE marker; the backend owns PLAN/RESULT.
     assert '[[SCORE q=' in prompt
     assert 'points="' in prompt
+    assert "NO visible question text" in prompt
     assert "CURRENT TURN STATE" in prompt  # references the backend-injected control block
     assert "### Q1 —" in prompt and "### Q32 —" in prompt
     assert str(QUESTIONS_PER_RUN) in SAMPLE_PROMPT
@@ -239,6 +251,103 @@ def test_failed_completed_run_auto_restarts() -> None:
     assert st["current_id"] is not None
 
 
+def test_derive_turn_state_marks_answer_pending_after_question_was_asked() -> None:
+    plan = results.select_question_plan(seed=17)
+    hist = [
+        {"role": "user", "content": "start"},
+        {
+            "role": "assistant",
+            "content": "Welcome.\n**Question 1 of 20**\nWhat is X?\n"
+            + results.format_plan_marker(plan)
+            + "\n"
+            + _asked_marker(plan[0]),
+        },
+        {"role": "user", "content": "Here is my answer."},
+    ]
+
+    st = results.derive_turn_state(hist)
+
+    assert st["n_scored"] == 0
+    assert st["current_id"] == plan[0]
+    assert st["current_question_asked"] is True
+    assert st["latest_user_answer_pending"] is True
+    assert st["answer_attempts_for_current"] == 1
+    assert st["must_finalize_current"] is False
+
+
+def test_build_state_injection_for_answer_pending_forbids_repeating_question() -> None:
+    plan = results.select_question_plan(seed=17)
+    hist = [
+        {"role": "user", "content": "start"},
+        {
+            "role": "assistant",
+            "content": "Welcome.\n**Question 1 of 20**\nWhat is X?\n"
+            + results.format_plan_marker(plan)
+            + "\n"
+            + _asked_marker(plan[0]),
+        },
+        {"role": "user", "content": "Here is my answer."},
+    ]
+
+    injection = results.build_state_injection(results.derive_turn_state(hist), "en")
+
+    assert "CURRENT ACTION: GRADE" in injection
+    assert "MUST NOT repeat it" in injection
+    assert "MUST NOT use [[ASK]]" in injection
+    assert "single correction opportunity" in injection
+
+
+def test_repeated_question_loop_state_requires_finalization() -> None:
+    plan = results.select_question_plan(seed=19)
+    hist = [
+        {"role": "user", "content": "start"},
+        {
+            "role": "assistant",
+            "content": "Welcome.\n**Question 1 of 20**\nWhat is X?\n"
+            + results.format_plan_marker(plan)
+            + "\n"
+            + _asked_marker(plan[0]),
+        },
+        {"role": "user", "content": "Here is my answer."},
+        {"role": "assistant", "content": "[[ASK]]\nWhat is X?"},
+        {"role": "user", "content": "already answered in prev response"},
+    ]
+
+    st = results.derive_turn_state(hist)
+    injection = results.build_state_injection(st, "en")
+
+    assert st["current_id"] == plan[0]
+    assert st["current_question_asked"] is True
+    assert st["latest_user_answer_pending"] is True
+    assert st["answer_attempts_for_current"] == 2
+    assert st["correction_or_repeat_already_sent"] is True
+    assert st["must_finalize_current"] is True
+    assert "FINALISE NOW" in injection
+    assert "End this response with EXACTLY one [[SCORE]] marker" in injection
+
+
+def test_next_question_state_allows_ask_after_previous_score() -> None:
+    plan = results.select_question_plan(seed=23)
+    hist = [
+        {"role": "user", "content": "start"},
+        {
+            "role": "assistant",
+            "content": "Welcome.\n**Question 1 of 20**\nWhat is X?\n" + results.format_plan_marker(plan),
+        },
+        {"role": "user", "content": "Here is my answer."},
+        {"role": "assistant", "content": "Good.\n" + _score_marker(plan[0])},
+        {"role": "user", "content": "next"},
+    ]
+
+    st = results.derive_turn_state(hist)
+    injection = results.build_state_injection(st, "en")
+
+    assert st["current_id"] == plan[1]
+    assert st["current_question_asked"] is False
+    assert st["latest_user_answer_pending"] is False
+    assert "CURRENT ACTION: ASK" in injection
+
+
 # --- Rendering the authoritative numbers ----------------------------------
 
 
@@ -285,30 +394,94 @@ def test_render_assessment_turn_asks_question_via_ask_token() -> None:
         "tally": results.compute_tally([prior]),
         "completed_passed": False,
     }
-    content = "Let's continue.\n[[ASK]]\nWhat is X?"  # asking the next question (no new score)
+    expected_question = _question_text(plan[1])
+    content = "Let's continue.\n[[ASK]]\nWhat is X?"  # model-authored question text is not trusted
     assembled, all_scores, _tally, just_completed = results.render_assessment_turn(content, state, "en")
     assert "**Question 2 of 20**" in assembled  # 1 finalised → asking question 2
     assert "[[ASK]]" not in assembled  # token replaced
-    assert "What is X?" in assembled
+    assert expected_question in assembled
+    assert "What is X?" not in assembled
     assert "Score so far" not in assembled  # no running cumulative total mid-assessment
     assert len(all_scores) == 1 and just_completed is False
 
 
-def test_render_assessment_turn_finalization_shows_question_score_no_header() -> None:
+def test_render_assessment_turn_drops_wrong_model_question_text() -> None:
+    # This reproduces the observed bug: backend pins Q3 (penalty system), but the model
+    # tries to display Q8 (12-13 standards). The visible question must come from backend
+    # state, not from model text after [[ASK]].
+    pinned_question = _question_text(3)
+    wrong_question = _question_text(8)
     state = {
-        "plan": results.select_question_plan(seed=3),
+        "plan": [3, 8],
         "plan_is_new": False,
         "scores": [],
         "n_scored": 0,
-        "current_id": 1,
+        "current_id": 3,
         "tally": results.compute_tally([]),
         "completed_passed": False,
+        "current_question_asked": False,
     }
-    content = 'Good work — solid start.\n[[SCORE q=1 points="1,1,1,1,0" max=5 cat="x"]]'
+    content = f"Let's begin.\n[[ASK]]\n{wrong_question}"
+
     assembled, all_scores, _tally, just_completed = results.render_assessment_turn(content, state, "en")
-    assert "**Question 1: 4/5**" in assembled  # this question's score, shown once graded
-    assert "of 20" not in assembled  # NO progress header on a finalisation message
-    assert "[[SCORE" in assembled  # hidden marker retained for replay
+
+    assert "**Question 1 of 20**" in assembled
+    assert pinned_question in assembled
+    assert wrong_question not in assembled
+    assert "Let's begin." in assembled
+    assert all_scores == []
+    assert just_completed is False
+
+
+def test_render_assessment_turn_renders_backend_question_even_without_ask_token() -> None:
+    pinned_question = _question_text(3)
+    wrong_question = _question_text(8)
+    state = {
+        "plan": [3, 8],
+        "plan_is_new": False,
+        "scores": [],
+        "n_scored": 0,
+        "current_id": 3,
+        "tally": results.compute_tally([]),
+        "completed_passed": False,
+        "current_question_asked": False,
+    }
+
+    assembled, all_scores, _tally, just_completed = results.render_assessment_turn(wrong_question, state, "en")
+
+    assert pinned_question in assembled
+    assert wrong_question not in assembled
+    assert all_scores == []
+    assert just_completed is False
+
+
+def test_render_assessment_turn_chains_next_question_after_finalization() -> None:
+    # Finalising a question that is not the last must show that question's score AND
+    # automatically present the next pinned question in the same message, so the learner
+    # never has to type "next".
+    plan = results.select_question_plan(seed=3)
+    state = {
+        "plan": plan,
+        "plan_is_new": False,
+        "scores": [],
+        "n_scored": 0,
+        "current_id": plan[0],
+        "tally": results.compute_tally([]),
+        "completed_passed": False,
+        "current_question_asked": True,
+    }
+    graded = results.normalize_score(plan[0], [1] * key_point_count(plan[0]))
+    content = f"Good work — solid start.\n{_score_marker(plan[0])}"
+    assembled, all_scores, _tally, just_completed = results.render_assessment_turn(content, state, "en")
+
+    # the just-graded question's score
+    assert results.render_question_score(1, graded["awarded"], graded["max"], "en") in assembled
+    # the next question is presented automatically in this same message
+    assert "**Question 2 of 20**" in assembled
+    assert _question_text(plan[1]) in assembled
+    assert _asked_marker(plan[1]) in assembled  # hidden marker so the next turn knows it was asked
+    assert "[[SCORE" in assembled  # score marker retained for replay
+    assert "Assessment complete" not in assembled  # run is not finished
     assert len(all_scores) == 1 and just_completed is False
 
 
@@ -323,10 +496,13 @@ def test_render_assessment_turn_appends_plan_on_fresh_run() -> None:
         "tally": results.compute_tally([]),
         "completed_passed": False,
     }
+    expected_question = _question_text(plan[0])
     content = "Welcome!\n[[ASK]]\nHere is your first question?"
     assembled, all_scores, _tally, just_completed = results.render_assessment_turn(content, state, "en")
     assert results.format_plan_marker(plan) in assembled  # backend persists the plan
     assert "**Question 1 of 20**" in assembled  # [[ASK]] → header, position 1
+    assert expected_question in assembled
+    assert "Here is your first question?" not in assembled
     assert "[[ASK]]" not in assembled
     assert all_scores == [] and just_completed is False
 
@@ -350,6 +526,55 @@ def test_render_assessment_turn_completion_emits_final_result() -> None:
     assert results.render_final_result(tally, "en") in assembled  # cumulative result only at the end
     # the 20th question's own score is shown too (full marks on Q1's rubric)
     assert results.render_question_score(20, max_points(1), max_points(1), "en") in assembled
+    # the run is over — no question is chained past the last one
+    assert "21 of 20" not in assembled
+    assert "[[ASKED" not in assembled  # nothing further was presented
+
+
+def test_chained_next_question_is_recognized_as_asked_not_reasked() -> None:
+    # End-to-end regression guard for auto-advance: when the backend chains question k+1 into
+    # the same message as question k's [[SCORE]], the NEXT turn must treat k+1 as already asked
+    # (grade it) instead of re-asking it — even though the learner never sent a "next" message.
+    turn1_state = results.derive_turn_state([{"role": "user", "content": "start"}])
+    plan = turn1_state["plan"]
+    assert turn1_state["current_id"] == plan[0]
+
+    # Turn 1: fresh run asks Q1; backend persists PLAN + ASKED(q1).
+    t1_assistant, _s1, _t1, done1 = results.render_assessment_turn("Welcome!\n[[ASK]]", turn1_state, "en")
+    assert results.format_plan_marker(plan) in t1_assistant
+    assert _asked_marker(plan[0]) in t1_assistant
+    assert done1 is False
+
+    hist = [
+        {"role": "user", "content": "start"},
+        {"role": "assistant", "content": t1_assistant},
+        {"role": "user", "content": "my answer to q1"},
+    ]
+
+    # Turn 2: grade Q1 with full marks → backend chains Q2 into the same message.
+    turn2_state = results.derive_turn_state(hist)
+    assert turn2_state["current_id"] == plan[0]
+    assert turn2_state["current_question_asked"] is True
+    t2_assistant, _s2, _t2, done2 = results.render_assessment_turn(
+        f"Great answer.\n{_score_marker(plan[0])}", turn2_state, "en"
+    )
+    assert done2 is False
+    assert "**Question 2 of 20**" in t2_assistant
+    assert _question_text(plan[1]) in t2_assistant
+    assert _asked_marker(plan[1]) in t2_assistant
+
+    hist.append({"role": "assistant", "content": t2_assistant})
+    hist.append({"role": "user", "content": "my answer to q2"})
+
+    # Turn 3: the learner answered Q2 with NO "next" in between. The backend must grade Q2.
+    turn3_state = results.derive_turn_state(hist)
+    assert turn3_state["n_scored"] == 1
+    assert turn3_state["current_id"] == plan[1]
+    assert turn3_state["current_question_asked"] is True
+    assert turn3_state["latest_user_answer_pending"] is True
+    injection = results.build_state_injection(turn3_state, "en")
+    assert "CURRENT ACTION: GRADE" in injection
+    assert "CURRENT ACTION: ASK" not in injection
 
 
 # --- record_assessment_result --------------------------------------------

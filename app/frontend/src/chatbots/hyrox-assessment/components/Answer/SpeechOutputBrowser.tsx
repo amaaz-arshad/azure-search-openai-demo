@@ -36,12 +36,8 @@ const getUtterance = function (text: string, lngCode: string = "en-US") {
 };
 
 export const SpeechOutputBrowser = ({ answer }: Props) => {
-    const { t, i18n } = useTranslation();
-    const currentLng = i18n.language;
-    let lngCode = supportedLngs[currentLng]?.locale;
-    if (!lngCode) {
-        lngCode = "en-US";
-    }
+    const { t } = useTranslation();
+    const lngCode = supportedLngs.en.locale;
     const [isPlaying, setIsPlaying] = useState<boolean>(false);
 
     const startOrStopSpeech = (answer: string) => {

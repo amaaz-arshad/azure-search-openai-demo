@@ -45,11 +45,6 @@
         "fileDeleted": "File deleted"
     },
     "developerSettings": "Developer settings",
-    "disclaimer": {
-        "label": "Important notice",
-        "message": "AI-supported assistant. Answers are automatically generated from the content provided; official sources are binding.",
-        "dismiss": "Close disclaimer"
-    },
     "chatEmptyStateTitle": "Chat with your data",
     "chatEmptyStateSubtitle": "Ask anything or try an example",
     "defaultExamples": {
