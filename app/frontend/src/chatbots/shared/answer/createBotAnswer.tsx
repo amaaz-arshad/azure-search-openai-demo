@@ -28,6 +28,10 @@ interface BotAnswerOptions {
     assistantLogoVariant?: "avatar" | "wordmark";
     assistantLogoClassName?: string;
     assistantLogoPlacement?: "inside" | "outside-left";
+    // Optional display-only transform applied to the answer text before rendering
+    // (e.g. the HYROX assessment bot strips its hidden control markers). The stored
+    // answer is left untouched so it still replays into the next request's history.
+    preprocessAnswerText?: (text: string) => string;
 }
 
 /**
@@ -61,6 +65,7 @@ export function createBotAnswer(
                 assistantName={t("headerTitle")}
                 showAssistantName={options.showAssistantName}
                 showCopyButton={options.showCopyButton}
+                preprocessAnswerText={options.preprocessAnswerText}
                 copyLabel={t("tooltips.copy")}
                 copiedLabel={t("tooltips.copied")}
                 citationLabel={t("citationWithColon")}

@@ -5,6 +5,7 @@ import { agindoChatbot } from "./agindo";
 import { demoChatbot } from "./demo";
 import { fbnChatbot } from "./fbn";
 import { fhgChatbot } from "./fhg";
+import { hyroxAssessmentChatbot } from "./hyrox-assessment";
 import { internalChatbot } from "./internal";
 import { knollChatbot } from "./knoll";
 import { lemonChatbot } from "./lemon";
@@ -17,7 +18,7 @@ import { sartoriusChatbot } from "./sartorius";
 import { steuertippsChatbot } from "./steuertipps";
 import { vjoonk4Chatbot } from "./vjoonk4";
 
-export type ChatbotMode = "qna" | "tutor-qna";
+export type ChatbotMode = "qna" | "tutor-qna" | "assessment";
 
 export interface ChatbotMetadata {
     llm: string;
@@ -42,6 +43,7 @@ export const chatbotDefinitions: ChatbotDefinition[] = [
     { ...steuertippsChatbot, llm: "gpt-5.4-mini", reasoningEffort: "medium", mode: "tutor-qna", agenticRetrievalDefault: false },
     { ...knollChatbot, llm: "gpt-5.4-mini", reasoningEffort: "medium", mode: "tutor-qna", agenticRetrievalDefault: false },
     { ...lemonChatbot, llm: "gpt-5.4-mini", reasoningEffort: "medium", mode: "tutor-qna", agenticRetrievalDefault: true },
+    { ...hyroxAssessmentChatbot, llm: "gpt-5-mini", reasoningEffort: "medium", mode: "assessment", agenticRetrievalDefault: false },
     { ...internalChatbot, llm: "gpt-5.4-mini", reasoningEffort: "medium", mode: "tutor-qna", agenticRetrievalDefault: false },
     { ...moodleChatbot, llm: "gpt-5.4-mini", reasoningEffort: "medium", mode: "tutor-qna", agenticRetrievalDefault: false },
     { ...publishoneChatbot, llm: "gpt-5.4-mini", reasoningEffort: "medium", mode: "tutor-qna", agenticRetrievalDefault: false },

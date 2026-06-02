@@ -56,6 +56,11 @@ export const chatbotThemes: Record<string, ChatbotThemeSeed> = {
         primary: "#669d24",
         pageTone: "light"
     },
+    "hyrox-assessment": {
+        // HYROX Youngstars highlight colour.
+        primary: "#FFED00",
+        pageTone: "light"
+    },
     internal: {
         primary: "#313335",
         pageTone: "light"

@@ -19,6 +19,7 @@ CHATBOT_PROMPT_MODULES = {
     "steuertipps": "approaches.chatbots.steuertipps.sampleprompt",
     "knoll": "approaches.chatbots.knoll.sampleprompt",
     "lemon": "approaches.chatbots.lemon.sampleprompt",
+    "hyrox-assessment": "approaches.chatbots.hyrox_assessment.sampleprompt",
     "moodle": "approaches.chatbots.moodle.sampleprompt",
     "publishone": "approaches.chatbots.publishone.sampleprompt",
     "fbn": "approaches.chatbots.fbn.sampleprompt",

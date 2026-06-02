@@ -279,6 +279,35 @@ async def test_chat_adds_openlit_chatbot_attributes(client, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_chat_hyrox_assessment_routes_and_skips_retrieval(client, monkeypatch):
+    """The assessment bot grades from its in-prompt rubric, so /chat must succeed
+    without performing any search retrieval."""
+    prompt_store = client.app.config[app.CONFIG_CHATBOT_PROMPT_STORE]
+
+    async def mock_load_prompt(_chatbot_name: str):
+        return None
+
+    monkeypatch.setattr(prompt_store, "load_prompt", mock_load_prompt)
+
+    response = await client.post(
+        "/chat",
+        headers={"X-Chatbot-Name": "hyrox-assessment"},
+        json={
+            "messages": [{"content": "start", "role": "user"}],
+            "context": {"overrides": {"retrieval_mode": "text", "include_category": "hyrox-assessment", "language": "en"}},
+        },
+    )
+
+    assert response.status_code == 200
+    result = await response.get_json()
+    assert isinstance(result["message"]["content"], str)
+    # Skip-retrieval path: no search query / search-results thought steps were produced.
+    thoughts_blob = json.dumps(result["context"]["thoughts"])
+    assert "Search using generated search query" not in thoughts_blob
+    assert "Search results" not in thoughts_blob
+
+
+@pytest.mark.asyncio
 async def test_internal_chat_adds_openlit_route_and_source_attributes(client, monkeypatch):
     recorder = OpenLitAttributeRecorder()
     monkeypatch.setenv("OPENLIT_ENDPOINT", "http://openlit.internal")

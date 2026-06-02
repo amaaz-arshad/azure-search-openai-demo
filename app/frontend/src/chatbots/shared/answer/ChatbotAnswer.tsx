@@ -94,6 +94,8 @@ type Props = {
     extraHeaderActions?: ReactNode;
     SpeechOutputBrowserComponent?: ComponentType<SpeechOutputBrowserProps>;
     SpeechOutputAzureComponent?: ComponentType<SpeechOutputAzureProps>;
+    // Display-only transform applied to the answer text before parsing/rendering.
+    preprocessAnswerText?: (text: string) => string;
 };
 
 const syntaxStyle = oneLight as SyntaxHighlighterProps["style"];
@@ -236,10 +238,23 @@ export const ChatbotAnswer = ({
     getNonWebCitationAction,
     extraHeaderActions,
     SpeechOutputBrowserComponent,
-    SpeechOutputAzureComponent
+    SpeechOutputAzureComponent,
+    preprocessAnswerText
 }: Props) => {
     const followupQuestions = answer.context?.followup_questions;
-    const parsedAnswer = useMemo(() => parseAnswerToMarkdown(answer, isStreaming), [answer, isStreaming]);
+    // Apply an optional display-only text transform (e.g. strip hidden markers) without
+    // mutating the stored answer, so the original content still replays into history.
+    const displayAnswer = useMemo(() => {
+        if (!preprocessAnswerText) {
+            return answer;
+        }
+        const content = answer.message?.content;
+        if (typeof content !== "string") {
+            return answer;
+        }
+        return { ...answer, message: { ...answer.message, content: preprocessAnswerText(content) } };
+    }, [answer, preprocessAnswerText]);
+    const parsedAnswer = useMemo(() => parseAnswerToMarkdown(displayAnswer, isStreaming), [displayAnswer, isStreaming]);
     const [copied, setCopied] = useState(false);
     const assistantLogoClasses = [assistantLogoVariant === "wordmark" ? styles.assistantWordmark : styles.assistantAvatar, assistantLogoClassName]
         .filter(Boolean)

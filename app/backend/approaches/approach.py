@@ -210,6 +210,9 @@ class ExtraInfo:
     thoughts: list[ThoughtStep] = field(default_factory=list)
     followup_questions: Optional[list[Any]] = None
     answer: Optional[str] = None  # Only when web knowledge source is used
+    # HYROX assessment: per-turn state derived in run_until_final_call and consumed by
+    # run_without_streaming to render the authoritative numbers. Unused by other bots.
+    assessment_state: Optional[dict[str, Any]] = None
 
 
 @dataclass

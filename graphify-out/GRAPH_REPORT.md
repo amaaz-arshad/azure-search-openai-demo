@@ -1,12 +1,12 @@
-# Graph Report - agentic-retrieval  (2026-05-26)
+# Graph Report - agentic-retrieval  (2026-06-02)
 
 ## Corpus Check
-- 1341 files · ~2,392,170 words
+- 1416 files · ~2,446,039 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 6812 nodes · 19537 edges · 104 communities detected
-- Extraction: 72% EXTRACTED · 28% INFERRED · 0% AMBIGUOUS · INFERRED: 5481 edges (avg confidence: 0.68)
+- 7036 nodes · 20065 edges · 131 communities detected
+- Extraction: 71% EXTRACTED · 29% INFERRED · 0% AMBIGUOUS · INFERRED: 5812 edges (avg confidence: 0.68)
 - Token cost: 0 input · 0 output
 
 ## Community Hubs (Navigation)
@@ -58,86 +58,113 @@
 - [[_COMMUNITY_Community 45|Community 45]]
 - [[_COMMUNITY_Community 46|Community 46]]
 - [[_COMMUNITY_Community 47|Community 47]]
+- [[_COMMUNITY_Community 48|Community 48]]
 - [[_COMMUNITY_Community 49|Community 49]]
 - [[_COMMUNITY_Community 50|Community 50]]
-- [[_COMMUNITY_Community 52|Community 52]]
-- [[_COMMUNITY_Community 54|Community 54]]
+- [[_COMMUNITY_Community 53|Community 53]]
 - [[_COMMUNITY_Community 55|Community 55]]
 - [[_COMMUNITY_Community 56|Community 56]]
 - [[_COMMUNITY_Community 57|Community 57]]
+- [[_COMMUNITY_Community 58|Community 58]]
 - [[_COMMUNITY_Community 59|Community 59]]
-- [[_COMMUNITY_Community 60|Community 60]]
 - [[_COMMUNITY_Community 61|Community 61]]
+- [[_COMMUNITY_Community 62|Community 62]]
 - [[_COMMUNITY_Community 63|Community 63]]
-- [[_COMMUNITY_Community 64|Community 64]]
-- [[_COMMUNITY_Community 76|Community 76]]
-- [[_COMMUNITY_Community 77|Community 77]]
+- [[_COMMUNITY_Community 65|Community 65]]
+- [[_COMMUNITY_Community 66|Community 66]]
 - [[_COMMUNITY_Community 78|Community 78]]
 - [[_COMMUNITY_Community 79|Community 79]]
+- [[_COMMUNITY_Community 80|Community 80]]
 - [[_COMMUNITY_Community 81|Community 81]]
-- [[_COMMUNITY_Community 82|Community 82]]
 - [[_COMMUNITY_Community 83|Community 83]]
-- [[_COMMUNITY_Community 698|Community 698]]
-- [[_COMMUNITY_Community 699|Community 699]]
-- [[_COMMUNITY_Community 700|Community 700]]
-- [[_COMMUNITY_Community 701|Community 701]]
-- [[_COMMUNITY_Community 702|Community 702]]
-- [[_COMMUNITY_Community 703|Community 703]]
-- [[_COMMUNITY_Community 704|Community 704]]
-- [[_COMMUNITY_Community 705|Community 705]]
-- [[_COMMUNITY_Community 706|Community 706]]
-- [[_COMMUNITY_Community 707|Community 707]]
-- [[_COMMUNITY_Community 708|Community 708]]
-- [[_COMMUNITY_Community 709|Community 709]]
-- [[_COMMUNITY_Community 710|Community 710]]
-- [[_COMMUNITY_Community 711|Community 711]]
-- [[_COMMUNITY_Community 712|Community 712]]
-- [[_COMMUNITY_Community 713|Community 713]]
-- [[_COMMUNITY_Community 714|Community 714]]
-- [[_COMMUNITY_Community 715|Community 715]]
-- [[_COMMUNITY_Community 716|Community 716]]
-- [[_COMMUNITY_Community 720|Community 720]]
-- [[_COMMUNITY_Community 722|Community 722]]
-- [[_COMMUNITY_Community 723|Community 723]]
-- [[_COMMUNITY_Community 724|Community 724]]
-- [[_COMMUNITY_Community 725|Community 725]]
-- [[_COMMUNITY_Community 726|Community 726]]
-- [[_COMMUNITY_Community 727|Community 727]]
-- [[_COMMUNITY_Community 728|Community 728]]
-- [[_COMMUNITY_Community 729|Community 729]]
-- [[_COMMUNITY_Community 730|Community 730]]
-- [[_COMMUNITY_Community 731|Community 731]]
-- [[_COMMUNITY_Community 732|Community 732]]
-- [[_COMMUNITY_Community 733|Community 733]]
-- [[_COMMUNITY_Community 734|Community 734]]
-- [[_COMMUNITY_Community 735|Community 735]]
-- [[_COMMUNITY_Community 736|Community 736]]
-- [[_COMMUNITY_Community 737|Community 737]]
-- [[_COMMUNITY_Community 738|Community 738]]
+- [[_COMMUNITY_Community 84|Community 84]]
+- [[_COMMUNITY_Community 85|Community 85]]
+- [[_COMMUNITY_Community 739|Community 739]]
+- [[_COMMUNITY_Community 740|Community 740]]
+- [[_COMMUNITY_Community 741|Community 741]]
+- [[_COMMUNITY_Community 742|Community 742]]
+- [[_COMMUNITY_Community 743|Community 743]]
+- [[_COMMUNITY_Community 744|Community 744]]
+- [[_COMMUNITY_Community 745|Community 745]]
+- [[_COMMUNITY_Community 746|Community 746]]
+- [[_COMMUNITY_Community 747|Community 747]]
+- [[_COMMUNITY_Community 748|Community 748]]
+- [[_COMMUNITY_Community 749|Community 749]]
+- [[_COMMUNITY_Community 750|Community 750]]
+- [[_COMMUNITY_Community 751|Community 751]]
+- [[_COMMUNITY_Community 752|Community 752]]
+- [[_COMMUNITY_Community 753|Community 753]]
+- [[_COMMUNITY_Community 754|Community 754]]
+- [[_COMMUNITY_Community 755|Community 755]]
+- [[_COMMUNITY_Community 756|Community 756]]
+- [[_COMMUNITY_Community 757|Community 757]]
+- [[_COMMUNITY_Community 758|Community 758]]
+- [[_COMMUNITY_Community 759|Community 759]]
+- [[_COMMUNITY_Community 760|Community 760]]
+- [[_COMMUNITY_Community 761|Community 761]]
+- [[_COMMUNITY_Community 762|Community 762]]
+- [[_COMMUNITY_Community 763|Community 763]]
+- [[_COMMUNITY_Community 764|Community 764]]
+- [[_COMMUNITY_Community 765|Community 765]]
+- [[_COMMUNITY_Community 766|Community 766]]
+- [[_COMMUNITY_Community 767|Community 767]]
+- [[_COMMUNITY_Community 768|Community 768]]
+- [[_COMMUNITY_Community 769|Community 769]]
+- [[_COMMUNITY_Community 770|Community 770]]
+- [[_COMMUNITY_Community 771|Community 771]]
+- [[_COMMUNITY_Community 772|Community 772]]
+- [[_COMMUNITY_Community 773|Community 773]]
+- [[_COMMUNITY_Community 774|Community 774]]
+- [[_COMMUNITY_Community 775|Community 775]]
+- [[_COMMUNITY_Community 776|Community 776]]
+- [[_COMMUNITY_Community 777|Community 777]]
+- [[_COMMUNITY_Community 778|Community 778]]
+- [[_COMMUNITY_Community 779|Community 779]]
+- [[_COMMUNITY_Community 780|Community 780]]
+- [[_COMMUNITY_Community 781|Community 781]]
+- [[_COMMUNITY_Community 782|Community 782]]
+- [[_COMMUNITY_Community 786|Community 786]]
+- [[_COMMUNITY_Community 788|Community 788]]
+- [[_COMMUNITY_Community 789|Community 789]]
+- [[_COMMUNITY_Community 790|Community 790]]
+- [[_COMMUNITY_Community 791|Community 791]]
+- [[_COMMUNITY_Community 792|Community 792]]
+- [[_COMMUNITY_Community 793|Community 793]]
+- [[_COMMUNITY_Community 794|Community 794]]
+- [[_COMMUNITY_Community 795|Community 795]]
+- [[_COMMUNITY_Community 796|Community 796]]
+- [[_COMMUNITY_Community 797|Community 797]]
+- [[_COMMUNITY_Community 798|Community 798]]
+- [[_COMMUNITY_Community 799|Community 799]]
+- [[_COMMUNITY_Community 800|Community 800]]
+- [[_COMMUNITY_Community 801|Community 801]]
+- [[_COMMUNITY_Community 802|Community 802]]
+- [[_COMMUNITY_Community 803|Community 803]]
+- [[_COMMUNITY_Community 804|Community 804]]
 
 ## God Nodes (most connected - your core abstractions)
-1. `BlobManager` - 151 edges
-2. `set()` - 144 edges
-3. `nT` - 143 edges
-4. `File` - 139 edges
+1. `BlobManager` - 165 edges
+2. `nT` - 149 edges
+3. `set()` - 148 edges
+4. `File` - 143 edges
 5. `Page` - 137 edges
 6. `SentenceTextSplitter` - 136 edges
 7. `FileProcessor` - 130 edges
-8. `ImageEmbeddings` - 111 edges
+8. `ImageEmbeddings` - 125 edges
 9. `SearchManager` - 103 edges
 10. `OpenAIEmbeddings` - 101 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `build_publishone_feed_sections()` --semantically_similar_to--> `XmlParser`  [INFERRED] [semantically similar]
   app\functions\text_processor\prepdocslib\publishonefeed.py → app\functions\text_processor\prepdocslib\xmlparser.py
-- `Ensures that a directory path exists and has proper permissions.         Create` --uses--> `File`  [INFERRED]
-  app\functions\text_processor\prepdocslib\blobmanager.py → app\functions\text_processor\prepdocslib\listfilestrategy.py
-- `Uploads a file directly to the user's directory in ADLS (no subdirectory).` --uses--> `File`  [INFERRED]
-  app\functions\text_processor\prepdocslib\blobmanager.py → app\functions\text_processor\prepdocslib\listfilestrategy.py
-- `Downloads a blob from Azure Data Lake Storage.          Args:             blo` --uses--> `File`  [INFERRED]
-  app\functions\text_processor\prepdocslib\blobmanager.py → app\functions\text_processor\prepdocslib\listfilestrategy.py
-- `Lists the uploaded documents for the given user.         Only returns files dir` --uses--> `File`  [INFERRED]
-  app\functions\text_processor\prepdocslib\blobmanager.py → app\functions\text_processor\prepdocslib\listfilestrategy.py
+- `get_registered_chatbot_names()` --calls--> `test_chatbot_is_registered()`  [INFERRED]
+  app\backend\approaches\chatbot_prompt_registry.py → tests\test_hyrox_assessment.py
+- `a()` --calls--> `hf()`  [INFERRED]
+  app\backend\static\assets\fluentui-icons-Cr4zNimv.js → app\backend\static\assets\fluentui-react-DGL82trt.js
+- `Gn()` --calls--> `r()`  [INFERRED]
+  app\backend\static\assets\index-D2Vn2NL3.js → app\backend\static\assets\fluentui-react-DGL82trt.js
+- `wf()` --calls--> `zi()`  [INFERRED]
+  app\backend\static\assets\fluentui-react-DGL82trt.js → app\backend\static\assets\vendor-CkLkToPP.js
 
 ## Hyperedges (group relationships)
 - **Per-chatbot customization stack** — chatbot_prompt_registry_module, chatbot_config_registry_module, chatbot_content_filter_module, chatbot_prompt_normalize_chatbot_name [EXTRACTED 0.90]
@@ -218,572 +245,742 @@
 
 ### Community 0 - "Community 0"
 Cohesion: 0.0
-Nodes (885): a(), h(), R(), cf(), df(), e(), ff(), gi() (+877 more)
+Nodes (919): a(), h(), R(), df(), e(), fu(), _i(), nd() (+911 more)
 
 ### Community 1 - "Community 1"
 Cohesion: 0.01
-Nodes (593): ABC, JSONEncoder, LLMOnlySpanExporter, Lists the uploaded documents for the current user.     Only returns files direc, Lists the uploaded documents for the current user.     Only returns files direc, Lists the uploaded documents for the current user.     Only returns files direc, Lists the uploaded documents for the current user.     Only returns files direc, Lists the uploaded documents for the current user.     Only returns files direc (+585 more)
+Nodes (536): getCurrentProfile(), getCurrentSession(), isAuthenticated(), isEmailValid(), login(), normalizeEmail(), parseProfile(), parseSession() (+528 more)
 
 ### Community 2 - "Community 2"
 Cohesion: 0.01
-Nodes (145): clearStoredSession(), writeStoredSession(), lw(), wfe(), setInternalAuthenticationState(), $2(), a7(), aE() (+137 more)
+Nodes (143): upload(), clearStoredSession(), readStoredSession(), writeStoredSession(), pa(), AppGate(), Dl(), DR() (+135 more)
 
 ### Community 3 - "Community 3"
 Cohesion: 0.01
-Nodes (517): eh(), a8(), aA(), AB(), AC(), Ace(), ag(), age() (+509 more)
+Nodes (355): ABC, delete_uploaded(), JSONEncoder, list_uploaded(), LLMOnlySpanExporter, Lists the uploaded documents for the current user.     Only returns files direc, Lists the uploaded documents for the current user.     Only returns files direc, Lists the uploaded documents for the current user.     Only returns files direc (+347 more)
 
 ### Community 4 - "Community 4"
 Cohesion: 0.01
-Nodes (283): apply_saved_chatbot_prompt_override(), build_chat_model_deployments(), build_prompt_admin_payload(), build_simple_auth_required_response(), cancel_chatbot_upload(), cancel_managed_upload(), chat(), chat_stream() (+275 more)
+Nodes (388): copy_tree(), main(), Synchronize prepdocslib ingestion library to function apps. This script ensures, CsvParser, Parse CSV-like tabular files into one Page per logical row.      Goals:     -, delete_documents_by_category main, Enum, build_figure_markup() (+380 more)
 
 ### Community 5 - "Community 5"
-Cohesion: 0.02
-Nodes (240): ab(), Ac(), ad(), Ag(), ah(), Ai(), An(), ao() (+232 more)
+Cohesion: 0.01
+Nodes (298): apply_saved_chatbot_prompt_override(), build_chat_model_deployments(), build_prompt_admin_payload(), build_simple_auth_required_response(), cancel_chatbot_upload(), cancel_managed_upload(), chat(), chat_stream() (+290 more)
 
 ### Community 6 - "Community 6"
 Cohesion: 0.02
-Nodes (115): close_clients(), get_application(), test_authentication_enabled(), add_client_secret(), client_app(), create_application(), create_or_update_application_with_secret(), grant_application_admin_consent() (+107 more)
+Nodes (238): ab(), Ac(), ad(), Ag(), ah(), Ai(), An(), ao() (+230 more)
 
 ### Community 7 - "Community 7"
-Cohesion: 0.04
-Nodes (115): CsvParser, Parse CSV-like tabular files into one Page per logical row.      Goals:     -, Parses the given content.         To learn more, please visit https://pypi.org/, LocalListFileStrategy, Concrete strategy for listing files that are located in a local filesystem, Chunk, Page, Semantic chunk emitted by the splitter (may originate wholly within one page (+107 more)
+Cohesion: 0.02
+Nodes (114): AdlsGen2Setup, main(), Sets up a Data Lake Storage Gen 2 account with sample data and access control, Initializes the command          Parameters         ----------         data_, close_clients(), AsyncTokenCredential, getSpeechRecognitionLocale(), getSpeechToken() (+106 more)
 
 ### Community 8 - "Community 8"
 Cohesion: 0.02
-Nodes (87): AdlsGen2Setup, main(), Sets up a Data Lake Storage Gen 2 account with sample data and access control, Initializes the command          Parameters         ----------         data_, AsyncTokenCredential, Uploads a file directly to the user's directory in ADLS (no subdirectory)., Downloads a blob from Azure Data Lake Storage.          Args:             blo, auth_client() (+79 more)
-
-### Community 9 - "Community 9"
-Cohesion: 0.03
-Nodes (66): getCurrentProfile(), getCurrentSession(), isAuthenticated(), isEmailValid(), login(), logout(), normalizeEmail(), parseProfile() (+58 more)
-
-### Community 10 - "Community 10"
-Cohesion: 0.02
 Nodes (107): Managed Identity & RBAC, RAG Chunking Pattern (token limits), Semantic Ranker, Vector Search (embeddings), Data Categorization (--category), Cloud Ingestion (Azure Functions Skills), Data Ingestion Guide, Document Extraction Stage (+99 more)
 
+### Community 9 - "Community 9"
+Cohesion: 0.04
+Nodes (65): CosmosDBMigrator, migrate_cosmosdb_data(), A migration script to migrate data from CosmosDB to a new format. The old schem, Close the CosmosDB client., Legacy function for backward compatibility.     Migrate data from CosmosDB to a, Migrator class for CosmosDB data migration., Initialize the migrator with CosmosDB account and database.          Args:, Connect to CosmosDB and initialize containers. (+57 more)
+
+### Community 10 - "Community 10"
+Cohesion: 0.07
+Nodes (5): list_managed_uploads(), parse_positive_int_query_param(), upload_managed_files(), CategoryUploadStrategy, ChatbotUploadStrategy
+
 ### Community 11 - "Community 11"
+Cohesion: 0.04
+Nodes (83): e_e(), Wp(), formatProfileDate(), formatTimestamp(), AssessmentQuestion, category_of(), get_question(), key_point_count() (+75 more)
+
+### Community 12 - "Community 12"
 Cohesion: 0.09
 Nodes (47): askApi(), cancelChatbotUploadApi(), chatApi(), configApi(), deleteAllChatbotUploadedFilesApi(), deleteChatbotUploadedFileApi(), deleteChatHistoryApi(), deleteUploadedFileApi() (+39 more)
 
-### Community 12 - "Community 12"
-Cohesion: 0.05
+### Community 13 - "Community 13"
+Cohesion: 0.06
 Nodes (9): zf(), Es(), gue(), Hn, Ji(), que(), rde, xue() (+1 more)
 
-### Community 13 - "Community 13"
-Cohesion: 0.05
-Nodes (21): handleSubmit(), copy_tree(), main(), Synchronize prepdocslib ingestion library to function apps. This script ensures, Ao, CT(), dO, fO (+13 more)
-
 ### Community 14 - "Community 14"
-Cohesion: 0.13
-Nodes (26): buildInitialAssistantPair(), buildInitialConversation(), clearChat(), createClientSessionId(), getConfig(), getCurrentSessionState(), getLastRealQuestion(), handleAsyncRequest() (+18 more)
+Cohesion: 0.04
+Nodes (47): auth_setup(), AuthError, get_token_auth_header(), Decorator for routes that request a specific file that might require access cont, Decorator for routes that might require access control. Unpacks Authorization he, mock_retrieval_response(), mock_retrieval_response_with_sharepoint(), mock_retrieval_response_with_sorting() (+39 more)
 
 ### Community 15 - "Community 15"
-Cohesion: 0.06
-Nodes (35): auth_setup(), AuthError, get_token_auth_header(), Validate an access token is issued by Entra, getSpeechRecognitionLocale(), getSpeechToken(), Decorator for routes that request a specific file that might require access cont, Decorator for routes that might require access control. Unpacks Authorization he (+27 more)
+Cohesion: 0.15
+Nodes (24): buildInitialAssistantPair(), buildInitialConversation(), clearChat(), createClientSessionId(), getConfig(), getCurrentSessionState(), getLastRealQuestion(), handleAsyncRequest() (+16 more)
 
 ### Community 16 - "Community 16"
-Cohesion: 0.25
-Nodes (38): append_tag(), build_document_content(), build_feed_document(), build_folder_context_lines(), build_publishone_feed_sections(), build_tags(), collect_direct_meta_fields(), collect_direct_value_fields() (+30 more)
+Cohesion: 0.13
+Nodes (47): build_chunk_texts(), build_metadata_lines(), FhgPreparedDataset, FhgPreparedDocument, get_optional_string_field(), get_text_field(), make_sourcepage_value(), prepare_fhg_dataset() (+39 more)
 
 ### Community 17 - "Community 17"
-Cohesion: 0.11
-Nodes (36): cancelManagedUploadApi(), deleteManagedUploadedFileApi(), deleteManagedUploadedFilesApi(), listManagedUploadsApi(), parseErrorMessage(), uploadManagedFilesApi(), applyLibraryResponse(), createUniqueId() (+28 more)
+Cohesion: 0.2
+Nodes (43): append_tag(), build_document_content(), build_feed_document(), build_folder_context_lines(), build_publishone_feed_sections(), build_tags(), collect_direct_meta_fields(), collect_direct_value_fields() (+35 more)
 
 ### Community 18 - "Community 18"
-Cohesion: 0.25
-Nodes (24): build_chunk_texts(), build_metadata_lines(), FhgPreparedDataset, FhgPreparedDocument, get_optional_string_field(), get_text_field(), make_sourcepage_value(), prepare_fhg_dataset() (+16 more)
+Cohesion: 0.1
+Nodes (30): logout(), handleLockDirectory(), handleSubmit(), formatChatbotLabel(), globalClearChat(), handleBasicLogout(), handleClickOutside(), handleOpenDeveloperOptions() (+22 more)
 
 ### Community 19 - "Community 19"
+Cohesion: 0.09
+Nodes (33): get_application(), test_authentication_enabled(), add_client_secret(), client_app(), create_application(), create_or_update_application_with_secret(), grant_application_admin_consent(), GrantDefinition (+25 more)
+
+### Community 20 - "Community 20"
 Cohesion: 0.06
 Nodes (2): useHistoryManager(), HistoryPanel()
 
-### Community 20 - "Community 20"
-Cohesion: 0.29
-Nodes (24): build_hyrox_sections_if_applicable(), choose_split_boundary(), dedupe_preserve_order(), find_max_token_end(), get_optional_string_field(), get_required_string_field(), get_required_string_list_field(), has_hyrox_source_category() (+16 more)
-
 ### Community 21 - "Community 21"
-Cohesion: 0.16
-Nodes (10): list_uploaded(), ChatbotPromptStore, format_utc(), InMemoryBlobManager, InMemoryBlobServiceClient, InMemoryContainerClient, test_prompt_store_lists_saved_overrides(), test_prompt_store_rejects_blank_prompt() (+2 more)
-
-### Community 22 - "Community 22"
 Cohesion: 0.08
 Nodes (23): Adding a New azd Environment Variable Guide, Adding New Data Guide, Adding a New Developer Setting Guide, Adding Tests for a New Feature Guide, Overall Code Layout Guide, Python Code Style Guide, Deploying the Application Guide, AGENTS.md - Coding Agent Instructions (+15 more)
 
-### Community 23 - "Community 23"
-Cohesion: 0.51
+### Community 22 - "Community 22"
+Cohesion: 0.49
 Nodes (8): appServicesLogout(), checkLoggedIn(), fetchAuthSetup(), getAppServicesToken(), getRedirectUri(), getToken(), getTokenClaims(), getUsername()
 
-### Community 24 - "Community 24"
+### Community 23 - "Community 23"
 Cohesion: 0.24
 Nodes (20): createPageGradient(), createSurfaceColor(), createUserBubbleGradient(), darken(), getChatbotTheme(), getChatbotThemeCssVariables(), getContrastRatio(), getReadableText() (+12 more)
 
-### Community 25 - "Community 25"
-Cohesion: 0.47
+### Community 24 - "Community 24"
+Cohesion: 0.45
 Nodes (6): buildActivityStepMap(), collectCitations(), extractCitationDetails(), isWebCitation(), normalizeAnswerText(), parseAnswerToHtml()
 
-### Community 26 - "Community 26"
-Cohesion: 0.46
-Nodes (6): handleCompositionEnd(), handleCompositionStart(), onEnterPress(), onQuestionChange(), sendQuestion(), StopCircleIcon()
-
-### Community 27 - "Community 27"
-Cohesion: 0.31
+### Community 25 - "Community 25"
+Cohesion: 0.29
 Nodes (3): onRetrievalModeChange(), onSearchImageEmbeddingsChange(), onSearchTextEmbeddingsChange()
 
+### Community 26 - "Community 26"
+Cohesion: 0.11
+Nodes (1): LayoutWrapper()
+
+### Community 27 - "Community 27"
+Cohesion: 0.2
+Nodes (1): dO
+
 ### Community 28 - "Community 28"
-Cohesion: 0.24
+Cohesion: 0.23
 Nodes (2): getResultsForStep(), getStepQuery()
 
 ### Community 29 - "Community 29"
+Cohesion: 0.23
+Nodes (2): fetchMarkdown(), removeAnchorLinks()
+
+### Community 30 - "Community 30"
+Cohesion: 0.21
+Nodes (2): QuestionInput(), StopCircleIcon()
+
+### Community 31 - "Community 31"
 Cohesion: 0.12
 Nodes (1): renderLabel()
 
-### Community 30 - "Community 30"
-Cohesion: 0.13
-Nodes (1): AnalysisPanel()
-
-### Community 31 - "Community 31"
-Cohesion: 0.13
-Nodes (1): AnswerError()
-
 ### Community 32 - "Community 32"
-Cohesion: 0.13
-Nodes (1): AnswerIcon()
-
-### Community 33 - "Community 33"
-Cohesion: 0.13
-Nodes (1): startOrStopSpeech()
-
-### Community 34 - "Community 34"
-Cohesion: 0.13
-Nodes (1): ClearChatButton()
-
-### Community 35 - "Community 35"
-Cohesion: 0.13
-Nodes (1): HistoryButton()
-
-### Community 36 - "Community 36"
-Cohesion: 0.13
-Nodes (1): HistoryItem()
-
-### Community 37 - "Community 37"
-Cohesion: 0.13
+Cohesion: 0.12
 Nodes (1): LoginButton()
 
+### Community 33 - "Community 33"
+Cohesion: 0.12
+Nodes (1): AnalysisPanel()
+
+### Community 34 - "Community 34"
+Cohesion: 0.12
+Nodes (1): AnswerError()
+
+### Community 35 - "Community 35"
+Cohesion: 0.12
+Nodes (1): AnswerIcon()
+
+### Community 36 - "Community 36"
+Cohesion: 0.12
+Nodes (1): startOrStopSpeech()
+
+### Community 37 - "Community 37"
+Cohesion: 0.12
+Nodes (1): ClearChatButton()
+
 ### Community 38 - "Community 38"
-Cohesion: 0.13
-Nodes (1): SpeechInput()
+Cohesion: 0.12
+Nodes (1): HistoryButton()
 
 ### Community 39 - "Community 39"
-Cohesion: 0.13
-Nodes (1): SettingsButton()
+Cohesion: 0.12
+Nodes (1): HistoryItem()
 
 ### Community 40 - "Community 40"
-Cohesion: 0.13
-Nodes (1): parseSupportingContentItem()
+Cohesion: 0.12
+Nodes (1): SpeechInput()
 
 ### Community 41 - "Community 41"
-Cohesion: 0.13
-Nodes (1): UserChatMessage()
+Cohesion: 0.12
+Nodes (1): SettingsButton()
 
 ### Community 42 - "Community 42"
-Cohesion: 0.13
-Nodes (1): LanguagePicker()
+Cohesion: 0.12
+Nodes (1): parseSupportingContentItem()
 
 ### Community 43 - "Community 43"
-Cohesion: 0.14
-Nodes (1): getStepLabel()
+Cohesion: 0.12
+Nodes (1): UserChatMessage()
 
 ### Community 44 - "Community 44"
-Cohesion: 0.14
-Nodes (1): truncateImageUrl()
+Cohesion: 0.12
+Nodes (1): LanguagePicker()
 
 ### Community 45 - "Community 45"
+Cohesion: 0.13
+Nodes (1): getStepLabel()
+
+### Community 46 - "Community 46"
+Cohesion: 0.13
+Nodes (1): truncateImageUrl()
+
+### Community 47 - "Community 47"
+Cohesion: 0.31
+Nodes (1): j7()
+
+### Community 48 - "Community 48"
 Cohesion: 0.18
 Nodes (4): CustomersPage(), PortalPage(), useToast(), closeForm()
 
-### Community 46 - "Community 46"
+### Community 49 - "Community 49"
 Cohesion: 0.27
 Nodes (4): buildActivityStepMap(), collectCitations(), normalizeAnswerText(), parseAnswerToMarkdown()
 
-### Community 47 - "Community 47"
+### Community 50 - "Community 50"
 Cohesion: 0.2
 Nodes (10): System Architecture Diagram, Chat Query Flow, ChatReadRetrieveRead Approach, Deployment Options (Container Apps vs App Service), Document Ingestion Flow, RAG Chat Application Architecture, App Features List, README.md - RAG Chat App Overview (+2 more)
 
-### Community 49 - "Community 49"
-Cohesion: 0.29
-Nodes (4): BaseMetric, AnyCitationMetric, CitationsMatchedMetric, get_azure_credential()
-
-### Community 50 - "Community 50"
-Cohesion: 0.36
-Nodes (6): sa(), callback(), get_azure_credential(), HarmSeverityLevel, Harm severity levels reported by the Azure AI Evaluator service.     These cons, run_simulator()
-
-### Community 52 - "Community 52"
+### Community 53 - "Community 53"
 Cohesion: 0.33
 Nodes (2): closeCreateModal(), handleCreateSave()
 
-### Community 54 - "Community 54"
-Cohesion: 0.5
-Nodes (2): useInternalAdminAccess(), VerwaltungLayout()
-
 ### Community 55 - "Community 55"
-Cohesion: 0.5
-Nodes (4): Agentic Retrieval (Azure AI Search LLM query planning), Web and SharePoint Knowledge Sources, Retrieval Reasoning Effort (minimal/low/medium), Agentic Retrieval Guide
+Cohesion: 0.33
+Nodes (1): Eye
 
 ### Community 56 - "Community 56"
 Cohesion: 0.5
-Nodes (4): DEPLOYMENT_TARGET azd env var, Container Apps Workload Profile, Deploying on Azure App Service, Deploying on Azure Container Apps
+Nodes (2): useInternalAdminAccess(), VerwaltungLayout()
 
 ### Community 57 - "Community 57"
-Cohesion: 0.67
-Nodes (3): QueryPlanStep type, activityTypeLabels, getStepLabel()
+Cohesion: 0.5
+Nodes (4): Agentic Retrieval (Azure AI Search LLM query planning), Web and SharePoint Knowledge Sources, Retrieval Reasoning Effort (minimal/low/medium), Agentic Retrieval Guide
+
+### Community 58 - "Community 58"
+Cohesion: 0.5
+Nodes (4): DEPLOYMENT_TARGET azd env var, Container Apps Workload Profile, Deploying on Azure App Service, Deploying on Azure Container Apps
 
 ### Community 59 - "Community 59"
 Cohesion: 0.67
+Nodes (3): QueryPlanStep type, activityTypeLabels, getStepLabel()
+
+### Community 61 - "Community 61"
+Cohesion: 0.67
 Nodes (3): Deployment Logs & Debugging, Oryx Build Process, Debugging App Service Deployments
 
-### Community 60 - "Community 60"
+### Community 62 - "Community 62"
 Cohesion: 0.67
 Nodes (3): azd up workflow (hooks, provisioning, deploy), Continuous Deployment (GH Actions / Azure DevOps), Azure Developer CLI Deployment Guide
 
-### Community 61 - "Community 61"
+### Community 63 - "Community 63"
 Cohesion: 1.0
 Nodes (1): Knoll chatbot prompt package.
 
-### Community 63 - "Community 63"
+### Community 65 - "Community 65"
 Cohesion: 1.0
 Nodes (2): AnalysisPanelTabs enum, AnalysisPanel barrel (demo)
 
-### Community 64 - "Community 64"
+### Community 66 - "Community 66"
 Cohesion: 1.0
 Nodes (2): ThoughtProcess component (demo), truncateImageUrl helper
 
-### Community 76 - "Community 76"
+### Community 78 - "Community 78"
 Cohesion: 1.0
 Nodes (2): Graphify Integration Rules, CLAUDE.md - Claude Agent Rules
 
-### Community 77 - "Community 77"
+### Community 79 - "Community 79"
 Cohesion: 1.0
 Nodes (2): Simple Figure expected content (figure extraction fixture), Simple Figure PDF (figure extraction fixture)
 
-### Community 78 - "Community 78"
+### Community 80 - "Community 80"
 Cohesion: 1.0
 Nodes (2): Simple HTML Table expected content (table extraction fixture), Simple Table PDF (table extraction fixture)
 
-### Community 79 - "Community 79"
+### Community 81 - "Community 81"
 Cohesion: 1.0
 Nodes (1): Answer component (demo)
 
-### Community 81 - "Community 81"
+### Community 83 - "Community 83"
 Cohesion: 1.0
 Nodes (1): internal_admin_required decorator
 
-### Community 82 - "Community 82"
+### Community 84 - "Community 84"
 Cohesion: 1.0
 Nodes (1): app/backend/delete_documents_by_category.py
 
-### Community 83 - "Community 83"
+### Community 85 - "Community 85"
 Cohesion: 1.0
 Nodes (1): Error Response Module
 
-### Community 698 - "Community 698"
+### Community 739 - "Community 739"
+Cohesion: 1.0
+Nodes (1): Pick exactly ``QUESTIONS_PER_RUN`` distinct question numbers, balanced across th
+
+### Community 740 - "Community 740"
+Cohesion: 1.0
+Nodes (1): Parse a ``points`` attribute (e.g. ``"1,1,0,1"``) into a list of 0/1 ints.
+
+### Community 741 - "Community 741"
+Cohesion: 1.0
+Nodes (1): Authoritative per-question score from ``questions.py`` — the model's arithmetic
+
+### Community 742 - "Community 742"
+Cohesion: 1.0
+Nodes (1): Parse the (single) finalising ``[[SCORE]]`` marker from this turn's output, if a
+
+### Community 743 - "Community 743"
+Cohesion: 1.0
+Nodes (1): Authoritative cumulative tally from normalised per-question scores.
+
+### Community 744 - "Community 744"
+Cohesion: 1.0
+Nodes (1): Per-category awarded/max — the basis for the strengths/weaknesses take-aways.
+
+### Community 745 - "Community 745"
+Cohesion: 1.0
+Nodes (1): Reconstruct the authoritative assessment state for this turn from replayed histo
+
+### Community 746 - "Community 746"
+Cohesion: 1.0
+Nodes (1): The system-controlled block appended to the prompt each turn. Pins the LLM to a
+
+### Community 747 - "Community 747"
+Cohesion: 1.0
+Nodes (1): Remove any progress header / running total / completion line the model wrote
+
+### Community 748 - "Community 748"
+Cohesion: 1.0
+Nodes (1): Remove all hidden control markers from text (defense in depth; the frontend also
+
+### Community 749 - "Community 749"
+Cohesion: 1.0
+Nodes (1): Post-process one assistant message: strip any model-written numbers, prepend the
+
+### Community 750 - "Community 750"
+Cohesion: 1.0
+Nodes (1): Build the result payload the LMS will consume (pass→certificate).
+
+### Community 751 - "Community 751"
+Cohesion: 1.0
+Nodes (1): STUB: hand the assessment result to the Lemon LMS.      Lemon owns the real inte
+
+### Community 752 - "Community 752"
+Cohesion: 1.0
+Nodes (1): Persist the session log to blob storage when a BlobManager is available.
+
+### Community 753 - "Community 753"
+Cohesion: 1.0
+Nodes (1): Remove all hidden control markers from a piece of text (defense in depth).
+
+### Community 754 - "Community 754"
+Cohesion: 1.0
+Nodes (1): Parse ``key=value`` / ``key="value"`` pairs from a marker body.
+
+### Community 755 - "Community 755"
+Cohesion: 1.0
+Nodes (1): Return the score entries found in a single piece of text.
+
+### Community 756 - "Community 756"
+Cohesion: 1.0
+Nodes (1): Collect score markers across the whole conversation, deduped by question.      I
+
+### Community 757 - "Community 757"
+Cohesion: 1.0
+Nodes (1): Authoritative tally from score markers — the model's own totals are not trusted.
+
+### Community 758 - "Community 758"
+Cohesion: 1.0
+Nodes (1): Per-category awarded/max — the basis for the strengths/weaknesses take-aways.
+
+### Community 759 - "Community 759"
+Cohesion: 1.0
+Nodes (1): Build the result payload the LMS will consume (pass→certificate).
+
+### Community 760 - "Community 760"
+Cohesion: 1.0
+Nodes (1): STUB: hand the assessment result to the Lemon LMS.      Lemon owns the real inte
+
+### Community 761 - "Community 761"
+Cohesion: 1.0
+Nodes (1): If the latest message finalises the assessment, log it and report to the LMS.
+
+### Community 762 - "Community 762"
+Cohesion: 1.0
+Nodes (1): Persist the session log to blob storage when a BlobManager is available.
+
+### Community 763 - "Community 763"
+Cohesion: 1.0
+Nodes (1): Render the structured question pool into a delimited block for the prompt.
+
+### Community 764 - "Community 764"
 Cohesion: 1.0
 Nodes (1): When send_text_sources is False, text sources should be omitted while citations
 
-### Community 699 - "Community 699"
+### Community 765 - "Community 765"
 Cohesion: 1.0
 Nodes (1): Sending search_image_embeddings=True when USE_MULTIMODAL is false should be igno
 
-### Community 700 - "Community 700"
+### Community 766 - "Community 766"
 Cohesion: 1.0
 Nodes (1): When send_text_sources is False, text sources should be omitted while citations
 
-### Community 701 - "Community 701"
+### Community 767 - "Community 767"
 Cohesion: 1.0
 Nodes (1): Sending search_image_embeddings=True when USE_MULTIMODAL is false should be igno
 
-### Community 702 - "Community 702"
+### Community 768 - "Community 768"
 Cohesion: 1.0
 Nodes (1): Make requests to provided url until it responds without error.
 
-### Community 703 - "Community 703"
+### Community 769 - "Community 769"
 Cohesion: 1.0
 Nodes (1): Returns a free port for the test server to bind.
 
-### Community 704 - "Community 704"
+### Community 770 - "Community 770"
 Cohesion: 1.0
 Nodes (1): Test that the stop button feature works without breaking the chat flow.      N
 
-### Community 705 - "Community 705"
+### Community 771 - "Community 771"
 Cohesion: 1.0
 Nodes (1): Test that when streaming returns no content, the question is restored to input.
 
-### Community 706 - "Community 706"
+### Community 772 - "Community 772"
 Cohesion: 1.0
 Nodes (1): Test that selecting 'Minimal' effort deselects and disables the web source check
 
-### Community 707 - "Community 707"
+### Community 773 - "Community 773"
 Cohesion: 1.0
 Nodes (1): Return a dict of chatbot_name → ChatbotConfig for all bots that have a config.py
 
-### Community 708 - "Community 708"
+### Community 774 - "Community 774"
 Cohesion: 1.0
 Nodes (1): Test that selecting 'Minimal' effort deselects and disables the web source check
 
-### Community 709 - "Community 709"
+### Community 775 - "Community 775"
 Cohesion: 1.0
 Nodes (1): Test that selecting 'Minimal' effort deselects and disables the web source check
 
-### Community 710 - "Community 710"
+### Community 776 - "Community 776"
 Cohesion: 1.0
 Nodes (1): Get path to current azd env file and load file using python-dotenv
 
-### Community 711 - "Community 711"
+### Community 777 - "Community 777"
 Cohesion: 1.0
 Nodes (1): Return a dict of chatbot_name → ChatbotConfig for all bots that have a config.py
 
-### Community 712 - "Community 712"
+### Community 778 - "Community 778"
 Cohesion: 1.0
 Nodes (1): Builds OpenAI chat completion messages from Jinja2 templates.
 
-### Community 713 - "Community 713"
+### Community 779 - "Community 779"
 Cohesion: 1.0
 Nodes (1): Build a single system message. Use for simple prompts like query rewrite.
 
-### Community 714 - "Community 714"
+### Community 780 - "Community 780"
 Cohesion: 1.0
 Nodes (1): Build a single user message with optional images.          Args:
 
-### Community 715 - "Community 715"
+### Community 781 - "Community 781"
 Cohesion: 1.0
 Nodes (1): Build a full conversation with system, history, and user message.          Arg
 
-### Community 716 - "Community 716"
+### Community 782 - "Community 782"
 Cohesion: 1.0
 Nodes (1): Load tools from a JSON file.
 
-### Community 720 - "Community 720"
+### Community 786 - "Community 786"
 Cohesion: 1.0
 Nodes (1): safety_results.json output
 
-### Community 722 - "Community 722"
+### Community 788 - "Community 788"
 Cohesion: 1.0
 Nodes (1): app/backend/requirements.txt
 
-### Community 723 - "Community 723"
+### Community 789 - "Community 789"
 Cohesion: 1.0
 Nodes (1): SECURITY.md - Microsoft Security Policy
 
-### Community 724 - "Community 724"
+### Community 790 - "Community 790"
 Cohesion: 1.0
 Nodes (1): requirements-dev.txt (ruff, black, pytest, playwright)
 
-### Community 725 - "Community 725"
+### Community 791 - "Community 791"
 Cohesion: 1.0
 Nodes (1): app/backend/requirements.txt (backend deps)
 
-### Community 726 - "Community 726"
+### Community 792 - "Community 792"
 Cohesion: 1.0
 Nodes (1): document_extractor function requirements
 
-### Community 727 - "Community 727"
+### Community 793 - "Community 793"
 Cohesion: 1.0
 Nodes (1): figure_processor function requirements
 
-### Community 728 - "Community 728"
+### Community 794 - "Community 794"
 Cohesion: 1.0
 Nodes (1): moodle_auto_indexer function requirements
 
-### Community 729 - "Community 729"
+### Community 795 - "Community 795"
 Cohesion: 1.0
 Nodes (1): text_processor function requirements
 
-### Community 730 - "Community 730"
+### Community 796 - "Community 796"
 Cohesion: 1.0
 Nodes (1): Text Splitter Sections Snapshot (sentence splitter list parse)
 
-### Community 731 - "Community 731"
+### Community 797 - "Community 797"
 Cohesion: 1.0
 Nodes (1): Arabic PDF fixture - Tribute to Michael Hart (RTL/Arabic multilingual test)
 
-### Community 732 - "Community 732"
+### Community 798 - "Community 798"
 Cohesion: 1.0
 Nodes (1): English PDF fixture - An Occurrence at Owl Creek Bridge (literature sample)
 
-### Community 733 - "Community 733"
+### Community 799 - "Community 799"
 Cohesion: 1.0
 Nodes (1): Financial Market Analysis Report 2023 (technical doc fixture)
 
-### Community 734 - "Community 734"
+### Community 800 - "Community 800"
 Cohesion: 1.0
 Nodes (1): Japanese RTL Top-To-Bottom layout test PDF fixture
 
-### Community 735 - "Community 735"
+### Community 801 - "Community 801"
 Cohesion: 1.0
 Nodes (1): Japanese PDF fixture - 悪魔 (Akuma) literature sample
 
-### Community 736 - "Community 736"
+### Community 802 - "Community 802"
 Cohesion: 1.0
 Nodes (1): Korean PDF fixture - 도시로 간 쥐 (City Mouse) literature sample
 
-### Community 737 - "Community 737"
+### Community 803 - "Community 803"
 Cohesion: 1.0
 Nodes (1): Chinese PDF fixture - You Xue Qiong Lin (幼學瓊林) literature sample
 
-### Community 738 - "Community 738"
+### Community 804 - "Community 804"
 Cohesion: 1.0
 Nodes (1): agindo-chatbot.png asset
 
 ## Knowledge Gaps
-- **209 isolated node(s):** `ChatUser Locust Load Test`, `/chat JSON API contract`, `authenticated decorator`, `internal_admin_required decorator`, `app/backend/delete_documents_by_category.py` (+204 more)
+- **259 isolated node(s):** `ChatUser Locust Load Test`, `/chat JSON API contract`, `authenticated decorator`, `internal_admin_required decorator`, `app/backend/delete_documents_by_category.py` (+254 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **Thin community `Community 19`** (32 nodes): `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `getPublicTestUserScope()`, `getRakUserScope()`, `useHistoryManager()`, `HistoryPanel()`
+- **Thin community `Community 20`** (34 nodes): `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `HistoryPanel.tsx`, `HistoryManager.ts`, `getPublicTestUserScope()`, `getRakUserScope()`, `useHistoryManager()`, `HistoryPanel()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 28`** (16 nodes): `getResultsForStep()`, `getStepQuery()`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`
+- **Thin community `Community 26`** (18 nodes): `layoutWrapper.tsx`, `layoutWrapper.tsx`, `layoutWrapper.tsx`, `layoutWrapper.tsx`, `layoutWrapper.tsx`, `layoutWrapper.tsx`, `layoutWrapper.tsx`, `layoutWrapper.tsx`, `layoutWrapper.tsx`, `layoutWrapper.tsx`, `layoutWrapper.tsx`, `layoutWrapper.tsx`, `layoutWrapper.tsx`, `layoutWrapper.tsx`, `layoutWrapper.tsx`, `layoutWrapper.tsx`, `InternalLayout()`, `LayoutWrapper()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 29`** (16 nodes): `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `renderLabel()`
+- **Thin community `Community 27`** (17 nodes): `dO`, `.addNamespaces()`, `.addResource()`, `.addResourceBundle()`, `.addResources()`, `.constructor()`, `.getDataByLanguage()`, `.getResourceBundle()`, `.hasLanguageSomeTranslations()`, `.hasResourceBundle()`, `.removeNamespaces()`, `.removeResourceBundle()`, `.toJSON()`, `.emit()`, `.loaded()`, `.getResource()`, `.setResolvedLanguage()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 30`** (15 nodes): `AnalysisPanel()`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`
+- **Thin community `Community 28`** (17 nodes): `getResultsForStep()`, `getStepQuery()`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`, `AgentPlan.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 31`** (15 nodes): `AnswerError()`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`
+- **Thin community `Community 29`** (17 nodes): `MarkdownViewer.tsx`, `MarkdownViewer.tsx`, `MarkdownViewer.tsx`, `MarkdownViewer.tsx`, `MarkdownViewer.tsx`, `MarkdownViewer.tsx`, `MarkdownViewer.tsx`, `MarkdownViewer.tsx`, `MarkdownViewer.tsx`, `MarkdownViewer.tsx`, `MarkdownViewer.tsx`, `MarkdownViewer.tsx`, `MarkdownViewer.tsx`, `MarkdownViewer.tsx`, `MarkdownViewer.tsx`, `fetchMarkdown()`, `removeAnchorLinks()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 32`** (15 nodes): `AnswerIcon()`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`
+- **Thin community `Community 30`** (17 nodes): `QuestionInput.tsx`, `QuestionInput.tsx`, `QuestionInput.tsx`, `QuestionInput.tsx`, `QuestionInput.tsx`, `QuestionInput.tsx`, `QuestionInput.tsx`, `QuestionInput.tsx`, `QuestionInput.tsx`, `QuestionInput.tsx`, `QuestionInput.tsx`, `QuestionInput.tsx`, `QuestionInput.tsx`, `QuestionInput.tsx`, `QuestionInput.tsx`, `QuestionInput()`, `StopCircleIcon()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 33`** (15 nodes): `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `startOrStopSpeech()`
+- **Thin community `Community 31`** (17 nodes): `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `Settings.tsx`, `renderLabel()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 34`** (15 nodes): `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton()`
+- **Thin community `Community 32`** (16 nodes): `LoginButton.tsx`, `LoginButton.tsx`, `LoginButton.tsx`, `LoginButton.tsx`, `LoginButton.tsx`, `LoginButton.tsx`, `LoginButton.tsx`, `LoginButton.tsx`, `LoginButton.tsx`, `LoginButton.tsx`, `LoginButton.tsx`, `LoginButton.tsx`, `LoginButton.tsx`, `LoginButton.tsx`, `LoginButton.tsx`, `LoginButton()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 35`** (15 nodes): `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton()`
+- **Thin community `Community 33`** (16 nodes): `AnalysisPanel()`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`, `AnalysisPanel.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 36`** (15 nodes): `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem()`
+- **Thin community `Community 34`** (16 nodes): `AnswerError()`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`, `AnswerError.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 37`** (15 nodes): `LoginButton.tsx`, `LoginButton.tsx`, `LoginButton.tsx`, `LoginButton.tsx`, `LoginButton.tsx`, `LoginButton.tsx`, `LoginButton.tsx`, `LoginButton.tsx`, `LoginButton.tsx`, `LoginButton.tsx`, `LoginButton.tsx`, `LoginButton.tsx`, `LoginButton.tsx`, `LoginButton.tsx`, `LoginButton()`
+- **Thin community `Community 35`** (16 nodes): `AnswerIcon()`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`, `AnswerIcon.tsx`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 38`** (15 nodes): `SpeechInput.tsx`, `SpeechInput.tsx`, `SpeechInput.tsx`, `SpeechInput.tsx`, `SpeechInput.tsx`, `SpeechInput.tsx`, `SpeechInput.tsx`, `SpeechInput.tsx`, `SpeechInput.tsx`, `SpeechInput.tsx`, `SpeechInput.tsx`, `SpeechInput.tsx`, `SpeechInput.tsx`, `SpeechInput.tsx`, `SpeechInput()`
+- **Thin community `Community 36`** (16 nodes): `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `SpeechOutputBrowser.tsx`, `startOrStopSpeech()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 39`** (15 nodes): `SettingsButton.tsx`, `SettingsButton.tsx`, `SettingsButton.tsx`, `SettingsButton.tsx`, `SettingsButton.tsx`, `SettingsButton.tsx`, `SettingsButton.tsx`, `SettingsButton.tsx`, `SettingsButton.tsx`, `SettingsButton.tsx`, `SettingsButton.tsx`, `SettingsButton.tsx`, `SettingsButton.tsx`, `SettingsButton.tsx`, `SettingsButton()`
+- **Thin community `Community 37`** (16 nodes): `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton.tsx`, `ClearChatButton()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 40`** (15 nodes): `SupportingContentParser.ts`, `SupportingContentParser.ts`, `SupportingContentParser.ts`, `SupportingContentParser.ts`, `SupportingContentParser.ts`, `SupportingContentParser.ts`, `SupportingContentParser.ts`, `SupportingContentParser.ts`, `SupportingContentParser.ts`, `SupportingContentParser.ts`, `SupportingContentParser.ts`, `SupportingContentParser.ts`, `SupportingContentParser.ts`, `SupportingContentParser.ts`, `parseSupportingContentItem()`
+- **Thin community `Community 38`** (16 nodes): `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton.tsx`, `HistoryButton()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 41`** (15 nodes): `UserChatMessage.tsx`, `UserChatMessage.tsx`, `UserChatMessage.tsx`, `UserChatMessage.tsx`, `UserChatMessage.tsx`, `UserChatMessage.tsx`, `UserChatMessage.tsx`, `UserChatMessage.tsx`, `UserChatMessage.tsx`, `UserChatMessage.tsx`, `UserChatMessage.tsx`, `UserChatMessage.tsx`, `UserChatMessage.tsx`, `UserChatMessage.tsx`, `UserChatMessage()`
+- **Thin community `Community 39`** (16 nodes): `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem.tsx`, `HistoryItem()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 42`** (15 nodes): `LanguagePicker.tsx`, `LanguagePicker.tsx`, `LanguagePicker.tsx`, `LanguagePicker.tsx`, `LanguagePicker.tsx`, `LanguagePicker.tsx`, `LanguagePicker.tsx`, `LanguagePicker.tsx`, `LanguagePicker.tsx`, `LanguagePicker.tsx`, `LanguagePicker.tsx`, `LanguagePicker.tsx`, `LanguagePicker.tsx`, `LanguagePicker.tsx`, `LanguagePicker()`
+- **Thin community `Community 40`** (16 nodes): `SpeechInput.tsx`, `SpeechInput.tsx`, `SpeechInput.tsx`, `SpeechInput.tsx`, `SpeechInput.tsx`, `SpeechInput.tsx`, `SpeechInput.tsx`, `SpeechInput.tsx`, `SpeechInput.tsx`, `SpeechInput.tsx`, `SpeechInput.tsx`, `SpeechInput.tsx`, `SpeechInput.tsx`, `SpeechInput.tsx`, `SpeechInput.tsx`, `SpeechInput()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 43`** (14 nodes): `getStepLabel()`, `agentPlanUtils.ts`, `agentPlanUtils.ts`, `agentPlanUtils.ts`, `agentPlanUtils.ts`, `agentPlanUtils.ts`, `agentPlanUtils.ts`, `agentPlanUtils.ts`, `agentPlanUtils.ts`, `agentPlanUtils.ts`, `agentPlanUtils.ts`, `agentPlanUtils.ts`, `agentPlanUtils.ts`, `agentPlanUtils.ts`
+- **Thin community `Community 41`** (16 nodes): `SettingsButton.tsx`, `SettingsButton.tsx`, `SettingsButton.tsx`, `SettingsButton.tsx`, `SettingsButton.tsx`, `SettingsButton.tsx`, `SettingsButton.tsx`, `SettingsButton.tsx`, `SettingsButton.tsx`, `SettingsButton.tsx`, `SettingsButton.tsx`, `SettingsButton.tsx`, `SettingsButton.tsx`, `SettingsButton.tsx`, `SettingsButton.tsx`, `SettingsButton()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 44`** (14 nodes): `ThoughtProcess.tsx`, `ThoughtProcess.tsx`, `ThoughtProcess.tsx`, `ThoughtProcess.tsx`, `ThoughtProcess.tsx`, `ThoughtProcess.tsx`, `ThoughtProcess.tsx`, `ThoughtProcess.tsx`, `ThoughtProcess.tsx`, `ThoughtProcess.tsx`, `ThoughtProcess.tsx`, `ThoughtProcess.tsx`, `ThoughtProcess.tsx`, `truncateImageUrl()`
+- **Thin community `Community 42`** (16 nodes): `SupportingContentParser.ts`, `SupportingContentParser.ts`, `SupportingContentParser.ts`, `SupportingContentParser.ts`, `SupportingContentParser.ts`, `SupportingContentParser.ts`, `SupportingContentParser.ts`, `SupportingContentParser.ts`, `SupportingContentParser.ts`, `SupportingContentParser.ts`, `SupportingContentParser.ts`, `SupportingContentParser.ts`, `SupportingContentParser.ts`, `SupportingContentParser.ts`, `SupportingContentParser.ts`, `parseSupportingContentItem()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 52`** (7 nodes): `DashboardPage.tsx`, `closeConfirmModal()`, `closeCreateModal()`, `handleCreateSave()`, `handleSort()`, `openCreateModal()`, `sortIndicator()`
+- **Thin community `Community 43`** (16 nodes): `UserChatMessage.tsx`, `UserChatMessage.tsx`, `UserChatMessage.tsx`, `UserChatMessage.tsx`, `UserChatMessage.tsx`, `UserChatMessage.tsx`, `UserChatMessage.tsx`, `UserChatMessage.tsx`, `UserChatMessage.tsx`, `UserChatMessage.tsx`, `UserChatMessage.tsx`, `UserChatMessage.tsx`, `UserChatMessage.tsx`, `UserChatMessage.tsx`, `UserChatMessage.tsx`, `UserChatMessage()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 54`** (4 nodes): `useInternalAdminAccess.ts`, `VerwaltungLayout.tsx`, `useInternalAdminAccess()`, `VerwaltungLayout()`
+- **Thin community `Community 44`** (16 nodes): `LanguagePicker.tsx`, `LanguagePicker.tsx`, `LanguagePicker.tsx`, `LanguagePicker.tsx`, `LanguagePicker.tsx`, `LanguagePicker.tsx`, `LanguagePicker.tsx`, `LanguagePicker.tsx`, `LanguagePicker.tsx`, `LanguagePicker.tsx`, `LanguagePicker.tsx`, `LanguagePicker.tsx`, `LanguagePicker.tsx`, `LanguagePicker.tsx`, `LanguagePicker.tsx`, `LanguagePicker()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 61`** (2 nodes): `__init__.py`, `Knoll chatbot prompt package.`
+- **Thin community `Community 45`** (15 nodes): `getStepLabel()`, `agentPlanUtils.ts`, `agentPlanUtils.ts`, `agentPlanUtils.ts`, `agentPlanUtils.ts`, `agentPlanUtils.ts`, `agentPlanUtils.ts`, `agentPlanUtils.ts`, `agentPlanUtils.ts`, `agentPlanUtils.ts`, `agentPlanUtils.ts`, `agentPlanUtils.ts`, `agentPlanUtils.ts`, `agentPlanUtils.ts`, `agentPlanUtils.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 63`** (2 nodes): `AnalysisPanelTabs enum`, `AnalysisPanel barrel (demo)`
+- **Thin community `Community 46`** (15 nodes): `ThoughtProcess.tsx`, `ThoughtProcess.tsx`, `ThoughtProcess.tsx`, `ThoughtProcess.tsx`, `ThoughtProcess.tsx`, `ThoughtProcess.tsx`, `ThoughtProcess.tsx`, `ThoughtProcess.tsx`, `ThoughtProcess.tsx`, `ThoughtProcess.tsx`, `ThoughtProcess.tsx`, `ThoughtProcess.tsx`, `ThoughtProcess.tsx`, `ThoughtProcess.tsx`, `truncateImageUrl()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 64`** (2 nodes): `ThoughtProcess component (demo)`, `truncateImageUrl helper`
+- **Thin community `Community 47`** (11 nodes): `j7()`, `.closeConnection()`, `.constructor()`, `.containsKey()`, `.deleteDatabase()`, `.getItem()`, `.getKeys()`, `.open()`, `.removeItem()`, `.setItem()`, `.validateDbIsOpen()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 76`** (2 nodes): `Graphify Integration Rules`, `CLAUDE.md - Claude Agent Rules`
+- **Thin community `Community 53`** (7 nodes): `DashboardPage.tsx`, `closeConfirmModal()`, `closeCreateModal()`, `handleCreateSave()`, `handleSort()`, `openCreateModal()`, `sortIndicator()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 77`** (2 nodes): `Simple Figure expected content (figure extraction fixture)`, `Simple Figure PDF (figure extraction fixture)`
+- **Thin community `Community 55`** (6 nodes): `Eye`, `.addItem()`, `.deleteItem()`, `.getItem()`, `.getNextItems()`, `.resetContinuationToken()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 78`** (2 nodes): `Simple HTML Table expected content (table extraction fixture)`, `Simple Table PDF (table extraction fixture)`
+- **Thin community `Community 56`** (4 nodes): `useInternalAdminAccess.ts`, `VerwaltungLayout.tsx`, `useInternalAdminAccess()`, `VerwaltungLayout()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 79`** (1 nodes): `Answer component (demo)`
+- **Thin community `Community 63`** (2 nodes): `__init__.py`, `Knoll chatbot prompt package.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 81`** (1 nodes): `internal_admin_required decorator`
+- **Thin community `Community 65`** (2 nodes): `AnalysisPanelTabs enum`, `AnalysisPanel barrel (demo)`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 82`** (1 nodes): `app/backend/delete_documents_by_category.py`
+- **Thin community `Community 66`** (2 nodes): `ThoughtProcess component (demo)`, `truncateImageUrl helper`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 83`** (1 nodes): `Error Response Module`
+- **Thin community `Community 78`** (2 nodes): `Graphify Integration Rules`, `CLAUDE.md - Claude Agent Rules`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 698`** (1 nodes): `When send_text_sources is False, text sources should be omitted while citations`
+- **Thin community `Community 79`** (2 nodes): `Simple Figure expected content (figure extraction fixture)`, `Simple Figure PDF (figure extraction fixture)`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 699`** (1 nodes): `Sending search_image_embeddings=True when USE_MULTIMODAL is false should be igno`
+- **Thin community `Community 80`** (2 nodes): `Simple HTML Table expected content (table extraction fixture)`, `Simple Table PDF (table extraction fixture)`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 700`** (1 nodes): `When send_text_sources is False, text sources should be omitted while citations`
+- **Thin community `Community 81`** (1 nodes): `Answer component (demo)`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 701`** (1 nodes): `Sending search_image_embeddings=True when USE_MULTIMODAL is false should be igno`
+- **Thin community `Community 83`** (1 nodes): `internal_admin_required decorator`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 702`** (1 nodes): `Make requests to provided url until it responds without error.`
+- **Thin community `Community 84`** (1 nodes): `app/backend/delete_documents_by_category.py`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 703`** (1 nodes): `Returns a free port for the test server to bind.`
+- **Thin community `Community 85`** (1 nodes): `Error Response Module`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 704`** (1 nodes): `Test that the stop button feature works without breaking the chat flow.      N`
+- **Thin community `Community 739`** (1 nodes): `Pick exactly ``QUESTIONS_PER_RUN`` distinct question numbers, balanced across th`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 705`** (1 nodes): `Test that when streaming returns no content, the question is restored to input.`
+- **Thin community `Community 740`** (1 nodes): `Parse a ``points`` attribute (e.g. ``"1,1,0,1"``) into a list of 0/1 ints.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 706`** (1 nodes): `Test that selecting 'Minimal' effort deselects and disables the web source check`
+- **Thin community `Community 741`** (1 nodes): `Authoritative per-question score from ``questions.py`` — the model's arithmetic`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 707`** (1 nodes): `Return a dict of chatbot_name → ChatbotConfig for all bots that have a config.py`
+- **Thin community `Community 742`** (1 nodes): `Parse the (single) finalising ``[[SCORE]]`` marker from this turn's output, if a`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 708`** (1 nodes): `Test that selecting 'Minimal' effort deselects and disables the web source check`
+- **Thin community `Community 743`** (1 nodes): `Authoritative cumulative tally from normalised per-question scores.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 709`** (1 nodes): `Test that selecting 'Minimal' effort deselects and disables the web source check`
+- **Thin community `Community 744`** (1 nodes): `Per-category awarded/max — the basis for the strengths/weaknesses take-aways.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 710`** (1 nodes): `Get path to current azd env file and load file using python-dotenv`
+- **Thin community `Community 745`** (1 nodes): `Reconstruct the authoritative assessment state for this turn from replayed histo`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 711`** (1 nodes): `Return a dict of chatbot_name → ChatbotConfig for all bots that have a config.py`
+- **Thin community `Community 746`** (1 nodes): `The system-controlled block appended to the prompt each turn. Pins the LLM to a`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 712`** (1 nodes): `Builds OpenAI chat completion messages from Jinja2 templates.`
+- **Thin community `Community 747`** (1 nodes): `Remove any progress header / running total / completion line the model wrote`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 713`** (1 nodes): `Build a single system message. Use for simple prompts like query rewrite.`
+- **Thin community `Community 748`** (1 nodes): `Remove all hidden control markers from text (defense in depth; the frontend also`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 714`** (1 nodes): `Build a single user message with optional images.          Args:`
+- **Thin community `Community 749`** (1 nodes): `Post-process one assistant message: strip any model-written numbers, prepend the`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 715`** (1 nodes): `Build a full conversation with system, history, and user message.          Arg`
+- **Thin community `Community 750`** (1 nodes): `Build the result payload the LMS will consume (pass→certificate).`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 716`** (1 nodes): `Load tools from a JSON file.`
+- **Thin community `Community 751`** (1 nodes): `STUB: hand the assessment result to the Lemon LMS.      Lemon owns the real inte`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 720`** (1 nodes): `safety_results.json output`
+- **Thin community `Community 752`** (1 nodes): `Persist the session log to blob storage when a BlobManager is available.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 722`** (1 nodes): `app/backend/requirements.txt`
+- **Thin community `Community 753`** (1 nodes): `Remove all hidden control markers from a piece of text (defense in depth).`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 723`** (1 nodes): `SECURITY.md - Microsoft Security Policy`
+- **Thin community `Community 754`** (1 nodes): `Parse ``key=value`` / ``key="value"`` pairs from a marker body.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 724`** (1 nodes): `requirements-dev.txt (ruff, black, pytest, playwright)`
+- **Thin community `Community 755`** (1 nodes): `Return the score entries found in a single piece of text.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 725`** (1 nodes): `app/backend/requirements.txt (backend deps)`
+- **Thin community `Community 756`** (1 nodes): `Collect score markers across the whole conversation, deduped by question.      I`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 726`** (1 nodes): `document_extractor function requirements`
+- **Thin community `Community 757`** (1 nodes): `Authoritative tally from score markers — the model's own totals are not trusted.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 727`** (1 nodes): `figure_processor function requirements`
+- **Thin community `Community 758`** (1 nodes): `Per-category awarded/max — the basis for the strengths/weaknesses take-aways.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 728`** (1 nodes): `moodle_auto_indexer function requirements`
+- **Thin community `Community 759`** (1 nodes): `Build the result payload the LMS will consume (pass→certificate).`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 729`** (1 nodes): `text_processor function requirements`
+- **Thin community `Community 760`** (1 nodes): `STUB: hand the assessment result to the Lemon LMS.      Lemon owns the real inte`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 730`** (1 nodes): `Text Splitter Sections Snapshot (sentence splitter list parse)`
+- **Thin community `Community 761`** (1 nodes): `If the latest message finalises the assessment, log it and report to the LMS.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 731`** (1 nodes): `Arabic PDF fixture - Tribute to Michael Hart (RTL/Arabic multilingual test)`
+- **Thin community `Community 762`** (1 nodes): `Persist the session log to blob storage when a BlobManager is available.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 732`** (1 nodes): `English PDF fixture - An Occurrence at Owl Creek Bridge (literature sample)`
+- **Thin community `Community 763`** (1 nodes): `Render the structured question pool into a delimited block for the prompt.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 733`** (1 nodes): `Financial Market Analysis Report 2023 (technical doc fixture)`
+- **Thin community `Community 764`** (1 nodes): `When send_text_sources is False, text sources should be omitted while citations`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 734`** (1 nodes): `Japanese RTL Top-To-Bottom layout test PDF fixture`
+- **Thin community `Community 765`** (1 nodes): `Sending search_image_embeddings=True when USE_MULTIMODAL is false should be igno`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 735`** (1 nodes): `Japanese PDF fixture - 悪魔 (Akuma) literature sample`
+- **Thin community `Community 766`** (1 nodes): `When send_text_sources is False, text sources should be omitted while citations`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 736`** (1 nodes): `Korean PDF fixture - 도시로 간 쥐 (City Mouse) literature sample`
+- **Thin community `Community 767`** (1 nodes): `Sending search_image_embeddings=True when USE_MULTIMODAL is false should be igno`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 737`** (1 nodes): `Chinese PDF fixture - You Xue Qiong Lin (幼學瓊林) literature sample`
+- **Thin community `Community 768`** (1 nodes): `Make requests to provided url until it responds without error.`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 738`** (1 nodes): `agindo-chatbot.png asset`
+- **Thin community `Community 769`** (1 nodes): `Returns a free port for the test server to bind.`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 770`** (1 nodes): `Test that the stop button feature works without breaking the chat flow.      N`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 771`** (1 nodes): `Test that when streaming returns no content, the question is restored to input.`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 772`** (1 nodes): `Test that selecting 'Minimal' effort deselects and disables the web source check`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 773`** (1 nodes): `Return a dict of chatbot_name → ChatbotConfig for all bots that have a config.py`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 774`** (1 nodes): `Test that selecting 'Minimal' effort deselects and disables the web source check`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 775`** (1 nodes): `Test that selecting 'Minimal' effort deselects and disables the web source check`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 776`** (1 nodes): `Get path to current azd env file and load file using python-dotenv`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 777`** (1 nodes): `Return a dict of chatbot_name → ChatbotConfig for all bots that have a config.py`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 778`** (1 nodes): `Builds OpenAI chat completion messages from Jinja2 templates.`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 779`** (1 nodes): `Build a single system message. Use for simple prompts like query rewrite.`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 780`** (1 nodes): `Build a single user message with optional images.          Args:`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 781`** (1 nodes): `Build a full conversation with system, history, and user message.          Arg`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 782`** (1 nodes): `Load tools from a JSON file.`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 786`** (1 nodes): `safety_results.json output`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 788`** (1 nodes): `app/backend/requirements.txt`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 789`** (1 nodes): `SECURITY.md - Microsoft Security Policy`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 790`** (1 nodes): `requirements-dev.txt (ruff, black, pytest, playwright)`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 791`** (1 nodes): `app/backend/requirements.txt (backend deps)`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 792`** (1 nodes): `document_extractor function requirements`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 793`** (1 nodes): `figure_processor function requirements`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 794`** (1 nodes): `moodle_auto_indexer function requirements`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 795`** (1 nodes): `text_processor function requirements`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 796`** (1 nodes): `Text Splitter Sections Snapshot (sentence splitter list parse)`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 797`** (1 nodes): `Arabic PDF fixture - Tribute to Michael Hart (RTL/Arabic multilingual test)`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 798`** (1 nodes): `English PDF fixture - An Occurrence at Owl Creek Bridge (literature sample)`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 799`** (1 nodes): `Financial Market Analysis Report 2023 (technical doc fixture)`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 800`** (1 nodes): `Japanese RTL Top-To-Bottom layout test PDF fixture`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 801`** (1 nodes): `Japanese PDF fixture - 悪魔 (Akuma) literature sample`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 802`** (1 nodes): `Korean PDF fixture - 도시로 간 쥐 (City Mouse) literature sample`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 803`** (1 nodes): `Chinese PDF fixture - You Xue Qiong Lin (幼學瓊林) literature sample`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 804`** (1 nodes): `agindo-chatbot.png asset`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `set()` connect `Community 2` to `Community 0`, `Community 1`, `Community 3`, `Community 4`, `Community 6`, `Community 7`, `Community 11`, `Community 13`, `Community 16`, `Community 17`, `Community 20`?**
-  _High betweenness centrality (0.084) - this node is a cross-community bridge._
-- **Why does `update()` connect `Community 8` to `Community 0`, `Community 1`, `Community 2`, `Community 5`?**
-  _High betweenness centrality (0.033) - this node is a cross-community bridge._
-- **Why does `nT` connect `Community 3` to `Community 0`, `Community 2`?**
-  _High betweenness centrality (0.028) - this node is a cross-community bridge._
-- **Are the 131 inferred relationships involving `BlobManager` (e.g. with `LLMOnlySpanExporter` and `JSONEncoder`) actually correct?**
-  _`BlobManager` has 131 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 77 inferred relationships involving `set()` (e.g. with `save_internal_admin_prompt()` and `delete_internal_admin_prompt()`) actually correct?**
-  _`set()` has 77 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 83 inferred relationships involving `nT` (e.g. with `Ky()` and `fw()`) actually correct?**
-  _`nT` has 83 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 127 inferred relationships involving `File` (e.g. with `LLMOnlySpanExporter` and `JSONEncoder`) actually correct?**
-  _`File` has 127 INFERRED edges - model-reasoned connections that need verification._
+- **Why does `set()` connect `Community 2` to `Community 0`, `Community 1`, `Community 3`, `Community 4`, `Community 5`, `Community 7`, `Community 9`, `Community 10`, `Community 11`, `Community 12`, `Community 16`, `Community 17`?**
+  _High betweenness centrality (0.085) - this node is a cross-community bridge._
+- **Why does `nT` connect `Community 1` to `Community 0`, `Community 2`?**
+  _High betweenness centrality (0.029) - this node is a cross-community bridge._
+- **Why does `update()` connect `Community 5` to `Community 0`, `Community 2`, `Community 3`, `Community 4`, `Community 6`?**
+  _High betweenness centrality (0.027) - this node is a cross-community bridge._
+- **Are the 145 inferred relationships involving `BlobManager` (e.g. with `LLMOnlySpanExporter` and `JSONEncoder`) actually correct?**
+  _`BlobManager` has 145 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 89 inferred relationships involving `nT` (e.g. with `dw()` and `rv()`) actually correct?**
+  _`nT` has 89 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 81 inferred relationships involving `set()` (e.g. with `save_internal_admin_prompt()` and `delete_internal_admin_prompt()`) actually correct?**
+  _`set()` has 81 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 131 inferred relationships involving `File` (e.g. with `LLMOnlySpanExporter` and `JSONEncoder`) actually correct?**
+  _`File` has 131 INFERRED edges - model-reasoned connections that need verification._

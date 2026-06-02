@@ -258,6 +258,7 @@ KNOWN_CHATBOT_NAMES = {
     "steuertipps",
     "knoll",
     "lemon",
+    "hyrox-assessment",
     "internal",
     "moodle",
     "publishone",

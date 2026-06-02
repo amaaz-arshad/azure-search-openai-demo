@@ -87,8 +87,9 @@ export const QuestionInput = ({ onSend, onStop, disabled, placeholder, clearOnSe
                 className={styles.questionInputTextArea}
                 disabled={disableRequiredAccessControl}
                 placeholder={placeholder}
-                // multiline
-                // resizable={false}
+                multiline
+                resizable={false}
+                autoAdjustHeight
                 borderless
                 value={question}
                 onChange={onQuestionChange}
@@ -97,8 +98,12 @@ export const QuestionInput = ({ onSend, onStop, disabled, placeholder, clearOnSe
                 onCompositionEnd={handleCompositionEnd}
                 styles={{
                     field: {
-                        fontSize: 16 // Ensure minimum 16px font size for iPhone
-                        // minHeight: 44 // Minimum touch target size for iOS
+                        fontSize: 16, // Ensure minimum 16px font size for iPhone
+                        minHeight: 44, // Minimum touch target size for iOS
+                        // Auto-grow with content (autoAdjustHeight) up to a cap, then scroll.
+                        // maxHeight clamps the inline height Fluent sets.
+                        maxHeight: "12rem",
+                        overflowY: "auto"
                     }
                 }}
             />

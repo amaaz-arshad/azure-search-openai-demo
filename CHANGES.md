@@ -15,6 +15,152 @@ Two categories per date:
 
 ---
 
+## 2026-06-02
+
+### Decisions
+
+- **Refactored `/hyrox-assessment` into a backend-owned deterministic state
+  machine.** The first cut was prompt-driven: the LLM chose the 20 questions
+  (`[[PLAN]]`), counted "Question N of 20", and computed the running total /
+  pass-fail in prose — all of which can hallucinate or mis-add. Because this bot
+  issues certificates, ownership of **selection, the counter, aggregation, the
+  percentage, and pass/fail moved into the backend** (`results.py`); the LLM now
+  only does the irreducibly-model part: ask the one backend-pinned question and
+  judge the free-text answer **per key point**.
+  - **State is reconstructed from replayed markers each stateless turn.** The
+    frontend already replays the raw stored `message.content` (markers hidden at
+    render only), so the backend re-derives authoritative state every turn:
+    `derive_turn_state` reads the most-recent backend-authored `[[PLAN]]` for the
+    fixed 20-of-32 plan and counts `[[SCORE]]` markers after it for the run
+    position; `run_until_final_call` injects a "CURRENT TURN STATE" block pinning
+    exactly one question; `run_without_streaming` renders the header / running
+    total / final verdict itself and strips any numbers the model wrote.
+  - **Selection is a balanced random sample of 20/32** (round-robin across the 8
+    categories, randomised order), generated once and **persisted in a
+    backend-authored `[[PLAN]]` marker** — guaranteeing exactly 20 distinct,
+    non-repeating questions independent of LLM behaviour. A failed completed run
+    auto-starts a fresh run on the next turn; a passed run is done.
+  - **Per-key-point grading:** the model emits `[[SCORE q=K points="1,1,0,1"
+    max=Y cat="..."]]` (one 0/1 per key point); the backend computes
+    `awarded = min(sum(points), max_pts)` from `questions.py`, validates the
+    array length, and forces the pinned `q`. Model-authored `[[PLAN]]`/`[[RESULT]]`
+    and any model-written progress numbers are removed.
+  - **Model locked to `gpt-5-mini` / reasoning effort `medium`** (user choice;
+    medium over low for grading accuracy). **Single** grading pass for the beta
+    (no verification pass). Restart is primarily "new session".
+
+- **Built a new `/hyrox-assessment` bot — an interactive knowledge *assessment*,
+  not a RAG Q&A bot.** Asks 20 of 32 pooled questions (8 categories), grades
+  free-text answers against a stored rubric, gives reduced per-question feedback
+  with one correction attempt, and returns binary pass/fail at **80% cumulative**
+  plus per-topic take-aways. Realizes the SNAP "nerilio Assessment Function for
+  HYROX Youngstars" offer. Modeled on lemon's prompt-driven Tutor Mode.
+  - **Q&A pool lives in the system prompt, not the search index.** Grading needs
+    the exact rubric for the asked question on every stateless turn; vector
+    retrieval can't guarantee that, and selecting/ordering 20-of-32 needs the whole
+    pool at once. Stored as a structured data module (`questions.py`) compiled into
+    the prompt. The rak CSV-in-index pattern was explicitly rejected as the wrong fit.
+  - **Knowledge base is NOT indexed.** The Excel rubric (model answer + required key
+    points + accepted alternatives + safeguarding critical-fail) is the self-contained
+    grading authority; the course PDF is background only (and is password-protected).
+    Retrieval is skipped entirely for this bot.
+  - **Scoring via hidden control markers + backend authoritative tally.** The model
+    emits `[[PLAN ids=...]]` once, `[[SCORE q=N awarded=X max=Y cat="..."]]` per
+    finalized question, and `[[RESULT ...]]` at the end. Markers stay in the message
+    so they replay into history (frontend hides them at render, keeping stored content
+    raw); the backend re-tallies all `[[SCORE]]` markers itself rather than trusting
+    the model's arithmetic. Bot runs **non-streaming** so the full message is parsed
+    in one place for the tally + session log.
+  - **Session log written now; LMS result reporting stubbed.** `results.py` writes a
+    transcript+scores+verdict log to blob on `[[RESULT]]` and calls a documented
+    `report_result_to_lms` no-op stub (Lemon owns the real interface).
+  - **Branding:** no visible bot name yet (RoxMate kept ready), highlight `#FFED00`,
+    Brutal font, Lemon chatbot logo asset reused for the visible bot mark.
+
+### Changes
+
+- Determinism refactor (backend state machine):
+  - `questions.py`: added `QUESTIONS_BY_NUMBER` + accessors `get_question`,
+    `key_point_count`, `max_points`, `category_of` (data unchanged).
+  - `results.py`: rewritten as the state engine — `select_question_plan`
+    (balanced random 20-of-32, deterministic under a seed), `derive_turn_state`
+    (plan + score window + counter + tally), per-point `[[SCORE]]` parsing with
+    `parse_points`/`normalize_score` (`awarded = min(sum, max_pts)`, length
+    validation, forced `q`), localized `render_progress_header`/
+    `render_running_total`/`render_final_result`/`render_assessment_turn`,
+    `strip_rendered_numbers`, `build_state_injection`, `format_plan_marker`/
+    `parse_plan_ids`; `record_assessment_result` now fires on the 20th finalized
+    score (no `[[RESULT]]` dependency) from the backend tally.
+  - `sampleprompt.py`: rewritten — the model obeys the injected CURRENT TURN
+    STATE block, asks only the pinned question, emits the per-key-point `[[SCORE]]`
+    marker, and writes no numbers / no `[[PLAN]]`/`[[RESULT]]`.
+  - `config.py`: `gpt-5-mini` / `reasoning_effort="medium"`.
+  - `approach.py`: `ExtraInfo` gained optional `assessment_state` (threads the
+    per-turn state from `run_until_final_call` to `run_without_streaming`).
+  - `chatreadretrieveread.py`: hyrox branch derives state + appends the state
+    injection to `override_prompt` in `run_until_final_call`; renders the
+    authoritative numbers and records on completion in `run_without_streaming`.
+  - Frontend `registry.ts`: hyrox entry → `gpt-5-mini` / `medium`
+    (`assessmentMarkers.ts` unchanged — strips markers by keyword).
+  - `tests/test_hyrox_assessment.py`: rewritten for the engine — plan
+    distinctness/balance/determinism, per-point scoring, counter, a simulated
+    20-turn run proving exactly-20/no-repeat, fail auto-restart, localized
+    rendering, completion trigger (25 tests). `/chat` smoke test retained.
+- Display refinement (follow-up):
+  - **Removed the running "Score so far" line.** Each question's score is now shown
+    once it is graded (`render_question_score`, e.g. "Question 1: 4/6"); the
+    cumulative total/percentage is shown only at the very end.
+  - **Fixed the question-counter placement bug.** The counter previously advanced on
+    the finalisation (feedback-only) message because the backend rendered the header
+    on every turn from the score count. Now the model writes an `[[ASK]]` token
+    immediately before the question it asks; the backend replaces that token with the
+    "Question N of 20" header (N = `n_after`+1), so the header appears right above the
+    question and only on a message that actually asks one. `assessmentMarkers.ts` +
+    `ASK_TOKEN_RE` updated; `build_state_injection`/`sampleprompt.py` teach the token.
+  - **Auto-growing chat input (all chatbot copies).** Enabled Fluent `TextField`
+    `autoAdjustHeight` and capped it via the `field` style slot (`maxHeight: 12rem`,
+    `overflowY: auto`) across all chatbot `QuestionInput.tsx` copies, so the input grows
+    with multi-line/paragraph answers up to a max then scrolls (ChatGPT/Gemini-style).
+    The change was originally scoped to `hyrox-assessment`, then propagated to the
+    other bot-specific copies.
+- Created `hyrox-files/4425-2603 - Lemon Systems - nerilio Assessment - English.pdf`
+  from the German source PDF.
+- Backend: new `app/backend/approaches/chatbots/hyrox_assessment/` package —
+  `questions.py` (32-question pool generated from the xlsx, 167 pts), `sampleprompt.py`
+  (assessment flow + grading rules + rendered pool), `config.py` (gpt-5.4-mini, medium,
+  override), `results.py` (marker parsing, authoritative tally, session log, LMS stub),
+  `__init__.py`.
+- Backend: registered `"hyrox-assessment"` in `chatbot_prompt_registry.py`
+  (config auto-discovers via the `-`→`_` folder mapping).
+- Backend: `chatreadretrieveread.py` — added `_is_hyrox_assessment_chatbot`, a
+  skip-retrieval branch (empty `ExtraInfo`), the result-recording hook in
+  `run_without_streaming`, and imported `DataPoints`.
+- Frontend: new `app/frontend/src/chatbots/hyrox-assessment/` (cloned from lemon),
+  rebranded — `index.ts`, `Chat.tsx` (category, non-streaming, agentic off),
+  `Answer.tsx` + `assessmentMarkers.ts` (strip markers at render only),
+  `Layout.tsx` (+ Brutal `@font-face`), `assets/fonts/` (Brutal), `en/de/nl`
+  locale titles + welcome.
+- Frontend: `/hyrox-assessment` now reuses Lemon's `lemon-chatbot.png` for the
+  navbar logo, answer avatar, and dormant empty-state logo reference.
+- Frontend: propagated the auto-growing question input behavior from
+  `hyrox-assessment` to all chatbot `QuestionInput.tsx` copies and removed the
+  desktop fixed input-container height from FBN so it can grow.
+- Frontend: registered in `chatbots/registry.ts` (new `"assessment"` mode),
+  `ChatbotDirectory.tsx` label, theme `#FFED00` in `shared/theme/chatbotThemes.ts`.
+- Frontend (shared, additive/no-op for other bots): `createBotAnswer.tsx` +
+  `ChatbotAnswer.tsx` gained an optional `preprocessAnswerText` display-only transform.
+- Tests: `tests/test_hyrox_assessment.py` (pool/config/prompt/marker-parsing/tally/
+  pass-fail/record-result) and a `/chat` skip-retrieval smoke test in `tests/test_app.py`.
+- Backend routing fix: added `"hyrox-assessment"` to `KNOWN_CHATBOT_NAMES` in
+  `app/backend/app.py` — the `/<chatbot_name>` route gates against this set and was
+  redirecting `/hyrox-assessment` to `/`. Documented this always-required step in
+  `CLAUDE.md` (Adding A Chatbot → Backend, always required for routing).
+- Prompt refinement (`sampleprompt.py`): every question is now prefixed with a visible
+  localized progress header (`**Question N of 20**` / `Frage N von 20` / `Vraag N van 20`),
+  where N = (#scored so far)+1; the internal pool number (1–32)/category/points stay hidden.
+  Hardened the no-repeat rule with a fallback (never re-ask a question already visible in the
+  conversation even if a marker is missing).
+
 ## 2026-05-26
 
 ### Decisions

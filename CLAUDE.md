@@ -103,6 +103,10 @@ Frontend:
 6. Prefer re-exporting shared `Example` and building answers with `app/frontend/src/chatbots/shared/answer/createBotAnswer.tsx`.
 7. If chatbot auth is needed, gate it in that chatbot's `layoutWrapper.tsx` and standalone `NoPage` route.
 
+Backend, always required for routing:
+
+- Add the chatbot name to `KNOWN_CHATBOT_NAMES` in `app/backend/app.py`. The `/<chatbot_name>` route gates against this set and redirects unknown names to `/`, so a bot missing here loads as a redirect to the home page even though the frontend route exists.
+
 Backend, only when custom behavior is needed:
 
 1. Add `sampleprompt.py` under `app/backend/approaches/chatbots/<chatbot_name>/` for default prompt variables.

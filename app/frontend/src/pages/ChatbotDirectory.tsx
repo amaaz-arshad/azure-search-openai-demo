@@ -178,7 +178,7 @@ const ChatbotDirectory = () => {
                                                     <li className={styles.cardMetaItem}>
                                                         <span className={styles.cardMetaLabel}>Mode</span>
                                                         <span className={styles.cardMetaValue}>
-                                                            {chatbot.mode === "tutor-qna" ? "Tutor + Q&A" : "Q&A"}
+                                                            {chatbot.mode === "tutor-qna" ? "Tutor + Q&A" : chatbot.mode === "assessment" ? "Assessment" : "Q&A"}
                                                         </span>
                                                     </li>
                                                     <li className={styles.cardMetaItem}>

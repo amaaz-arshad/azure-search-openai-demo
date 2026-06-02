@@ -31,6 +31,15 @@ def _is_lemon_chatbot(overrides: dict[str, Any]) -> bool:
     return primary == "lemon"
 
 
+def _is_hyrox_assessment_chatbot(overrides: dict[str, Any]) -> bool:
+    """The HYROX assessment bot grades entirely from its in-prompt rubric — no retrieval."""
+    raw = overrides.get("include_category")
+    if not isinstance(raw, str):
+        return False
+    primary = raw.split(",", 1)[0].strip().lower()
+    return primary == "hyrox-assessment"
+
+
 def _sanitize_lemon_text(text: str) -> str:
     """Strip source labels, filename markers, and ID brackets from a complete text."""
     if not text:
@@ -86,6 +95,7 @@ from openai.types.chat.chat_completion_message import ChatCompletionMessage
 
 from approaches.approach import (
     Approach,
+    DataPoints,
     ExtraInfo,
     ThoughtStep,
 )
@@ -207,6 +217,33 @@ class ChatReadRetrieveReadApproach(Approach):
             extra_info.followup_questions = followup_questions
         if _is_lemon_chatbot(overrides) and isinstance(content, str):
             content = _sanitize_lemon_text(content)
+        if _is_hyrox_assessment_chatbot(overrides) and extra_info.assessment_state is not None:
+            # The backend owns selection, counting, and arithmetic. Render the
+            # authoritative progress header / running total / final verdict into the
+            # message and strip any numbers the model wrote. The hidden [[SCORE]]/[[PLAN]]
+            # markers stay in the content so they replay into history (the frontend hides
+            # them at render). On completion this records the result + session log.
+            from approaches.chatbots.hyrox_assessment.results import (
+                record_assessment_result,
+                render_assessment_turn,
+            )
+
+            content, all_scores, tally, just_completed = render_assessment_turn(
+                content if isinstance(content, str) else None,
+                extra_info.assessment_state,
+                overrides.get("language"),
+            )
+            if just_completed:
+                await record_assessment_result(
+                    scores=all_scores,
+                    tally=tally,
+                    messages=cast(list[dict[str, Any]], messages),
+                    final_content=content,
+                    overrides=overrides,
+                    auth_claims=auth_claims,
+                    session_state=session_state,
+                    blob_manager=self.global_blob_manager,
+                )
         # Assume last thought is for generating answer
         # TODO: Update for agentic? This isn't still true?
         if self.include_token_usage and extra_info.thoughts and chat_completion_response.usage:
@@ -369,7 +406,18 @@ class ChatReadRetrieveReadApproach(Approach):
             raise Exception(
                 f"{effective_chatgpt_model} does not support streaming. Please use a different model or disable streaming."
             )
-        if use_agentic_knowledgebase:
+        if _is_hyrox_assessment_chatbot(overrides):
+            # Assessment bot: the full question pool + rubric live in the system prompt,
+            # so there is nothing to retrieve. Skip search entirely (saves a query-rewrite
+            # + search round-trip per turn) and run with empty sources. Derive the
+            # authoritative turn state now (which question to pin, the run counter, the
+            # fixed 20-question plan) so it can be injected into the prompt below and
+            # reused when rendering the response in run_without_streaming.
+            from approaches.chatbots.hyrox_assessment.results import derive_turn_state
+
+            extra_info = ExtraInfo(DataPoints(text=[]))
+            extra_info.assessment_state = derive_turn_state(cast(list[dict[str, Any]], messages))
+        elif use_agentic_knowledgebase:
             if should_stream and overrides.get("use_web_source"):
                 raise Exception(
                     "Streaming is not supported with agentic retrieval when web source is enabled. Please disable streaming or web source."
@@ -406,19 +454,30 @@ class ChatReadRetrieveReadApproach(Approach):
         user_template_path = (
             "chat_answer.user.lemon.jinja2" if _is_lemon_chatbot(overrides) else "chat_answer.user.jinja2"
         )
+        system_template_variables = self.get_system_prompt_variables(
+            overrides.get("prompt_template"),
+            chatbot_name_override if isinstance(chatbot_name_override, str) else None,
+            saved_prompt=(
+                overrides.get("__saved_prompt_template")
+                if isinstance(overrides.get("__saved_prompt_template"), str)
+                else None
+            ),
+            citations=extra_info.data_points.citations,
+            language=overrides.get("language"),
+        )
+        if _is_hyrox_assessment_chatbot(overrides) and extra_info.assessment_state is not None:
+            # Pin the model to exactly one backend-chosen question and forbid it from
+            # owning the plan, the counter, or any arithmetic (see results.py).
+            from approaches.chatbots.hyrox_assessment.results import build_state_injection
+
+            injection = build_state_injection(extra_info.assessment_state, overrides.get("language"))
+            for prompt_key in ("override_prompt", "injected_prompt"):
+                if isinstance(system_template_variables.get(prompt_key), str):
+                    system_template_variables[prompt_key] += injection
+                    break
         messages = self.prompt_manager.build_conversation(
             system_template_path="chat_answer.system.jinja2",
-            system_template_variables=self.get_system_prompt_variables(
-                overrides.get("prompt_template"),
-                chatbot_name_override if isinstance(chatbot_name_override, str) else None,
-                saved_prompt=(
-                    overrides.get("__saved_prompt_template")
-                    if isinstance(overrides.get("__saved_prompt_template"), str)
-                    else None
-                ),
-                citations=extra_info.data_points.citations,
-                language=overrides.get("language"),
-            )
+            system_template_variables=system_template_variables
             | {
                 "include_follow_up_questions": bool(overrides.get("suggest_followup_questions")),
                 "image_sources": extra_info.data_points.images,
