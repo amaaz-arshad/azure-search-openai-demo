@@ -330,6 +330,62 @@ def test_repeated_question_loop_state_requires_finalization() -> None:
     assert "End this response with EXACTLY one [[SCORE]] marker" in injection
 
 
+def test_is_give_up_or_meta_only_matches_short_messages() -> None:
+    # Short give-up / meta statements are detected ...
+    assert results.is_give_up_or_meta("next") is True
+    assert results.is_give_up_or_meta("skip") is True
+    assert results.is_give_up_or_meta("move on please") is True
+    assert results.is_give_up_or_meta("I don't know") is True
+    assert results.is_give_up_or_meta("no idea, sorry") is True
+    # ... but a substantive answer that merely contains a trigger word is NOT.
+    assert results.is_give_up_or_meta("") is False
+    assert (
+        results.is_give_up_or_meta(
+            "The coach shortens the rest interval before the next attempt and adds a posture cue."
+        )
+        is False
+    )
+    assert (
+        results.is_give_up_or_meta("I don't know if reflection in action happens during the session, but I think so.")
+        is False
+    )
+
+
+def test_substantive_first_answer_with_trigger_word_is_not_finalized() -> None:
+    # Regression for the reported case: a 57-word first answer that says "before the next attempt"
+    # must NOT be read as the learner saying "next/skip". It is a genuine first attempt, so the
+    # one correction is still owed — finalisation must not be forced.
+    plan = results.select_question_plan(seed=19)
+    long_answer = (
+        "Reflection in action occurs during coaching — real-time noticing and adapting as the session "
+        "unfolds. Example: a coach notices mid-session that 12-year-olds are losing sled pull form after "
+        "three rounds and immediately shortens rest intervals and adds a posture cue before the next "
+        "attempt. Reflection on action occurs after the session — reviewing, analysing, and planning."
+    )
+    hist = [
+        {"role": "user", "content": "start"},
+        {
+            "role": "assistant",
+            "content": "Welcome.\n**Question 1 of 20**\nWhat is X?\n"
+            + results.format_plan_marker(plan)
+            + "\n"
+            + _asked_marker(plan[0]),
+        },
+        {"role": "user", "content": long_answer},
+    ]
+
+    st = results.derive_turn_state(hist)
+
+    assert st["latest_user_answer_pending"] is True
+    assert st["answer_attempts_for_current"] == 1
+    assert st["correction_or_repeat_already_sent"] is False
+    assert st["must_finalize_current"] is False  # the "next" inside the answer no longer forces it
+    # which means it is classified GRADE_FIRST, so the mandatory-correction branch applies
+    injection = results.build_state_injection(st, "en")
+    assert "MUST offer the single correction opportunity" in injection
+    assert "FINALISE NOW" not in injection
+
+
 def test_next_question_state_allows_ask_after_previous_score() -> None:
     plan = results.select_question_plan(seed=23)
     hist = [

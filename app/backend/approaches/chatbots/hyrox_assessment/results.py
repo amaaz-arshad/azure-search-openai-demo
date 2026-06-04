@@ -84,6 +84,25 @@ _GIVE_UP_OR_META_RE = re.compile(
     re.IGNORECASE,
 )
 
+# A give-up / meta turn ("skip", "next", "I don't know", "why are you asking?") is SHORT. A
+# substantive answer can incidentally contain a trigger word — e.g. "...before the next
+# attempt", "do it again", "I don't know if X, but ..." — and must NOT be mistaken for giving
+# up, because that wrongly forces finalisation and skips the learner's one correction (this is
+# what scored a 57-word answer 4/5 with no revise offer because it said "before the next
+# attempt"). So only treat a message as give-up/meta when it is short AND matches. Erring this
+# way is safe: a genuine long give-up simply gets the (declinable) correction offer first.
+_GIVE_UP_MAX_WORDS = 8
+
+
+def is_give_up_or_meta(text: Optional[str]) -> bool:
+    """True only for a short message that is itself a give-up/meta statement, not a substantive
+    answer that merely contains a trigger word."""
+    if not text or not text.strip():
+        return False
+    if len(text.split()) > _GIVE_UP_MAX_WORDS:
+        return False
+    return bool(_GIVE_UP_OR_META_RE.search(text))
+
 
 # --- localisation of the rendered numbers ---------------------------------------------
 _LOCALES: dict[str, dict[str, str]] = {
@@ -93,7 +112,7 @@ _LOCALES: dict[str, dict[str, str]] = {
         "result": "**Assessment complete** — Total: {s}/{m} ({p}%) — **{verdict}**",
         "passed": "PASSED",
         "failed": "NOT PASSED",
-        "correction_offer": "Would you like to add to or revise your answer before we move on?",
+        "correction_offer": "You have one opportunity to add to or revise your answer — go ahead if you'd like.",
     },
     "de": {
         "header": "**Frage {n} von {total}**",
@@ -101,7 +120,7 @@ _LOCALES: dict[str, dict[str, str]] = {
         "result": "**Bewertung abgeschlossen** — Gesamt: {s}/{m} ({p}%) — **{verdict}**",
         "passed": "BESTANDEN",
         "failed": "NICHT BESTANDEN",
-        "correction_offer": "Möchtest du deine Antwort noch ergänzen oder überarbeiten, bevor wir weitermachen?",
+        "correction_offer": "Du hast jetzt die Möglichkeit, deine Antwort zu ergänzen oder zu überarbeiten.",
     },
     "nl": {
         "header": "**Vraag {n} van {total}**",
@@ -109,7 +128,7 @@ _LOCALES: dict[str, dict[str, str]] = {
         "result": "**Beoordeling voltooid** — Totaal: {s}/{m} ({p}%) — **{verdict}**",
         "passed": "GESLAAGD",
         "failed": "NIET GESLAAGD",
-        "correction_offer": "Wil je je antwoord nog aanvullen of herzien voordat we verdergaan?",
+        "correction_offer": "Je hebt nu de mogelijkheid om je antwoord aan te vullen of te herzien.",
     },
 }
 
@@ -371,7 +390,7 @@ def _current_question_interaction(
         and (
             answer_attempt_count >= 2
             or correction_or_repeat_already_sent
-            or _GIVE_UP_OR_META_RE.search(latest_user_text)
+            or is_give_up_or_meta(latest_user_text)
         )
     )
 
@@ -536,9 +555,10 @@ def build_state_injection(state: dict[str, Any], language: Optional[str] = None)
             lines.append(
                 "- DECISION: if this first attempt earns FULL marks, finalise now with the [[SCORE]] marker. If it is "
                 "NOT full marks, you MUST offer the single correction opportunity and MUST NOT finalise this turn: do "
-                "NOT emit a [[SCORE]] marker. Phrase it only as a short invitation to add to or revise the answer; do "
-                "NOT repeat the original question and do NOT use [[ASK]]. The system finalises automatically on the "
-                "next turn once this one correction is used or declined."
+                "NOT emit a [[SCORE]] marker. Phrase it only as a short statement telling them they may add to or "
+                "revise their answer now; do NOT ask a yes/no question, do NOT repeat the original question, and do "
+                "NOT use [[ASK]]. The system finalises automatically on the next turn once this one correction is used "
+                "or declined."
             )
         lines.append(f"- Learner answer attempts seen for this current question: {attempts}.")
     else:

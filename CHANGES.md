@@ -15,6 +15,47 @@ Two categories per date:
 
 ---
 
+## 2026-06-05
+
+### Decisions
+
+- **Fixed a give-up/meta false-positive that was the *real* cause of "scored
+  without a chance to revise" — a different bug from the 2026-06-04 work.** A
+  learner's 57-word genuine answer to Q11 was finalised 4/5 with no correction
+  offer because it contained the phrase "before the **next** attempt".
+  `_GIVE_UP_OR_META_RE` (which detects "skip"/"next"/"I don't know"/"move on"
+  /"again"/…) matched the bare word "next" anywhere in the text, so
+  `_current_question_interaction` set `must_finalize_current=True`. That single
+  misclassification defeated **both** prior safeguards at once: the state block
+  emitted "FINALISE NOW" instead of the mandatory-correction branch (Part A), and
+  because `is_grade_first = latest_user_answer_pending and not
+  must_finalize_current` was now False, the `render_assessment_turn` guard (Part B)
+  was bypassed too. So the case was reachable regardless of the 2026-06-04 fix —
+  independent of deploy state.
+  - **Fix: gate give-up/meta detection on message length.** A genuine give-up/meta
+    turn ("next", "skip", "I don't know", "why are you asking?") is short; a
+    substantive answer that incidentally contains a trigger word ("…before the next
+    attempt", "do it again", "I don't know if X, but…") is long. New
+    `is_give_up_or_meta()` returns True only when the message is ≤ `_GIVE_UP_MAX_WORDS`
+    (8) **and** matches the pattern; `_current_question_interaction` now calls it
+    instead of the raw regex. Erring this way is safe: a genuinely long give-up just
+    receives the (declinable) one correction offer first, then finalises on the next
+    turn via the existing `answer_attempts>=2 / correction_already_sent` paths.
+  - **Known residual (accepted):** a *very short* answer that is itself just a bare
+    trigger word (e.g. "run to the next station", ≤8 words containing "next") can
+    still be read as a give-up. Rare, low-impact, and such answers score low anyway;
+    not worth the added complexity of full-message anchoring for the beta.
+
+### Changes
+
+- `app/backend/approaches/chatbots/hyrox_assessment/results.py`: added
+  `_GIVE_UP_MAX_WORDS` + `is_give_up_or_meta()` and switched
+  `_current_question_interaction` to use it instead of `_GIVE_UP_OR_META_RE.search`.
+- `tests/test_hyrox_assessment.py`: added `test_is_give_up_or_meta_only_matches_short_messages`
+  and `test_substantive_first_answer_with_trigger_word_is_not_finalized` (a direct
+  regression for the reported "before the next attempt" answer). Full bot suite:
+  39 passed; `ty check` clean.
+
 ## 2026-06-04
 
 ### Decisions

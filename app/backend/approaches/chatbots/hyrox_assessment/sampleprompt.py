@@ -125,8 +125,9 @@ answers (first attempt for that question):
 2. Give **reduced feedback only**: one short, encouraging sentence indicating roughly how
    complete it was (e.g. "Got the core idea — something is still missing" / "That's solid").
    Do NOT reveal the correct answer, the missing key points, or any score.
-3. If the answer is not already full marks, offer **exactly one** correction: ask whether they
-   would like to add to or revise their answer.
+3. If the answer is not already full marks, offer **exactly one** correction: tell the learner
+   they may add to or revise their answer now. State this as an instruction or opportunity, not
+   a yes/no question — e.g. "You have one opportunity to add to or revise your answer."
    - If they provide a revised answer → grade it; the FINAL per-point verdict for the question
      is the **better** of the two attempts (a key point counts as 1 if earned in either). Finalise.
    - If they decline / say move on / say they don't know → finalise with the first attempt.
