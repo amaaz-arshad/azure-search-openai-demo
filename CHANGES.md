@@ -15,6 +15,64 @@ Two categories per date:
 
 ---
 
+## 2026-06-04
+
+### Decisions
+
+- **`/hyrox-assessment` now ALWAYS offers the one correction when a first answer
+  is not full marks.** A learner reported Q4 was scored 3/5 immediately with no
+  chance to revise. Root cause: the authoritative `CURRENT TURN STATE` block (P0,
+  overrides the static per-question protocol) phrased the first-attempt branch as
+  "you **may** offer the single correction opportunity" — so the model was free to
+  finalise a partial answer in the same turn. The static prompt's protocol always
+  intended "offer **exactly one** correction" when not full marks; the soft "may"
+  at the authoritative layer was the deviation. Chosen behaviour: on a first
+  attempt, finalise immediately **only** on full marks; otherwise the model MUST
+  offer the single correction and MUST NOT emit `[[SCORE]]` that turn. The existing
+  state machine already finalises on the next turn (the correction offer sets
+  `correction_or_repeat_already_sent → must_finalize_current`), and explicit
+  give-ups ("I don't know"/"skip") still finalise immediately via the give-up
+  regex — so weak-but-genuine answers get the correction while quitters don't stall.
+  (Considered and rejected: a partial-credit threshold to gate the offer, and
+  leaving it optional.)
+
+- **Added a deterministic backend guard so premature finalisation is unreachable,
+  not just discouraged (defence in depth on top of the instruction change above).**
+  The mandatory-correction wording still lives at the prompt layer and trusts the
+  model to comply — the same layer that already failed. Consistent with this bot's
+  "backend owns enforcement, don't trust the model's arithmetic/compliance"
+  philosophy, `render_assessment_turn` now refuses to accept a below-full-marks
+  `[[SCORE]]` on a genuine first attempt (GRADE_FIRST: a learner answer is pending
+  and `must_finalize_current` is false). When that happens it **discards the score,
+  strips the `[[SCORE]]` marker** (so a later stateless replay cannot count it),
+  **holds the question open** (no advance, no chained next question, no `[[ASKED]]`
+  marker), and **appends a localized correction offer**. Full-marks first answers
+  and forced finalisations (GRADE_FINAL — second attempt or explicit give-up) are
+  unaffected. This makes the exact "scored 3/5 with no chance to revise" case the
+  learner reported impossible regardless of model behaviour; the next turn finalises
+  via the existing `must_finalize_current` path. This is a port of a coworker's
+  "Part B keystone guard" proposal; "Part A" (explicit per-question phase naming) was
+  judged already covered by the existing `derive_turn_state` sub-phase derivation
+  plus the wording change, so only the enforcement guard was added.
+
+### Changes
+
+- `app/backend/approaches/chatbots/hyrox_assessment/results.py`:
+  - rewrote the first-attempt (non-`must_finalize`) branch of `build_state_injection`
+    from a permissive "you may offer" into a mandatory "MUST offer the single
+    correction opportunity and MUST NOT finalise this turn / do NOT emit a `[[SCORE]]`".
+  - added the premature-finalisation guard in `render_assessment_turn`
+    (`is_grade_first` + `awarded < max` → discard score, strip marker, hold position,
+    append correction offer) and a `correction_offer` string to the `en`/`de`/`nl`
+    locale table.
+- `tests/test_hyrox_assessment.py`: strengthened
+  `test_build_state_injection_for_answer_pending_forbids_repeating_question` to
+  assert the mandatory phrasing, and added three render tests
+  (`..._discards_premature_partial_first_score`,
+  `..._accepts_full_marks_first_score`,
+  `..._accepts_partial_score_when_finalisation_forced`). Full bot suite: 37 passed;
+  `ty check` clean.
+
 ## 2026-06-03
 
 ### Decisions

@@ -294,7 +294,11 @@ def test_build_state_injection_for_answer_pending_forbids_repeating_question() -
     assert "CURRENT ACTION: GRADE" in injection
     assert "MUST NOT repeat it" in injection
     assert "MUST NOT use [[ASK]]" in injection
+    # On a first attempt that is not full marks the correction offer is mandatory: the model
+    # MUST offer the single correction and MUST NOT finalise (emit a [[SCORE]]) this turn.
     assert "single correction opportunity" in injection
+    assert "MUST offer the single correction opportunity" in injection
+    assert "MUST NOT finalise this turn" in injection
 
 
 def test_repeated_question_loop_state_requires_finalization() -> None:
@@ -483,6 +487,88 @@ def test_render_assessment_turn_chains_next_question_after_finalization() -> Non
     assert "[[SCORE" in assembled  # score marker retained for replay
     assert "Assessment complete" not in assembled  # run is not finished
     assert len(all_scores) == 1 and just_completed is False
+
+
+def _grade_first_state(plan: list[int]) -> dict:
+    """State for a genuine first attempt on the current question (GRADE_FIRST): the question
+    has been asked, the learner's first answer is pending, and finalisation is not yet forced."""
+    return {
+        "plan": plan,
+        "plan_is_new": False,
+        "scores": [],
+        "n_scored": 0,
+        "current_id": plan[0],
+        "tally": results.compute_tally([]),
+        "completed_passed": False,
+        "current_question_asked": True,
+        "latest_user_answer_pending": True,
+        "answer_attempts_for_current": 1,
+        "correction_or_repeat_already_sent": False,
+        "must_finalize_current": False,
+    }
+
+
+def _partial_score_marker(qid: int) -> str:
+    """A below-full-marks score: first key point earned, the rest missing."""
+    kpc = key_point_count(qid)
+    pts = ["1"] + ["0"] * (kpc - 1)
+    return f'[[SCORE q={qid} points="{",".join(pts)}" max={max_points(qid)} cat="{category_of(qid)}"]]'
+
+
+def test_render_assessment_turn_discards_premature_partial_first_score() -> None:
+    # Backend guard: if the model finalises a partial FIRST answer (below full marks) instead of
+    # offering the one correction, the backend discards that score, holds the question open, and
+    # offers the correction — so the learner can never be scored without a chance to revise.
+    plan = results.select_question_plan(seed=3)
+    state = _grade_first_state(plan)
+    content = f"Good answer overall — one part is still missing.\n{_partial_score_marker(plan[0])}"
+
+    assembled, all_scores, tally, just_completed = results.render_assessment_turn(content, state, "en")
+
+    assert all_scores == []  # the premature score is NOT recorded
+    assert tally["questions_scored"] == 0
+    assert just_completed is False
+    assert "[[SCORE" not in assembled  # marker stripped so a later replay cannot count it
+    assert "add to or revise your answer" in assembled  # explicit correction offer appended
+    assert "Good answer overall" in assembled  # the model's reduced feedback is retained
+    # position is held: no advance, next question not presented, no [[ASKED]] marker
+    assert "**Question 2 of 20**" not in assembled
+    assert _question_text(plan[1]) not in assembled
+    assert _asked_marker(plan[0]) not in assembled
+    assert _asked_marker(plan[1]) not in assembled
+
+
+def test_render_assessment_turn_accepts_full_marks_first_score() -> None:
+    # Contrast: a FULL-marks first answer is finalised immediately (no correction needed) and
+    # chains the next question — the guard only blocks below-full first-attempt scores.
+    plan = results.select_question_plan(seed=3)
+    state = _grade_first_state(plan)
+    content = f"That's spot on.\n{_score_marker(plan[0])}"  # all key points earned → full marks
+
+    assembled, all_scores, _tally, just_completed = results.render_assessment_turn(content, state, "en")
+
+    assert len(all_scores) == 1 and just_completed is False
+    assert "[[SCORE" in assembled  # accepted and retained for replay
+    assert "add to or revise your answer" not in assembled  # no correction offered on full marks
+    assert "**Question 2 of 20**" in assembled  # chains the next question
+
+
+def test_render_assessment_turn_accepts_partial_score_when_finalisation_forced() -> None:
+    # Contrast: on a GRADE_FINAL turn (the one correction has been used or declined →
+    # must_finalize_current) a below-full score is valid and accepted; the guard does not fire.
+    plan = results.select_question_plan(seed=3)
+    state = _grade_first_state(plan)
+    state["answer_attempts_for_current"] = 2
+    state["correction_or_repeat_already_sent"] = True
+    state["must_finalize_current"] = True
+    content = f"Thanks — that's where we'll leave it.\n{_partial_score_marker(plan[0])}"
+
+    assembled, all_scores, _tally, just_completed = results.render_assessment_turn(content, state, "en")
+
+    assert len(all_scores) == 1 and just_completed is False
+    assert "[[SCORE" in assembled  # accepted
+    assert "add to or revise your answer" not in assembled  # not a fresh correction offer
+    assert "**Question 2 of 20**" in assembled  # chains the next question
 
 
 def test_render_assessment_turn_appends_plan_on_fresh_run() -> None:

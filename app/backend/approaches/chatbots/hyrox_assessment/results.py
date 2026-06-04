@@ -93,6 +93,7 @@ _LOCALES: dict[str, dict[str, str]] = {
         "result": "**Assessment complete** — Total: {s}/{m} ({p}%) — **{verdict}**",
         "passed": "PASSED",
         "failed": "NOT PASSED",
+        "correction_offer": "Would you like to add to or revise your answer before we move on?",
     },
     "de": {
         "header": "**Frage {n} von {total}**",
@@ -100,6 +101,7 @@ _LOCALES: dict[str, dict[str, str]] = {
         "result": "**Bewertung abgeschlossen** — Gesamt: {s}/{m} ({p}%) — **{verdict}**",
         "passed": "BESTANDEN",
         "failed": "NICHT BESTANDEN",
+        "correction_offer": "Möchtest du deine Antwort noch ergänzen oder überarbeiten, bevor wir weitermachen?",
     },
     "nl": {
         "header": "**Vraag {n} van {total}**",
@@ -107,6 +109,7 @@ _LOCALES: dict[str, dict[str, str]] = {
         "result": "**Beoordeling voltooid** — Totaal: {s}/{m} ({p}%) — **{verdict}**",
         "passed": "GESLAAGD",
         "failed": "NIET GESLAAGD",
+        "correction_offer": "Wil je je antwoord nog aanvullen of herzien voordat we verdergaan?",
     },
 }
 
@@ -531,9 +534,11 @@ def build_state_injection(state: dict[str, Any], language: Optional[str] = None)
             )
         else:
             lines.append(
-                "- If this first attempt is full marks, finalise now with the [[SCORE]] marker. If it is not full "
-                "marks, you may offer the single correction opportunity, but phrase it only as a short invitation "
-                "to add or revise; do NOT repeat the original question and do NOT use [[ASK]]."
+                "- DECISION: if this first attempt earns FULL marks, finalise now with the [[SCORE]] marker. If it is "
+                "NOT full marks, you MUST offer the single correction opportunity and MUST NOT finalise this turn: do "
+                "NOT emit a [[SCORE]] marker. Phrase it only as a short invitation to add to or revise the answer; do "
+                "NOT repeat the original question and do NOT use [[ASK]]. The system finalises automatically on the "
+                "next turn once this one correction is used or declined."
             )
         lines.append(f"- Learner answer attempts seen for this current question: {attempts}.")
     else:
@@ -659,6 +664,30 @@ def render_assessment_turn(
     body = strip_rendered_numbers(content)
 
     new_score = parse_new_score(content, state.get("current_id"))
+
+    # Backend guard against premature finalisation (defence in depth for the hardened
+    # state-block instruction). On a genuine first attempt — GRADE_FIRST: a learner answer is
+    # pending and finalisation is NOT yet forced — the model may finalise ONLY on full marks;
+    # otherwise the single correction must be offered first. If the model emits a below-full-
+    # marks [[SCORE]] here anyway, discard that score, strip its marker so a later replay cannot
+    # count it, and hold the question open with a correction offer so the learner still gets
+    # their one revise/add opportunity. This makes the "scored partial with no chance to revise"
+    # case unreachable regardless of whether the model obeys the prompt. (Full-marks first
+    # answers and forced finalisations — GRADE_FINAL, e.g. a second attempt or an explicit
+    # give-up — are unaffected: those set must_finalize_current and are accepted normally.)
+    score_discarded_premature = False
+    is_grade_first = bool(
+        state.get("latest_user_answer_pending") and not state.get("must_finalize_current")
+    )
+    if (
+        new_score is not None
+        and is_grade_first
+        and int(new_score.get("awarded", 0) or 0) < int(new_score.get("max", 0) or 0)
+    ):
+        new_score = None
+        body = re.sub(r"\n[ \t]*\n[ \t]*\n+", "\n\n", SCORE_MARKER_RE.sub("", body)).strip()
+        score_discarded_premature = True
+
     all_scores = list(state.get("scores", []))
     if new_score is not None:
         all_scores = [s for s in all_scores if s["q"] != new_score["q"]] + [new_score]
@@ -699,6 +728,12 @@ def render_assessment_turn(
         parts.append(render_question_score(n_after, new_score["awarded"], new_score["max"], language))
     if body:
         parts.append(body)
+    if score_discarded_premature:
+        # The model finalised a partial first answer; we discarded that score above. Append an
+        # explicit one-correction invitation so the held question reads as a revise prompt even
+        # if the model's own feedback did not invite a revision. Position is intentionally held:
+        # no score, no chain, no [[ASKED]] — the next turn forces finalisation (must_finalize).
+        parts.append(_locale(language)["correction_offer"])
 
     # Chain: after finalising a question that is not the last, present the next pinned
     # question automatically in this same message. The progress header uses n_after (already
