@@ -106,6 +106,18 @@ async def test_app_chatbot_upload_managers_exclude_internal_router(monkeypatch, 
 
 
 @pytest.mark.asyncio
+async def test_app_free_upload_manager_uses_20_mb_pdf_limit(monkeypatch, minimal_env):
+    monkeypatch.setenv("AZURE_SERVER_APP_SECRET", "test-server-secret")
+    quart_app = app.create_app()
+    async with quart_app.test_app():
+        free_upload_manager = quart_app.config[app.CONFIG_CHATBOT_UPLOAD_MANAGERS]["free"]
+        assert free_upload_manager.rules.allowed_extensions == frozenset({".pdf"})
+        assert free_upload_manager.rules.max_total_file_size_mb == 20
+        assert free_upload_manager.rules.max_total_file_count == 1
+        assert free_upload_manager.rules.max_total_pdf_pages is None
+
+
+@pytest.mark.asyncio
 async def test_app_user_upload_requires_storage_configuration(monkeypatch, minimal_env):
     monkeypatch.setenv("USE_USER_UPLOAD", "true")
 

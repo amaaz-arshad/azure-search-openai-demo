@@ -48,7 +48,7 @@ const acceptedFileTypes = ".pdf";
 const acceptedExtensions = new Set([".pdf"]);
 const activeStatuses: QueueItemStatus[] = ["queued", "uploading", "canceling"];
 const MAX_FILE_COUNT = 1;
-const MAX_FILE_SIZE_MB = 5;
+const MAX_FILE_SIZE_MB = 20;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 const formatExtension = (filename: string) => {

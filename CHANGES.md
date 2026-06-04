@@ -15,6 +15,18 @@ Two categories per date:
 
 ---
 
+## 2026-06-03
+
+### Decisions
+
+- **Raised the Free Bot PDF upload size limit from 5 MB to 20 MB.** The existing single-PDF count limit remains unchanged, and the page limit remains disabled for this bot.
+
+### Changes
+
+- Updated backend Free Bot upload enforcement to allow 20 MB total uploaded file size.
+- Updated the public-test upload modal client-side validator and EN/DE/NL upload copy from 5 MB to 20 MB.
+- Added focused app config coverage for the Free Bot upload manager rules.
+
 ## 2026-06-02
 
 ### Decisions
