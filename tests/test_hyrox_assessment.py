@@ -330,25 +330,40 @@ def test_repeated_question_loop_state_requires_finalization() -> None:
     assert "End this response with EXACTLY one [[SCORE]] marker" in injection
 
 
-def test_is_give_up_or_meta_only_matches_short_messages() -> None:
-    # Short give-up / meta statements are detected ...
-    assert results.is_give_up_or_meta("next") is True
-    assert results.is_give_up_or_meta("skip") is True
-    assert results.is_give_up_or_meta("move on please") is True
-    assert results.is_give_up_or_meta("I don't know") is True
-    assert results.is_give_up_or_meta("no idea, sorry") is True
-    # ... but a substantive answer that merely contains a trigger word is NOT.
-    assert results.is_give_up_or_meta("") is False
-    assert (
-        results.is_give_up_or_meta(
-            "The coach shortens the rest interval before the next attempt and adds a posture cue."
-        )
-        is False
-    )
-    assert (
-        results.is_give_up_or_meta("I don't know if reflection in action happens during the session, but I think so.")
-        is False
-    )
+def test_is_give_up_or_meta_only_matches_whole_message_give_ups() -> None:
+    # A bare give-up / meta statement is detected — including with trivial filler wrappers,
+    # punctuation, and across en/de/nl.
+    for msg in [
+        "next",
+        "skip",
+        "Next!",
+        "ok, next please",
+        "move on please",
+        "skip this one",
+        "I don't know",
+        "I dont know",
+        "no idea, sorry",
+        "no clue",
+        "why are you asking me this again?",
+        "keine Ahnung",
+        "weiter",
+        "geen idee",
+    ]:
+        assert results.is_give_up_or_meta(msg) is True, msg
+
+    # ... but a message is NOT a give-up just because a trigger word appears inside it. This is
+    # the whole point of Option A (whole-message anchoring) over a substring search.
+    for msg in [
+        "",
+        "   ",
+        "run to the next station",  # the short-answer residual the substring/length gate missed
+        "the next station, in the transition box",
+        "do it again on the next round",
+        "I'll pass the baton at the box",
+        "The coach shortens the rest interval before the next attempt and adds a posture cue.",
+        "I don't know if reflection in action happens during the session, but I think so.",
+    ]:
+        assert results.is_give_up_or_meta(msg) is False, msg
 
 
 def test_substantive_first_answer_with_trigger_word_is_not_finalized() -> None:

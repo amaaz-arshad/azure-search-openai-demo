@@ -73,35 +73,69 @@ _COMPLETE_LINE_RE = re.compile(
     r"^\s*\*{0,2}\s*(?:Assessment complete|Bewertung abgeschlossen|Beoordeling voltooid)\b[^\n]*$",
     re.IGNORECASE | re.MULTILINE,
 )
-_GIVE_UP_OR_META_RE = re.compile(
-    r"\b(?:"
-    r"i\s+don'?t\s+know|i\s+do\s+not\s+know|don'?t\s+know|do\s+not\s+know|no\s+idea|"
-    r"skip|move\s+on|next|already\s+answered?|answered\s+(?:it|this)|"
-    r"why\s+(?:are|do)\s+you\s+ask|same\s+question|again|"
-    r"ich\s+wei[ßs]\s+(?:es\s+)?nicht|keine\s+ahnung|überspringen|weiter|"
-    r"ik\s+weet\s+het\s+niet|geen\s+idee|overslaan|volgende"
-    r")\b",
+# Give-up / meta detection. A give-up or meta turn ("next", "skip", "I don't know", "why are
+# you asking?") is one whose WHOLE message is that statement. A substantive answer can
+# incidentally contain a trigger word — "...before the next attempt", "run to the next station",
+# "do it again", "I don't know if X, but ..." — and must NEVER be mistaken for giving up, because
+# that wrongly forces finalisation and skips the learner's one correction. So instead of a
+# substring search we anchor a full-message match (modulo trivial wrappers), so the trigger word
+# must BE the message, not merely appear in it.
+
+# Politeness / filler that may wrap a bare give-up without changing its meaning, e.g.
+# "ok, next please", "sorry — no idea", "yeah let's move on". Stripped (zero or more) from either
+# end before matching. "no" is deliberately NOT filler (it begins "no idea" / "no clue").
+_GIVE_UP_FILLER = (
+    r"ok(?:ay)?|well|um+|uh+|hmm+|so|just|please|sorry|thanks|thank you|yeah|yep|hey|hi|hello|"
+    r"i guess|maybe|honestly|lets|can we"
+)
+
+# Canonical give-up / meta statements (apostrophes are removed by normalisation first, so the
+# patterns are apostrophe-free: "dont", "ill", "lets", "whats").
+_GIVE_UP_CORE = (
+    r"i dont know(?: it| this| that| the answer| this one| that one)?|"
+    r"i do not know(?: it| this| that| the answer| this one| that one)?|"
+    r"dont know|do not know|no idea|no clue|not sure|"
+    r"skip(?: it| this| this one| the question)?|"
+    r"move on|next(?: question| one)?|i pass|ill pass|pass|"
+    r"already answered(?: it| this)?|answered (?:it|this)(?: already)?|"
+    r"why (?:are|do) you ask(?:ing)?(?: me)?(?: this)?(?: again)?|"
+    r"same question(?: again)?|asking again|"
+    # German
+    r"ich weiss(?: es)? nicht|ich weiß(?: es)? nicht|keine ahnung|überspringen|weiter|nächste(?: frage)?|"
+    # Dutch
+    r"ik weet het niet|geen idee|overslaan|volgende(?: vraag)?"
+)
+
+_GIVE_UP_OR_META_FULL_RE = re.compile(
+    rf"^(?:(?:{_GIVE_UP_FILLER})\s+)*(?:{_GIVE_UP_CORE})(?:\s+(?:{_GIVE_UP_FILLER}))*$",
     re.IGNORECASE,
 )
 
-# A give-up / meta turn ("skip", "next", "I don't know", "why are you asking?") is SHORT. A
-# substantive answer can incidentally contain a trigger word — e.g. "...before the next
-# attempt", "do it again", "I don't know if X, but ..." — and must NOT be mistaken for giving
-# up, because that wrongly forces finalisation and skips the learner's one correction (this is
-# what scored a 57-word answer 4/5 with no revise offer because it said "before the next
-# attempt"). So only treat a message as give-up/meta when it is short AND matches. Erring this
-# way is safe: a genuine long give-up simply gets the (declinable) correction offer first.
+# Genuine give-ups are short; cap length as a cheap guard (and to bound regex backtracking).
 _GIVE_UP_MAX_WORDS = 8
 
 
+def normalize_give_up_text(text: str) -> str:
+    """Lowercase, drop apostrophes, and collapse every non-letter/digit run to a single space so
+    the anchored match is robust to punctuation and quote style ("Next!" / "I don't know." →
+    "next" / "i dont know")."""
+    lowered = text.lower().replace("'", "").replace("’", "").replace("`", "")
+    return re.sub(r"[\W_]+", " ", lowered).strip()
+
+
 def is_give_up_or_meta(text: Optional[str]) -> bool:
-    """True only for a short message that is itself a give-up/meta statement, not a substantive
-    answer that merely contains a trigger word."""
+    """True only when the WHOLE message is a give-up/meta statement (modulo trivial filler like
+    "ok"/"please"/"sorry") — never for a substantive answer that merely contains a trigger word.
+    So "next", "ok next please", "I don't know" are give-ups, while "run to the next station" and
+    "...before the next attempt" are answers."""
     if not text or not text.strip():
         return False
     if len(text.split()) > _GIVE_UP_MAX_WORDS:
         return False
-    return bool(_GIVE_UP_OR_META_RE.search(text))
+    normalized = normalize_give_up_text(text)
+    if not normalized:
+        return False
+    return bool(_GIVE_UP_OR_META_FULL_RE.fullmatch(normalized))
 
 
 # --- localisation of the rendered numbers ---------------------------------------------

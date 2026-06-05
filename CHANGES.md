@@ -41,20 +41,64 @@ Two categories per date:
     instead of the raw regex. Erring this way is safe: a genuinely long give-up just
     receives the (declinable) one correction offer first, then finalises on the next
     turn via the existing `answer_attempts>=2 / correction_already_sent` paths.
-  - **Known residual (accepted):** a *very short* answer that is itself just a bare
-    trigger word (e.g. "run to the next station", ≤8 words containing "next") can
-    still be read as a give-up. Rare, low-impact, and such answers score low anyway;
-    not worth the added complexity of full-message anchoring for the beta.
+- **Upgraded the give-up fix from a length-gated substring search to whole-message
+  anchoring ("Option A"), closing the short-answer residual.** The length gate alone
+  still misread a *short* answer that merely contained a trigger word (e.g. "run to
+  the next station", ≤8 words with "next") as a give-up. Replaced the substring
+  `_GIVE_UP_OR_META_RE.search` with `_GIVE_UP_OR_META_FULL_RE.fullmatch` over a
+  normalised copy of the message: detection now requires the **whole message** to BE
+  a give-up phrase, allowing only trivial leading/trailing filler ("ok", "please",
+  "sorry", …). A trigger word embedded in a real answer can no longer match.
+  - `normalize_give_up_text()` lowercases, drops apostrophes, and collapses every
+    non-letter/digit run to one space, so matching is robust to punctuation/quote
+    style and to umlauts/ß ("Next!" → "next", "I don't know." → "i dont know").
+  - The ≤8-word gate is kept as a cheap pre-check that also bounds regex backtracking.
+  - **Behaviour vs Option B (delete detection):** identical on every real answer;
+    they differ only on clean explicit give-ups, where Option A finalises in one turn
+    and Option B would offer the (declinable) correction first. Chose A to keep the
+    one-turn give-up UX. The phrase list is curated (en/de/nl); an elaborate
+    un-enumerated give-up like "I'll pass on this one" safely falls through to the
+    one-correction path rather than risk a false positive.
 
 ### Changes
 
-- `app/backend/approaches/chatbots/hyrox_assessment/results.py`: added
-  `_GIVE_UP_MAX_WORDS` + `is_give_up_or_meta()` and switched
-  `_current_question_interaction` to use it instead of `_GIVE_UP_OR_META_RE.search`.
-- `tests/test_hyrox_assessment.py`: added `test_is_give_up_or_meta_only_matches_short_messages`
-  and `test_substantive_first_answer_with_trigger_word_is_not_finalized` (a direct
-  regression for the reported "before the next attempt" answer). Full bot suite:
-  39 passed; `ty check` clean.
+- `app/backend/approaches/chatbots/hyrox_assessment/results.py`:
+  - (initial) added `_GIVE_UP_MAX_WORDS` + `is_give_up_or_meta()` and switched
+    `_current_question_interaction` off the raw substring regex.
+  - (Option A) replaced the substring `_GIVE_UP_OR_META_RE` with `_GIVE_UP_FILLER` +
+    `_GIVE_UP_CORE` → anchored `_GIVE_UP_OR_META_FULL_RE`, added
+    `normalize_give_up_text()`, and made `is_give_up_or_meta()` normalise + `fullmatch`
+    (length gate retained).
+- `tests/test_hyrox_assessment.py`: `test_is_give_up_or_meta_only_matches_whole_message_give_ups`
+  (filler wrappers, punctuation, en/de/nl, plus the "run to the next station" /
+  "next station" / "ill pass on this one" anchoring cases) and
+  `test_substantive_first_answer_with_trigger_word_is_not_finalized` (regression for
+  the reported "before the next attempt" answer). Full bot suite: 39 passed;
+  `ty check` clean.
+
+### Decisions (live smoke test for the assessment bot)
+
+- **Added an opt-in live-model test, because this bot's biggest unverified risk is
+  real-model compliance with its prompt/marker contract — which mocks can't see.**
+  The deterministic engine is already unit-tested; the open question is whether the
+  real `gpt-5.4-mini` actually emits well-formed markers, shows one question at a
+  time, grades+progresses, and never leaks the rubric. Reuses the production
+  `setup_openai_client` (OpenAI v1 `base_url` + passwordless `AzureDeveloperCliCredential`)
+  and drives real turns through `run_without_streaming` (the bot skips retrieval, so
+  Search/Blob stay unused). Assertions are **invariants** (well-formed `[[SCORE]]`,
+  no `MODEL ANSWER`/marker/`points=` leak, ≤1 question header per turn, the run
+  reaches ≥ Q2 and produces ≥1 score) — never exact text, which would flake on a
+  non-deterministic model. It is a **canary, not a per-commit gate**: gated behind
+  `RUN_HYROX_LIVE=1` + `AZURE_OPENAI_SERVICE` + `az login`, and `@pytest.mark.live`,
+  so it is skipped in the normal/offline suite. (#1/#3 hardening were rewound earlier
+  this day and are intentionally not reflected here.)
+
+### Changes (live smoke test)
+
+- `tests/test_hyrox_live.py` (new): `@pytest.mark.live`, creds-guarded smoke test that
+  runs ~4 real turns and asserts the marker/no-leak/one-question/progress invariants.
+- `pyproject.toml`: registered the `live` pytest marker. Default run: 39 passed,
+  1 skipped (the live test), no marker warnings.
 
 ## 2026-06-04
 

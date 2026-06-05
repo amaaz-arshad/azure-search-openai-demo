@@ -14,6 +14,9 @@ line-length = 120
 addopts = "-ra"
 pythonpath = ["app/backend", "scripts", "app/functions"]
 asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "live: opt-in tests that call the real Azure OpenAI model (set RUN_HYROX_LIVE=1); skipped by default",
+]
 
 [tool.coverage.paths]
 source = ["scripts", "app"]
