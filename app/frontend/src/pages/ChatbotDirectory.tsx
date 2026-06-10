@@ -6,6 +6,7 @@ import { Icon } from "@fluentui/react";
 import { chatbotDefinitions } from "../chatbots/registry";
 import { formatChatbotLabel } from "./chatbotDisplay";
 import { useInternalAdminAccess } from "./useInternalAdminAccess";
+import EmbedSnippetModal from "./EmbedSnippetModal";
 import styles from "./ChatbotDirectory.module.css";
 
 const sortedChatbots = [...chatbotDefinitions].sort((a, b) => a.name.localeCompare(b.name));
@@ -15,6 +16,7 @@ const ChatbotDirectory = () => {
     const [password, setPassword] = useState("");
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
     const [query, setQuery] = useState("");
+    const [embedFor, setEmbedFor] = useState<string | null>(null);
 
     const normalizedQuery = query.trim().toLowerCase();
     const filteredChatbots = sortedChatbots.filter(
@@ -160,7 +162,20 @@ const ChatbotDirectory = () => {
                                             <Link key={chatbot.name} className={styles.chatbotCard} to={`/${chatbot.name}`}>
                                                 <div className={styles.cardHeader}>
                                                     <span className={styles.cardIndex}>{String(index + 1).padStart(2, "0")}</span>
-                                                    <span className={styles.cardAction}>Open</span>
+                                                    <div className={styles.cardHeaderActions}>
+                                                        <button
+                                                            type="button"
+                                                            className={styles.embedButton}
+                                                            onClick={event => {
+                                                                event.preventDefault();
+                                                                event.stopPropagation();
+                                                                setEmbedFor(chatbot.name);
+                                                            }}
+                                                        >
+                                                            Embed
+                                                        </button>
+                                                        <span className={styles.cardAction}>Open</span>
+                                                    </div>
                                                 </div>
                                                 <strong className={styles.cardTitle}>{formatChatbotLabel(chatbot.name)}</strong>
                                                 <span className={styles.cardRoute}>/{chatbot.name}</span>
@@ -206,6 +221,8 @@ const ChatbotDirectory = () => {
                     )}
                 </section>
             </section>
+
+            {embedFor ? <EmbedSnippetModal chatbotName={embedFor} onClose={() => setEmbedFor(null)} /> : null}
         </main>
     );
 };

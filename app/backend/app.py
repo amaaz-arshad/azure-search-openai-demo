@@ -653,6 +653,11 @@ async def serve_spa_index():
     response.cache_control.no_store = True
     response.cache_control.max_age = 0
     response.headers["Pragma"] = "no-cache"
+    # Allow the app to be embedded in a cross-origin iframe (the embeddable widget). We never set
+    # X-Frame-Options, but strip it defensively in case a proxy injects one, and advertise
+    # permissive framing via CSP. Can be tightened to a customer allowlist later.
+    response.headers.pop("X-Frame-Options", None)
+    response.headers["Content-Security-Policy"] = "frame-ancestors *"
     return response
 
 
@@ -676,6 +681,42 @@ async def favicon():
 @bp.route("/assets/<path:path>")
 async def assets(path):
     return await send_from_directory(STATIC_ROOT / "assets", path)
+
+
+@bp.route("/widget.js")
+async def widget_loader():
+    # Tiny dependency-free loader that website owners embed via a single <script> tag. Served
+    # with a short cache so widget updates propagate automatically without customer changes.
+    # The "." in the path means the /<chatbot_name> catch-all would 404 it, but this literal
+    # route is matched first. Cross-origin <script> loading needs no CORS headers.
+    response = await send_from_directory(STATIC_ROOT, "widget.js")
+    response.headers["Content-Type"] = "application/javascript; charset=utf-8"
+    response.cache_control.no_store = False
+    response.cache_control.public = True
+    response.cache_control.max_age = 300
+    return response
+
+
+# Bots that are not directly embeddable as a standalone page (router shell / redirects elsewhere).
+EMBED_DEMO_EXCLUDED_CHATBOTS = {"internal", "public-test"}
+EMBED_DEMO_DEFAULT_CHATBOT = "publishone"
+
+
+@bp.route("/embed-demo")
+async def embed_demo():
+    # Live demo of the embeddable widget with a chatbot picker. The option list is injected from
+    # KNOWN_CHATBOT_NAMES so it never drifts; the page itself loads /widget.js from this origin.
+    template = (Path(__file__).resolve().parent / "embed_demo.html").read_text(encoding="utf-8")
+    names = sorted(name for name in KNOWN_CHATBOT_NAMES if name not in EMBED_DEMO_EXCLUDED_CHATBOTS)
+    default = EMBED_DEMO_DEFAULT_CHATBOT if EMBED_DEMO_DEFAULT_CHATBOT in names else DEFAULT_CHATBOT_NAME
+    if default in names:
+        names.remove(default)
+        names.insert(0, default)
+    options = "\n".join(f'<option value="{name}">{name}</option>' for name in names)
+    response = await make_response(template.replace("{{CHATBOT_OPTIONS}}", options))
+    response.headers["Content-Type"] = "text/html; charset=utf-8"
+    response.cache_control.no_store = True
+    return response
 
 
 @bp.route("/chatbots")
@@ -1488,7 +1529,7 @@ async def simple_chatbot_logout(chatbot_name: str):
         return jsonify({"message": "Unknown protected chatbot.", "authenticated": False}), 404
 
     response = jsonify({"authenticated": False})
-    auth_service.clear_session_cookie(response, normalized_chatbot_name)
+    auth_service.clear_session_cookie(response, normalized_chatbot_name, secure=should_set_secure_session_cookie())
     return response, 200
 
 

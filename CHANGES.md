@@ -15,6 +15,130 @@ Two categories per date:
 
 ---
 
+## 2026-06-09
+
+### Decisions
+
+- **Embed-demo page + widget launcher now follow per-bot brand colors instead of a hardcoded
+  indigo.** The `/embed-demo` page chrome was recolored to nerilio purple (`#ac44c6`), and its
+  default-selected bot changed to `publishone` (via a new `EMBED_DEMO_DEFAULT_CHATBOT` constant —
+  the global `DEFAULT_CHATBOT_NAME` used for routing fallbacks stays `nerilio`).
+  - **The launcher bubble color is resolved at widget build time from `chatbotThemes.ts`**, not by
+    the backend or the demo page. The backend container ships only built `static/`, not the TS
+    source, so it cannot read theme colors at runtime; but `widget.js` is itself built from TS by
+    `vite.widget.config.ts`, so `widget.ts` now imports the shared `chatbotThemes` map directly.
+    This keeps a single source of truth, works for every external embed (not just the demo), and
+    has no first-open lag. Type-only React import in `chatbotThemes.ts` is erased and unused theme
+    helpers tree-shake out — `widget.js` stays ~8.9 kB. Color precedence:
+    `data-primary-color` > the bot's theme `primary` > generic `#4f46e5` fallback.
+- **Added a one-snippet embeddable chatbot widget (Google-Analytics/Intercom style).** Website
+  owners embed any bot with a single `<script async src=".../widget.js" data-chatbot-id="...">`
+  tag; a floating bubble renders itself with no HTML/CSS work and auto-updates.
+  - **Rendering = iframe, not a native injected app.** A tiny dependency-free loader injects a
+    launcher + an iframe pointing at the *existing* `/<chatbotId>?embed=1` page. Chosen because the
+    chat is already a self-contained per-bot route, the iframe fully isolates CSS/JS from the host
+    site, and — crucially — chat calls inside the iframe are **same-origin to the backend, so no
+    CORS is needed** on customer sites. (A Shadow-DOM React injection was rejected: larger script,
+    CSS/JS conflict risk, cross-origin/CORS complexity, and heavy refactoring.)
+  - **`chatbotId` = the existing bot route name** (e.g. `lemon`). Simplest possible; no new
+    mapping store or admin. Trade-off accepted: internal bot names are visible to customers.
+  - **All bots embeddable, per-bot login preserved inside the iframe.** Simple-auth cookies are
+    upgraded to `SameSite=None; Secure; Partitioned` (CHIPS) over HTTPS so they survive a
+    cross-site iframe. Quart 0.20 `set_cookie` has no `partitioned` param (confirmed via Context7),
+    so the attribute is appended to the emitted `Set-Cookie` header. Documented residual limit:
+    **MSAL/Entra-gated bots cannot be embedded** (interactive sign-in won't run in a third-party
+    iframe), and hardened privacy modes may still block partitioned storage.
+  - **Allow-all framing** via `Content-Security-Policy: frame-ancestors *` on the SPA index; chose
+    allow-all for now (can be tightened to a customer allowlist later if opaque IDs are added). No
+    `X-Frame-Options` is set (and it's stripped defensively).
+  - **Snippet generator UI** added to the internal Chatbot Directory cards (copy-paste snippet +
+    live iframe preview), for a GA-like onboarding experience.
+
+### Changes
+
+- `app/frontend/src/widget/widget.ts`: imports `chatbotThemes` and resolves the launcher color as
+  `data-primary-color || chatbotThemes[chatbotId]?.primary || DEFAULT_PRIMARY_COLOR`. Rebuilt
+  `app/backend/static/widget.js`.
+- `app/backend/embed_demo.html`: recolored brand vars/gradient/badge/focus-ring to nerilio purple
+  (`#ac44c6` / `#8f30a8`).
+- `app/backend/app.py`: added `EMBED_DEMO_DEFAULT_CHATBOT = "publishone"`; the `/embed-demo` picker
+  now pins that bot first (falls back to `DEFAULT_CHATBOT_NAME` if absent).
+- `app/frontend/src/widget/widget.ts` (new): vanilla-TS loader — derives backend origin from its
+  own `<script src>`, reads `data-*` config, command-queue stub for `window.chatbot`, Shadow-DOM
+  launcher + lazy iframe, origin-checked `postMessage` bridge.
+- `app/frontend/vite.widget.config.ts` (new): lib/IIFE build → `app/backend/static/widget.js`
+  (`emptyOutDir: false`). `app/frontend/package.json` build script now chains it after the main
+  `vite build`.
+- `app/frontend/src/chatbots/shared/embed/embedMode.ts` + `EmbedBridge.tsx` (new): `?embed=1`
+  detection, ready/close bridge, mobile close button.
+- `app/frontend/src/index.tsx`, `ChatbotThemeRoot.tsx`, `index.css`: set `data-embed="1"` on the
+  theme root and mount `EmbedBridge` in embed mode.
+- `app/frontend/src/pages/EmbedSnippetModal.tsx` (+ `.module.css`) and `ChatbotDirectory.tsx`
+  (+ `.module.css`): per-card **Embed** button opening the snippet generator.
+- `app/backend/app.py`: new `/widget.js` route (short cache, correct content-type);
+  `serve_spa_index` now sends `frame-ancestors *` and strips `X-Frame-Options`; simple-chatbot
+  logout passes `secure=` to `clear_session_cookie`.
+- `app/backend/core/simplechatbotauth.py`: `set_session_cookie`/`clear_session_cookie` emit
+  `SameSite=None; Secure; Partitioned` when secure; added `mark_set_cookie_partitioned` helper.
+- Tests: `tests/test_simplechatbotauth.py` (new) for cookie attributes; `tests/test_app.py` adds
+  `/widget.js` and SPA-framing tests. All pass.
+- Docs: `docs/embedding.md` (new) + link in `docs/README.md`; `CLAUDE.md` Contracts entry.
+
+### Follow-up: embed layout fixes (from live testing)
+
+- **Two embed-only visual bugs fixed.** (1) The in-iframe close button overlapped each bot's
+  navbar menu (`...`); (2) content showed more right margin than left.
+  - **Removed the floating in-iframe close button entirely** (`EmbedBridge` now only posts
+    `chatbot:ready` and renders nothing). The host launcher is the single close control — it
+    toggles to an ✕ and now stays visible on **all** screen sizes, so the widget never injects
+    chrome that can collide with the bot's own header. On mobile the panel is near-fullscreen but
+    leaves an 88px gap at the bottom so the launcher peeks through as the close control (was:
+    fullscreen + launcher hidden + floating ✕).
+  - **Margin asymmetry was `scrollbar-gutter: stable` (right-only gutter)** reserving ~scrollbar
+    width only on the right under the desktop iframe's classic scrollbar (the full-page/mobile
+    views use overlay scrollbars, hence no symptom there). Fixed by **hiding the scrollbars in
+    embed mode** (`[data-embed="1"] * { scrollbar-width: none; scrollbar-gutter: auto !important }`
+    and `[data-embed="1"] ::-webkit-scrollbar { width: 0; height: 0 }`), which collapses the right
+    gutter so the right margin shrinks to match the left; content still scrolls via
+    wheel/trackpad/touch. Scoped to embed mode only.
+    - **First attempt was wrong and reverted:** `scrollbar-gutter: stable both-edges !important`
+      on `*` made it symmetric but by *adding* a left gutter (not removing the right), and worse,
+      `stable` reserves a gutter on every `overflow:hidden` box — which clipped FluentUI icon
+      buttons and made icons disappear. Lesson recorded: never apply `scrollbar-gutter: stable`
+      via a universal selector.
+  - Removed the now-unused `isFramed` helper from `embedMode.ts`. Verified in a real browser
+    (publishone, desktop + 390px mobile) over HTTP cross-origin: icons render and margins are
+    symmetric.
+- Files: `app/frontend/src/chatbots/shared/embed/EmbedBridge.tsx`, `embedMode.ts`,
+  `app/frontend/src/widget/widget.ts`, `app/frontend/src/index.css`. Added `samples/embed-demo.html`
+  (a self-contained dummy site for pasting/testing the snippet).
+
+### Follow-up: drag-to-resize the widget panel
+
+- **Made the desktop widget panel resizable.** Added top-edge, inner-side-edge, and corner drag
+  handles to the widget panel (`widget.ts`). The panel is anchored to its corner, so handles live
+  on the opposite edges and it grows toward the open side; a subtle grip shows on hover. Uses
+  Pointer Events with `setPointerCapture` (plus `.resizing iframe { pointer-events: none }`) so the
+  drag survives moving over the cross-origin iframe. Size is clamped to
+  `[320×380, viewport−40]`, applied via `--cw-width`/`--cw-height` custom properties (so the mobile
+  media query's explicit width/height still wins on small screens), and **persisted per chatbot in
+  `localStorage` (`chatbot-widget-size:<id>`)** and restored on reopen/reload. Handles are hidden
+  on ≤480px (panel is near-fullscreen there). Verified in-browser: 400×640 → 620×800 on drag,
+  persisted across reload. Docs updated in `docs/embedding.md`.
+
+### Follow-up: served `/embed-demo` page with a chatbot picker
+
+- **Replaced the static `samples/embed-demo.html` with a served `/embed-demo` endpoint.** New
+  backend route (`app/backend/app.py`) renders `app/backend/embed_demo.html`, injecting the
+  `<option>` list from `KNOWN_CHATBOT_NAMES` (so it never drifts; `internal` and `public-test` are
+  excluded, `nerilio`/default first). The page derives `/widget.js` from its own origin, shows the
+  exact copy-paste snippet for the selected bot, and a dropdown switches the chatbot — reloading
+  with `?bot=<id>` and auto-opening that bot's popup (programmatic `chatbot.init()`+`open()`).
+  Dummy "Northwind Freight" marketing copy removed; page content now describes the embed feature.
+  Deleted `samples/embed-demo.html` (and the now-empty `samples/`). Test:
+  `tests/test_app.py::test_embed_demo_page_renders_chatbot_options`. Verified in-browser: default
+  opens nerilio, picking publishone reloads to `?bot=publishone` and opens `/publishone?embed=1`.
+
 ## 2026-06-05
 
 ### Decisions

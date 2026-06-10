@@ -1,0 +1,180 @@
+.overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+    background: rgba(36, 24, 43, 0.46);
+    backdrop-filter: blur(4px);
+}
+
+.dialog {
+    width: min(640px, 100%);
+    max-height: calc(100vh - 40px);
+    overflow: auto;
+    display: grid;
+    gap: 16px;
+    padding: 24px;
+    border-radius: 24px;
+    background: linear-gradient(180deg, #ffffff 0%, #faf7f2 100%);
+    border: 1px solid rgba(172, 68, 198, 0.16);
+    box-shadow: 0 30px 80px rgba(77, 42, 103, 0.28);
+    color: #24182b;
+}
+
+.header {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 6px 12px;
+    background: rgba(172, 68, 198, 0.12);
+    color: #7f2898;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.title {
+    margin: 10px 0 0;
+    font-size: 1.8rem;
+    line-height: 1.05;
+    font-weight: 600;
+    text-transform: capitalize;
+    color: #ac44c6;
+}
+
+.closeButton {
+    appearance: none;
+    border: none;
+    background: rgba(172, 68, 198, 0.1);
+    color: #7f2898;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    font-size: 1.4rem;
+    line-height: 1;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.closeButton:hover {
+    background: rgba(172, 68, 198, 0.2);
+}
+
+.lead {
+    margin: 0;
+    color: #675d6f;
+    line-height: 1.5;
+}
+
+.lead code {
+    background: rgba(172, 68, 198, 0.1);
+    border-radius: 6px;
+    padding: 1px 6px;
+    font-size: 0.9em;
+}
+
+.codeBlock {
+    position: relative;
+}
+
+.code {
+    margin: 0;
+    padding: 16px;
+    border-radius: 14px;
+    background: #1f1530;
+    color: #f4ecff;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 0.86rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-all;
+    overflow-x: auto;
+}
+
+.copyButton {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    appearance: none;
+    border: none;
+    border-radius: 10px;
+    padding: 8px 14px;
+    background: linear-gradient(135deg, #ac44c6 0%, #c46bd9 100%);
+    color: #fffaff;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 8px 18px rgba(172, 68, 198, 0.3);
+}
+
+.copyButton:hover {
+    transform: translateY(-1px);
+}
+
+.advanced {
+    border: 1px solid rgba(172, 68, 198, 0.14);
+    border-radius: 14px;
+    padding: 12px 14px;
+    background: rgba(255, 255, 255, 0.6);
+}
+
+.advancedSummary {
+    cursor: pointer;
+    font-weight: 600;
+    color: #7f2898;
+}
+
+.advanced .code {
+    margin-top: 12px;
+}
+
+.advancedHint {
+    margin: 12px 0 0;
+    color: #675d6f;
+    font-size: 0.86rem;
+    line-height: 1.5;
+}
+
+.advancedHint code {
+    background: rgba(172, 68, 198, 0.1);
+    border-radius: 6px;
+    padding: 1px 6px;
+}
+
+.previewSection {
+    display: grid;
+    gap: 10px;
+}
+
+.previewLabel {
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #675d6f;
+}
+
+.previewFrameWrap {
+    border: 1px solid rgba(172, 68, 198, 0.16);
+    border-radius: 16px;
+    overflow: hidden;
+    background: #fff;
+    height: 420px;
+}
+
+.previewFrame {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+}

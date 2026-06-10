@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chatbot embed demo</title>
+  <style>
+    :root {
+      --ink: #0f172a;
+      --muted: #475569;
+      --brand: #ac44c6;
+      --brand-dark: #8f30a8;
+      --bg: #f9f6fb;
+      --card: #ffffff;
+      --line: #e5e7eb;
+      --code-bg: #1f1530;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+      color: var(--ink);
+      background: radial-gradient(1200px 600px at 80% -10%, #f0e6f8 0%, transparent 60%), var(--bg);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+    .wrap { width: min(900px, calc(100% - 40px)); margin: 0 auto; padding: 56px 0 120px; }
+    .eyebrow { color: var(--brand); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; font-size: .8rem; }
+    h1 { font-size: clamp(2rem, 4vw, 2.9rem); line-height: 1.1; letter-spacing: -0.02em; margin: 12px 0 14px; }
+    .lead { font-size: 1.12rem; color: var(--muted); max-width: 62ch; margin: 0; }
+
+    .card {
+      background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 24px;
+      box-shadow: 0 20px 50px rgba(15, 23, 42, 0.06); margin-top: 28px;
+    }
+    .card h2 { margin: 0 0 6px; font-size: 1.15rem; }
+    .card p.hint { margin: 0 0 16px; color: var(--muted); font-size: .96rem; }
+
+    .control { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+    label { font-weight: 600; }
+    select {
+      font: inherit; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--line);
+      background: #fff; color: var(--ink); min-width: 220px; cursor: pointer;
+    }
+    select:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px rgba(172,68,198,.15); }
+    .badge {
+      display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px;
+      background: rgba(172,68,198,.1); color: var(--brand-dark); font-weight: 600; font-size: .85rem;
+    }
+
+    .codeBlock { position: relative; margin-top: 18px; }
+    pre {
+      margin: 0; padding: 18px; border-radius: 12px; background: var(--code-bg); color: #f4ecff;
+      overflow-x: auto; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .9rem;
+    }
+    .copyBtn {
+      position: absolute; top: 10px; right: 10px; border: none; border-radius: 9px; padding: 8px 14px;
+      background: var(--brand); color: #fff; font: inherit; font-weight: 600; cursor: pointer;
+    }
+    .copyBtn:hover { background: var(--brand-dark); }
+
+    .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-top: 8px; }
+    .feature { background: #fbfbfe; border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+    .feature h3 { margin: 0 0 4px; font-size: 1rem; }
+    .feature p { margin: 0; color: var(--muted); font-size: .92rem; }
+    .arrow { display: inline-block; }
+    @media (max-width: 620px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="eyebrow">Embeddable chatbot</div>
+    <h1>Add the chatbot to any website with one line of code</h1>
+    <p class="lead">
+      This is a live demo of the embeddable widget. Pick a chatbot below and its chat bubble appears in the
+      bottom-right corner — click it to open the popup, exactly how it renders on any external site
+      (WordPress, TYPO3, Drupal, or a custom page). The only integration on a real site is the single
+      <code>&lt;script&gt;</code> snippet shown here.
+    </p>
+
+    <section class="card">
+      <h2>Try it</h2>
+      <p class="hint">Switching the chatbot reloads this demo and shows that bot's chat bubble.</p>
+      <div class="control">
+        <label for="botSelect">Chatbot</label>
+        <select id="botSelect">{{CHATBOT_OPTIONS}}</select>
+        <span class="badge">⤢ Drag the popup's corner to resize — your size is remembered</span>
+      </div>
+
+      <div class="codeBlock">
+        <pre id="snippet">&lt;script&gt;</pre>
+        <button class="copyBtn" id="copyBtn" type="button">Copy</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>How the embed works</h2>
+      <div class="grid">
+        <div class="feature">
+          <h3>One snippet</h3>
+          <p>Paste a single <code>&lt;script&gt;</code> tag before <code>&lt;/body&gt;</code>. The chat bubble renders itself — no HTML, CSS, or build step.</p>
+        </div>
+        <div class="feature">
+          <h3>Fully isolated</h3>
+          <p>The chat runs in an iframe, so its styles and scripts never clash with your site, and your site can't break the chat.</p>
+        </div>
+        <div class="feature">
+          <h3>Auto-updates</h3>
+          <p>Improvements ship from the server. Customers never have to change the snippet on their site.</p>
+        </div>
+        <div class="feature">
+          <h3>Resizable & responsive</h3>
+          <p>Drag the popup to the size you like on desktop; on phones it expands to a comfortable near-fullscreen view.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      var origin = window.location.origin;
+      var params = new URLSearchParams(window.location.search);
+      var select = document.getElementById("botSelect");
+
+      // Resolve the active chatbot id from ?bot=, falling back to the first option.
+      var requested = params.get("bot");
+      if (requested) {
+        select.value = requested;
+      }
+      var bot = select.value;
+
+      // Show the exact snippet a customer would paste (simple data-attribute form).
+      var snippet = '<script async src="' + origin + '/widget.js" data-chatbot-id="' + bot + '"><\/script>';
+      document.getElementById("snippet").textContent = snippet;
+
+      document.getElementById("copyBtn").addEventListener("click", function () {
+        navigator.clipboard.writeText(snippet).then(function () {
+          var b = document.getElementById("copyBtn");
+          var t = b.textContent; b.textContent = "Copied!";
+          setTimeout(function () { b.textContent = t; }, 1500);
+        });
+      });
+
+      // Reload with the chosen bot so the widget re-initialises cleanly for it.
+      select.addEventListener("change", function () {
+        window.location.search = "?bot=" + encodeURIComponent(select.value);
+      });
+
+      // Load the widget for the selected bot (programmatic API + queue stub).
+      // Do not auto-open: the launcher bubble shows and the user opens it on click.
+      window.chatbot = window.chatbot || { q: [], init: function (o) { this.q.push(["init", o]); },
+        open: function () { this.q.push(["open"]); }, close: function () { this.q.push(["close"]); } };
+      window.chatbot.init({ chatbotId: bot });
+
+      var s = document.createElement("script");
+      s.async = true;
+      s.src = origin + "/widget.js";
+      document.body.appendChild(s);
+    })();
+  </script>
+</body>
+</html>

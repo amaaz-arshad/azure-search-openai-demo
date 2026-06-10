@@ -700,6 +700,34 @@ async def test_manage_prompts_spa_route(client):
 
 
 @pytest.mark.asyncio
+async def test_widget_loader_served_with_short_cache(client):
+    response = await client.get("/widget.js")
+    assert response.status_code == 200
+    assert response.content_type.startswith("application/javascript")
+    assert "max-age=300" in response.headers.get("Cache-Control", "")
+
+
+@pytest.mark.asyncio
+async def test_spa_index_allows_cross_origin_iframe_embedding(client):
+    response = await client.get("/")
+    assert response.status_code == 200
+    assert response.headers.get("Content-Security-Policy") == "frame-ancestors *"
+    assert "X-Frame-Options" not in response.headers
+
+
+@pytest.mark.asyncio
+async def test_embed_demo_page_renders_chatbot_options(client):
+    response = await client.get("/embed-demo")
+    assert response.status_code == 200
+    assert response.content_type.startswith("text/html")
+    body = (await response.get_data()).decode()
+    assert "{{CHATBOT_OPTIONS}}" not in body  # placeholder was replaced
+    assert '<option value="nerilio">' in body
+    assert '<option value="internal">' not in body  # router shell is excluded
+    assert "/widget.js" in body
+
+
+@pytest.mark.asyncio
 async def test_internal_admin_prompt_list_excludes_internal_router_bot(client):
     prompt_store = client.app.config[app.CONFIG_CHATBOT_PROMPT_STORE]
 

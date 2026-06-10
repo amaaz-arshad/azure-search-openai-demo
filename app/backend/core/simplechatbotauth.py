@@ -10,6 +10,24 @@ SIMPLE_CHATBOT_AUTH_REQUIRED_MESSAGE = "Chatbot authentication required."
 SIMPLE_CHATBOT_AUTH_INVALID_CREDENTIALS_MESSAGE = "Incorrect username or password."
 
 
+def mark_set_cookie_partitioned(response, cookie_name: str) -> None:
+    """Append the `Partitioned` (CHIPS) attribute to a previously emitted Set-Cookie header.
+
+    Quart/Werkzeug `set_cookie` does not yet expose a `partitioned` parameter, so we patch the
+    header in place. Partitioned cookies let the per-chatbot login cookie work inside a
+    cross-site iframe (the embeddable widget) without relying on third-party cookies.
+    """
+    set_cookie_values = response.headers.getlist("Set-Cookie")
+    if not set_cookie_values:
+        return
+    patched = []
+    for value in set_cookie_values:
+        if value.startswith(f"{cookie_name}=") and "Partitioned" not in value:
+            value = f"{value}; Partitioned"
+        patched.append(value)
+    response.headers.setlist("Set-Cookie", patched)
+
+
 @dataclass(frozen=True)
 class SimpleChatbotCredentials:
     usernames: frozenset[str]
@@ -87,15 +105,33 @@ class SimpleChatbotAuthStore:
         return SimpleChatbotSession(chatbot_name=chatbot_name, user=session_user)
 
     def set_session_cookie(self, response, session: SimpleChatbotSession, *, secure: bool) -> None:
+        cookie_name = self.get_session_cookie_name(session.chatbot_name)
+        # When served over HTTPS we want the login cookie to survive inside a cross-site
+        # iframe (the embeddable widget), which requires SameSite=None; Secure; Partitioned
+        # (CHIPS). On plain HTTP (local dev) SameSite=None would be rejected, so fall back to
+        # the original Lax behaviour. Quart's set_cookie has no "partitioned" parameter, so the
+        # attribute is appended to the emitted Set-Cookie header afterwards.
         response.set_cookie(
-            self.get_session_cookie_name(session.chatbot_name),
+            cookie_name,
             self.create_session_token(session),
             max_age=self.session_max_age_seconds,
             httponly=True,
             secure=secure,
-            samesite="Lax",
+            samesite="None" if secure else "Lax",
             path="/",
         )
+        if secure:
+            mark_set_cookie_partitioned(response, cookie_name)
 
-    def clear_session_cookie(self, response, chatbot_name: str) -> None:
-        response.delete_cookie(self.get_session_cookie_name(chatbot_name), path="/", samesite="Lax")
+    def clear_session_cookie(self, response, chatbot_name: str, *, secure: bool = False) -> None:
+        cookie_name = self.get_session_cookie_name(chatbot_name)
+        # Deletion must match the attributes the cookie was set with, otherwise the browser
+        # keeps the partitioned cross-site cookie around.
+        response.delete_cookie(
+            cookie_name,
+            path="/",
+            secure=secure,
+            samesite="None" if secure else "Lax",
+        )
+        if secure:
+            mark_set_cookie_partitioned(response, cookie_name)

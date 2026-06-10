@@ -12,6 +12,8 @@ import "./index.css";
 import { chatbotDefinitions } from "./chatbots/registry";
 import { Component as SharedNoPage } from "./chatbots/shared/noPage/NoPage";
 import { ChatbotThemeRoot } from "./chatbots/shared/theme/ChatbotThemeRoot";
+import { EmbedBridge } from "./chatbots/shared/embed/EmbedBridge";
+import { isEmbedMode } from "./chatbots/shared/embed/embedMode";
 import i18n from "./chatbots/nerilio/i18n/config";
 import ChatbotDirectory from "./pages/ChatbotDirectory";
 import ManagePromptsPage from "./pages/ManagePromptsPage";
@@ -30,9 +32,12 @@ import { msalConfig, useLogin } from "./authConfig";
 
 initializeIcons();
 
+const embedMode = isEmbedMode();
+
 const wrapChatbotElement = (chatbot: (typeof chatbotDefinitions)[number], element: React.ReactNode) => (
-    <ChatbotThemeRoot chatbotName={chatbot.name}>
+    <ChatbotThemeRoot chatbotName={chatbot.name} embed={embedMode}>
         <I18nextProvider i18n={chatbot.i18n}>{element}</I18nextProvider>
+        {embedMode && <EmbedBridge />}
     </ChatbotThemeRoot>
 );
 

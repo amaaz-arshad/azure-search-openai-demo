@@ -79,6 +79,7 @@ Use graphify as the map, then inspect the smallest relevant code surface. The hi
 - Moodle/PublishOne XML feed automation must preserve both blob-copy/index behavior and the post-deploy Event Grid subscription script.
 - `OPENLIT_ENDPOINT` points at an already-running OpenLIT backend. `azd up` does not provision or repair the standalone OpenLIT Container App.
 - Azure Files SMB is not safe for OpenLIT ClickHouse data here. The known-working Container App setup uses `EmptyDir` for `clickhousedata` and `openlitdata`, with only config volumes on Azure Files; request history is non-persistent across replica recreation.
+- External sites embed a chatbot via the `/widget.js` loader (built from `app/frontend/src/widget/widget.ts` by `vite.widget.config.ts`, chained after the main `vite build`). It injects a launcher + iframe pointing at `/<chatbotId>?embed=1`; chat calls inside the iframe are same-origin, so no CORS is needed. `serve_spa_index` sends `Content-Security-Policy: frame-ancestors *` (allow-all framing) — do not reintroduce `X-Frame-Options`. Embed mode is detected via `?embed=1` (`isEmbedMode`), surfaced as `data-embed="1"` on the theme root, with `EmbedBridge` posting `chatbot:ready`/`chatbot:close`. Per-bot simple-auth cookies use `SameSite=None; Secure; Partitioned` over HTTPS so login survives the cross-site iframe; MSAL-gated bots cannot be embedded. A served `/embed-demo` route renders `app/backend/embed_demo.html` with a chatbot picker (options injected from `KNOWN_CHATBOT_NAMES`). See `docs/embedding.md`.
 
 ## Adding Data
 

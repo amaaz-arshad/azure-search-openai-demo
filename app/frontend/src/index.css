@@ -31,6 +31,29 @@ body {
     height: 100%;
 }
 
+/* Embed mode: the chatbot page rendered inside the embeddable widget iframe (?embed=1).
+   The widget panel supplies its own frame/background, so the page just fills the iframe. */
+[data-embed="1"] {
+    height: 100%;
+}
+
+/* Embed mode: hide scrollbars inside the iframe so they never consume layout width. Bots reserve
+   a right-only gutter (`scrollbar-gutter: stable`) and the desktop iframe uses classic scrollbars
+   with width — both push content left and leave extra space on the right. Collapsing the scrollbar
+   width removes that right-side gutter, so the right margin shrinks to match the left. Content
+   still scrolls via wheel/trackpad/touch. Scoped to embed mode only; the normal full-page/mobile
+   views are untouched. NOTE: only scrollbar appearance is changed here — do NOT use
+   `scrollbar-gutter: stable` on `*`, it reserves a gutter on every `overflow:hidden` box (e.g.
+   FluentUI icon buttons) and clips their contents. */
+[data-embed="1"] * {
+    scrollbar-width: none; /* Firefox: no scrollbar, no reserved width */
+    scrollbar-gutter: auto !important; /* neutralize any right-only `stable` gutter; auto is safe for icons */
+}
+[data-embed="1"] ::-webkit-scrollbar {
+    width: 0;
+    height: 0; /* Chromium/Safari: zero-width scrollbar */
+}
+
 @media (min-width: 480px) {
     html {
         font-size: 13px; /* Slightly larger font size for larger phones */
