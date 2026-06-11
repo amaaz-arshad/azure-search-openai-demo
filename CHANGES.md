@@ -15,6 +15,120 @@ Two categories per date:
 
 ---
 
+## 2026-06-11
+
+### Decisions
+
+- **HYROX assessment bot client rebrand ("Managing Performance").** Black header with the
+  title in HYROX yellow `#FFED00`, title renamed to "HYROX Assessment", robot icon removed
+  from the header, bot avatar in chat switched to the existing `HYROX.svg`, user bubbles
+  white-on-black-text, bot bubbles black-on-white-text. Theme seed keeps `primary: #FFED00`
+  with `overrides` (navbar + userBubble) — the established knoll-style special-case mechanism.
+- **Bot answer bubble colors became theme-able via CSS variables, not a fork.** Shared
+  `SharedAnswer.module.css` colors (`background`, text, headings, `strong`/`em`, assistant
+  name) are now `var(--chatbot-answer-*, <previous hardcoded value>)`, so every other bot is
+  pixel-identical; hyrox sets the vars in its own `Chat.module.css .container` (nerilio
+  precedent). The copy/speech icon buttons use `var(--chatbot-answer-action-color, black)`
+  instead of inline hardcoded black.
+- **End-of-assessment renders as five separate chat bubbles** (client requirement): final
+  question's score + feedback → "Assessment complete — Total: X/Y (Z%) — verdict" → topic
+  summary → motivational text → closing note. Implemented with a backend-authored hidden
+  `[[BREAK]]` marker joined into ONE stored assistant message; the frontend splits at
+  `[[BREAK]]` for display only. Stored content stays joined, so history persistence/restore
+  and the stateless backend replay/state-derivation are untouched. Mid-run turns are
+  unchanged (score + feedback + chained next question stay one bubble).
+- **The strengths/weaknesses topic summary is now ALWAYS given — pass and fail** (was:
+  optional, fail-only). The model writes it after a new final-turn-only `[[SUMMARY]]` token
+  (lets the backend insert the verdict bubble between feedback and summary); if the model
+  omits the token, the backend renders a deterministic fallback from the authoritative
+  `category_breakdown` (categories ≥80% = strengths, below = needs work, names only).
+  Summary is qualitative only (no numbers) — keeps the "model writes no numbers" contract.
+- **Pass/fail closing copy is backend-rendered static text** in `results.py` `_LOCALES`
+  (en/de/nl): pass = client's verbatim motivational text + certificate notice; fail = drafted
+  encouragement + "80% needed, send a message to start a new attempt" (preserves the existing
+  fail→auto-restart behavior). Client can tweak wording later in one place.
+- **GoLive note:** the question count ("20") lives in `results.py QUESTIONS_PER_RUN`
+  (backend-authoritative, now also interpolated into the state-injection strings) and in the
+  three `initialAssistantMsg` welcome strings — change both places before GoLive.
+- **New backend defense: strip a pool question the model leaks as free text.** Observed in a
+  live run: after finalising a question, the model emitted a (lightly reworded) pool question
+  ("What are the four age groups…" vs the pooled "Describe the four age groups…") as its own
+  paragraph, which then displayed right above the real backend-rendered next question. The
+  existing `[[ASK]]` suffix-discard only guards *ask* turns; on a finalisation/chain turn the
+  model's body is passed through, so the leak surfaced. Root cause is model non-compliance with
+  the "write NO visible question text" contract; fix is display-only (scoring, plan, and counter
+  were already correct — the leak carried no marker). Matching uses the single longest contiguous
+  run shared with each pool question (≥0.8 of question length) so light rewording is caught while
+  ordinary feedback — which shares no long run with any question — is kept; marker-bearing
+  paragraphs are preserved untouched so `[[SCORE]]/[[ASK]]/[[SUMMARY]]` still replay. Applied to
+  the model body *before* the backend inserts its own question, so the authoritative rendered
+  question is never stripped.
+
+### Changes
+
+- `app/frontend/src/chatbots/shared/theme/chatbotThemes.ts`: hyrox-assessment seed gained
+  `overrides` (navbar black/yellow, userBubble white/black).
+- `app/frontend/src/chatbots/shared/answer/SharedAnswer.module.css`: bubble/text/heading/
+  strong/em/assistant-name colors parametrized as `--chatbot-answer-*` vars with the previous
+  values as defaults.
+- `app/frontend/src/chatbots/shared/answer/ChatbotAnswer.tsx` and
+  `app/frontend/src/chatbots/shared/speech/SpeechOutputAzureButton.tsx`: icon color
+  `black` → `var(--chatbot-answer-action-color, black)`.
+- `app/frontend/src/chatbots/hyrox-assessment/`:
+  - `pages/layout/Layout.tsx`: removed the header logo circle (lemon robot) + unused imports.
+  - `pages/chat/Chat.module.css`: sets the `--chatbot-answer-*` vars (black bubble, white
+    text, yellow assistant name, white action icons).
+  - `pages/chat/Chat.tsx`: both render loops split each stored assistant message at
+    `[[BREAK]]` via `splitAssessmentBubbles` and render one `<Answer>` per segment
+    (follow-ups only on the last segment); lemon logo import swapped to `HYROX.svg`.
+  - `components/Answer/Answer.tsx`: avatar `lemon-chatbot.png` → `assets/HYROX.svg`.
+  - `components/Answer/assessmentMarkers.ts`: marker regex extended with `SUMMARY|BREAK`;
+    new `splitAssessmentBubbles()`; re-exported via `components/Answer/index.ts`.
+  - `components/Answer/SpeechOutputBrowser.tsx`, `AnswerLoading.tsx`, `Answer.module.css`:
+    action/loader colors + loading/error bubble follow the answer CSS vars.
+  - `locales/{en,de,nl}/translation.json`: `pageTitle`/`headerTitle` → "HYROX Assessment";
+    new "Managing Performance" welcome message with `Type "Start"` instruction (20 questions,
+    one revision per question, 80% to pass, topic summary at the end).
+- `app/backend/approaches/chatbots/hyrox_assessment/results.py`: new `SUMMARY_TOKEN_RE`,
+  `BUBBLE_BREAK_TOKEN`/`BUBBLE_BREAK_SEPARATOR`, `ANY_MARKER_RE` extended; `_LOCALES` gained
+  `summary_*`, `motivational_passed/failed`, `closing_passed/failed` (en/de/nl); new
+  `render_summary_fallback()` + `render_completion_bubbles()`; `render_assessment_turn`
+  routes the completion turn through the bubble assembly (hidden `[[SCORE]]` re-appended at
+  the end so it still replays); `build_state_injection` final-question instruction now
+  requires feedback → `[[SUMMARY]]` → always-take-aways, and interpolates
+  `QUESTIONS_PER_RUN`/`PASS_THRESHOLD_PERCENT` instead of hardcoded "20"/"80".
+- `app/backend/approaches/chatbots/hyrox_assessment/sampleprompt.py`: "THE TOKENS" section
+  documents `[[SUMMARY]]`; "Closing" section now mandates take-aways in both pass and fail.
+- `tests/test_hyrox_assessment.py`: new `_completion_turn` helper; tests for the 5-bubble
+  passed/failed endings, deterministic summary fallback, `strip_markers` covering
+  `BREAK`/`SUMMARY`, and the final-question state injection. 44 passed; `ty check` clean;
+  frontend `npm run build` green.
+- `app/backend/approaches/chatbots/hyrox_assessment/results.py`: `import difflib`; new
+  `paragraph_reproduces_pool_question()` + `strip_leaked_question_text()` (with
+  `_NORMALIZED_POOL_QUESTIONS`, `_LEAKED_QUESTION_MATCH_THRESHOLD=0.8`, `_MIN_QUESTION_MATCH_CHARS`,
+  `_PARAGRAPH_SPLIT_RE`, `_normalize_for_match`); `render_assessment_turn` now runs
+  `strip_leaked_question_text` on the model body right after `strip_rendered_numbers`.
+- `tests/test_hyrox_assessment.py`: added `test_strip_leaked_question_text_removes_reworded_pool_question`
+  and `test_render_assessment_turn_drops_leaked_question_on_finalisation`. 46 passed; `ty check` clean.
+- **HYROX answer card icon hover fix.** Fluent UI `IconButton` default hover is near-white
+  (`#f3f2f1`), which rendered the white icons invisible on hover over the black answer card.
+  - `app/frontend/src/chatbots/hyrox-assessment/pages/chat/Chat.module.css`: added
+    `--chatbot-answer-action-hover-background: rgba(255,255,255,0.15)` and
+    `--chatbot-answer-action-pressed-background: rgba(255,255,255,0.25)` to `.container`.
+  - `app/frontend/src/chatbots/shared/answer/ChatbotAnswer.tsx`: copy `IconButton` now
+    passes `styles={{ rootHovered, rootPressed }}` using the CSS variable (fallback `#f3f2f1`/
+    `#edebe9` preserves Fluent UI defaults for all other bots).
+  - `app/frontend/src/chatbots/shared/speech/SpeechOutputAzureButton.tsx`: same `styles` prop
+    on the volume/stop `IconButton` — this is the speech button HYROX actually renders
+    (Azure speech), so this is the one that fixes the speaker-icon hover. Also added
+    `rootDisabled: { backgroundColor: "transparent" }`: while loading the button is
+    `disabled` and shows the circular `Sync` icon, whose Fluent default disabled background
+    was rendering light/white on the black card.
+  - `app/frontend/src/chatbots/hyrox-assessment/components/Answer/SpeechOutputBrowser.tsx`:
+    same `styles` prop on the volume `IconButton` (browser-speech fallback variant).
+
+---
+
 ## 2026-06-09
 
 ### Decisions

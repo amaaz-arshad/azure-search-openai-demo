@@ -4,6 +4,17 @@
     flex-direction: column;
     /* Remove margin-top: 1rem; */
     height: calc(100vh - 56px); /* Subtract navbar height (56px from layout.css) */
+    /* HYROX brand: bot answers render as black bubbles with white text and the
+       assistant name in HYROX yellow (consumed by SharedAnswer.module.css). */
+    --chatbot-answer-background: #000000;
+    --chatbot-answer-text: #ffffff;
+    --chatbot-answer-heading-text: #ffffff;
+    --chatbot-answer-strong-text: #ffffff;
+    --chatbot-answer-em-text: rgba(255, 255, 255, 0.85);
+    --chatbot-assistant-name-color: #ffed00;
+    --chatbot-answer-action-color: #ffffff;
+    --chatbot-answer-action-hover-background: rgba(255, 255, 255, 0.15);
+    --chatbot-answer-action-pressed-background: rgba(255, 255, 255, 0.25);
 }
 
 .chatRoot {

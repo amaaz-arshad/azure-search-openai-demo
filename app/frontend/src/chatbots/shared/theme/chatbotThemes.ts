@@ -57,9 +57,19 @@ export const chatbotThemes: Record<string, ChatbotThemeSeed> = {
         pageTone: "light"
     },
     "hyrox-assessment": {
-        // HYROX Youngstars highlight colour.
+        // HYROX highlight colour; the visible chrome is black with yellow accents.
         primary: "#FFED00",
-        pageTone: "light"
+        pageTone: "light",
+        overrides: {
+            navbar: {
+                background: "#000000",
+                text: "#FFED00"
+            },
+            userBubble: {
+                background: "#ffffff",
+                text: "#000000"
+            }
+        }
     },
     internal: {
         primary: "#313335",

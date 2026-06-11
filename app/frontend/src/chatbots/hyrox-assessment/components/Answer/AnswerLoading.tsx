@@ -16,7 +16,7 @@ export const AnswerLoading = () => {
     return (
         <animated.div style={{ ...animatedStyles }}>
             <Stack className={styles.answerContainer}>
-                <BeatLoader color="grey" size={10} />
+                <BeatLoader color="var(--chatbot-answer-action-color, grey)" size={10} />
             </Stack>
         </animated.div>
     );

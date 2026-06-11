@@ -530,6 +530,63 @@ def test_render_assessment_turn_renders_backend_question_even_without_ask_token(
     assert just_completed is False
 
 
+def test_strip_leaked_question_text_removes_reworded_pool_question() -> None:
+    # The model is told to write NO visible question text. If it leaks a pool question as a stray
+    # paragraph — verbatim or lightly reworded — it must be removed, while genuine feedback and any
+    # marker-bearing paragraph are preserved.
+    reworded_q7 = (
+        "What are the four age groups in HYROX Youngstars and explain how the coaching emphasis "
+        "changes as athletes move through each group."
+    )
+    body = f"Excellent — clear, practical, and well explained.\n\n{reworded_q7}"
+    out = results.strip_leaked_question_text(body)
+    assert "Excellent — clear, practical, and well explained." in out
+    assert "four age groups" not in out  # the leaked (reworded) question paragraph is gone
+    # a verbatim pool question is likewise stripped
+    assert results.paragraph_reproduces_pool_question(_question_text(7)) is True
+    # ordinary feedback shares no long run with any question, so it is kept
+    assert results.paragraph_reproduces_pool_question("Got the core idea — something is still missing.") is False
+    assert results.strip_leaked_question_text("Good — that's solid.") == "Good — that's solid."
+    # a paragraph that holds a control marker is preserved untouched so the marker still replays
+    marker = _score_marker(32)
+    assert marker in results.strip_leaked_question_text(f"Nice work.\n\n{marker}")
+
+
+def test_render_assessment_turn_drops_leaked_question_on_finalisation() -> None:
+    # Reproduces the observed bug: after finalising the current question with full marks, the model
+    # leaked a reworded pool question (Q7, "...four age groups...") as a stray paragraph. The leak
+    # must be stripped; only the backend's own next pinned question (Q27) may appear.
+    state = {
+        "plan": [32, 27],  # finalising 32; next pinned is 27 (four-phase session structure)
+        "plan_is_new": False,
+        "scores": [],
+        "n_scored": 0,
+        "current_id": 32,
+        "tally": results.compute_tally([]),
+        "completed_passed": False,
+        "current_question_asked": True,
+        "latest_user_answer_pending": True,
+        "answer_attempts_for_current": 1,
+        "correction_or_repeat_already_sent": False,
+        "must_finalize_current": False,
+    }
+    leaked = (
+        "What are the four age groups in HYROX Youngstars and explain how the coaching emphasis "
+        "changes as athletes move through each group."
+    )
+    content = f"Excellent — clear, practical, and well explained.\n\n{leaked}\n\n{_score_marker(32)}"
+
+    assembled, all_scores, _tally, just_completed = results.render_assessment_turn(content, state, "en")
+
+    assert "Excellent — clear, practical, and well explained." in assembled  # feedback retained
+    assert "four age groups" not in assembled  # leaked question stripped
+    assert _question_text(27) in assembled  # the real next question (backend-rendered) is shown
+    assert "**Question 2 of 20**" in assembled  # the chained next question's header
+    assert results.render_question_score(1, max_points(32), max_points(32), "en") in assembled
+    assert _asked_marker(27) in assembled  # only the backend-presented question is marked asked
+    assert len(all_scores) == 1 and just_completed is False
+
+
 def test_render_assessment_turn_chains_next_question_after_finalization() -> None:
     # Finalising a question that is not the last must show that question's score AND
     # automatically present the next pinned question in the same message, so the learner
@@ -664,9 +721,12 @@ def test_render_assessment_turn_appends_plan_on_fresh_run() -> None:
     assert all_scores == [] and just_completed is False
 
 
-def test_render_assessment_turn_completion_emits_final_result() -> None:
-    prior_ids = list(range(2, 21))  # 19 questions already finalised (full marks)
-    scores = [results.normalize_score(i, [1] * key_point_count(i)) for i in prior_ids]
+def _completion_turn(all_correct: bool, content: str) -> tuple:
+    """Run render_assessment_turn for the turn that finalises the 20th question. 19 questions
+    are already finalised with all key points right (pass trajectory) or all wrong (fail)."""
+    prior_ids = list(range(2, 21))
+    verdict = 1 if all_correct else 0
+    scores = [results.normalize_score(i, [verdict] * key_point_count(i)) for i in prior_ids]
     state = {
         "plan": [1] + prior_ids,
         "plan_is_new": False,
@@ -676,8 +736,12 @@ def test_render_assessment_turn_completion_emits_final_result() -> None:
         "tally": results.compute_tally(scores),
         "completed_passed": False,
     }
-    content = f'Final one done.\n{_score_marker(1)}'
-    assembled, all_scores, tally, just_completed = results.render_assessment_turn(content, state, "en")
+    return results.render_assessment_turn(content, state, "en")
+
+
+def test_render_assessment_turn_completion_emits_final_result() -> None:
+    content = f"Final one done.\n{_score_marker(1)}"
+    assembled, all_scores, tally, just_completed = _completion_turn(True, content)
     assert just_completed is True
     assert len(all_scores) == 20
     assert results.render_final_result(tally, "en") in assembled  # cumulative result only at the end
@@ -686,6 +750,88 @@ def test_render_assessment_turn_completion_emits_final_result() -> None:
     # the run is over — no question is chained past the last one
     assert "21 of 20" not in assembled
     assert "[[ASKED" not in assembled  # nothing further was presented
+
+
+def test_completion_renders_passed_ending_as_break_separated_bubbles() -> None:
+    # The end-of-assessment message is five [[BREAK]]-separated display bubbles: the final
+    # question's score + feedback, the cumulative verdict, the topic summary (the model text
+    # after its [[SUMMARY]] token), the motivational message, and the certificate notice.
+    content = f"Solid finish.\n[[SUMMARY]]\nStrengths: race format. Needs work: safeguarding.\n{_score_marker(1)}"
+    assembled, _all_scores, tally, just_completed = _completion_turn(True, content)
+    assert just_completed is True and tally["passed"] is True
+
+    bubbles = [b.strip() for b in assembled.split(results.BUBBLE_BREAK_TOKEN)]
+    assert len(bubbles) == 5
+    assert results.render_question_score(20, max_points(1), max_points(1), "en") in bubbles[0]
+    assert "Solid finish." in bubbles[0]
+    assert bubbles[1] == results.render_final_result(tally, "en")
+    assert "Strengths: race format" in bubbles[2]
+    assert "Great job. This wasn't a formality." in bubbles[3]
+    assert "your certificate will be generated" in bubbles[4]
+    # the model's separator token is consumed; the hidden score marker replays exactly once
+    assert "[[SUMMARY]]" not in assembled
+    assert assembled.count("[[SCORE") == 1
+    # display stripping leaves no marker residue (frontend parity)
+    assert "[[" not in results.strip_markers(assembled)
+
+
+def test_completion_renders_failed_ending_with_retry_note() -> None:
+    # A failed run gets the same bubble structure, with the fail-variant motivational text and
+    # a threshold + retry note instead of the certificate notice.
+    content = f"Thanks — that's where we'll leave it.\n[[SUMMARY]]\nNeeds work: most topics.\n{_score_marker(1, all_correct=False)}"
+    assembled, _all_scores, tally, just_completed = _completion_turn(False, content)
+    assert just_completed is True and tally["passed"] is False
+
+    bubbles = [b.strip() for b in assembled.split(results.BUBBLE_BREAK_TOKEN)]
+    assert len(bubbles) == 5
+    assert "NOT PASSED" in bubbles[1]
+    assert "Needs work: most topics" in bubbles[2]
+    assert "Good effort." in bubbles[3]
+    assert "80%" in bubbles[4] and "start a new attempt" in bubbles[4]
+    assert "certificate" not in assembled.lower()
+
+
+def test_completion_falls_back_to_deterministic_summary_without_summary_token() -> None:
+    # If the model omits its [[SUMMARY]] section, the backend still renders the promised
+    # per-topic summary from the authoritative category breakdown.
+    content = f"Final one done.\n{_score_marker(1)}"
+    assembled, _all_scores, _tally, just_completed = _completion_turn(True, content)
+    assert just_completed is True
+
+    bubbles = [b.strip() for b in assembled.split(results.BUBBLE_BREAK_TOKEN)]
+    assert len(bubbles) == 5
+    assert "**Summary by topic**" in bubbles[2]
+    assert "Strengths:" in bubbles[2]  # full-marks run → every category is a strength
+
+
+def test_strip_markers_removes_summary_and_break_tokens() -> None:
+    text = 'A\n\n[[BREAK]]\n\nB [[SUMMARY]] C [[SCORE q=1 points="1" max=6 cat="x"]]'
+    out = results.strip_markers(text)
+    assert "[[" not in out
+    assert "A" in out and "B" in out and "C" in out
+
+
+def test_state_injection_final_question_requires_summary_token() -> None:
+    prior_ids = list(range(2, 21))
+    scores = [results.normalize_score(i, [1] * key_point_count(i)) for i in prior_ids]
+    state = {
+        "plan": prior_ids + [1],
+        "plan_is_new": False,
+        "scores": scores,
+        "n_scored": 19,
+        "current_id": 1,
+        "tally": results.compute_tally(scores),
+        "completed_passed": False,
+        "current_question_asked": True,
+        "latest_user_answer_pending": True,
+        "answer_attempts_for_current": 1,
+        "correction_or_repeat_already_sent": False,
+        "must_finalize_current": False,
+    }
+    injection = results.build_state_injection(state, "en")
+    assert "[[SUMMARY]]" in injection
+    # the topic take-aways are required in BOTH the pass and the fail case
+    assert "whether the learner did well or not" in injection
 
 
 def test_chained_next_question_is_recognized_as_asked_not_reasked() -> None:

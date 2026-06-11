@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, Outlet } from "react-router-dom";
+import { Outlet } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { IconButton } from "@fluentui/react";
 import { ChatAdd24Regular, History24Regular } from "@fluentui/react-icons";
 
 import { useLogin } from "../../authConfig";
 import { LoginButton } from "../../components/LoginButton";
-import lemonChatbotLogo from "../../../lemon/assets/lemon-chatbot.png";
 import styles from "./Layout.module.css";
 
 let globalClearChat: () => void = () => {};
@@ -50,12 +49,6 @@ const Layout = () => {
         <div className={styles.layout}>
             <header className={styles.header} role="banner">
                 <div className={styles.headerContainer}>
-                    <Link className={styles.logoContainer} to="/hyrox-assessment">
-                        <div className={styles.logoCircle}>
-                            <img alt="Logo" src={lemonChatbotLogo} />
-                        </div>
-                    </Link>
-
                     <div className={styles.navbarTitle}>{t("headerTitle")}</div>
 
                     <div className={styles.rightSection}>

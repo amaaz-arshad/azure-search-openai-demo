@@ -3,11 +3,11 @@ import { useTranslation } from "react-i18next";
 import { Helmet } from "react-helmet-async";
 import { useOutletContext } from "react-router-dom";
 import { Panel, DefaultButton } from "@fluentui/react";
-import lemonChatbotLogo from "../../../lemon/assets/lemon-chatbot.png";
+import hyroxLogo from "../../assets/HYROX.svg";
 import styles from "./Chat.module.css";
 
 import { chatApi, configApi, RetrievalMode, ChatAppResponse, ChatAppResponseOrError, ChatAppRequest, ResponseMessage, SpeechConfig } from "../../api";
-import { Answer, AnswerError, AnswerLoading } from "../../components/Answer";
+import { Answer, AnswerError, AnswerLoading, splitAssessmentBubbles } from "../../components/Answer";
 import { QuestionInput } from "../../components/QuestionInput";
 import { ExampleList } from "../../components/Example";
 import { UserChatMessage } from "../../components/UserChatMessage";
@@ -693,7 +693,7 @@ const Chat = () => {
                 <div className={styles.chatContainer}>
                     {/* {!lastQuestionRef.current && answers.length === 1 && answers[0][0] === "" ? (
                         <div className={styles.chatEmptyState}>
-                            <img src={lemonChatbotLogo} alt="App logo" width="120" height="120" />
+                            <img src={hyroxLogo} alt="App logo" width="120" height="120" />
                             <h1 className={styles.chatEmptyStateTitle}>{t("chatEmptyStateTitle")}</h1>
                             <h2 className={styles.chatEmptyStateSubtitle}>{t("chatEmptyStateSubtitle")}</h2>
                             <ExampleList onExampleClicked={onExampleClicked} useMultimodalAnswering={showMultimodalOptions} />
@@ -701,51 +701,70 @@ const Chat = () => {
                     ) : ( */}
                     <div className={styles.chatMessageStream}>
                         {isStreaming &&
-                            streamedAnswers.map((streamedAnswer, index) => (
-                                <div key={index}>
-                                    {!isSyntheticInitialPair(streamedAnswer) && <UserChatMessage message={streamedAnswer[0]} />}
-                                    <div className={styles.chatMessageGpt}>
-                                        <Answer
-                                            isStreaming={true}
-                                            key={index}
-                                            answer={streamedAnswer[1]}
-                                            index={index}
-                                            speechConfig={speechConfig}
-                                            isSelected={false}
-                                            onCitationClicked={c => onShowCitation(c, index)}
-                                            onThoughtProcessClicked={() => onToggleTab(AnalysisPanelTabs.ThoughtProcessTab, index)}
-                                            onSupportingContentClicked={() => onToggleTab(AnalysisPanelTabs.SupportingContentTab, index)}
-                                            onFollowupQuestionClicked={q => makeApiRequest(q)}
-                                            showFollowupQuestions={useSuggestFollowupQuestions && answers.length - 1 === index}
-                                            showSpeechOutputAzure={showSpeechOutputAzure}
-                                            showSpeechOutputBrowser={showSpeechOutputBrowser}
-                                        />
+                            streamedAnswers.map((streamedAnswer, index) => {
+                                // The backend joins end-of-assessment sections with hidden [[BREAK]]
+                                // markers; render one bubble per section. The stored answer keeps the
+                                // full content so history replay is unaffected.
+                                const bubbles = splitAssessmentBubbles(streamedAnswer[1].message.content);
+                                return (
+                                    <div key={index}>
+                                        {!isSyntheticInitialPair(streamedAnswer) && <UserChatMessage message={streamedAnswer[0]} />}
+                                        {bubbles.map((bubbleContent, bubbleIndex) => (
+                                            <div className={styles.chatMessageGpt} key={`${index}-${bubbleIndex}`}>
+                                                <Answer
+                                                    isStreaming={true}
+                                                    answer={{ ...streamedAnswer[1], message: { ...streamedAnswer[1].message, content: bubbleContent } }}
+                                                    index={index}
+                                                    speechConfig={speechConfig}
+                                                    isSelected={false}
+                                                    onCitationClicked={c => onShowCitation(c, index)}
+                                                    onThoughtProcessClicked={() => onToggleTab(AnalysisPanelTabs.ThoughtProcessTab, index)}
+                                                    onSupportingContentClicked={() => onToggleTab(AnalysisPanelTabs.SupportingContentTab, index)}
+                                                    onFollowupQuestionClicked={q => makeApiRequest(q)}
+                                                    showFollowupQuestions={
+                                                        useSuggestFollowupQuestions &&
+                                                        answers.length - 1 === index &&
+                                                        bubbleIndex === bubbles.length - 1
+                                                    }
+                                                    showSpeechOutputAzure={showSpeechOutputAzure}
+                                                    showSpeechOutputBrowser={showSpeechOutputBrowser}
+                                                />
+                                            </div>
+                                        ))}
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         {!isStreaming &&
-                            answers.map((answer, index) => (
-                                <div key={index}>
-                                    {!isSyntheticInitialPair(answer) && <UserChatMessage message={answer[0]} />}
-                                    <div className={styles.chatMessageGpt}>
-                                        <Answer
-                                            isStreaming={false}
-                                            key={index}
-                                            answer={answer[1]}
-                                            index={index}
-                                            speechConfig={speechConfig}
-                                            isSelected={selectedAnswer === index && activeAnalysisPanelTab !== undefined}
-                                            onCitationClicked={c => onShowCitation(c, index)}
-                                            onThoughtProcessClicked={() => onToggleTab(AnalysisPanelTabs.ThoughtProcessTab, index)}
-                                            onSupportingContentClicked={() => onToggleTab(AnalysisPanelTabs.SupportingContentTab, index)}
-                                            onFollowupQuestionClicked={q => makeApiRequest(q)}
-                                            showFollowupQuestions={useSuggestFollowupQuestions && answers.length - 1 === index}
-                                            showSpeechOutputAzure={showSpeechOutputAzure}
-                                            showSpeechOutputBrowser={showSpeechOutputBrowser}
-                                        />
+                            answers.map((answer, index) => {
+                                const bubbles = splitAssessmentBubbles(answer[1].message.content);
+                                return (
+                                    <div key={index}>
+                                        {!isSyntheticInitialPair(answer) && <UserChatMessage message={answer[0]} />}
+                                        {bubbles.map((bubbleContent, bubbleIndex) => (
+                                            <div className={styles.chatMessageGpt} key={`${index}-${bubbleIndex}`}>
+                                                <Answer
+                                                    isStreaming={false}
+                                                    answer={{ ...answer[1], message: { ...answer[1].message, content: bubbleContent } }}
+                                                    index={index}
+                                                    speechConfig={speechConfig}
+                                                    isSelected={selectedAnswer === index && activeAnalysisPanelTab !== undefined}
+                                                    onCitationClicked={c => onShowCitation(c, index)}
+                                                    onThoughtProcessClicked={() => onToggleTab(AnalysisPanelTabs.ThoughtProcessTab, index)}
+                                                    onSupportingContentClicked={() => onToggleTab(AnalysisPanelTabs.SupportingContentTab, index)}
+                                                    onFollowupQuestionClicked={q => makeApiRequest(q)}
+                                                    showFollowupQuestions={
+                                                        useSuggestFollowupQuestions &&
+                                                        answers.length - 1 === index &&
+                                                        bubbleIndex === bubbles.length - 1
+                                                    }
+                                                    showSpeechOutputAzure={showSpeechOutputAzure}
+                                                    showSpeechOutputBrowser={showSpeechOutputBrowser}
+                                                />
+                                            </div>
+                                        ))}
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         {isLoading && (
                             <>
                                 <UserChatMessage message={lastQuestionRef.current} />

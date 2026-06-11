@@ -20,6 +20,7 @@ percentage, and pass/fail — it renders all of these numbers into the message i
 finalised, ``record_assessment_result`` writes a session log and calls the LMS stub.
 """
 
+import difflib
 import json
 import logging
 import random
@@ -46,7 +47,15 @@ PASS_THRESHOLD_PERCENT = 80
 PLAN_MARKER_RE = re.compile(r"\[\[\s*PLAN\b([^\]]*)\]\]", re.IGNORECASE)
 SCORE_MARKER_RE = re.compile(r"\[\[\s*SCORE\b([^\]]*)\]\]", re.IGNORECASE)
 RESULT_MARKER_RE = re.compile(r"\[\[\s*RESULT\b([^\]]*)\]\]", re.IGNORECASE)
-ANY_MARKER_RE = re.compile(r"\[\[\s*(?:PLAN|SCORE|RESULT|ASKED|ASK)\b[^\]]*\]\]", re.IGNORECASE)
+ANY_MARKER_RE = re.compile(r"\[\[\s*(?:PLAN|SCORE|RESULT|ASKED|ASK|SUMMARY|BREAK)\b[^\]]*\]\]", re.IGNORECASE)
+# Written by the model on the final turn only, between its feedback on the last answer and
+# its topic take-aways. The backend splits there so the final result verdict can be rendered
+# between them as its own display bubble.
+SUMMARY_TOKEN_RE = re.compile(r"\[\[\s*SUMMARY\s*\]\]", re.IGNORECASE)
+# Backend-authored display split point: the frontend renders one chat bubble per
+# [[BREAK]]-separated section while storing the full message, so replay is unaffected.
+BUBBLE_BREAK_TOKEN = "[[BREAK]]"
+BUBBLE_BREAK_SEPARATOR = f"\n\n{BUBBLE_BREAK_TOKEN}\n\n"
 # Placement token the model writes when a question should be asked; the backend replaces it
 # with the localized "Question N of 20" header plus the exact pinned question text from
 # questions.py. The model must not author visible question text because it can pick the
@@ -147,6 +156,34 @@ _LOCALES: dict[str, dict[str, str]] = {
         "passed": "PASSED",
         "failed": "NOT PASSED",
         "correction_offer": "You have one opportunity to add to or revise your answer — go ahead if you'd like.",
+        "summary_heading": "**Summary by topic**",
+        "summary_strengths": "Strengths:",
+        "summary_weaknesses": "Needs work:",
+        "motivational_passed": (
+            "Great job. This wasn't a formality. You worked through the material, you answered the "
+            "questions, and you passed.\n\n"
+            "Managing performance is one of the most demanding skills a HYROX coach can develop. The fact "
+            "that you've completed this module means you're building the kind of foundation that makes a "
+            "real difference — to your athletes, and to your practice.\n\n"
+            "This is a step in the right direction. Not the last one — but a meaningful one.\n\n"
+            "Keep going. Your athletes will feel the difference."
+        ),
+        "motivational_failed": (
+            "Good effort. This is a demanding module, and completing a full run takes commitment. You "
+            "didn't reach the pass threshold this time — but the summary above shows you exactly where to "
+            "focus, and that focus is how coaches improve.\n\n"
+            "Managing performance is one of the most demanding skills a HYROX coach can develop. Keep "
+            "going — the next attempt is yours to take."
+        ),
+        "closing_passed": (
+            "You can now close the assessment, and your certificate will be generated. Please wait until "
+            "you receive the corresponding notification. You will then find the certificate in the app and "
+            "receive it again via email."
+        ),
+        "closing_failed": (
+            "You need a total score of {threshold}% to pass. You can start a new attempt at any time — "
+            "just send a message when you are ready, and a fresh assessment will begin."
+        ),
     },
     "de": {
         "header": "**Frage {n} von {total}**",
@@ -155,6 +192,36 @@ _LOCALES: dict[str, dict[str, str]] = {
         "passed": "BESTANDEN",
         "failed": "NICHT BESTANDEN",
         "correction_offer": "Du hast jetzt die Möglichkeit, deine Antwort zu ergänzen oder zu überarbeiten.",
+        "summary_heading": "**Auswertung nach Themen**",
+        "summary_strengths": "Stärken:",
+        "summary_weaknesses": "Hier lohnt sich Wiederholung:",
+        "motivational_passed": (
+            "Stark gemacht. Das war keine Formalität: Du hast das Material durchgearbeitet, die Fragen "
+            "beantwortet und bestanden.\n\n"
+            "Managing Performance gehört zu den anspruchsvollsten Fähigkeiten, die ein HYROX-Coach "
+            "entwickeln kann. Dass du dieses Modul abgeschlossen hast, zeigt, dass du dir ein Fundament "
+            "aufbaust, das einen echten Unterschied macht — für deine Athletinnen und Athleten und für "
+            "deine Coaching-Praxis.\n\n"
+            "Das ist ein Schritt in die richtige Richtung. Nicht der letzte — aber ein bedeutender.\n\n"
+            "Bleib dran. Deine Athletinnen und Athleten werden den Unterschied spüren."
+        ),
+        "motivational_failed": (
+            "Gute Arbeit. Dieses Modul ist anspruchsvoll, und ein kompletter Durchlauf erfordert Einsatz. "
+            "Die Bestehensgrenze hast du dieses Mal nicht erreicht — aber die Auswertung oben zeigt dir "
+            "genau, worauf du dich konzentrieren solltest.\n\n"
+            "Managing Performance gehört zu den anspruchsvollsten Fähigkeiten, die ein HYROX-Coach "
+            "entwickeln kann. Bleib dran — der nächste Versuch gehört dir."
+        ),
+        "closing_passed": (
+            "Du kannst das Assessment jetzt schließen; dein Zertifikat wird erstellt. Bitte warte, bis du "
+            "die entsprechende Benachrichtigung erhältst. Du findest das Zertifikat anschließend in der "
+            "App und bekommst es zusätzlich per E-Mail."
+        ),
+        "closing_failed": (
+            "Zum Bestehen brauchst du insgesamt {threshold}%. Du kannst jederzeit einen neuen Versuch "
+            "starten — schick einfach eine Nachricht, sobald du bereit bist, und ein neues Assessment "
+            "beginnt."
+        ),
     },
     "nl": {
         "header": "**Vraag {n} van {total}**",
@@ -163,6 +230,34 @@ _LOCALES: dict[str, dict[str, str]] = {
         "passed": "GESLAAGD",
         "failed": "NIET GESLAAGD",
         "correction_offer": "Je hebt nu de mogelijkheid om je antwoord aan te vullen of te herzien.",
+        "summary_heading": "**Overzicht per thema**",
+        "summary_strengths": "Sterke punten:",
+        "summary_weaknesses": "Nog aandacht nodig:",
+        "motivational_passed": (
+            "Goed gedaan. Dit was geen formaliteit: je hebt de stof doorgewerkt, de vragen beantwoord en "
+            "je bent geslaagd.\n\n"
+            "Managing performance is een van de meest veeleisende vaardigheden die een HYROX-coach kan "
+            "ontwikkelen. Dat je deze module hebt afgerond, betekent dat je bouwt aan een fundament dat "
+            "echt verschil maakt — voor je atleten en voor je praktijk.\n\n"
+            "Dit is een stap in de goede richting. Niet de laatste — maar wel een betekenisvolle.\n\n"
+            "Ga zo door. Je atleten zullen het verschil voelen."
+        ),
+        "motivational_failed": (
+            "Goede inzet. Dit is een veeleisende module en een volledige run afronden vraagt toewijding. "
+            "Je hebt de drempel dit keer niet gehaald — maar het overzicht hierboven laat precies zien "
+            "waar je je op kunt richten.\n\n"
+            "Managing performance is een van de meest veeleisende vaardigheden die een HYROX-coach kan "
+            "ontwikkelen. Ga door — de volgende poging is aan jou."
+        ),
+        "closing_passed": (
+            "Je kunt het assessment nu sluiten; je certificaat wordt gegenereerd. Wacht tot je de "
+            "bijbehorende melding ontvangt. Je vindt het certificaat daarna in de app en ontvangt het ook "
+            "per e-mail."
+        ),
+        "closing_failed": (
+            "Je hebt in totaal {threshold}% nodig om te slagen. Je kunt op elk moment een nieuwe poging "
+            "starten — stuur een bericht zodra je er klaar voor bent en een nieuw assessment begint."
+        ),
     },
 }
 
@@ -612,9 +707,9 @@ def build_state_injection(state: dict[str, Any], language: Optional[str] = None)
             "pass/fail). Place [[ASK]] ONLY on a message where you actually ask a not-yet-asked question — never "
             "on a feedback, correction-offer, or finalisation/score-only message. Repeating the original question "
             "after any learner answer is invalid; if uncertain, finalise conservatively instead of asking it again. "
-            'The system replaces [[ASK]] with the correct "Question N of 20" header and exact question text, shows '
-            "each question's score when it is graded, and shows the cumulative result only at the end. Never emit "
-            "[[PLAN]] or [[RESULT]]; the system owns those.",
+            f'The system replaces [[ASK]] with the correct "Question N of {total}" header and exact question text, '
+            "shows each question's score when it is graded, and shows the cumulative result only at the end. Never "
+            "emit [[PLAN]] or [[RESULT]]; the system owns those.",
         ]
     )
     if not is_last:
@@ -626,13 +721,18 @@ def build_state_injection(state: dict[str, Any], language: Optional[str] = None)
         )
     if is_first_of_run:
         lines.append(
-            "- This is the first question of the run: open with a brief, friendly intro (20 questions, free-text "
-            "answers, one correction each, 80% overall to pass, a topic summary at the end), then ask the question."
+            f"- This is the first question of the run: open with a brief, friendly intro ({total} questions, "
+            f"free-text answers, one correction each, {PASS_THRESHOLD_PERCENT}% overall to pass, a topic summary "
+            "at the end), then ask the question."
         )
     if is_last:
         lines.append(
-            "- This is the final planned question: after finalising it, add a brief closing message and, only if "
-            "appropriate, topic take-aways. Ask nothing further. The system appends the final score and verdict."
+            "- This is the final planned question: after finalising it, write your brief feedback on this final "
+            "answer, then a line containing exactly [[SUMMARY]], then ALWAYS — whether the learner did well or "
+            "not — give TAKE-AWAYS by topic for the categories that appeared: in plain language, name 2-4 topics "
+            "that felt like strengths and 2-4 that need work, specific to what the learner showed, framed as "
+            "guidance, without dumping model answers and without any numbers. Ask nothing further. The system "
+            "renders the final score, the verdict, and the closing messages, each as its own section."
         )
     return "\n".join(lines) + "\n"
 
@@ -655,6 +755,61 @@ def strip_markers(text: Optional[str]) -> str:
     if not text:
         return text or ""
     cleaned = ANY_MARKER_RE.sub("", text)
+    cleaned = re.sub(r"\n[ \t]*\n[ \t]*\n+", "\n\n", cleaned)
+    return cleaned.strip()
+
+
+# Defense in depth against the model writing visible question text. The backend renders every
+# question itself; the model is told to write none. The [[ASK]] suffix-discard only guards ask
+# turns — on a finalisation/chain turn a model that leaks a (possibly reworded) pool question as a
+# stray paragraph would surface it right before the backend's own next question (observed: after
+# finalising one question the model emitted a reworded "...four age groups..." question as its own
+# paragraph, which then displayed just above the real next question). We strip any model paragraph
+# that reproduces a pool question, matched by the single longest contiguous run it shares with a
+# pool question (so a light rewording — "What are the four age groups..." vs the pooled "Describe
+# the four age groups..." — is still caught, while unrelated feedback, which shares no long run with
+# any question, is kept).
+_LEAKED_QUESTION_MATCH_THRESHOLD = 0.8
+_MIN_QUESTION_MATCH_CHARS = 40
+_PARAGRAPH_SPLIT_RE = re.compile(r"\n[ \t]*\n")
+
+
+def _normalize_for_match(text: str) -> str:
+    return re.sub(r"\s+", " ", (text or "").lower()).strip()
+
+
+_NORMALIZED_POOL_QUESTIONS: list[str] = [_normalize_for_match(q["question"]) for q in QUESTIONS]
+
+
+def paragraph_reproduces_pool_question(paragraph: str) -> bool:
+    """True when ``paragraph`` reproduces one of the pool questions — verbatim or lightly reworded.
+    Compares the single longest contiguous run shared with each pool question against that
+    question's length, so a leaked question keeps matching when only its opening words are changed,
+    while ordinary feedback (which shares no long run with any question) does not match."""
+    p = _normalize_for_match(paragraph)
+    if not p:
+        return False
+    for q in _NORMALIZED_POOL_QUESTIONS:
+        if len(q) < _MIN_QUESTION_MATCH_CHARS:
+            continue
+        longest = difflib.SequenceMatcher(None, q, p).find_longest_match(0, len(q), 0, len(p))
+        if longest.size / len(q) >= _LEAKED_QUESTION_MATCH_THRESHOLD:
+            return True
+    return False
+
+
+def strip_leaked_question_text(text: Optional[str]) -> str:
+    """Drop any model-authored paragraph that reproduces a pool question (see
+    ``paragraph_reproduces_pool_question``). The backend owns every visible question, so such a
+    paragraph is always a leak, never legitimate feedback. Paragraphs containing a control marker
+    are preserved untouched so [[SCORE]]/[[ASK]]/[[SUMMARY]] still replay."""
+    if not text:
+        return text or ""
+    kept: list[str] = []
+    for paragraph in _PARAGRAPH_SPLIT_RE.split(text):
+        if ANY_MARKER_RE.search(paragraph) or not paragraph_reproduces_pool_question(paragraph):
+            kept.append(paragraph)
+    cleaned = "\n\n".join(kept)
     cleaned = re.sub(r"\n[ \t]*\n[ \t]*\n+", "\n\n", cleaned)
     return cleaned.strip()
 
@@ -690,6 +845,75 @@ def render_final_result(tally: dict[str, Any], language: Optional[str] = None) -
     return L["result"].format(s=tally["score"], m=tally["max"], p=tally["pct"], verdict=verdict)
 
 
+def render_summary_fallback(scores: list[dict[str, Any]], language: Optional[str] = None) -> str:
+    """Deterministic strengths/needs-work topic summary from the authoritative category
+    breakdown — used only when the model fails to emit its [[SUMMARY]] section on the
+    final turn, so the learner always gets the promised per-topic summary."""
+    L = _locale(language)
+    strengths: list[str] = []
+    weaknesses: list[str] = []
+    for cat, bucket in category_breakdown(scores).items():
+        if not bucket["max"]:
+            continue
+        if 100 * bucket["awarded"] / bucket["max"] >= PASS_THRESHOLD_PERCENT:
+            strengths.append(cat)
+        else:
+            weaknesses.append(cat)
+    blocks = [L["summary_heading"]]
+    if strengths:
+        blocks.append(L["summary_strengths"] + "\n" + "\n".join(f"- {cat}" for cat in strengths))
+    if weaknesses:
+        blocks.append(L["summary_weaknesses"] + "\n" + "\n".join(f"- {cat}" for cat in weaknesses))
+    return "\n\n".join(blocks)
+
+
+def render_completion_bubbles(
+    body: str,
+    score_line: str,
+    scores: list[dict[str, Any]],
+    tally: dict[str, Any],
+    language: Optional[str] = None,
+) -> str:
+    """Assemble the end-of-assessment message as [[BREAK]]-separated display bubbles:
+
+    1. the final question's score + the model's feedback on that answer,
+    2. the cumulative result + verdict (backend-rendered),
+    3. the strengths/needs-work topic summary — the model's text after its [[SUMMARY]]
+       token, or the deterministic fallback when that token is missing (rendered in BOTH
+       the pass and the fail case),
+    4. the motivational message (pass/fail variant),
+    5. the closing message (pass: certificate notice; fail: threshold + retry note).
+
+    The frontend renders one chat bubble per section while the stored message keeps the
+    full content, so history replay and state re-derivation are unaffected. The model's
+    hidden [[SCORE]] marker is re-appended at the very end so it still replays.
+    """
+    L = _locale(language)
+
+    score_marker = SCORE_MARKER_RE.search(body)
+    score_marker_text = score_marker.group(0) if score_marker else ""
+    cleaned = re.sub(r"\n[ \t]*\n[ \t]*\n+", "\n\n", SCORE_MARKER_RE.sub("", body)).strip()
+
+    feedback, *summary_rest = SUMMARY_TOKEN_RE.split(cleaned, maxsplit=1)
+    feedback = feedback.strip()
+    summary = SUMMARY_TOKEN_RE.sub("", summary_rest[0]).strip() if summary_rest else ""
+    if not summary:
+        summary = render_summary_fallback(scores, language)
+
+    passed = bool(tally["passed"])
+    bubbles = [
+        "\n\n".join(part for part in (score_line, feedback) if part),
+        render_final_result(tally, language),
+        summary,
+        L["motivational_passed"] if passed else L["motivational_failed"],
+        L["closing_passed"] if passed else L["closing_failed"].format(threshold=PASS_THRESHOLD_PERCENT),
+    ]
+    assembled = BUBBLE_BREAK_SEPARATOR.join(bubble for bubble in bubbles if bubble)
+    if score_marker_text:
+        assembled = f"{assembled}\n\n{score_marker_text}"
+    return assembled
+
+
 def render_assessment_turn(
     content: Optional[str],
     state: dict[str, Any],
@@ -698,6 +922,8 @@ def render_assessment_turn(
     """Post-process one assistant message:
 
     * strip any numbers the model wrote (defense in depth),
+    * strip any pool question the model leaked as a stray paragraph (verbatim or lightly
+      reworded), since the backend renders every visible question itself,
     * replace the model's ``[[ASK]]`` placement token with the authoritative
       "Question N of 20" header and exact pinned question text from ``questions.py``
       (discarding any model-written question text after the token),
@@ -705,7 +931,10 @@ def render_assessment_turn(
     * when a question is finalised and it is not the last, **chain the next pinned
       question into the same message** (header + exact text) so the learner is never
       forced to type "next",
-    * at the very end (20th question), show the cumulative total + pass/fail,
+    * at the very end (final question), assemble the [[BREAK]]-separated bubble
+      sequence via ``render_completion_bubbles``: final question's score + feedback,
+      cumulative total + pass/fail, topic summary (both pass and fail), motivational
+      message, and closing message,
     * keep the hidden [[SCORE]] markers so they replay, append the backend-authored
       [[PLAN]] marker on a fresh run, and append a hidden [[ASKED]] marker for whatever
       question the backend presented this turn.
@@ -716,6 +945,9 @@ def render_assessment_turn(
     Returns ``(content, all_scores, tally, just_completed)``.
     """
     body = strip_rendered_numbers(content)
+    # Drop any pool question the model leaked as free text. Runs before the backend inserts its own
+    # authoritative question below, so only the model's text is affected — never the rendered one.
+    body = strip_leaked_question_text(body)
 
     new_score = parse_new_score(content, state.get("current_id"))
 
@@ -776,30 +1008,34 @@ def render_assessment_turn(
             body = question_block
     body = ASK_TOKEN_RE.sub("", body)  # remove any stray/extra token
 
-    parts: list[str] = []
-    if new_score is not None:
-        # The just-graded question's run position is n_after (it is the latest finalised one).
-        parts.append(render_question_score(n_after, new_score["awarded"], new_score["max"], language))
-    if body:
-        parts.append(body)
-    if score_discarded_premature:
-        # The model finalised a partial first answer; we discarded that score above. Append an
-        # explicit one-correction invitation so the held question reads as a revise prompt even
-        # if the model's own feedback did not invite a revision. Position is intentionally held:
-        # no score, no chain, no [[ASKED]] — the next turn forces finalisation (must_finalize).
-        parts.append(_locale(language)["correction_offer"])
+    if just_completed and new_score is not None:
+        # End of the run: assemble the [[BREAK]]-separated bubble sequence (final question's
+        # score + feedback, cumulative verdict, topic summary, motivational message, closing).
+        score_line = render_question_score(n_after, new_score["awarded"], new_score["max"], language)
+        assembled = render_completion_bubbles(body, score_line, all_scores, tally, language)
+    else:
+        parts: list[str] = []
+        if new_score is not None:
+            # The just-graded question's run position is n_after (it is the latest finalised one).
+            parts.append(render_question_score(n_after, new_score["awarded"], new_score["max"], language))
+        if body:
+            parts.append(body)
+        if score_discarded_premature:
+            # The model finalised a partial first answer; we discarded that score above. Append an
+            # explicit one-correction invitation so the held question reads as a revise prompt even
+            # if the model's own feedback did not invite a revision. Position is intentionally held:
+            # no score, no chain, no [[ASKED]] — the next turn forces finalisation (must_finalize).
+            parts.append(_locale(language)["correction_offer"])
 
-    # Chain: after finalising a question that is not the last, present the next pinned
-    # question automatically in this same message. The progress header uses n_after (already
-    # incremented by the new score), so it reads as the next question's number.
-    if new_score is not None and not just_completed and n_after < len(plan):
-        next_id = plan[n_after]
-        asked_question_id = next_id
-        parts.append(render_question_block(n_after, next_id, language))
+        # Chain: after finalising a question that is not the last, present the next pinned
+        # question automatically in this same message. The progress header uses n_after (already
+        # incremented by the new score), so it reads as the next question's number.
+        if new_score is not None and n_after < len(plan):
+            next_id = plan[n_after]
+            asked_question_id = next_id
+            parts.append(render_question_block(n_after, next_id, language))
 
-    if just_completed:
-        parts.append(render_final_result(tally, language))
-    assembled = "\n\n".join(p for p in parts if p)
+        assembled = "\n\n".join(p for p in parts if p)
 
     trailing: list[str] = []
     if state.get("plan_is_new") and state.get("plan"):

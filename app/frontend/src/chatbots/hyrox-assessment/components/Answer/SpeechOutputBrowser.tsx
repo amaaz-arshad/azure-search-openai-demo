@@ -66,11 +66,15 @@ export const SpeechOutputBrowser = ({ answer }: Props) => {
             };
         }
     };
-    const color = isPlaying ? "red" : "black";
+    const color = isPlaying ? "red" : "var(--chatbot-answer-action-color, black)";
 
     return (
         <IconButton
             style={{ color: color }}
+            styles={{
+                rootHovered: { backgroundColor: "var(--chatbot-answer-action-hover-background, #f3f2f1)" },
+                rootPressed: { backgroundColor: "var(--chatbot-answer-action-pressed-background, #edebe9)" }
+            }}
             iconProps={{ iconName: "Volume3" }}
             title={t("tooltips.speakAnswer")}
             ariaLabel={t("tooltips.speakAnswer")}

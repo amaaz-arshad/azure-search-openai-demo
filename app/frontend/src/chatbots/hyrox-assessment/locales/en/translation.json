@@ -1,8 +1,8 @@
 {
-    "pageTitle": "HYROX Youngstars Assessment",
-    "headerTitle": "HYROX Youngstars Assessment",
+    "pageTitle": "HYROX Assessment",
+    "headerTitle": "HYROX Assessment",
     "initialUserMsg": "Start",
-    "initialAssistantMsg": "Welcome to the HYROX Youngstars knowledge assessment. When you're ready, send a message to begin. You'll answer 20 questions, you can revise each answer once, and you need 80% overall to pass. You'll get a topic-by-topic summary at the end.",
+    "initialAssistantMsg": "Welcome to the HYROX Assessment „Managing Performance“! You’ll answer 20 questions in free text, and for each question, you’ll have one chance to revise if needed. You need a total score of 80% to pass. At the end, you will receive a summary organised by topic.\n\nType “Start” when you are ready to begin.",
     "chat": "Chat",
     "login": "Login",
     "logout": "Logout",

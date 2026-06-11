@@ -18,7 +18,7 @@
     width: auto;
     max-width: 100%;
     padding: 1em;
-    background: rgb(249, 249, 249);
+    background: var(--chatbot-answer-background, rgb(249, 249, 249));
     border-radius: var(--chatbot-answer-card-radius, 1.5em);
     box-shadow:
         0em 0.125em 0.25em rgba(0, 0, 0, 0.14),
@@ -78,7 +78,7 @@
 .assistantName {
     font-size: 15px;
     font-weight: 600;
-    color: #333;
+    color: var(--chatbot-assistant-name-color, #333);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -92,7 +92,7 @@
 }
 
 .answerMarkdown {
-    color: #1f2937;
+    color: var(--chatbot-answer-text, #1f2937);
     font-size: var(--chatbot-answer-font-size, 0.98rem);
     line-height: 1.72;
     overflow-wrap: anywhere;
@@ -122,7 +122,7 @@
 .answerMarkdown h4 {
     margin: 1.25rem 0 0.7rem;
     line-height: 1.28;
-    color: #0f172a;
+    color: var(--chatbot-answer-heading-text, #0f172a);
     font-weight: 750;
 }
 
@@ -170,11 +170,11 @@
 }
 
 .answerMarkdown strong {
-    color: #111827;
+    color: var(--chatbot-answer-strong-text, #111827);
 }
 
 .answerMarkdown em {
-    color: #334155;
+    color: var(--chatbot-answer-em-text, #334155);
 }
 
 .answerMarkdown input[type="checkbox"] {

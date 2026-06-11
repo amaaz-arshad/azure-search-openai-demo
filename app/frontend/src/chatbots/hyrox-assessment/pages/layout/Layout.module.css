@@ -116,30 +116,6 @@
     color: var(--chatbot-navbar-text);
 }
 
-/* Circular logo */
-.logoContainer {
-    display: flex;
-    align-items: center;
-    text-decoration: none;
-}
-
-.logoCircle {
-    width: 35px;
-    height: 35px;
-    border-radius: 50%;
-    background: var(--chatbot-navbar-logo-background);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-}
-
-.logoCircle img {
-    max-width: 90%;
-    height: auto;
-    display: block;
-}
-
 /* Title centered */
 .navbarTitle {
     position: absolute;
@@ -155,11 +131,13 @@
     max-width: 60%; /* so it doesn't overlap with the right section */
 }
 
-/* Right section with dropdown */
+/* Right section with dropdown. The centered title is absolutely positioned and the header
+   has no left-side logo anymore, so pin this section to the right explicitly. */
 .rightSection {
     display: flex;
     align-items: center;
     gap: 1rem;
+    margin-left: auto;
 }
 
 /* Dropdown menu */

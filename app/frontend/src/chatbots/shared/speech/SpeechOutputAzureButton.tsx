@@ -174,13 +174,18 @@ export const SpeechOutputAzureButton = ({ answer, isStreaming }: Props) => {
         };
     }, []);
 
-    const color = isPlaying ? "red" : "black";
+    const color = isPlaying ? "red" : "var(--chatbot-answer-action-color, black)";
     const title = isPlaying ? t("tooltips.stopStreaming") : t("tooltips.speakAnswer");
     const iconName = isLoading ? "Sync" : isPlaying ? "Stop" : "Volume3";
 
     return (
         <IconButton
             style={{ color }}
+            styles={{
+                rootHovered: { backgroundColor: "var(--chatbot-answer-action-hover-background, #f3f2f1)" },
+                rootPressed: { backgroundColor: "var(--chatbot-answer-action-pressed-background, #edebe9)" },
+                rootDisabled: { backgroundColor: "transparent" }
+            }}
             iconProps={{ iconName }}
             title={title}
             ariaLabel={title}

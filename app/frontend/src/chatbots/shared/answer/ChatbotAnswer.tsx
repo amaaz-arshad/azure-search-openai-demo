@@ -398,7 +398,11 @@ export const ChatbotAnswer = ({
                                     {extraHeaderActions}
                                     {showCopyButton && (
                                         <IconButton
-                                            style={{ color: "black" }}
+                                            style={{ color: "var(--chatbot-answer-action-color, black)" }}
+                                            styles={{
+                                                rootHovered: { backgroundColor: "var(--chatbot-answer-action-hover-background, #f3f2f1)" },
+                                                rootPressed: { backgroundColor: "var(--chatbot-answer-action-pressed-background, #edebe9)" }
+                                            }}
                                             iconProps={{ iconName: copied ? "CheckMark" : "Copy" }}
                                             title={copied ? copiedLabel : copyLabel}
                                             ariaLabel={copied ? copiedLabel : copyLabel}
