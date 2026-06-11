@@ -2,7 +2,7 @@
     "pageTitle": "HYROX Assessment",
     "headerTitle": "HYROX Assessment",
     "initialUserMsg": "Start",
-    "initialAssistantMsg": "Welkom bij het HYROX Assessment „Managing Performance”! Je beantwoordt 20 vragen in vrije tekst en je hebt bij elke vraag één kans om je antwoord te herzien. Je hebt in totaal 80% nodig om te slagen. Aan het eind ontvang je een overzicht per thema.\n\nTyp “Start” wanneer je klaar bent om te beginnen.",
+    "initialAssistantMsg": "Welkom bij het HYROX Assessment “Managing Performance”! Je beantwoordt 20 vragen in vrije tekst en je hebt bij elke vraag één kans om je antwoord te herzien. Je hebt in totaal 80% nodig om te slagen. Aan het eind ontvang je een overzicht per thema.\n\nTyp “Start” wanneer je klaar bent om te beginnen.",
     "chat": "Chat",
     "login": "Inloggen",
     "logout": "Uitloggen",
