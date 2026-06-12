@@ -17,6 +17,32 @@ Two categories per date:
 
 ## 2026-06-12
 
+### All bots: history panel overlays on tablet-portrait widths
+
+#### Decisions
+
+- Treat the chat-history panel breakpoint as a layout-capacity boundary, not a phone-only device
+  rule. A 300px side panel at 768px leaves only 468px for the chat surface, which compromises
+  answer/table layouts. The drawer now uses the compact overlay + scrim behavior below the existing
+  992px wide-layout breakpoint; the side-by-side push remains for wider desktop layouts.
+
+#### Changes
+
+- `app/frontend/src/chatbots/shared/history/useIsCompactViewport.ts`: changed the compact
+  `matchMedia` query from `(max-width: 767.98px)` to `(max-width: 991.98px)`.
+- Updated all 15 bot `pages/chat/Chat.module.css` files so `.chatRootHistoryOpen` applies the
+  300px `margin-left` only at `@media (min-width: 992px)` (internal continues to reuse lemon's
+  chat module).
+- Verified with `npm run build` in `app/frontend`.
+- Verified `/nerilio` with Playwright at 768x1024: history panel open gives `margin-left: 0px`,
+  modal overlay present, and no page-level horizontal overflow. Rechecked 1200px desktop:
+  `margin-left: 300px`, no modal overlay.
+- Follow-up: Fluent UI `Panel` requires `isLightDismiss` for the blocking overlay to close on
+  outside click/tap. Added `isLightDismiss={isCompactViewport}` to all 15 history panels so
+  tablet/compact overlay mode light-dismisses while desktop side-by-side mode stays non-dismissible
+  by outside click. Verified `/nerilio` at 768x1024: clicking the scrim closes both `.ms-Panel`
+  and `.ms-Overlay`.
+
 ### All bots: mobile history panel gets a scrim; Nerilio header shows full name
 
 #### Decisions

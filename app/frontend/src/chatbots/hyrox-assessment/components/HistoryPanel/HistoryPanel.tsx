@@ -80,6 +80,7 @@ export const HistoryPanel = ({
             headerText={t("history.chatHistory")}
             customWidth="300px"
             isBlocking={isCompactViewport}
+            isLightDismiss={isCompactViewport}
             isOpen={isOpen}
             onDismiss={() => onClose()}
             onDismissed={() => {

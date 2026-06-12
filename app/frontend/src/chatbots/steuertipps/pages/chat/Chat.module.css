@@ -14,9 +14,10 @@
     transition: margin-left 0.3s ease;
 }
 
-/* History panel shifts the chat aside only on tablet/desktop. On phones it
-   overlays instead, so the 300px shift can't force horizontal scrolling. */
-@media (min-width: 768px) {
+/* History panel shifts the chat aside only on wide layouts. On compact and
+   tablet-portrait viewports it overlays instead, so the 300px shift can't
+   force horizontal scrolling. */
+@media (min-width: 992px) {
     .chatRootHistoryOpen {
         margin-left: 300px;
     }
