@@ -782,7 +782,7 @@ const Chat = () => {
                     <SettingsButton className={styles.commandButton} onClick={() => setIsConfigPanelOpen(!isConfigPanelOpen)} />
                 </div>
             </div> */}
-            <div className={styles.chatRoot} style={{ marginLeft: isHistoryPanelOpen ? "300px" : "0" }}>
+            <div className={`${styles.chatRoot} ${isHistoryPanelOpen ? styles.chatRootHistoryOpen : ""}`}>
                 <div className={styles.chatContainer}>
                     {/* {!lastQuestionRef.current && answers.length === 1 && answers[0][0] === "" ? (
                         <div className={styles.chatEmptyState}>

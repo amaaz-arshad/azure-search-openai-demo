@@ -7,6 +7,7 @@ import { Answers, HistoryProviderOptions } from "../HistoryProviders/IProvider";
 import { useHistoryManager, HistoryMetaData } from "../HistoryProviders";
 import { useTranslation } from "react-i18next";
 import styles from "./HistoryPanel.module.css";
+import { useIsCompactViewport } from "../../../shared/history/useIsCompactViewport";
 
 const HISTORY_COUNT_PER_LOAD = 20;
 
@@ -24,6 +25,7 @@ export const HistoryPanel = ({
     onChatSelected: (answers: Answers) => void;
 }) => {
     const historyManager = useHistoryManager(provider);
+    const isCompactViewport = useIsCompactViewport();
     const [history, setHistory] = useState<HistoryMetaData[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [hasMoreHistory, setHasMoreHistory] = useState(false);
@@ -74,7 +76,7 @@ export const HistoryPanel = ({
             style={{ padding: "0px" }}
             headerText={t("history.chatHistory")}
             customWidth="300px"
-            isBlocking={false}
+            isBlocking={isCompactViewport}
             isOpen={isOpen}
             onDismiss={() => onClose()}
             onDismissed={() => {

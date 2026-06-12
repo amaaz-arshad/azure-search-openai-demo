@@ -17,6 +17,63 @@ Two categories per date:
 
 ## 2026-06-12
 
+### All bots: mobile history panel gets a scrim; Nerilio header shows full name
+
+#### Decisions
+
+- Follow-up to the overlay fix below. On phones the history panel now renders as a proper modal drawer
+  with a dimmed backdrop instead of a borderless overlay. Fluent `Panel` only draws a scrim when
+  `isBlocking={true}`, and we want that **only** on phones (desktop/tablet must stay non-blocking so the
+  side-by-side push remains interactive), so `isBlocking` is now driven by viewport width rather than a
+  hardcoded `false`.
+- Added a shared, reactive `useIsCompactViewport` hook (matchMedia `(max-width: 767.98px)`, complement of
+  the 768px push breakpoint) under `chatbots/shared/history/` rather than duplicating a resize listener in
+  each of the 15 panels. Each `HistoryPanel` imports it and passes `isBlocking={isCompactViewport}`.
+- Nerilio header: the title (`headerTitle` = "nerilio") truncated to "ner…" on mobile because the
+  `@media (max-width: 768px)` rule capped `.navbarTitle` at `max-width: 50%`, and the base rule
+  ellipsis-truncates. The 50% cap created a circular flex constraint that starved the title. Removed the
+  cap (kept the 1.7rem mobile size); the short title now sizes to content and shows in full. Scoped to
+  nerilio only, as requested — other bots' headers were not touched.
+
+#### Changes
+
+- Added `app/frontend/src/chatbots/shared/history/useIsCompactViewport.ts` (reactive phone-viewport hook).
+- In all 15 `components/HistoryPanel/HistoryPanel.tsx` (internal reuses lemon's): imported the hook, added
+  `const isCompactViewport = useIsCompactViewport();`, and changed `isBlocking={false}` →
+  `isBlocking={isCompactViewport}`.
+- `nerilio/pages/layout/Layout.module.css`: removed `max-width: 50%` from the mobile `.navbarTitle` rule.
+- Verified with `tsc --noEmit` (exit 0).
+
+### All bots: chat history panel overlays instead of pushing on mobile
+
+#### Decisions
+
+- The chat-history panel (Fluent `Panel`, `customNear`, 300px, `isBlocking={false}`) was paired with a
+  hardcoded inline `marginLeft: isHistoryPanelOpen ? "300px" : "0"` on `.chatRoot` that applied at **every**
+  viewport width. On desktop/tablet this is the intended side-by-side push; on phones `viewport − 300px`
+  drops below the chat's min-content width (input row, message bubbles), forcing horizontal overflow and a
+  page-level horizontal scrollbar.
+- Fix: move the 300px shift from an always-on inline style into a CSS-module class (`.chatRootHistoryOpen`)
+  gated behind `@media (min-width: 768px)`. At ≥768px the push is unchanged (tablet/desktop keep
+  side-by-side); below 768px no margin is applied, so the portaled fixed panel simply **overlays** the chat
+  (no document-flow shift → no horizontal scroll). 768px chosen so tablets keep their existing side-by-side
+  behavior (matches the previous look) while only phones switch to overlay; at 768px the remaining 468px
+  comfortably exceeds the chat's min-content. Added `transition: margin-left 0.3s ease` on `.chatRoot` so the
+  desktop push animates smoothly.
+- Kept the panel non-blocking (no scrim) on mobile; it relies on the Fluent close (X) button and light-dismiss.
+  A mobile-only dimmed backdrop would need per-bot JS viewport detection (16 bots) and was deliberately left
+  out to keep the fix CSS-only and low-risk; can be added later if desired.
+
+#### Changes
+
+- Replaced `className={styles.chatRoot} style={{ marginLeft: ... }}` with
+  `className={`${styles.chatRoot} ${isHistoryPanelOpen ? styles.chatRootHistoryOpen : ""}`}` in every bot's
+  `pages/chat/Chat.tsx` (16 files: agindo, demo, fbn, fhg, hyrox-assessment, internal, knoll, lemon, moodle,
+  nerilio, public-test, publishone, rak, sartorius, steuertipps, vjoonk4).
+- Added `transition: margin-left 0.3s ease` to `.chatRoot` and a `@media (min-width: 768px) { .chatRootHistoryOpen { margin-left: 300px; } }`
+  rule to 15 `pages/chat/Chat.module.css` modules (internal reuses lemon's module).
+- Verified with `tsc --noEmit` (exit 0).
+
 ### Nerilio: fix page scroll after re-enabling the header
 
 #### Decisions

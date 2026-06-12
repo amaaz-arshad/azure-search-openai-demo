@@ -140,7 +140,6 @@
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .navbarTitle {
-        max-width: 50%;
         font-size: 1.7rem;
     }
 }

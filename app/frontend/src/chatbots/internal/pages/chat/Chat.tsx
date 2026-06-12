@@ -797,7 +797,7 @@ const Chat = () => {
             <Helmet>
                 <title>{t("pageTitle")}</title>
             </Helmet>
-            <div className={styles.chatRoot} style={{ marginLeft: isHistoryPanelOpen ? "300px" : "0" }}>
+            <div className={`${styles.chatRoot} ${isHistoryPanelOpen ? styles.chatRootHistoryOpen : ""}`}>
                 <div className={styles.chatContainer}>
                     <ChatbotDisclaimerBanner isLoggedIn={loggedIn} />
                     {!selectedSourceBot ? (
