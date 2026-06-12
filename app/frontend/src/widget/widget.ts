@@ -78,6 +78,28 @@ declare global {
         }
     }
 
+    // Remember whether the panel was open, so the chat "follows" the user across pages of the
+    // host site: if it was open when they navigated/closed the tab, it re-opens on the next page;
+    // if they had closed it, it stays closed. Stored in the host page's first-party localStorage.
+    const openStorageKey = (chatbotId: string) => `chatbot-widget-open:${chatbotId}`;
+
+    function readStoredOpen(chatbotId: string): boolean {
+        try {
+            return window.localStorage.getItem(openStorageKey(chatbotId)) === "1";
+        } catch {
+            /* storage blocked — default to closed */
+            return false;
+        }
+    }
+
+    function writeStoredOpen(chatbotId: string, isOpen: boolean) {
+        try {
+            window.localStorage.setItem(openStorageKey(chatbotId), isOpen ? "1" : "0");
+        } catch {
+            /* storage blocked — open state simply won't persist */
+        }
+    }
+
     // Resolve the backend origin from this very script's URL so the widget always talks back to
     // whichever host served it (no hardcoded domain).
     const scriptEl =
@@ -283,7 +305,9 @@ declare global {
         }
         addResizeHandles(instance);
 
-        if (config.autoOpen) {
+        // Open automatically when explicitly requested, or when the panel was open on the
+        // previous page (so the chat follows the user across same-site navigation/new tabs).
+        if (config.autoOpen || readStoredOpen(config.chatbotId)) {
             // Defer so the launcher paints first.
             window.setTimeout(() => openPanel(instance), 0);
         }
@@ -309,6 +333,7 @@ declare global {
         instance.panel.classList.add("open");
         instance.launcher.innerHTML = CLOSE_ICON;
         instance.launcher.setAttribute("aria-label", "Close chat");
+        writeStoredOpen(instance.config.chatbotId, true);
     }
 
     function closePanel(instance: WidgetInstance) {
@@ -316,6 +341,7 @@ declare global {
         instance.panel.classList.remove("open");
         instance.launcher.innerHTML = CHAT_ICON;
         instance.launcher.setAttribute("aria-label", instance.config.launcherText || "Open chat");
+        writeStoredOpen(instance.config.chatbotId, false);
     }
 
     function toggle() {

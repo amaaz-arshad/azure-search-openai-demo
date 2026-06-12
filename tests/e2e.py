@@ -1365,6 +1365,145 @@ def test_hyrox_assessment_hides_input_when_completed(page: Page, live_server_url
     expect(page.locator("#main-content")).not_to_contain_text("[[")
 
 
+NERILIO_QUESTION_PLACEHOLDER = "Type your message"
+
+
+def handle_config_with_browser_history(route: Route) -> None:
+    """`/config` payload that enables the browser (IndexedDB) chat-history provider, which is the
+    gate for the cross-navigation session restore."""
+    route.fulfill(
+        body=json.dumps(
+            {
+                "defaultReasoningEffort": "",
+                "defaultRetrievalReasoningEffort": "minimal",
+                "showMultimodalOptions": False,
+                "showSemanticRankerOption": True,
+                "showQueryRewritingOption": False,
+                "showReasoningEffortOption": False,
+                "streamingEnabled": True,
+                "showVectorOption": True,
+                "showUserUpload": False,
+                "showLanguagePicker": False,
+                "showSpeechInput": False,
+                "showSpeechOutputBrowser": False,
+                "showSpeechOutputAzure": False,
+                "showChatHistoryBrowser": True,
+                "showChatHistoryCosmos": False,
+                "showAgenticRetrievalOption": False,
+                "ragSearchImageEmbeddings": False,
+                "ragSearchTextEmbeddings": True,
+                "ragSendImageSources": False,
+                "ragSendTextSources": True,
+                "webSourceEnabled": False,
+                "sharepointSourceEnabled": False,
+            }
+        ),
+        status=200,
+    )
+
+
+# Resolves once the conversation has actually been flushed to IndexedDB, so a reload that follows
+# is guaranteed to see the stored session (avoids racing the async addItem write).
+WAIT_FOR_STORED_SESSION = """
+async () => {
+    return await new Promise(resolve => {
+        const req = indexedDB.open('chat-database-nerilio');
+        req.onsuccess = () => {
+            const db = req.result;
+            if (!db.objectStoreNames.contains('chat-history')) { resolve(false); return; }
+            const all = db.transaction('chat-history', 'readonly').objectStore('chat-history').getAll();
+            all.onsuccess = () => resolve(Array.isArray(all.result) && all.result.length > 0);
+            all.onerror = () => resolve(false);
+        };
+        req.onerror = () => resolve(false);
+    });
+}
+"""
+
+
+def test_nerilio_restores_last_session_on_reload(page: Page, live_server_url: str):
+    """Core of "chat follows the user across navigation": after asking a question, reloading the
+    page restores the prior conversation automatically instead of starting blank."""
+    page.route("*/**/config", handle_config_with_browser_history)
+    page.route(
+        "*/**/chat/stream",
+        lambda route: fulfill_chat_stream_snapshot(
+            route, "tests/snapshots/test_app/test_chat_stream_text/client0/result.jsonlines"
+        ),
+    )
+
+    page.goto(f"{live_server_url}nerilio")
+
+    question_input = page.get_by_placeholder(NERILIO_QUESTION_PLACEHOLDER)
+    question_input.click()
+    question_input.fill("Whats the dental plan?")
+    # nerilio's send button is icon-only (no accessible name); Enter submits the question.
+    question_input.press("Enter")
+
+    expect(page.get_by_text("Whats the dental plan?")).to_be_visible()
+    expect(page.get_by_text("The capital of France is Paris.")).to_be_visible()
+
+    # Ensure the session is persisted before reloading, then reload as a "return visit".
+    page.wait_for_function(WAIT_FOR_STORED_SESSION)
+    page.reload()
+
+    # The conversation is restored without re-asking — no /chat/stream call happens on reload.
+    expect(page.get_by_text("Whats the dental plan?")).to_be_visible()
+    expect(page.get_by_text("The capital of France is Paris.")).to_be_visible()
+
+
+def test_nerilio_new_chat_clears_and_does_not_restore_on_reload(page: Page, live_server_url: str):
+    """New Chat must start a fresh conversation that *stays* fresh across a reload — the active
+    session pointer is cleared, so restore-on-load does not bring the old chat back."""
+    page.route("*/**/config", handle_config_with_browser_history)
+    page.route(
+        "*/**/chat/stream",
+        lambda route: fulfill_chat_stream_snapshot(
+            route, "tests/snapshots/test_app/test_chat_stream_text/client0/result.jsonlines"
+        ),
+    )
+
+    page.goto(f"{live_server_url}nerilio")
+
+    question_input = page.get_by_placeholder(NERILIO_QUESTION_PLACEHOLDER)
+    question_input.click()
+    question_input.fill("Whats the dental plan?")
+    # nerilio's send button is icon-only (no accessible name); Enter submits the question.
+    question_input.press("Enter")
+
+    expect(page.get_by_text("Whats the dental plan?")).to_be_visible()
+    page.wait_for_function(WAIT_FOR_STORED_SESSION)
+
+    # Start a new chat via the restored header dropdown.
+    page.get_by_role("button", name="Toggle menu").click()
+    page.get_by_role("button", name="New chat").click()
+    expect(page.get_by_text("Whats the dental plan?")).not_to_be_visible()
+
+    # After reload the fresh chat stays blank (the old session is no longer the active one).
+    page.reload()
+    expect(page.get_by_text("Whats the dental plan?")).to_have_count(0)
+    expect(page.get_by_text("The capital of France is Paris.")).to_have_count(0)
+
+
+def test_embedded_widget_auto_opens_when_previously_open(page: Page, live_server_url: str):
+    """The embeddable widget re-opens on the next page if it was open when the user left
+    (open-state remembered in the host page's localStorage)."""
+    page.add_init_script("window.localStorage.setItem('chatbot-widget-open:nerilio', '1');")
+
+    page.goto(f"{live_server_url}embed-demo?bot=nerilio")
+
+    # Launcher flips to the "Close chat" affordance only when the panel auto-opened.
+    expect(page.get_by_label("Close chat")).to_be_visible()
+
+
+def test_embedded_widget_stays_closed_by_default(page: Page, live_server_url: str):
+    """Without a remembered open state the widget stays closed — auto-open is never intrusive."""
+    page.goto(f"{live_server_url}embed-demo?bot=nerilio")
+
+    expect(page.get_by_label("Open chat")).to_be_visible()
+    expect(page.get_by_label("Close chat")).to_have_count(0)
+
+
 def test_hyrox_assessment_keeps_input_mid_assessment(page: Page, live_server_url: str):
     """Contrast: a normal mid-assessment turn (graded answer + the next question chained in, no
     [[DONE]]) must keep the question input so the learner can answer the next question."""

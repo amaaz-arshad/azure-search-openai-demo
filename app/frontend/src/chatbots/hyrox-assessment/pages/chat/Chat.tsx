@@ -26,6 +26,7 @@ import { Settings } from "../../components/Settings/Settings";
 import { setGlobalClearChat } from "../layout/Layout";
 import { applyChatbotSpeechFeatureFlags } from "../../../shared/speech/chatbotSpeechFeatureFlags";
 import { readLemonAccount, reportLemonProgress } from "../../lemonBridge";
+import { readActiveSessionId, writeActiveSessionId, clearActiveSessionId } from "../../../shared/history/activeSession";
 
 const INITIAL_ASSISTANT_SENTINEL_USER_MESSAGE = "__initial_assistant__";
 const HYROX_ASSESSMENT_LANGUAGE = "en";
@@ -97,6 +98,7 @@ const Chat = () => {
     const lastQuestionRef = useRef<string>("");
     const chatMessageStreamEnd = useRef<HTMLDivElement | null>(null);
     const localHistorySessionIdRef = useRef<string | null>(null);
+    const hasRestoredSessionRef = useRef<boolean>(false);
 
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [isStreaming, setIsStreaming] = useState<boolean>(false);
@@ -317,6 +319,27 @@ const Chat = () => {
         return conversationAnswers.length > 0 ? conversationAnswers[conversationAnswers.length - 1][0] : "";
     };
 
+    // Load a stored conversation into the chat (used by the history panel and by restore-on-load).
+    // `fallbackSessionId` keeps continuity when the stored answers carry no server session_state.
+    const restoreConversation = (historyAnswers: [user: string, response: ChatAppResponse][], fallbackSessionId: string | null) => {
+        const restoredAnswers = stripLeadingSyntheticInitialPairs(historyAnswers);
+        if (restoredAnswers.length === 0) {
+            return;
+        }
+        // Add welcome message at the beginning of the loaded history
+        const restoredConversation = [initialAssistantPair, ...restoredAnswers];
+        setAnswers(restoredConversation);
+        setStreamedAnswers(restoredConversation);
+        lastQuestionRef.current = getLastRealQuestion(restoredAnswers);
+        const restoredSessionState = restoredAnswers[restoredAnswers.length - 1][1].session_state;
+        const resolvedSessionId =
+            typeof restoredSessionState === "string" && restoredSessionState !== "" ? restoredSessionState : fallbackSessionId;
+        localHistorySessionIdRef.current = resolvedSessionId;
+        if (resolvedSessionId) {
+            writeActiveSessionId(resolvedSessionId);
+        }
+    };
+
     const getCurrentSessionState = () => {
         const latestSessionState = answers.length ? answers[answers.length - 1][1].session_state : null;
 
@@ -459,6 +482,7 @@ const Chat = () => {
                     if (typeof sessionState === "string" && sessionState !== "") {
                         const token = client ? await getToken(client) : undefined;
                         historyManager.addItem(sessionState, [...conversationAnswers, [question, normalizedResponse]], token);
+                        writeActiveSessionId(sessionState);
                     }
                 } else {
                     // Stopped before any content arrived - restore question to input
@@ -482,6 +506,7 @@ const Chat = () => {
                 if (typeof sessionState === "string" && sessionState !== "") {
                     const token = client ? await getToken(client) : undefined;
                     historyManager.addItem(sessionState, [...conversationAnswers, [question, normalizedResponse]], token);
+                    writeActiveSessionId(sessionState);
                 }
             }
             setSpeechUrls([...speechUrls, null]);
@@ -501,6 +526,7 @@ const Chat = () => {
 
     const clearChat = () => {
         localHistorySessionIdRef.current = null;
+        clearActiveSessionId();
         lastQuestionRef.current = "";
         error && setError(undefined);
         setActiveCitation(undefined);
@@ -535,6 +561,35 @@ const Chat = () => {
     useEffect(() => {
         getConfig();
     }, []);
+
+    // Restore the last active session on load so the chat "follows" the user across navigation/tabs.
+    // Runs once, after getConfig() has resolved the browser-history provider. Skips if the user has
+    // already started asking (lastQuestionRef) so an in-flight conversation is never overwritten.
+    useEffect(() => {
+        if (hasRestoredSessionRef.current) {
+            return;
+        }
+        if (historyProvider !== HistoryProviderOptions.IndexedDB) {
+            return;
+        }
+        const activeSessionId = readActiveSessionId();
+        if (!activeSessionId) {
+            hasRestoredSessionRef.current = true;
+            return;
+        }
+        hasRestoredSessionRef.current = true;
+        let cancelled = false;
+        (async () => {
+            const storedAnswers = await historyManager.getItem(activeSessionId);
+            if (cancelled || !storedAnswers || lastQuestionRef.current) {
+                return;
+            }
+            restoreConversation(storedAnswers, activeSessionId);
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [historyProvider, historyManager]);
 
     // Preserve streaming preference when agentic retrieval forces streaming off.
     useEffect(() => {
@@ -858,18 +913,7 @@ const Chat = () => {
                         isOpen={isHistoryPanelOpen}
                         notify={!isStreaming && !isLoading}
                         onClose={() => setIsHistoryPanelOpen(false)}
-                        onChatSelected={historyAnswers => {
-                            const restoredAnswers = stripLeadingSyntheticInitialPairs(historyAnswers);
-                            if (restoredAnswers.length === 0) return;
-                            // Add welcome message at the beginning of the loaded history
-                            const restoredConversation = [initialAssistantPair, ...restoredAnswers];
-                            setAnswers(restoredConversation);
-                            setStreamedAnswers(restoredConversation);
-                            lastQuestionRef.current = getLastRealQuestion(restoredAnswers);
-                            const restoredSessionState = restoredAnswers[restoredAnswers.length - 1][1].session_state;
-                            localHistorySessionIdRef.current =
-                                typeof restoredSessionState === "string" && restoredSessionState !== "" ? restoredSessionState : null;
-                        }}
+                        onChatSelected={historyAnswers => restoreConversation(historyAnswers, null)}
                     />
                 )}
 

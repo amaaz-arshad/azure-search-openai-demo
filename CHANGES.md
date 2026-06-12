@@ -17,6 +17,75 @@ Two categories per date:
 
 ## 2026-06-12
 
+### Persistent chat across navigation — all 15 chatbots + embeddable widget
+
+#### Decisions
+
+- **Persist the *active session* (a per-bot pointer), then restore it on load** — so closing a
+  tab/navigating and reopening reappears the last conversation (ChatGPT/Gemini-style) instead of a
+  blank chat. A new chat starts *only* via the New Chat control (which clears the pointer). Restoring
+  the active pointer — not merely the newest stored session — is what makes New Chat behave correctly:
+  after New Chat with nothing sent there is no pointer, so the next load is blank.
+- **One design covers every surface.** The restore logic lives in the chat app (`Chat.tsx`), which is
+  the same code for direct access (`/<bot>`), the same-site iframe on nerilio.ai, and the third-party
+  `widget.js` embed. `chat.nerilio.ai` is a subdomain of `nerilio.ai` → same-site/first-party storage,
+  so IndexedDB + the active-session pointer persist across tabs with no partitioning issues. Third-party
+  embeds persist per host site (Safari/ITP may not keep third-party storage across full restarts — a
+  browser policy, not fixable in code).
+- **Scope: all 15 history-capable bots, code-only.** No `.env` changes — persistence activates per bot
+  only once its deployment has `USE_CHAT_HISTORY_BROWSER="true"` (today: demo, nerilio, p1/publishone,
+  steuertipps). For bots without the flag, `historyProvider` stays `None` and the restore effect no-ops,
+  so the change is inert until the flag is flipped (safe to ship to all 15). Gated to the IndexedDB
+  provider only; Cosmos/login-based history is out of scope.
+- **Auto-open = remember open/closed.** The embeddable widget re-opens on the next page only if it was
+  open when the user left (respects an explicit close). Stored in the *host page's* first-party
+  localStorage (`chatbot-widget-open:<id>`), so it works on every embedding site. Direct access has no
+  launcher, so auto-open is N/A there.
+- **nerilio header brought back** to expose New Chat / Recent Chats (it was fully commented out).
+  `internal` (a shell with no history provider) and `test` (no chat page) are out of scope.
+
+#### Changes
+
+- **New** `app/frontend/src/chatbots/shared/history/activeSession.ts` — `readActiveSessionId` /
+  `writeActiveSessionId` / `clearActiveSessionId`, scoped per bot via `getChatHistoryScope()`, all
+  try/catch-guarded (private mode → silent no-op).
+- `app/frontend/src/chatbots/<bot>/pages/chat/Chat.tsx` × **15** (agindo, demo, fbn, fhg,
+  hyrox-assessment, knoll, lemon, moodle, nerilio, public-test, publishone, rak, sartorius, steuertipps,
+  vjoonk4): added a shared `restoreConversation` helper (now also used by the history panel's
+  `onChatSelected`), a one-shot restore-on-load `useEffect` (gated on the IndexedDB provider; skips if a
+  question is already in flight), `writeActiveSessionId` at both `addItem` save sites, and
+  `clearActiveSessionId` in `clearChat`. nerilio hand-edited as the reference; the other 14 applied via a
+  one-off idempotent codemod (removed after running).
+- `app/frontend/src/widget/widget.ts` — added `chatbot-widget-open:<id>` open-state memory
+  (`readStoredOpen`/`writeStoredOpen`), written in `openPanel`/`closePanel`, and auto-open from the
+  stored flag in `createWidget` (covers all embedded bots).
+- `app/frontend/src/chatbots/nerilio/pages/layout/Layout.tsx` — un-commented the header (New Chat /
+  Recent Chats / Close dropdown); fixed `handleCloseChat` to post `chatbot:close` (the message
+  `widget.js` actually handles, so Close now dismisses the popup and persists the closed state); fixed
+  the menu aria-label to the existing `labels.toggleMenu` key.
+- `tests/e2e.py` — added 4 Playwright e2e tests (all pass, 2 viewport params each): nerilio restores
+  the last session on reload; New Chat clears and stays blank across reload; the embeddable widget
+  auto-opens when previously open and stays closed by default. They mock `/config` (browser history on)
+  + `/chat/stream`, and wait on an IndexedDB poll before reload to avoid racing the async save. nerilio
+  submits via Enter (its send button is icon-only). Note: pre-existing, unrelated `test_demo_*` e2e
+  failures (demo login form never renders) were confirmed to also fail on a clean baseline build.
+
+### Reverted: auto-growing question input on `/nerilio` only
+
+#### Decisions
+
+- **The auto-growing chat input is reverted for the `nerilio` bot only** (other bot copies keep it).
+  The `autoAdjustHeight` + `maxHeight: 12rem` / `overflowY: auto` change (originally propagated from
+  `hyrox-assessment` to all `QuestionInput.tsx` copies on 2026-05-28) broke nerilio's input styling,
+  so its copy is restored to the pre-change state.
+
+#### Changes
+
+- `app/frontend/src/chatbots/nerilio/components/QuestionInput/QuestionInput.tsx` — removed
+  `autoAdjustHeight`, re-commented `multiline` / `resizable={false}`, and reverted the `field` style
+  slot back to only `fontSize: 16` (dropped `minHeight: 44`, `maxHeight: "12rem"`, `overflowY: "auto"`).
+  Working tree now matches the pre-`06e705a6` state for this file.
+
 ### Decisions
 
 - **HYROX assessment: question input is removed once the assessment completes — pass OR fail.** The

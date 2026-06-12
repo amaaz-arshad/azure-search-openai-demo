@@ -48,12 +48,14 @@ const Layout = () => {
 
     const handleCloseChat = () => {
         setDropdownOpen(false);
-        window.parent.postMessage({ type: "CLOSE_CHATBOT" }, "*");
+        // Matches the message the embeddable widget loader listens for (see widget.ts), so the
+        // in-chat Close control actually dismisses the popup and persists the closed state.
+        window.parent.postMessage({ type: "chatbot:close" }, "*");
     };
 
     return (
         <div className={styles.layout}>
-            {/* <header className={styles.header} role="banner">
+            <header className={styles.header} role="banner">
                 <div className={styles.headerContainer}>
                     <Link className={styles.logoContainer} to="/nerilio">
                         <div className={styles.logoCircle}>
@@ -67,7 +69,7 @@ const Layout = () => {
                         {useLogin && <LoginButton />}
                         <div className={styles.dropdown} ref={dropdownRef}>
                             <IconButton
-                                ariaLabel={t("labels.openMenu")}
+                                ariaLabel={t("labels.toggleMenu")}
                                 className={styles.menuButton}
                                 iconProps={{ iconName: "ChevronDown" }}
                                 onClick={() => setDropdownOpen(open => !open)}
@@ -97,7 +99,7 @@ const Layout = () => {
                         </div>
                     </div>
                 </div>
-            </header> */}
+            </header>
 
             <main className={styles.main} id="main-content">
                 <Outlet context={{ setRecentChatsAction }} />
