@@ -9,6 +9,7 @@ import { LoginButton } from "../../components/LoginButton";
 import styles from "./Layout.module.css";
 
 let globalClearChat: () => void = () => {};
+const showHeaderMenu = false;
 
 export const setGlobalClearChat = (fn: () => void) => {
     globalClearChat = fn;
@@ -53,30 +54,33 @@ const Layout = () => {
 
                     <div className={styles.rightSection}>
                         {useLogin && <LoginButton />}
-                        <div className={styles.dropdown} ref={dropdownRef}>
-                            <IconButton
-                                ariaLabel={t("labels.openMenu")}
-                                className={styles.menuButton}
-                                iconProps={{ iconName: "More", styles: { root: { fontSize: "25px" } } }}
-                                onClick={() => setDropdownOpen(open => !open)}
-                            />
-                            {dropdownOpen && (
-                                <ul className={styles.dropdownMenu}>
-                                    <li>
-                                        <button className={styles.dropdownItem} onClick={handleStartNewChat}>
-                                            <ChatAdd24Regular />
-                                            <span>{t("newChat")}</span>
-                                        </button>
-                                    </li>
-                                    <li>
-                                        <button className={styles.dropdownItem} onClick={handleOpenRecentChats}>
-                                            <History24Regular />
-                                            <span>{t("history.viewRecentChats")}</span>
-                                        </button>
-                                    </li>
-                                </ul>
-                            )}
-                        </div>
+                        {/* Lemon owns session navigation for the assessment flow, so hide the header menu. */}
+                        {showHeaderMenu && (
+                            <div className={styles.dropdown} ref={dropdownRef}>
+                                <IconButton
+                                    ariaLabel={t("labels.openMenu")}
+                                    className={styles.menuButton}
+                                    iconProps={{ iconName: "More", styles: { root: { fontSize: "25px" } } }}
+                                    onClick={() => setDropdownOpen(open => !open)}
+                                />
+                                {dropdownOpen && (
+                                    <ul className={styles.dropdownMenu}>
+                                        <li>
+                                            <button className={styles.dropdownItem} onClick={handleStartNewChat}>
+                                                <ChatAdd24Regular />
+                                                <span>{t("newChat")}</span>
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button className={styles.dropdownItem} onClick={handleOpenRecentChats}>
+                                                <History24Regular />
+                                                <span>{t("history.viewRecentChats")}</span>
+                                            </button>
+                                        </li>
+                                    </ul>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
             </header>

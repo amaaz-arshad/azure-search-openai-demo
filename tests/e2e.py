@@ -1309,3 +1309,84 @@ def test_agentic_retrieval_effort_minimal_disables_web(page: Page, live_server_u
     # Verify the expected thought process sections are visible
     expect(page.get_by_text("Agentic retrieval response")).to_be_visible()
     expect(page.get_by_text("Prompt to generate answer")).to_be_visible()
+
+
+def _hyrox_chat_response(content: str) -> str:
+    """A non-streaming /chat response body for the HYROX assessment bot (forced non-streaming)."""
+    return json.dumps(
+        {
+            "message": {"role": "assistant", "content": content},
+            "delta": {"role": "assistant", "content": content},
+            "context": {
+                "data_points": {"text": [], "images": [], "citations": []},
+                "thoughts": [],
+                "followup_questions": None,
+            },
+            "session_state": None,
+        }
+    )
+
+
+def test_hyrox_assessment_hides_input_when_completed(page: Page, live_server_url: str):
+    """On a completed assessment the response carries the hidden [[DONE]] marker, so the question
+    input is removed entirely — the run is terminal in-session (pass OR fail; retaking happens in
+    the Lemon app). The hidden control markers ([[SCORE]], [[BREAK]], [[DONE]]) must never be shown
+    to the learner, and the [[BREAK]]-separated sections must render as distinct bubbles."""
+
+    # A passed completion ending: final question's score + feedback, the verdict, and the closing
+    # certificate notice — three [[BREAK]]-separated bubbles — with the hidden trailing markers.
+    completion_content = (
+        "**Question 20: 5/5**\n\nSolid finish, clear and complete."
+        "\n\n[[BREAK]]\n\n"
+        "**Assessment complete** - Total: 100/100 (100%) - **PASSED**"
+        "\n\n[[BREAK]]\n\n"
+        "You can now close the assessment, and your certificate will be generated."
+        '\n\n[[SCORE q=1 points="1,1,1,1,1" max=5 cat="CATEGORY 1"]]\n[[DONE]]'
+    )
+
+    page.route("*/**/chat", lambda route: route.fulfill(body=_hyrox_chat_response(completion_content), status=200))
+
+    page.goto(f"{live_server_url}hyrox-assessment")
+
+    question_input = page.get_by_placeholder("Type your message")
+    expect(question_input).to_be_visible()
+    question_input.fill("Start")
+    page.get_by_label("Submit question").click()
+
+    # The completion rendered, split into its [[BREAK]]-separated bubbles.
+    expect(page.get_by_text("Solid finish, clear and complete.")).to_be_visible()
+    expect(page.get_by_text("your certificate will be generated")).to_be_visible()
+
+    # The input (and its submit control) are gone now that the assessment is complete.
+    expect(page.get_by_placeholder("Type your message")).to_have_count(0)
+    expect(page.get_by_label("Submit question")).to_have_count(0)
+
+    # No hidden control marker leaked into the visible transcript.
+    expect(page.locator("#main-content")).not_to_contain_text("[[")
+
+
+def test_hyrox_assessment_keeps_input_mid_assessment(page: Page, live_server_url: str):
+    """Contrast: a normal mid-assessment turn (graded answer + the next question chained in, no
+    [[DONE]]) must keep the question input so the learner can answer the next question."""
+
+    mid_content = (
+        "**Question 1: 5/5**\n\nGreat answer, well reasoned."
+        "\n\n**Question 2 of 20**\nDescribe the four age groups in HYROX Youngstars."
+        '\n\n[[SCORE q=1 points="1,1,1,1,1" max=5 cat="CATEGORY 1"]]\n[[ASKED q=2]]'
+    )
+
+    page.route("*/**/chat", lambda route: route.fulfill(body=_hyrox_chat_response(mid_content), status=200))
+
+    page.goto(f"{live_server_url}hyrox-assessment")
+
+    question_input = page.get_by_placeholder("Type your message")
+    expect(question_input).to_be_visible()
+    question_input.fill("Start")
+    page.get_by_label("Submit question").click()
+
+    expect(page.get_by_text("Great answer, well reasoned.")).to_be_visible()
+
+    # No completion marker, so the input stays available for the next answer.
+    expect(page.get_by_placeholder("Type your message")).to_be_visible()
+    # Hidden markers are still stripped from the visible transcript.
+    expect(page.locator("#main-content")).not_to_contain_text("[[")

@@ -15,6 +15,135 @@ Two categories per date:
 
 ---
 
+## 2026-06-12
+
+### Decisions
+
+- **HYROX assessment: question input is removed once the assessment completes — pass OR fail.** The
+  run is already terminal in-session for both outcomes (`derive_turn_state` returns `current_id =
+  None` after the 20th score; retaking happens in the Lemon app via a fresh session). Leaving the
+  input live only produced a wasted LLM round-trip returning a canned "it's over, restart in the
+  app" reply, and gating it on pass *only* would strand failed learners typing into a dead
+  assessment. Chosen to **hide** the input entirely (not just disable) once complete.
+- **Completion is signalled by a new hidden `[[DONE]]` marker on both outcomes — reusing the
+  marker channel, not localized text parsing.** The pass-only `[[PROGRESS value=100]]` marker can't
+  cover fail, and matching the visible "Assessment complete" line is fragile across `en`/`de`/`nl`.
+  `[[DONE]]` is appended in `render_assessment_turn`'s trailing block gated on `just_completed`
+  (fires once per run, carries no `[[BREAK]]` so the five-bubble layout is unchanged) and lives in
+  the stored message, so it **replays from history** — a reopened completed session stays terminal.
+- **HYROX assessment header menu is disabled for the Lemon-hosted flow.** Lemon now owns session
+  navigation/client-side management, while this bot focuses on taking the assessment; the old
+  header dropdown remains in code behind a local off switch so it can be restored if needed.
+- **HYROX assessment: Lemon User ID via launch URL + result hand-over via `lemon://`.** The
+  Lemon app opens the bot with the learner on the query string
+  (`?account_id=...&first_name=...&last_name=...`); on a **passed** completion the bot hands the
+  result back by "calling" `lemon://save_progress?value=100` (a custom scheme the native app
+  intercepts). Confirmed with the client: report **only on pass** (≥80%) — nothing on a failed
+  completion; also **personalize the greeting** with the first name *and* record id/name with the
+  result.
+- **Completion signal rides the existing hidden-marker channel, not localized text parsing.** The
+  backend already owns `tally["passed"]`/`just_completed`; on a passed completion it appends a
+  hidden `[[PROGRESS value=100]]` marker (carries no `[[BREAK]]`, so the five-bubble layout is
+  unchanged). The frontend hides it at render and fires the scheme exactly once on the freshly
+  received response — never on history replay (replay goes through `onChatSelected`, not
+  `makeApiRequest`; an idempotency ref also guards it). A failed run auto-restarts a fresh run, so
+  the marker is never emitted there.
+- **`lemon://` trigger made robust to both load contexts** (client unsure how the bot is embedded):
+  `reportLemonProgress` both `postMessage`s a `chatbot:save-progress` to any embedding host (iframe
+  case, same `chatbot:*` convention as the widget bridge) **and** sets `window.location.href` to the
+  scheme (direct-webview case — intercepted by the native app, harmless no-op in a plain browser).
+- **Identity passed via `context.overrides`, no backend whitelist change.** Overrides flow through
+  wholesale (`app.py` `context.get("overrides", {})`); `account_id` stands in as `user_id` for the
+  LMS payload/session log when no auth `oid` is present. Account read once from
+  `window.location.search` (hash-router query survives in-app nav) and cached to sessionStorage so a
+  same-tab reload keeps it.
+
+### Changes
+
+- `app/backend/approaches/chatbots/hyrox_assessment/results.py` — add `DONE_MARKER = "[[DONE]]"`;
+  append it in `render_assessment_turn`'s trailing block on `just_completed` (pass and fail); add
+  `DONE` to `ANY_MARKER_RE` so `strip_markers` removes it.
+- `app/frontend/src/chatbots/hyrox-assessment/components/Answer/assessmentMarkers.ts` — add `DONE`
+  to `ASSESSMENT_MARKER_RE`; add `DONE_MARKER_RE` + exported `hasAssessmentDoneMarker(text)`.
+- `app/frontend/src/chatbots/hyrox-assessment/pages/chat/Chat.tsx` — derive `assessmentComplete`
+  from `answers` via `hasAssessmentDoneMarker`; render the `QuestionInput` only when not complete.
+- `tests/test_hyrox_assessment.py` — `test_completion_appends_done_marker_on_pass_and_fail` and
+  `test_done_marker_absent_mid_assessment`.
+- `tests/e2e.py` — first Playwright coverage for the hyrox-assessment bot:
+  `test_hyrox_assessment_hides_input_when_completed` (a `[[DONE]]`-bearing completion removes the
+  input, splits the `[[BREAK]]` bubbles, and leaks no `[[...]]` marker into the transcript) and
+  `test_hyrox_assessment_keeps_input_mid_assessment` (a graded turn with no `[[DONE]]` keeps the
+  input). Mocks the non-streaming `/chat`; requires a fresh `npm run build` to exercise the change.
+- `app/frontend/src/chatbots/hyrox-assessment/pages/layout/Layout.tsx` — hide the header
+  three-dot menu/dropdown with `showHeaderMenu = false`, leaving the former new-chat/recent-chat
+  controls commented out of the rendered UI.
+- **New** `app/frontend/src/chatbots/hyrox-assessment/lemonBridge.ts` — `readLemonAccount()`
+  (URL→`{accountId,firstName,lastName}`, sessionStorage-cached) and `reportLemonProgress(value)`
+  (postMessage + scheme navigation).
+- `app/frontend/src/chatbots/hyrox-assessment/api/models.ts` — `ChatAppRequestOverrides` gains
+  optional `account_id` / `first_name` / `last_name`.
+- `app/frontend/src/chatbots/hyrox-assessment/pages/chat/Chat.tsx` — read the Lemon account at
+  mount (ref); prepend `t("greeting", {firstName})` to the welcome bubble when a first name is
+  present; send the identity in `context.overrides`; fire `reportLemonProgress` once when a fresh
+  response carries the `[[PROGRESS]]` marker (`maybeReportLemonProgress` in both response branches,
+  guarded by `progressReportedRef`).
+- `app/frontend/src/chatbots/hyrox-assessment/components/Answer/assessmentMarkers.ts` — add
+  `PROGRESS` to the strip regex (hidden at render); new `parseProgressValue(text)`.
+- `app/frontend/src/chatbots/hyrox-assessment/locales/{en,de,nl}/translation.json` — new `greeting`
+  key (`"Hi/Hallo/Hoi {{firstName}}!\n\n"`).
+- `app/backend/approaches/chatbots/hyrox_assessment/results.py` — add `PROGRESS` to `ANY_MARKER_RE`,
+  define `PROGRESS_MARKER`/`PROGRESS_PASS_VALUE`, append the marker in `render_assessment_turn` only
+  when `just_completed and tally["passed"]`; thread `account_id`/`first_name`/`last_name` from
+  overrides into `build_result_payload` + `record_assessment_result` (account_id → user_id fallback).
+- `tests/test_hyrox_assessment.py` — `test_completion_appends_progress_marker_on_pass`,
+  `test_completion_omits_progress_marker_on_fail`, `test_record_assessment_result_records_lemon_identity`.
+  Full file: 49 passed.
+
+### Follow-up: fail-case copy + completed run is terminal in-session
+
+#### Decisions
+
+- **A completed assessment is now terminal in this session — pass OR fail.** Previously a failed
+  run auto-restarted a brand-new 20-question run on the learner's next message (`fail → restart
+  immediately`). Per the client, the learner cannot retake the assessment here; restarting happens
+  in the Lemon app, which launches a fresh session. This **supersedes** the earlier same-day note
+  that "a failed run auto-restarts" — `derive_turn_state` now returns a terminal completed state for
+  a failed run (mirroring the passed case) instead of `_fresh_run_state()`. The `[[PROGRESS]]` pass
+  marker still fires exactly once, now purely because it is gated on `just_completed and passed`
+  (not because a fail restarts away from that code path).
+- **Surfaced + resolved a contradiction:** the input box is only disabled while loading (no
+  "assessment finished" gate), so under the old behavior a failed learner typing anything silently
+  began a fresh run — directly contradicting the new "restart in the Lemon app" copy. Making the run
+  terminal makes the copy true.
+- **Fail-case ending is content-only, structurally identical to pass** (same five `[[BREAK]]`
+  bubbles). Client-supplied verbatim motivational + closing copy (en), faithfully translated to
+  de/nl; the closing bubble points to the Lemon app to retake (no "send a message to restart").
+- **Verdict label on fail → "Failed"** (de "Nicht bestanden", nl "Niet geslaagd"), replacing the
+  all-caps "NOT PASSED"/"NICHT BESTANDEN"/"NIET GESLAAGD"; the pass label stays "PASSED".
+
+#### Changes
+
+- `app/backend/approaches/chatbots/hyrox_assessment/results.py`:
+  - `_LOCALES` (en/de/nl): `failed` verdict relabelled; new `motivational_failed` + `closing_failed`
+    copy. `closing_failed` drops the `{threshold}` placeholder and points to the Lemon app.
+  - `render_completion_bubbles` — closing bubble no longer `.format(threshold=...)`.
+  - `derive_turn_state` — a completed run (≥ `QUESTIONS_PER_RUN` scored) returns a terminal state
+    (`current_id=None`, `completed_passed=tally["passed"]`) for both outcomes; no `_fresh_run_state()`
+    on fail. Docstring updated.
+  - `build_state_injection` — the completed (`current_id is None`) branch now handles pass AND fail:
+    tells the model the assessment is over and cannot be retaken in this session, and points repeat
+    requests to the Lemon app.
+  - Stale comments updated (`[[PROGRESS]]` gating rationale; completion-bubbles docstring).
+- `tests/test_hyrox_assessment.py`:
+  - `test_failed_completed_run_auto_restarts` → `test_failed_completed_run_is_terminal` (terminal
+    state + Lemon-app injection assertions).
+  - `test_render_final_result_localized` — assert "Nicht bestanden" (de) and the new en "Failed".
+  - `test_completion_renders_failed_ending_with_retry_note` — assert "Failed" verdict, the new
+    motivational opener, and "take this assessment again" / "lemon app" closing.
+  - Full file: 49 passed; `ty check` clean.
+- No frontend change — verdict label and fail copy are entirely backend-rendered, and bubble
+  splitting already produces the five-bubble layout.
+
 ## 2026-06-11
 
 ### Decisions

@@ -31,6 +31,10 @@ export type ChatAppRequestOverrides = {
     use_agentic_knowledgebase: boolean;
     use_web_source?: boolean;
     use_sharepoint_source?: boolean;
+    // Lemon learner identity from the launch URL (HYROX assessment); recorded with the result.
+    account_id?: string;
+    first_name?: string;
+    last_name?: string;
 };
 
 export type ResponseMessage = {

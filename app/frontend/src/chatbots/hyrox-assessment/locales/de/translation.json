@@ -2,6 +2,7 @@
     "pageTitle": "HYROX Assessment",
     "headerTitle": "HYROX Assessment",
     "initialUserMsg": "Start",
+    "greeting": "Hallo {{firstName}}!\n\n",
     "initialAssistantMsg": "Willkommen zum HYROX Assessment „Managing Performance“! Du beantwortest 20 Fragen im Freitext und hast bei jeder Frage eine Möglichkeit, deine Antwort zu überarbeiten. Zum Bestehen brauchst du insgesamt 80 %. Am Ende erhältst du eine Auswertung nach Themengebieten.\n\nSchreibe „Start“, wenn du bereit bist.",
     "chat": "Chat",
     "qa": "Stellen Sie eine Frage",

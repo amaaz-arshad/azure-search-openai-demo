@@ -47,7 +47,18 @@ PASS_THRESHOLD_PERCENT = 80
 PLAN_MARKER_RE = re.compile(r"\[\[\s*PLAN\b([^\]]*)\]\]", re.IGNORECASE)
 SCORE_MARKER_RE = re.compile(r"\[\[\s*SCORE\b([^\]]*)\]\]", re.IGNORECASE)
 RESULT_MARKER_RE = re.compile(r"\[\[\s*RESULT\b([^\]]*)\]\]", re.IGNORECASE)
-ANY_MARKER_RE = re.compile(r"\[\[\s*(?:PLAN|SCORE|RESULT|ASKED|ASK|SUMMARY|BREAK)\b[^\]]*\]\]", re.IGNORECASE)
+ANY_MARKER_RE = re.compile(r"\[\[\s*(?:PLAN|SCORE|RESULT|ASKED|ASK|SUMMARY|BREAK|PROGRESS|DONE)\b[^\]]*\]\]", re.IGNORECASE)
+# Backend-authored, hidden: emitted once on a passed completion to hand the result back to the
+# Lemon app. The frontend hides it at render and fires lemon://save_progress?value=N (see
+# lemonBridge.reportLemonProgress). Only emitted on pass — never on a failed completion.
+PROGRESS_PASS_VALUE = 100
+PROGRESS_MARKER = f"[[PROGRESS value={PROGRESS_PASS_VALUE}]]"
+# Backend-authored, hidden: emitted once on ANY completion (pass OR fail) on the turn the final
+# question is graded. The frontend hides it at render and uses it to remove the question input,
+# since a completed run is terminal in this session regardless of outcome (retaking happens in the
+# Lemon app, which launches a fresh session). It replays in history, so a reopened completed
+# session stays terminal. Unlike PROGRESS (pass only), this fires for both pass and fail.
+DONE_MARKER = "[[DONE]]"
 # Written by the model on the final turn only, between its feedback on the last answer and
 # its topic take-aways. The backend splits there so the final result verdict can be rendered
 # between them as its own display bubble.
@@ -154,7 +165,7 @@ _LOCALES: dict[str, dict[str, str]] = {
         "question_score": "**Question {n}: {s}/{m}**",
         "result": "**Assessment complete** — Total: {s}/{m} ({p}%) — **{verdict}**",
         "passed": "PASSED",
-        "failed": "NOT PASSED",
+        "failed": "Failed",
         "correction_offer": "You have one opportunity to add to or revise your answer — go ahead if you'd like.",
         "summary_heading": "**Summary by topic**",
         "summary_strengths": "Strengths:",
@@ -169,11 +180,14 @@ _LOCALES: dict[str, dict[str, str]] = {
             "Keep going. Your athletes will feel the difference."
         ),
         "motivational_failed": (
-            "Good effort. This is a demanding module, and completing a full run takes commitment. You "
-            "didn't reach the pass threshold this time — but the summary above shows you exactly where to "
-            "focus, and that focus is how coaches improve.\n\n"
-            "Managing performance is one of the most demanding skills a HYROX coach can develop. Keep "
-            "going — the next attempt is yours to take."
+            "That's not the result you were hoping for, and there's no reason to dress it up. What counts "
+            "is this: you sat the full assessment and put your knowledge on the line.\n\n"
+            "Managing performance and keeping young athletes safe is some of the hardest work a HYROX coach "
+            "takes on, and few people get all of it right on the first pass. The gaps this assessment "
+            "surfaced are specific, and every one of them is something you can close.\n\n"
+            "Go back over the areas flagged above, work through them, and come at it again. The coaches who "
+            "make the biggest difference are often the ones who didn't pass first time and kept going. Your "
+            "athletes are worth that."
         ),
         "closing_passed": (
             "You can now close the assessment, and your certificate will be generated. Please wait until "
@@ -181,8 +195,10 @@ _LOCALES: dict[str, dict[str, str]] = {
             "receive it again via email."
         ),
         "closing_failed": (
-            "You need a total score of {threshold}% to pass. You can start a new attempt at any time — "
-            "just send a message when you are ready, and a fresh assessment will begin."
+            "You can take this assessment again. Before you do, go back over the topics highlighted above "
+            "so your next attempt builds on what you've just worked through. When you're ready, you'll find "
+            "the option to restart the assessment in the lemon app. Take the time you need, and come back "
+            "when you feel prepared."
         ),
     },
     "de": {
@@ -190,7 +206,7 @@ _LOCALES: dict[str, dict[str, str]] = {
         "question_score": "**Frage {n}: {s}/{m}**",
         "result": "**Bewertung abgeschlossen** — Gesamt: {s}/{m} ({p}%) — **{verdict}**",
         "passed": "BESTANDEN",
-        "failed": "NICHT BESTANDEN",
+        "failed": "Nicht bestanden",
         "correction_offer": "Du hast jetzt die Möglichkeit, deine Antwort zu ergänzen oder zu überarbeiten.",
         "summary_heading": "**Auswertung nach Themen**",
         "summary_strengths": "Stärken:",
@@ -206,11 +222,16 @@ _LOCALES: dict[str, dict[str, str]] = {
             "Bleib dran. Deine Athletinnen und Athleten werden den Unterschied spüren."
         ),
         "motivational_failed": (
-            "Gute Arbeit. Dieses Modul ist anspruchsvoll, und ein kompletter Durchlauf erfordert Einsatz. "
-            "Die Bestehensgrenze hast du dieses Mal nicht erreicht — aber die Auswertung oben zeigt dir "
-            "genau, worauf du dich konzentrieren solltest.\n\n"
-            "Managing Performance gehört zu den anspruchsvollsten Fähigkeiten, die ein HYROX-Coach "
-            "entwickeln kann. Bleib dran — der nächste Versuch gehört dir."
+            "Das ist nicht das Ergebnis, das du dir erhofft hast, und es gibt keinen Grund, das "
+            "schönzureden. Was zählt, ist das: Du hast das gesamte Assessment absolviert und dein Wissen "
+            "auf die Probe gestellt.\n\n"
+            "Managing Performance und der Schutz junger Athletinnen und Athleten gehören zum "
+            "Anspruchsvollsten, was ein HYROX-Coach leistet, und nur wenige bekommen beim ersten Anlauf "
+            "alles richtig. Die Lücken, die dieses Assessment sichtbar gemacht hat, sind konkret — und "
+            "jede einzelne kannst du schließen.\n\n"
+            "Geh die oben markierten Bereiche noch einmal durch, arbeite sie auf und tritt erneut an. Die "
+            "Coaches, die den größten Unterschied machen, sind oft die, die beim ersten Mal nicht bestanden "
+            "haben und drangeblieben sind. Deine Athletinnen und Athleten sind das wert."
         ),
         "closing_passed": (
             "Du kannst das Assessment jetzt schließen; dein Zertifikat wird erstellt. Bitte warte, bis du "
@@ -218,9 +239,11 @@ _LOCALES: dict[str, dict[str, str]] = {
             "App und bekommst es zusätzlich per E-Mail."
         ),
         "closing_failed": (
-            "Zum Bestehen brauchst du insgesamt {threshold}%. Du kannst jederzeit einen neuen Versuch "
-            "starten — schick einfach eine Nachricht, sobald du bereit bist, und ein neues Assessment "
-            "beginnt."
+            "Du kannst dieses Assessment erneut absolvieren. Geh vorher noch einmal die oben "
+            "hervorgehobenen Themen durch, damit dein nächster Versuch auf dem aufbaut, was du gerade "
+            "erarbeitet hast. Wenn du bereit bist, findest du die Option, das Assessment neu zu starten, in "
+            "der lemon App. Nimm dir die Zeit, die du brauchst, und komm zurück, wenn du dich vorbereitet "
+            "fühlst."
         ),
     },
     "nl": {
@@ -228,7 +251,7 @@ _LOCALES: dict[str, dict[str, str]] = {
         "question_score": "**Vraag {n}: {s}/{m}**",
         "result": "**Beoordeling voltooid** — Totaal: {s}/{m} ({p}%) — **{verdict}**",
         "passed": "GESLAAGD",
-        "failed": "NIET GESLAAGD",
+        "failed": "Niet geslaagd",
         "correction_offer": "Je hebt nu de mogelijkheid om je antwoord aan te vullen of te herzien.",
         "summary_heading": "**Overzicht per thema**",
         "summary_strengths": "Sterke punten:",
@@ -243,11 +266,15 @@ _LOCALES: dict[str, dict[str, str]] = {
             "Ga zo door. Je atleten zullen het verschil voelen."
         ),
         "motivational_failed": (
-            "Goede inzet. Dit is een veeleisende module en een volledige run afronden vraagt toewijding. "
-            "Je hebt de drempel dit keer niet gehaald — maar het overzicht hierboven laat precies zien "
-            "waar je je op kunt richten.\n\n"
-            "Managing performance is een van de meest veeleisende vaardigheden die een HYROX-coach kan "
-            "ontwikkelen. Ga door — de volgende poging is aan jou."
+            "Dit is niet het resultaat waarop je had gehoopt, en er is geen reden om het mooier te maken "
+            "dan het is. Wat telt, is dit: je hebt het volledige assessment afgelegd en je kennis op het "
+            "spel gezet.\n\n"
+            "Managing performance en het veilig houden van jonge atleten behoren tot het zwaarste werk dat "
+            "een HYROX-coach doet, en weinig mensen hebben het in één keer helemaal goed. De hiaten die dit "
+            "assessment aan het licht heeft gebracht, zijn concreet — en elk daarvan kun je wegwerken.\n\n"
+            "Neem de hierboven gemarkeerde onderdelen nog eens door, werk ze uit en ga er opnieuw voor. De "
+            "coaches die het grootste verschil maken, zijn vaak degenen die het de eerste keer niet haalden "
+            "en bleven doorgaan. Je atleten zijn dat waard."
         ),
         "closing_passed": (
             "Je kunt het assessment nu sluiten; je certificaat wordt gegenereerd. Wacht tot je de "
@@ -255,8 +282,10 @@ _LOCALES: dict[str, dict[str, str]] = {
             "per e-mail."
         ),
         "closing_failed": (
-            "Je hebt in totaal {threshold}% nodig om te slagen. Je kunt op elk moment een nieuwe poging "
-            "starten — stuur een bericht zodra je er klaar voor bent en een nieuw assessment begint."
+            "Je kunt dit assessment opnieuw maken. Neem van tevoren de hierboven gemarkeerde thema's nog "
+            "eens door, zodat je volgende poging voortbouwt op wat je net hebt doorgewerkt. Wanneer je er "
+            "klaar voor bent, vind je de optie om het assessment opnieuw te starten in de lemon app. Neem "
+            "de tijd die je nodig hebt en kom terug wanneer je je voorbereid voelt."
         ),
     },
 }
@@ -571,8 +600,9 @@ def derive_turn_state(messages: list[dict[str, Any]], final_content: Optional[st
     """Reconstruct the authoritative assessment state for this turn from replayed history.
 
     A run's score window is everything after the most recent ``[[PLAN]]`` marker. A new
-    session (no PLAN) starts a fresh run; a *failed* completed run auto-starts a fresh run
-    on the next turn (``fail → restart immediately``); a *passed* completed run is done.
+    session (no PLAN) starts a fresh run; a completed run is terminal in this session
+    whether it passed or failed — retaking happens in the Lemon app, which launches a
+    fresh session. The learner cannot restart by sending another message here.
     """
     texts = assistant_texts(messages, final_content)
     blob = "\n".join(texts)
@@ -595,8 +625,9 @@ def derive_turn_state(messages: list[dict[str, Any]], final_content: Optional[st
     plan_message_index = _latest_plan_message_index(messages)
 
     if n_scored >= QUESTIONS_PER_RUN:
-        if not tally["passed"]:
-            return _fresh_run_state()  # failed run complete → next turn begins a new run
+        # A completed run is terminal in this session, pass OR fail. The learner cannot retake
+        # the assessment by sending another message here; restarting happens in the Lemon app,
+        # which launches a fresh session. (Mirrors the passed case; the closing copy says so.)
         return {
             "plan": plan_ids,
             "plan_is_new": False,
@@ -604,7 +635,7 @@ def derive_turn_state(messages: list[dict[str, Any]], final_content: Optional[st
             "n_scored": n_scored,
             "current_id": None,
             "tally": tally,
-            "completed_passed": True,
+            "completed_passed": tally["passed"],
             "current_question_asked": False,
             "latest_user_answer_pending": False,
             "answer_attempts_for_current": 0,
@@ -632,13 +663,17 @@ def build_state_injection(state: dict[str, Any], language: Optional[str] = None)
     current_id = state.get("current_id")
 
     if current_id is None:
-        # Completed + passed (a failed run would have auto-restarted with a current_id).
+        # Completed run — terminal in this session, pass OR fail. The score, verdict and closing
+        # message were already rendered on the completion turn; this turn the learner has sent a
+        # further message, so just acknowledge briefly and emit no marker.
+        passed = bool(state.get("completed_passed"))
+        outcome = "passed" if passed else "did NOT pass"
         return (
             "\n\n## CURRENT TURN STATE (system-controlled — obey exactly)\n"
-            f"- All {total} questions are finalised and the learner has passed. Do NOT ask any further question "
-            "and do NOT emit any marker.\n"
-            "- Briefly acknowledge that the assessment is complete; if they want another attempt, tell them to "
-            "start a new assessment. The system renders the final score and verdict.\n"
+            f"- All {total} questions are finalised and the learner {outcome}. The assessment is over and "
+            "cannot be retaken in this session. Do NOT ask any further question and do NOT emit any marker.\n"
+            "- Briefly acknowledge that the assessment is complete; if they want another attempt, tell them "
+            "they can restart it from the Lemon app. The system already rendered the final score and verdict.\n"
         )
 
     n = state.get("n_scored", 0)
@@ -882,7 +917,7 @@ def render_completion_bubbles(
        token, or the deterministic fallback when that token is missing (rendered in BOTH
        the pass and the fail case),
     4. the motivational message (pass/fail variant),
-    5. the closing message (pass: certificate notice; fail: threshold + retry note).
+    5. the closing message (pass: certificate notice; fail: retake-via-Lemon-app note).
 
     The frontend renders one chat bubble per section while the stored message keeps the
     full content, so history replay and state re-derivation are unaffected. The model's
@@ -906,7 +941,7 @@ def render_completion_bubbles(
         render_final_result(tally, language),
         summary,
         L["motivational_passed"] if passed else L["motivational_failed"],
-        L["closing_passed"] if passed else L["closing_failed"].format(threshold=PASS_THRESHOLD_PERCENT),
+        L["closing_passed"] if passed else L["closing_failed"],
     ]
     assembled = BUBBLE_BREAK_SEPARATOR.join(bubble for bubble in bubbles if bubble)
     if score_marker_text:
@@ -1042,6 +1077,18 @@ def render_assessment_turn(
         trailing.append(format_plan_marker(state["plan"]))
     if asked_question_id is not None:
         trailing.append(format_asked_marker(asked_question_id))
+    # On ANY completion (pass OR fail), emit the hidden completion marker. The frontend hides it at
+    # render and uses it to remove the question input, since the run is terminal in this session
+    # either way. Gated on just_completed (true only on the turn the final question is graded), so
+    # it fires exactly once per run; carries no [[BREAK]], so the visible bubble structure is
+    # unchanged. Unlike the pass-only PROGRESS marker below, this is present for both outcomes.
+    if just_completed:
+        trailing.append(DONE_MARKER)
+    # On a passed completion only, hand the result back to the Lemon app. Hidden marker the
+    # frontend turns into lemon://save_progress?value=100. It is gated on just_completed, which is
+    # only true on the turn the final question is graded, so this fires exactly once per run.
+    if just_completed and tally.get("passed"):
+        trailing.append(PROGRESS_MARKER)
     if trailing:
         assembled = (assembled + "\n\n" + "\n".join(trailing)).strip()
 
@@ -1056,11 +1103,19 @@ def build_result_payload(
     language: Optional[str],
     tally: dict[str, Any],
     scores: list[dict[str, Any]],
+    account_id: Optional[str] = None,
+    first_name: Optional[str] = None,
+    last_name: Optional[str] = None,
 ) -> dict[str, Any]:
-    """Build the result payload the LMS will consume (pass→certificate)."""
+    """Build the result payload the LMS will consume (pass→certificate). The Lemon learner
+    identity (``account_id``/``first_name``/``last_name``) arrives on the launch URL and is
+    recorded so the result is attributable to a specific learner."""
     return {
         "session_id": session_id,
         "user_id": user_id,
+        "account_id": account_id,
+        "first_name": first_name,
+        "last_name": last_name,
         "language": language,
         "passed": tally["passed"],
         "score": tally["score"],
@@ -1101,7 +1156,8 @@ async def record_assessment_result(
     """
     try:
         session_id = session_state if isinstance(session_state, str) else None
-        user_id = auth_claims.get("oid") or overrides.get("user")
+        account_id = overrides.get("account_id")
+        user_id = auth_claims.get("oid") or account_id or overrides.get("user")
         language = overrides.get("language")
 
         payload = build_result_payload(
@@ -1110,6 +1166,9 @@ async def record_assessment_result(
             language=language,
             tally=tally,
             scores=scores,
+            account_id=account_id,
+            first_name=overrides.get("first_name"),
+            last_name=overrides.get("last_name"),
         )
         log_record = {
             **payload,

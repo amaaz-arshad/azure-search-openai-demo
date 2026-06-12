@@ -237,7 +237,7 @@ def test_full_run_asks_exactly_20_unique_questions_then_completes() -> None:
     assert final["completed_passed"] is True
 
 
-def test_failed_completed_run_auto_restarts() -> None:
+def test_failed_completed_run_is_terminal() -> None:
     plan = results.select_question_plan(seed=13)
     hist = [
         {"role": "user", "content": "start"},
@@ -246,9 +246,17 @@ def test_failed_completed_run_auto_restarts() -> None:
     for cid in plan:
         hist.append({"role": "assistant", "content": _score_marker(cid, all_correct=False)})
     st = results.derive_turn_state(hist)
-    assert st["plan_is_new"] is True  # fail → next turn begins a brand-new run
-    assert st["n_scored"] == 0
-    assert st["current_id"] is not None
+    # A failed run is terminal in this session — no in-session auto-restart. The learner retakes
+    # the assessment from the Lemon app (a fresh session), not by sending another message here.
+    assert st["plan_is_new"] is False
+    assert st["n_scored"] == 20
+    assert st["current_id"] is None
+    assert st["completed_passed"] is False
+    # The next-turn injection tells the model the assessment is over and points to the Lemon app.
+    injection = results.build_state_injection(st, "en")
+    assert "did NOT pass" in injection
+    assert "Lemon app" in injection
+    assert "[[ASK]]" not in injection
 
 
 def test_derive_turn_state_marks_answer_pending_after_question_was_asked() -> None:
@@ -443,7 +451,9 @@ def test_render_final_result_localized() -> None:
     passed = results.render_final_result({"score": 90, "max": 100, "pct": 90, "passed": True}, "en")
     assert "PASSED" in passed and "NOT PASSED" not in passed and "90/100" in passed
     failed = results.render_final_result({"score": 50, "max": 100, "pct": 50, "passed": False}, "de")
-    assert "NICHT BESTANDEN" in failed
+    assert "Nicht bestanden" in failed
+    failed_en = results.render_final_result({"score": 45, "max": 105, "pct": 43, "passed": False}, "en")
+    assert "Failed" in failed_en and "45/105" in failed_en
 
 
 def test_strip_rendered_numbers_removes_model_written_numbers() -> None:
@@ -776,18 +786,18 @@ def test_completion_renders_passed_ending_as_break_separated_bubbles() -> None:
 
 
 def test_completion_renders_failed_ending_with_retry_note() -> None:
-    # A failed run gets the same bubble structure, with the fail-variant motivational text and
-    # a threshold + retry note instead of the certificate notice.
+    # A failed run gets the same bubble structure, with the fail-variant motivational text and a
+    # retake-via-Lemon-app note instead of the certificate notice.
     content = f"Thanks — that's where we'll leave it.\n[[SUMMARY]]\nNeeds work: most topics.\n{_score_marker(1, all_correct=False)}"
     assembled, _all_scores, tally, just_completed = _completion_turn(False, content)
     assert just_completed is True and tally["passed"] is False
 
     bubbles = [b.strip() for b in assembled.split(results.BUBBLE_BREAK_TOKEN)]
     assert len(bubbles) == 5
-    assert "NOT PASSED" in bubbles[1]
+    assert "Failed" in bubbles[1]
     assert "Needs work: most topics" in bubbles[2]
-    assert "Good effort." in bubbles[3]
-    assert "80%" in bubbles[4] and "start a new attempt" in bubbles[4]
+    assert "That's not the result you were hoping for" in bubbles[3]
+    assert "take this assessment again" in bubbles[4] and "lemon app" in bubbles[4]
     assert "certificate" not in assembled.lower()
 
 
@@ -802,6 +812,63 @@ def test_completion_falls_back_to_deterministic_summary_without_summary_token() 
     assert len(bubbles) == 5
     assert "**Summary by topic**" in bubbles[2]
     assert "Strengths:" in bubbles[2]  # full-marks run → every category is a strength
+
+
+def test_completion_appends_progress_marker_on_pass() -> None:
+    # On a passed completion the backend appends the hidden [[PROGRESS value=100]] marker so the
+    # frontend can fire lemon://save_progress?value=100. It carries no [[BREAK]], so the visible
+    # bubble structure is unchanged, and strip_markers removes it (frontend display parity).
+    content = f"Solid finish.\n[[SUMMARY]]\nStrengths: race format.\n{_score_marker(1)}"
+    assembled, _all_scores, tally, just_completed = _completion_turn(True, content)
+    assert just_completed is True and tally["passed"] is True
+    assert results.PROGRESS_MARKER in assembled
+    assert "value=100" in results.PROGRESS_MARKER
+    # hidden for display, and it does not introduce an extra chat bubble
+    assert "[[PROGRESS" not in results.strip_markers(assembled)
+    assert len(assembled.split(results.BUBBLE_BREAK_TOKEN)) == 5
+
+
+def test_completion_omits_progress_marker_on_fail() -> None:
+    # A failed completion must NOT report progress (report only on pass).
+    content = f"Thanks — that's where we'll leave it.\n[[SUMMARY]]\nNeeds work.\n{_score_marker(1, all_correct=False)}"
+    assembled, _all_scores, tally, just_completed = _completion_turn(False, content)
+    assert just_completed is True and tally["passed"] is False
+    assert "[[PROGRESS" not in assembled
+
+
+def test_completion_appends_done_marker_on_pass_and_fail() -> None:
+    # On ANY completion the backend appends the hidden [[DONE]] marker so the frontend can remove
+    # the question input — the run is terminal in-session regardless of outcome. It carries no
+    # [[BREAK]], so the visible bubble structure is unchanged, and strip_markers removes it.
+    for all_correct, body in (
+        (True, f"Solid finish.\n[[SUMMARY]]\nStrengths: race format.\n{_score_marker(1)}"),
+        (False, f"That's where we'll leave it.\n[[SUMMARY]]\nNeeds work.\n{_score_marker(1, all_correct=False)}"),
+    ):
+        assembled, _all_scores, tally, just_completed = _completion_turn(all_correct, body)
+        assert just_completed is True and tally["passed"] is all_correct
+        assert results.DONE_MARKER in assembled  # present for both pass and fail
+        assert "[[DONE" not in results.strip_markers(assembled)  # hidden for display
+        assert len(assembled.split(results.BUBBLE_BREAK_TOKEN)) == 5  # no extra chat bubble
+
+
+def test_done_marker_absent_mid_assessment() -> None:
+    # The completion marker is gated on just_completed, so it must NOT appear while the run is still
+    # in progress (e.g. finalising a non-final question that chains the next one).
+    plan = results.select_question_plan(seed=3)
+    state = {
+        "plan": plan,
+        "plan_is_new": False,
+        "scores": [],
+        "n_scored": 0,
+        "current_id": plan[0],
+        "tally": results.compute_tally([]),
+        "completed_passed": False,
+        "current_question_asked": True,
+    }
+    content = f"Good work — solid start.\n{_score_marker(plan[0])}"
+    assembled, _all_scores, _tally, just_completed = results.render_assessment_turn(content, state, "en")
+    assert just_completed is False
+    assert "[[DONE" not in assembled
 
 
 def test_strip_markers_removes_summary_and_break_tokens() -> None:
@@ -907,3 +974,27 @@ def test_record_assessment_result_builds_payload_from_backend_tally() -> None:
     assert payload["user_id"] == "oid-1"
     assert payload["language"] == "en"
     assert payload["category_breakdown"]  # non-empty per-category breakdown
+
+
+def test_record_assessment_result_records_lemon_identity() -> None:
+    # The Lemon learner identity from the launch URL (account_id/first_name/last_name) is recorded
+    # with the result; account_id stands in as user_id when no auth oid is present.
+    scores = [results.normalize_score(1, [1] * key_point_count(1))]
+    tally = results.compute_tally(scores)
+    payload = asyncio.run(
+        results.record_assessment_result(
+            scores=scores,
+            tally=tally,
+            messages=[{"role": "user", "content": "start"}],
+            final_content="done",
+            overrides={"language": "en", "account_id": "123", "first_name": "John", "last_name": "Doe"},
+            auth_claims={},
+            session_state="sess-9",
+            blob_manager=None,
+        )
+    )
+    assert payload is not None
+    assert payload["user_id"] == "123"
+    assert payload["account_id"] == "123"
+    assert payload["first_name"] == "John"
+    assert payload["last_name"] == "Doe"

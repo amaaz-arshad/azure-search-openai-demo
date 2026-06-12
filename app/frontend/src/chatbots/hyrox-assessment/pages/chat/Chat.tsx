@@ -7,7 +7,7 @@ import hyroxLogo from "../../assets/HYROX.svg";
 import styles from "./Chat.module.css";
 
 import { chatApi, configApi, RetrievalMode, ChatAppResponse, ChatAppResponseOrError, ChatAppRequest, ResponseMessage, SpeechConfig } from "../../api";
-import { Answer, AnswerError, AnswerLoading, splitAssessmentBubbles } from "../../components/Answer";
+import { Answer, AnswerError, AnswerLoading, splitAssessmentBubbles, parseProgressValue, hasAssessmentDoneMarker } from "../../components/Answer";
 import { QuestionInput } from "../../components/QuestionInput";
 import { ExampleList } from "../../components/Example";
 import { UserChatMessage } from "../../components/UserChatMessage";
@@ -25,6 +25,7 @@ import { LoginContext } from "../../loginContext";
 import { Settings } from "../../components/Settings/Settings";
 import { setGlobalClearChat } from "../layout/Layout";
 import { applyChatbotSpeechFeatureFlags } from "../../../shared/speech/chatbotSpeechFeatureFlags";
+import { readLemonAccount, reportLemonProgress } from "../../lemonBridge";
 
 const INITIAL_ASSISTANT_SENTINEL_USER_MESSAGE = "__initial_assistant__";
 const HYROX_ASSESSMENT_LANGUAGE = "en";
@@ -40,8 +41,19 @@ const createClientSessionId = () => {
 const Chat = () => {
     const { t } = useTranslation();
     const chatbotCategory = "hyrox-assessment";
+    // Learner identity handed in by the Lemon app on the launch URL
+    // (?account_id=...&first_name=...&last_name=...). Read once and kept stable for the
+    // component's lifetime so it is sent with every request and used to personalize the greeting.
+    const lemonAccountRef = useRef(readLemonAccount());
+    const lemonAccount = lemonAccountRef.current;
+    // Fire the lemon://save_progress hand-off exactly once per session, on the freshly
+    // received passed-completion response (not on history replay).
+    const progressReportedRef = useRef<boolean>(false);
     const legacyInitialUserMessage: string = t("initialUserMsg");
-    const initialAssistantMessageContent: string = t("initialAssistantMsg");
+    const baseInitialAssistantMessage: string = t("initialAssistantMsg");
+    const initialAssistantMessageContent: string = lemonAccount.firstName
+        ? `${t("greeting", { firstName: lemonAccount.firstName })}${baseInitialAssistantMessage}`
+        : baseInitialAssistantMessage;
     const initialAssistantResponse: ChatAppResponse = {
         message: {
             content: initialAssistantMessageContent,
@@ -354,6 +366,19 @@ const Chat = () => {
         });
     };
 
+    // On a passed completion the backend appends a hidden [[PROGRESS value=N]] marker. Fire the
+    // Lemon save_progress hand-off once when it first appears on a freshly received response.
+    const maybeReportLemonProgress = (content: string) => {
+        if (progressReportedRef.current) {
+            return;
+        }
+        const value = parseProgressValue(content);
+        if (value !== null) {
+            progressReportedRef.current = true;
+            reportLemonProgress(value);
+        }
+    };
+
     const makeApiRequest = async (question: string) => {
         const controller = new AbortController();
         setAbortController(controller);
@@ -400,6 +425,10 @@ const Chat = () => {
                         use_agentic_knowledgebase: useAgenticKnowledgeBase,
                         use_web_source: webSourceSupported ? webSourceEnabled : false,
                         use_sharepoint_source: sharePointSourceSupported ? sharePointSourceEnabled : false,
+                        // Lemon learner identity (from the launch URL) so the result is recorded against them.
+                        ...(lemonAccount.accountId ? { account_id: lemonAccount.accountId } : {}),
+                        ...(lemonAccount.firstName ? { first_name: lemonAccount.firstName } : {}),
+                        ...(lemonAccount.lastName ? { last_name: lemonAccount.lastName } : {}),
                         ...(seed !== null ? { seed: seed } : {})
                     }
                 },
@@ -426,6 +455,7 @@ const Chat = () => {
                     const normalizedResponse =
                         typeof sessionState === "string" && sessionState !== "" ? { ...parsedResponse, session_state: sessionState } : parsedResponse;
                     setAnswers([...answers, [question, normalizedResponse]]);
+                    maybeReportLemonProgress(normalizedResponse.message.content);
                     if (typeof sessionState === "string" && sessionState !== "") {
                         const token = client ? await getToken(client) : undefined;
                         historyManager.addItem(sessionState, [...conversationAnswers, [question, normalizedResponse]], token);
@@ -448,6 +478,7 @@ const Chat = () => {
                 const normalizedResponse =
                     typeof sessionState === "string" && sessionState !== "" ? { ...chatResponse, session_state: sessionState } : chatResponse;
                 setAnswers([...answers, [question, normalizedResponse]]);
+                maybeReportLemonProgress(normalizedResponse.message.content);
                 if (typeof sessionState === "string" && sessionState !== "") {
                     const token = client ? await getToken(client) : undefined;
                     historyManager.addItem(sessionState, [...conversationAnswers, [question, normalizedResponse]], token);
@@ -671,6 +702,13 @@ const Chat = () => {
         }
     };
 
+    // Once the assessment is finalised (pass OR fail) the run is terminal in this session — retaking
+    // happens in the Lemon app, which launches a fresh session, never by sending another message
+    // here. The backend signals completion with a hidden [[DONE]] marker on the final message
+    // (present for both outcomes) which replays from history, so a restored completed session is
+    // detected too. We remove the question input entirely once it is present.
+    const assessmentComplete = answers.some(([, response]) => hasAssessmentDoneMarker(response.message.content));
+
     return (
         <div className={styles.container}>
             {/* Setting the page title using react-helmet-async */}
@@ -785,19 +823,21 @@ const Chat = () => {
                     </div>
                     {/* )} */}
 
-                    <div className={styles.chatInput}>
-                        <QuestionInput
-                            clearOnSend
-                            placeholder={t("defaultExamples.placeholder")}
-                            disabled={isLoading}
-                            onSend={question => makeApiRequest(question)}
-                            showSpeechInput={showSpeechInput}
-                            isStreaming={isStreaming}
-                            isLoading={isLoading}
-                            onStop={onStopClick}
-                            initQuestion={restoredQuestion}
-                        />
-                    </div>
+                    {!assessmentComplete && (
+                        <div className={styles.chatInput}>
+                            <QuestionInput
+                                clearOnSend
+                                placeholder={t("defaultExamples.placeholder")}
+                                disabled={isLoading}
+                                onSend={question => makeApiRequest(question)}
+                                showSpeechInput={showSpeechInput}
+                                isStreaming={isStreaming}
+                                isLoading={isLoading}
+                                onStop={onStopClick}
+                                initQuestion={restoredQuestion}
+                            />
+                        </div>
+                    )}
                 </div>
 
                 {answers.length > 0 && activeAnalysisPanelTab && (
