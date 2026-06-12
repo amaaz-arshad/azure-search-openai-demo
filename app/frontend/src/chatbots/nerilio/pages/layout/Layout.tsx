@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, Outlet } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { IconButton } from "@fluentui/react";
-import { ChatAdd24Regular, ChatDismiss24Regular, History24Regular } from "@fluentui/react-icons";
+import { ChatAdd24Regular, History24Regular } from "@fluentui/react-icons";
 
 import { useLogin } from "../../authConfig";
 import { LoginButton } from "../../components/LoginButton";
@@ -46,24 +46,19 @@ const Layout = () => {
         recentChatsAction?.run();
     };
 
-    const handleCloseChat = () => {
-        setDropdownOpen(false);
-        // Matches the message the embeddable widget loader listens for (see widget.ts), so the
-        // in-chat Close control actually dismisses the popup and persists the closed state.
-        window.parent.postMessage({ type: "chatbot:close" }, "*");
-    };
-
     return (
         <div className={styles.layout}>
             <header className={styles.header} role="banner">
                 <div className={styles.headerContainer}>
-                    <Link className={styles.logoContainer} to="/nerilio">
-                        <div className={styles.logoCircle}>
-                            <img alt="Logo" src={chatbotLogo} />
-                        </div>
-                    </Link>
+                    <div className={styles.leftSection}>
+                        <Link className={styles.logoContainer} to="/nerilio">
+                            <div className={styles.logoCircle}>
+                                <img alt="Logo" src={chatbotLogo} />
+                            </div>
+                        </Link>
 
-                    <div className={styles.navbarTitle}>{t("headerTitle")}</div>
+                        <div className={styles.navbarTitle}>{t("headerTitle")}</div>
+                    </div>
 
                     <div className={styles.rightSection}>
                         {useLogin && <LoginButton />}
@@ -86,12 +81,6 @@ const Layout = () => {
                                         <button className={styles.dropdownItem} onClick={handleOpenRecentChats}>
                                             <History24Regular />
                                             <span>{t("history.viewRecentChats")}</span>
-                                        </button>
-                                    </li>
-                                    <li>
-                                        <button className={styles.dropdownItem} onClick={handleCloseChat}>
-                                            <ChatDismiss24Regular />
-                                            <span>{t("close")}</span>
                                         </button>
                                     </li>
                                 </ul>

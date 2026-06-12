@@ -29,6 +29,14 @@
     color: var(--chatbot-navbar-text);
 }
 
+/* Left section groups the logo and the title together */
+.leftSection {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0; /* allow the title to ellipsis instead of pushing the right section */
+}
+
 /* Circular logo */
 .logoContainer {
     display: flex;
@@ -53,11 +61,8 @@
     display: block;
 }
 
-/* Title centered */
+/* Title sits on the left, beside the logo */
 .navbarTitle {
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
     color: var(--chatbot-navbar-text);
     font-weight: 600;
     font-size: 1.4rem;
@@ -65,7 +70,7 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 60%; /* so it doesn't overlap with the right section */
+    min-width: 0; /* enable ellipsis inside the flex left section */
 }
 
 /* Right section with dropdown */

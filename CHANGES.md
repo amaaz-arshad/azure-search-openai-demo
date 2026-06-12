@@ -17,6 +17,43 @@ Two categories per date:
 
 ## 2026-06-12
 
+### Nerilio: fix page scroll after re-enabling the header
+
+#### Decisions
+
+- The nerilio chat `.container` was sized `height: 100vh` (full viewport) while living inside
+  `.main`, which is `flex: 1` under the `.layout` column below the `56px` `.header`. With the header
+  previously commented out the `100vh` happened to fit; re-enabling the header pushed total content to
+  `100vh + 56px`, so the blank page scrolled. Sibling bots (demo, lemon, fbn, rak) use `height: 100%`
+  (fill `.main`, i.e. viewport-minus-header) — adopted the same so the layout is correct regardless of
+  header height, rather than subtracting a hardcoded `56px`.
+
+- Header title moved from absolute-centered to left, beside the logo. The previous
+  `position: absolute; left: 50%; translateX(-50%)` centering was replaced by grouping logo + title
+  in a flex `.leftSection`, so the title flows immediately after the logo and ellipsis-truncates
+  instead of overlapping the right section.
+- Settled `.container` height on `calc(100vh - 56px)` (publishone's value), not `100%`. With the
+  header restored, `height: 100%` left the chat input floating directly under the greeting instead of
+  pinned to the bottom — the percentage chat-shell chain (`.chatRoot`/`.chatContainer` use
+  `height: 100%`) needs `.container` to carry a *definite* height for `.chatMessageStream { flex: 1 }`
+  to expand and push the sticky input down. `calc(100vh - 56px)` is definite, anchors the input at the
+  bottom like the other bots, and still sums with the 56px header to exactly `100vh` (no page scroll).
+- Removed the **Close** item from the header dropdown menu per request. The dropdown now offers only
+  New Chat and Recent Chats. Dropped the now-unused `handleCloseChat` handler (which posted
+  `chatbot:close` to the widget parent) and the `ChatDismiss24Regular` import; the embeddable widget's
+  own launcher close is unaffected.
+
+#### Changes
+
+- `app/frontend/src/chatbots/nerilio/pages/chat/Chat.module.css` — `.container` height set to
+  `calc(100vh - 56px)` in both the base rule and the `@media (min-width: 992px)` rule (was `100vh`,
+  briefly `100%`).
+- `app/frontend/src/chatbots/nerilio/pages/layout/Layout.tsx` — wrapped the logo `Link` and
+  `.navbarTitle` in a new `.leftSection` div; removed the Close `<li>`, the `handleCloseChat`
+  function, and the `ChatDismiss24Regular` import.
+- `app/frontend/src/chatbots/nerilio/pages/layout/Layout.module.css` — added `.leftSection` (flex,
+  `gap: 0.75rem`); removed absolute centering from `.navbarTitle` (now left-aligned with ellipsis).
+
 ### Persistent chat across navigation — all 15 chatbots + embeddable widget
 
 #### Decisions
