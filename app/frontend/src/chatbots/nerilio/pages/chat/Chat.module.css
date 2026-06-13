@@ -39,6 +39,12 @@
     width: 100%;
     height: 100%; /* Use full height instead of max-height */
     min-height: 0;
+    /* Vertical scroll only. overflow-y:auto alone makes overflow-x compute to
+       auto, so the chat area was a horizontal scroll container; once the
+       scrollbar was hidden (scrollbar-width:none) any edge overflow became an
+       invisible sideways swipe. Clip the x-axis so the view never scrolls
+       horizontally at any width while keeping the hidden vertical scrollbar. */
+    overflow-x: hidden;
     overflow-y: auto;
     scrollbar-width: none;
     -ms-overflow-style: none;

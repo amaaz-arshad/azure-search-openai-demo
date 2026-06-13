@@ -17,6 +17,24 @@ Two categories per date:
 
 ## 2026-06-13
 
+### Nerilio: stop chat view from scrolling horizontally
+
+#### Decisions
+
+- The prior hidden-scrollbar change (`scrollbar-width: none` on `.chatContainer`) exposed a latent issue:
+  because `.chatContainer` has `overflow-y: auto`, its `overflow-x` computes from `visible` to `auto`, so
+  the chat area was always a *horizontal* scroll container. While the scrollbar was visible/gutter-reserved
+  this was contained; once hidden, any edge overflow (e.g. the last column of a wide pricing table) became
+  an invisible sideways swipe, making the view exceed mobile width.
+- Fixed by clipping the x-axis (`overflow-x: hidden`) rather than reverting the hidden scrollbar — the user
+  wants the scrollbar hidden. Answer content is already constrained (`.answerContainer { max-width: 100% }`,
+  `overflow-wrap: anywhere`) and wide tables keep their own `.tableScroll`, so clipping hides no real content.
+
+#### Changes
+
+- `app/frontend/src/chatbots/nerilio/pages/chat/Chat.module.css`: added `overflow-x: hidden` to
+  `.chatContainer` so it scrolls vertically only and the view never scrolls horizontally at any width.
+
 ### Nerilio: smaller mobile header mark and title
 
 #### Decisions

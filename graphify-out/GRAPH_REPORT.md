@@ -1,7 +1,7 @@
 # Graph Report - agentic-retrieval  (2026-06-13)
 
 ## Corpus Check
-- 1427 files · ~2,472,781 words
+- 1427 files · ~2,472,928 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
