@@ -3,6 +3,10 @@
     align-items: flex-start;
     gap: var(--chatbot-answer-shell-gap, 0.75rem);
     max-width: 100%;
+    /* Allow this flex item to shrink below its content's intrinsic width.
+       Without it, a wide table's min-content forces the bubble past the
+       viewport instead of letting the inner .tableScroll scroll. */
+    min-width: 0;
 }
 
 .answerShellWithOutsideAvatar {
@@ -17,6 +21,10 @@
     display: inline-block;
     width: auto;
     max-width: 100%;
+    /* Same reason as .answerShell: as a flex child of .answerShell it must be
+       allowed to shrink so the table is constrained and scrolls internally
+       rather than stretching the whole answer bubble beyond the screen. */
+    min-width: 0;
     padding: 1em;
     background: var(--chatbot-answer-background, rgb(249, 249, 249));
     border-radius: var(--chatbot-answer-card-radius, 1.5em);
@@ -245,15 +253,52 @@
 
 .tableScroll {
     overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
     border: 1px solid rgba(15, 23, 42, 0.08);
     border-radius: 1rem;
-    background: white;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(15, 23, 42, 0.25) transparent;
+    /* CSS scroll shadows (Lea Verou technique): the soft edge shadows are
+       revealed only while the table can still scroll in that direction, so they
+       act as a self-hiding hint that there is more content to swipe to. */
+    background:
+        linear-gradient(to right, #ffffff 30%, rgba(255, 255, 255, 0)) 0 0,
+        linear-gradient(to left, #ffffff 30%, rgba(255, 255, 255, 0)) 100% 0,
+        radial-gradient(farthest-side at 0 50%, rgba(15, 23, 42, 0.16), rgba(15, 23, 42, 0)) 0 0,
+        radial-gradient(farthest-side at 100% 50%, rgba(15, 23, 42, 0.16), rgba(15, 23, 42, 0)) 100% 0;
+    background-color: #ffffff;
+    background-repeat: no-repeat;
+    background-size:
+        2.75rem 100%,
+        2.75rem 100%,
+        0.85rem 100%,
+        0.85rem 100%;
+    background-attachment: local, local, scroll, scroll;
+}
+
+.tableScroll::-webkit-scrollbar {
+    height: 0.55rem;
+}
+
+.tableScroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.tableScroll::-webkit-scrollbar-thumb {
+    background-color: rgba(15, 23, 42, 0.22);
+    border-radius: 999px;
+}
+
+.tableScroll::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(15, 23, 42, 0.35);
 }
 
 .answerTable {
     width: 100%;
-    min-width: 28rem;
     border-collapse: collapse;
+    background: transparent;
 }
 
 .answerMarkdown th,
@@ -262,6 +307,15 @@
     border-bottom: 1px solid rgba(15, 23, 42, 0.08);
     text-align: left;
     vertical-align: top;
+    /* Keep columns readable: a per-cell floor makes the table grow past a narrow
+       viewport so the wrapper scrolls horizontally instead of crushing columns. */
+    min-width: 6.5rem;
+    /* Override the inherited `overflow-wrap: anywhere` from .answerMarkdown so
+       words wrap at boundaries and only break as a last resort (e.g. long URLs),
+       instead of shattering letter-by-letter in tight columns. */
+    overflow-wrap: break-word;
+    word-break: normal;
+    hyphens: none;
 }
 
 .answerMarkdown th {
@@ -397,13 +451,27 @@
         border-radius: var(--chatbot-answer-card-radius-mobile, var(--chatbot-answer-card-radius, 1.5em));
     }
 
+    /* On phones, size-contain the inline axis so the table's intrinsic width is
+       computed WITHOUT looking at its contents. Otherwise a wide table's
+       min-content propagates up through the answer bubble and the chat layout's
+       `min-width: auto` flex chain and pushes the whole page past the viewport
+       (the table got cut off at the screen edge with no way to scroll). With
+       containment, this wrapper stays at its container's width and the table
+       scrolls inside it. Desktop is intentionally excluded so wide tables can
+       still grow the bubble to fill the available width instead of scrolling. */
+    .tableScroll {
+        contain: inline-size;
+    }
+
     .answerMarkdown {
         font-size: var(--chatbot-answer-font-size-mobile, 0.95rem);
         line-height: 1.66;
     }
 
-    .answerTable {
-        min-width: 22rem;
+    .answerMarkdown th,
+    .answerMarkdown td {
+        padding: 0.62rem 0.72rem;
+        min-width: 6rem;
     }
 
     .assistantName {

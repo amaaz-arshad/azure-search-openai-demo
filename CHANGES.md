@@ -17,6 +17,55 @@ Two categories per date:
 
 ## 2026-06-13
 
+### All bots: responsive answer tables (polished horizontal scroll)
+
+#### Decisions
+
+- Markdown tables in chat answers looked fine on desktop but were crammed and shattered letter-by-letter
+  ("P l a n", "L i m i t s") on mobile / the narrow embedded widget. Root cause was twofold in the shared
+  `SharedAnswer.module.css`: (1) `.answerMarkdown { overflow-wrap: anywhere }` is inherited by every `<td>`/`<th>`,
+  letting the browser break words at any character to avoid overflow; (2) the table's mobile `min-width: 22rem`
+  (~352px) was barely wider than a phone, so the auto layout squeezed all columns to fit instead of letting the
+  existing `.tableScroll` wrapper scroll. The scroll container existed but the styling forced cramming.
+- Chose the **polished horizontal-scroll** approach (user pick) over stacked mobile cards: keep the real table
+  shape on every device, CSS-only, lowest risk. All bots share one render path
+  (`Answer.tsx` → `createBotAnswer` → `ChatbotAnswer.tsx` → `SharedAnswer.module.css`), so the fix is centralized;
+  per-bot `components/Answer/Answer.module.css` table rules are legacy/dead on the active path.
+- Switched the table-level `min-width` to a **per-cell** `min-width` floor so columns stay readable and wide tables
+  grow past the viewport (→ horizontal scroll), while small 2-column tables still fit without forced scrolling.
+- Left the per-bot `MarkdownViewer` (citation source preview) tables untouched — different surface, not the reported issue.
+- **Second round (the important one).** The per-cell `min-width` made the readable-columns goal work but exposed a
+  worse bug: on mobile the whole answer bubble blew *past* the viewport and the table was cut off at the screen edge
+  with no way to scroll. Verified the real cause by rendering the live nerilio page in Playwright at 375px and walking
+  the table's ancestor chain: the table's intrinsic width (~504px) propagates *up* through the chat layout's
+  `min-width: auto` flex chain (`.chatMessageStream` → `.chatContainer` → `.chatRoot` → `.container`, the latter a
+  `flex:1` child of `<main>`), forcing the app to ~586px on a 375px screen. `.tableScroll`'s `overflow-x: auto` never
+  engaged because an overflow scroll-container in a *block* context does **not** zero its min-content contribution —
+  only flex/grid items do. So nothing constrained its width and it never had to scroll.
+- Two fixes were possible: (a) `min-width: 0` on every bot's layout flex chain (per-bot edits in ~15 `Chat.module.css`
+  files), or (b) `contain: inline-size` on the shared `.tableScroll` so its width is computed *without* looking at its
+  contents, stopping the propagation at the source in one place. Chose **(b)** — single shared line, fixes all bots.
+  Scoped it to the mobile `@media (max-width: 767px)` only: on desktop, omitting containment lets a wide table grow
+  the bubble to fill the available width (no needless scroll), preserving the original desktop look. Empirically
+  verified on the live app: mobile page + embed → no page overflow, table scrolls inside the bubble; small 2-col table
+  → fits, no scroll; desktop → table fills bubble at full width, no scroll.
+- `min-width: 0` on `.answerShell` / `.answerContainer` was added during diagnosis and kept as defensive flex hygiene
+  (flex children holding potentially-wide content should be allowed to shrink); `contain: inline-size` is the load-bearing fix.
+
+#### Changes
+
+- `app/frontend/src/chatbots/shared/answer/SharedAnswer.module.css`:
+  - Cells (`.answerMarkdown th, td`): override inherited `overflow-wrap: anywhere` with `overflow-wrap: break-word`,
+    `word-break: normal`, and `hyphens: none`; add `min-width: 6.5rem` (6rem on mobile) so columns don't collapse.
+  - `.answerTable`: removed `min-width: 28rem` (now per-cell), made background transparent so scroll shadows show through.
+  - `.tableScroll`: added thin styled scrollbar (`scrollbar-width`/`-color` + `::-webkit-scrollbar*`), momentum scroll
+    (`-webkit-overflow-scrolling: touch`), `overscroll-behavior-x: contain` (swipe won't drag the page inside the widget),
+    and self-hiding Lea-Verou CSS scroll shadows that hint there's more to swipe.
+  - `.answerShell` / `.answerContainer`: added `min-width: 0` (defensive flex-shrink hygiene).
+  - Mobile `@media (max-width: 767px)`: replaced the removed `.answerTable { min-width: 22rem }` with tighter cell padding
+    (`0.62rem 0.72rem`) and `min-width: 6rem`; **added `.tableScroll { contain: inline-size }`** — the load-bearing fix
+    that keeps wide tables from pushing the page past the viewport while letting the table scroll inside the bubble.
+
 ### Nerilio: stop chat view from scrolling horizontally
 
 #### Decisions
