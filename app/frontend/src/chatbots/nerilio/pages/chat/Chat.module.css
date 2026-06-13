@@ -40,7 +40,12 @@
     height: 100%; /* Use full height instead of max-height */
     min-height: 0;
     overflow-y: auto;
-    scrollbar-gutter: stable;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.chatContainer::-webkit-scrollbar {
+    display: none;
 }
 
 .chatEmptyState {

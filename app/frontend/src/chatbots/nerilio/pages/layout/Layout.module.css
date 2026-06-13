@@ -139,7 +139,16 @@
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
+    .leftSection {
+        gap: 0.6rem;
+    }
+
+    .logoCircle {
+        width: 30px;
+        height: 30px;
+    }
+
     .navbarTitle {
-        font-size: 1.7rem;
+        font-size: 1.32rem;
     }
 }

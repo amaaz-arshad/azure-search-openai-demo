@@ -15,6 +15,30 @@ Two categories per date:
 
 ---
 
+## 2026-06-13
+
+### Nerilio: smaller mobile header mark and title
+
+#### Decisions
+
+- Scoped the visual refinement to `/nerilio` mobile only. The previous mobile rule made the header title
+  larger than desktop, which looked heavy next to the compact navbar controls.
+- Scoped hidden scrollbar styling to Nerilio's chat transcript container only. The chat remains scrollable
+  when content grows; the visual scrollbar/gutter is hidden to keep the right edge cleaner.
+
+#### Changes
+
+- `app/frontend/src/chatbots/nerilio/pages/layout/Layout.module.css`: in the `max-width: 768px`
+  rule, reduced the logo circle to `30px`, tightened the left-section gap, and reduced the title
+  size to `1.32rem`.
+- Verified with `npm run build` and a Playwright render check at 390x844: title and logo use the
+  expected computed sizes and the header does not horizontally overflow.
+- `app/frontend/src/chatbots/nerilio/pages/chat/Chat.module.css`: replaced the stable scrollbar gutter
+  on `.chatContainer` with hidden-scrollbar CSS (`scrollbar-width: none`, `-ms-overflow-style: none`,
+  and `::-webkit-scrollbar { display: none; }`) while keeping `overflow-y: auto`.
+- Verified with `npm run build` and a Playwright scroll check at 390x844: `.chatContainer` remains
+  scrollable (`scrollTop` changes), reports hidden scrollbar styles, and has `0px` scrollbar gutter.
+
 ## 2026-06-12
 
 ### All bots: history panel overlays on tablet-portrait widths
