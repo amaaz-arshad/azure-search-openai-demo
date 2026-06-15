@@ -337,6 +337,74 @@ def test_shared_answer_renderer_handles_markdown_and_literal_html(page: Page, li
     expect(page.get_by_text("1. manual.txt")).to_be_visible()
 
 
+def test_shared_answer_wide_table_scroll_shadows_track_position(page: Page, live_server_url: str):
+    """A wide table overflows its bubble and the edge scroll-shadow overlays
+    follow the live scroll position (right-only at the start, left-only at the
+    end) so the hint reads as one continuous edge instead of breaking per-cell."""
+
+    def handle(route: Route):
+        wide_table = (
+            "| Plan | Price (Monthly) | Price (Yearly) | Sessions | Data Limit | Support |\n"
+            "| --- | --- | --- | --- | --- | --- |\n"
+            "| Free | EUR 0 | N/A | 30 | 20 MB | Community |\n"
+            "| Basic | EUR 99 | EUR 85 | 5,000 | 500 MB | Email |\n"
+        )
+        jsonl = "\n".join(
+            [
+                json.dumps(
+                    {
+                        "delta": {"role": "assistant"},
+                        "context": {
+                            "data_points": {"text": [], "images": [], "citations": [], "external_results_metadata": []},
+                            "thoughts": [],
+                            "followup_questions": None,
+                        },
+                        "session_state": None,
+                    }
+                ),
+                json.dumps({"delta": {"role": None, "content": wide_table}}),
+            ]
+        )
+        route.fulfill(
+            body=f"{jsonl}\n",
+            status=200,
+            headers={"Transfer-encoding": "Chunked", "Content-Type": "application/x-ndjson"},
+        )
+
+    page.set_viewport_size({"width": 480, "height": 800})
+    page.route("*/**/chat/stream", handle)
+    page.goto(f"{live_server_url}nerilio")
+
+    # On the compact layout a disclaimer banner overlays the composer; dismiss it
+    # so the question input is interactable. Placeholder/submit labels also differ
+    # from desktop here, so drive the textarea directly and submit with Enter.
+    close_disclaimer = page.get_by_label("Close disclaimer")
+    if close_disclaimer.count():
+        close_disclaimer.first.click()
+
+    question_input = page.get_by_role("textbox").first
+    question_input.click()
+    question_input.fill("Show me the pricing plans")
+    question_input.press("Enter")
+
+    expect(page.get_by_role("columnheader", name="Data Limit")).to_be_visible()
+
+    frame = page.locator("xpath=//table/ancestor::div[contains(@class,'tableScrollFrame')]").first
+    # Sanity-check the table actually overflows; otherwise the shadow assertions
+    # below would be vacuously true on a wider-than-expected layout.
+    overflows = frame.evaluate("el => { const s = el.querySelector('div'); return s.scrollWidth > s.clientWidth + 1; }")
+    assert overflows, "expected the wide table to overflow its scroll container"
+
+    # At the start (scrollLeft 0) only the right shadow should be active.
+    expect(frame).to_have_attribute("data-can-scroll-right", "1")
+    expect(frame).not_to_have_attribute("data-can-scroll-left", "1")
+
+    # Scroll fully to the right; now only the left shadow should remain.
+    frame.evaluate("el => { const s = el.querySelector('div'); s.scrollLeft = s.scrollWidth; }")
+    expect(frame).to_have_attribute("data-can-scroll-left", "1")
+    expect(frame).not_to_have_attribute("data-can-scroll-right", "1")
+
+
 def test_publishone_answer_keeps_wordmark_logo_wrapper(page: Page, live_server_url: str):
     page.route(
         "*/**/chat/stream",

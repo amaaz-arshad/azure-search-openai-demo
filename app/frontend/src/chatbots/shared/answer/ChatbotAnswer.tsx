@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ComponentType, ImgHTMLAttributes, ReactNode } from "react";
 import { Stack, IconButton } from "@fluentui/react";
 import { PrismLight as SyntaxHighlighter } from "react-syntax-highlighter";
@@ -212,6 +212,53 @@ const CodeBlock = ({
     );
 };
 
+const ScrollableTable = ({ children }: { children?: ReactNode }) => {
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const [edges, setEdges] = useState<{ left: boolean; right: boolean }>({ left: false, right: false });
+
+    const updateEdges = useCallback(() => {
+        const el = scrollRef.current;
+        if (!el) {
+            return;
+        }
+        const maxScroll = el.scrollWidth - el.clientWidth;
+        // 1px slack so sub-pixel rounding at the extremes doesn't leave a shadow stuck on.
+        const left = el.scrollLeft > 1;
+        const right = el.scrollLeft < maxScroll - 1;
+        setEdges(prev => (prev.left === left && prev.right === right ? prev : { left, right }));
+    }, []);
+
+    useLayoutEffect(() => {
+        const el = scrollRef.current;
+        if (!el) {
+            return;
+        }
+        updateEdges();
+        // Re-check when the viewport or the table's own width changes (streamed
+        // content growing, rotate/resize): either can flip whether the table
+        // still overflows in a given direction.
+        const observer = new ResizeObserver(updateEdges);
+        observer.observe(el);
+        const table = el.firstElementChild;
+        if (table) {
+            observer.observe(table);
+        }
+        return () => observer.disconnect();
+    }, [updateEdges]);
+
+    return (
+        <div
+            className={styles.tableScrollFrame}
+            data-can-scroll-left={edges.left ? "1" : undefined}
+            data-can-scroll-right={edges.right ? "1" : undefined}
+        >
+            <div className={styles.tableScroll} ref={scrollRef} onScroll={updateEdges}>
+                <table className={styles.answerTable}>{children}</table>
+            </div>
+        </div>
+    );
+};
+
 export const ChatbotAnswer = ({
     answer,
     isSelected,
@@ -355,11 +402,7 @@ export const ChatbotAnswer = ({
             return <CodeBlock code={code} language={languageMatch?.[1]} copyLabel={copyLabel} copiedLabel={copiedLabel} />;
         },
         pre: ({ children }: { children?: ReactNode }) => <>{children}</>,
-        table: ({ children }: { children?: ReactNode }) => (
-            <div className={styles.tableScroll}>
-                <table className={styles.answerTable}>{children}</table>
-            </div>
-        ),
+        table: ({ children }: { children?: ReactNode }) => <ScrollableTable>{children}</ScrollableTable>,
         img: ({ src, alt, ...props }: ImgHTMLAttributes<HTMLImageElement>) => {
             if (!allowedImageSrc(src)) {
                 return <span>{alt || "Image omitted"}</span>;

@@ -251,31 +251,62 @@
     background: #e2e8f0;
 }
 
+.tableScrollFrame {
+    position: relative;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 1rem;
+    /* Clip the inner scroller and the edge-shadow overlays to the rounded frame. */
+    overflow: hidden;
+}
+
+/* Edge scroll shadows are rendered as overlays ABOVE the table content (via
+   z-index), not as a background behind it. The previous approach painted the
+   shadow into the scroll container's background (Lea Verou technique); any cell
+   with its own fill (e.g. the header row's `th` background) then painted over
+   it, so the hint broke cell-by-cell instead of reading as one continuous edge.
+   As pointer-events-none overlays they sit on top of every cell regardless of
+   its background. Visibility is toggled from the live scroll position (data
+   attributes set in ChatbotAnswer's ScrollableTable) so each side self-hides at
+   its extreme and neither shows on a table that fits without scrolling. */
+.tableScrollFrame::before,
+.tableScrollFrame::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1.15rem;
+    pointer-events: none;
+    z-index: 2;
+    opacity: 0;
+    transition: opacity 0.18s ease;
+}
+
+.tableScrollFrame::before {
+    left: 0;
+    background: linear-gradient(to right, rgba(15, 23, 42, 0.18), rgba(15, 23, 42, 0));
+}
+
+.tableScrollFrame::after {
+    right: 0;
+    background: linear-gradient(to left, rgba(15, 23, 42, 0.18), rgba(15, 23, 42, 0));
+}
+
+.tableScrollFrame[data-can-scroll-left="1"]::before {
+    opacity: 1;
+}
+
+.tableScrollFrame[data-can-scroll-right="1"]::after {
+    opacity: 1;
+}
+
 .tableScroll {
     overflow-x: auto;
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-x: contain;
-    border: 1px solid rgba(15, 23, 42, 0.08);
-    border-radius: 1rem;
+    background: #ffffff;
     scrollbar-width: thin;
     scrollbar-color: rgba(15, 23, 42, 0.25) transparent;
-    /* CSS scroll shadows (Lea Verou technique): the soft edge shadows are
-       revealed only while the table can still scroll in that direction, so they
-       act as a self-hiding hint that there is more content to swipe to. */
-    background:
-        linear-gradient(to right, #ffffff 30%, rgba(255, 255, 255, 0)) 0 0,
-        linear-gradient(to left, #ffffff 30%, rgba(255, 255, 255, 0)) 100% 0,
-        radial-gradient(farthest-side at 0 50%, rgba(15, 23, 42, 0.16), rgba(15, 23, 42, 0)) 0 0,
-        radial-gradient(farthest-side at 100% 50%, rgba(15, 23, 42, 0.16), rgba(15, 23, 42, 0)) 100% 0;
-    background-color: #ffffff;
-    background-repeat: no-repeat;
-    background-size:
-        2.75rem 100%,
-        2.75rem 100%,
-        0.85rem 100%,
-        0.85rem 100%;
-    background-attachment: local, local, scroll, scroll;
 }
 
 .tableScroll::-webkit-scrollbar {

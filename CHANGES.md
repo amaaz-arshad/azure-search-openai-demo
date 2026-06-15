@@ -15,6 +15,46 @@ Two categories per date:
 
 ---
 
+## 2026-06-15
+
+### All bots: continuous table scroll shadow (overlay instead of background)
+
+#### Decisions
+
+- Follow-up to the 2026-06-13 scroll-shadow work. User reported the right-edge "more content" shadow broke
+  **cell-by-cell** — it disappeared over the darker header row. Root cause: the 2026-06-13 fix painted the edge
+  shadows into the **`background` of `.tableScroll`**, i.e. *behind* the table (Lea Verou technique). For a background
+  shadow to show, everything stacked on top must be transparent — which is why `.answerTable` was made transparent.
+  But the header cells (`.answerMarkdown th { background: #f8fafc }`, and any cell with its own fill) are opaque and
+  paint their own box *over* the shadow, punching a hole in it. The break lined up with cell edges because that's
+  where the opaque fill starts/stops. Not an inconsistent shadow — an **occluded** one.
+- Chose the **overlay** fix (option 1, user pick) over making cells semi-transparent (option 2): render the edge
+  shadows *above* the cells so no cell background can occlude them, giving one continuous edge regardless of cell fills.
+- Implementation: wrap the scroller in a new positioned `.tableScrollFrame`; draw the two edge shadows as
+  `::before`/`::after` overlays on the frame (`position: absolute`, `pointer-events: none`, `z-index: 2`). Visibility is
+  driven by the **live scroll position** via `data-can-scroll-left/right` attributes set from a small `ScrollableTable`
+  React component (scroll + `ResizeObserver` listeners). This preserves the original self-hiding behaviour (each side
+  hides at its extreme; neither shows on a table that fits) which a pure-CSS overlay can't do without phantom shadows —
+  and `ResizeObserver` re-checks on streamed-content growth / resize. Border + radius + corner clipping moved to the
+  frame; `.tableScroll` keeps the scroll/scrollbar styling and a plain white background. Mobile
+  `contain: inline-size` stays on `.tableScroll` (still the load-bearing page-overflow fix).
+- Verified live in Playwright at 390px: data attributes track correctly (left edge → right shadow only; mid → both;
+  far right → left shadow only) and screenshots show the right-edge shadow running continuously over the darker header
+  cell. Added an e2e test asserting the attribute toggling; the existing publishone table test still passes.
+- Note (not a regression): `test_shared_answer_renderer_handles_markdown_and_literal_html` fails because it looks for
+  the old composer placeholder `"Type a new question (e.g. …)"`; nerilio's i18n is now `"Type your message"`.
+  Pre-existing test-vs-app drift, unrelated to this change.
+
+#### Changes
+
+- `app/frontend/src/chatbots/shared/answer/ChatbotAnswer.tsx`: added `ScrollableTable` component (refs + scroll/
+  `ResizeObserver` → `data-can-scroll-left/right`); the markdown `table` renderer now returns `<ScrollableTable>`.
+- `app/frontend/src/chatbots/shared/answer/SharedAnswer.module.css`: replaced the background-gradient scroll shadows on
+  `.tableScroll` with a `.tableScrollFrame` wrapper + `::before`/`::after` overlay shadows toggled by data attributes;
+  moved border/radius/`overflow: hidden` to the frame; `.tableScroll` keeps scrollbar styling + white background.
+- `tests/e2e.py`: added `test_shared_answer_wide_table_scroll_shadows_track_position` (wide table overflows at 480px;
+  asserts the frame's `data-can-scroll-*` attributes follow scroll position).
+
 ## 2026-06-13
 
 ### All bots: responsive answer tables (polished horizontal scroll)
