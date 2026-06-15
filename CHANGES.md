@@ -17,6 +17,79 @@ Two categories per date:
 
 ## 2026-06-15
 
+### All bots: navbar menu + chat-history chrome mobile-legibility (14px)
+
+#### Decisions
+
+- Follow-up to the readable-text fix below. User asked whether the navbar **menu items** ("New chat",
+  "Chat history"/"View recent chats") and the **chat-history** list were also handled — they weren't.
+  Same root cause: those chrome elements are `rem`-based, so they shrank with the responsive `html` root
+  on phones (menu items landed at ~10.5–12px, history panel/items ~10.8–12px).
+- User chose **14px** (over 15px-match-body or leave-as-is): fixed `px` so they stop shrinking on mobile,
+  while staying a touch below the 15px answer body — the conventional hierarchy for nav/list chrome that
+  top chatbots use. Desktop barely moves (most `.dropdownItem` were already `0.875rem`≈14px on desktop).
+- Scope limited to the readable chrome the user named: `.dropdownItem` (menu), `.groupLabel` (history
+  date groups), `.historyItemTitle` (history entries). Left alone: navbar **title** (`1.4rem`/`1.7rem`,
+  already large enough), already-fixed-px values (delete-modal `20px`/`14px`, history timestamps), and
+  public-test's separate **profile panel** text (not a navbar menu).
+
+#### Changes
+
+- 15 `pages/layout/Layout.module.css` — `.dropdownItem` font-size → `14px` (was `0.875rem` most bots,
+  `0.92rem` demo/public-test/rak, `1rem` nerilio). internal has no Layout (reuses another bot's).
+- 15 `components/HistoryPanel/HistoryPanel.module.css` — `.groupLabel` `0.9rem` → `14px`.
+- 15 `components/HistoryItem/HistoryItem.module.css` — `.historyItemTitle` `1rem` → `14px`.
+- Applied via a one-shot selector-scoped regex (each replacement anchored to its own block, so the navbar
+  title and public-test's profile panel were untouched). Verified: `npm run build` passes; Playwright at
+  390px (root 12px) measures the open menu items ("New chat", "View recent chats") at **14px** for nerilio
+  and lemon (were 12px / 10.5px), screenshot confirms clean rendering.
+
+### All bots: mobile-legible readable-text sizing (15px, decoupled from shrinking root)
+
+#### Decisions
+
+- **Root cause** of "text too small on mobile": the global `html` root font-size in
+  `app/frontend/src/index.css` scales **down** on small screens (16px desktop → 15 → 14 → 13 →
+  **12px below 480px**). Because nearly all readable text is sized in `rem`/`em` (or inherits the
+  root), every text element shrinks ~25% on a phone. The shared answer body (`0.95rem` mobile) landed
+  at **~11.4px** on a typical phone; the disclaimer at **~10.8px**; user messages inherited the root at
+  **~12px**. Desktop (~15.7px) was already fine and matched top chatbots, as the user noted.
+- The user's earlier nerilio fix (hardcoding `--chatbot-answer-font-size*` and the disclaimer vars to
+  `15px`) was the **right direction** — fixed `px` bypasses the shrinking root — but only covered
+  nerilio's answer + disclaimer + user message, leaving the composer untouched and the other 15 bots
+  still tiny.
+- **Approach chosen** (user picked "whatever is smoothest / looks best across all sizes", **15px
+  everywhere**, **all readable text**): targeted token fix, **not** a global root-font change. The root
+  scale is left intact for layout proportions; only readable text is decoupled from it. Lowest blast
+  radius across 16 forked bots, no layout disturbance. Rejected raising the `html` root floor (would
+  resize every `rem`-based padding/gap/width on mobile — high risk, needs per-bot QA).
+- **Target = 15px**, applied as fixed `px` so body text is constant on every viewport. (Industry ideal
+  is ~16px — ChatGPT/Claude/Gemini/Material; 15px matches the user's tuned nerilio and is very
+  readable. Noted but not overridden.) Answer **headings** and code-block toolbar labels converted
+  `rem`→`em` so they track the 15px body and keep a consistent hierarchy at every width instead of
+  shrinking with the root.
+- **Composer left as-is**: all 16 bots already set `fontSize: 16` inline on the FluentUI TextField
+  (internal reuses lemon's QuestionInput), and the viewport meta uses `maximum-scale=1` so iOS
+  input-zoom isn't a concern.
+- Shared answer + shared disclaimer are single levers (all 16 `Answer.tsx` route through
+  `shared/answer/createBotAnswer`), so their default change fixes every bot at once; per-bot
+  `--chatbot-*-font-size*` overrides still win (nerilio's redundant 15px overrides left untouched).
+
+#### Changes
+
+- `app/frontend/src/chatbots/shared/answer/SharedAnswer.module.css`: `.answerMarkdown` body default
+  `0.98rem`→`15px` (desktop) and `0.95rem`→`15px` (≤767px mobile branch); `h1–h4` `rem`→`em`
+  (1.45/1.22/1.08/1em); `.codeBlockLanguage` `0.74rem`→`0.78em`; `.codeBlockCopyButton` `0.82rem`→`0.82em`.
+- `app/frontend/src/chatbots/shared/disclaimer/ChatbotDisclaimerBanner.module.css`: `.message` default
+  `0.95rem`→`15px` (desktop) and `0.9rem`→`15px` (≤640px mobile branch).
+- 14 `UserChatMessage.module.css` forks — added `font-size: 15px` to `.message` (agindo, demo, fbn, fhg,
+  hyrox-assessment, knoll, lemon, moodle, public-test, publishone, rak, sartorius, steuertipps, vjoonk4;
+  nerilio already had it; internal reuses lemon's component).
+- Verified with the Vite-dev + Playwright route-mock harness (see memory `verify-frontend-answer-rendering`):
+  lemon & nerilio measure **body 15px / h2 18.3px / user-msg 15px / table 15px** at 375/768/1280px (root
+  12/15/16px respectively); mobile screenshots confirm comfortable legibility. Frontend `npm run build`
+  passes. rak/sartorius are basic-auth-gated in the harness but share the same edited code.
+
 ### All bots: continuous table scroll shadow (overlay instead of background)
 
 #### Decisions

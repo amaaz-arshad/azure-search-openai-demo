@@ -37,7 +37,9 @@
 
 .message {
     margin: 0;
-    font-size: var(--chatbot-disclaimer-message-font-size, 0.95rem);
+    /* Fixed px so the disclaimer stays legible on phones; the responsive html
+       root would otherwise shrink a rem value to ~11px below 480px. */
+    font-size: var(--chatbot-disclaimer-message-font-size, 15px);
     line-height: 1.45;
 }
 
@@ -81,7 +83,7 @@
     }
 
     .message {
-        font-size: var(--chatbot-disclaimer-message-font-size-mobile, 0.9rem);
+        font-size: var(--chatbot-disclaimer-message-font-size-mobile, 15px);
     }
 }
 

@@ -92,7 +92,7 @@
     text-align: left;
     color: var(--chatbot-dropdown-item-text);
     cursor: pointer;
-    font-size: 0.875rem;
+    font-size: 14px;
 }
 
 .dropdownItem:hover {

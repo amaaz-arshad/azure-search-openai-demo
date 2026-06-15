@@ -101,7 +101,10 @@
 
 .answerMarkdown {
     color: var(--chatbot-answer-text, #1f2937);
-    font-size: var(--chatbot-answer-font-size, 0.98rem);
+    /* Fixed px (not rem) so body text stays legible on small screens. The global
+       html root font-size scales DOWN to 12px below 480px (see index.css), which
+       would otherwise shrink rem-based answer text to ~11px on phones. */
+    font-size: var(--chatbot-answer-font-size, 15px);
     line-height: 1.72;
     overflow-wrap: anywhere;
 }
@@ -134,20 +137,23 @@
     font-weight: 750;
 }
 
+/* Headings use em (relative to the fixed-px body above) instead of rem so they
+   track the body size and keep a consistent hierarchy at every viewport, rather
+   than shrinking with the responsive html root on small screens. */
 .answerMarkdown h1 {
-    font-size: 1.45rem;
+    font-size: 1.45em;
 }
 
 .answerMarkdown h2 {
-    font-size: 1.22rem;
+    font-size: 1.22em;
 }
 
 .answerMarkdown h3 {
-    font-size: 1.08rem;
+    font-size: 1.08em;
 }
 
 .answerMarkdown h4 {
-    font-size: 1rem;
+    font-size: 1em;
 }
 
 .answerMarkdown ul,
@@ -229,7 +235,7 @@
 }
 
 .codeBlockLanguage {
-    font-size: 0.74rem;
+    font-size: 0.78em;
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: #64748b;
@@ -242,7 +248,7 @@
     padding: 0.3rem 0.65rem;
     background: white;
     color: #334155;
-    font-size: 0.82rem;
+    font-size: 0.82em;
     font-weight: 600;
     cursor: pointer;
 }
@@ -495,7 +501,7 @@
     }
 
     .answerMarkdown {
-        font-size: var(--chatbot-answer-font-size-mobile, 0.95rem);
+        font-size: var(--chatbot-answer-font-size-mobile, 15px);
         line-height: 1.66;
     }
 
