@@ -722,9 +722,153 @@ async def test_embed_demo_page_renders_chatbot_options(client):
     assert response.content_type.startswith("text/html")
     body = (await response.get_data()).decode()
     assert "{{CHATBOT_OPTIONS}}" not in body  # placeholder was replaced
-    assert '<option value="nerilio">' in body
-    assert '<option value="internal">' not in body  # router shell is excluded
+    # Options carry the anonymous public ID as the value, with the readable name only as the label.
+    assert f'<option value="{app.get_public_id("nerilio")}">nerilio</option>' in body
+    assert "nerilio</option>" in body
+    assert ">internal</option>" not in body  # router shell is excluded
     assert "/widget.js" in body
+
+
+@pytest.mark.asyncio
+async def test_embed_widget_config_returns_rules_with_cors(client, monkeypatch):
+    embed_store = client.app.config[app.CONFIG_CHATBOT_EMBED_CONFIG_STORE]
+
+    async def mock_load_allowed_rules(chatbot_name: str):
+        assert chatbot_name == "publishone"
+        return ["*.snap.de"]
+
+    monkeypatch.setattr(embed_store, "load_allowed_rules", mock_load_allowed_rules)
+
+    response = await client.get(f"/embed/{app.get_public_id('publishone')}/config")
+    assert response.status_code == 200
+    assert response.headers.get("Access-Control-Allow-Origin") == "*"
+    payload = await response.get_json()
+    assert payload["ok"] is True
+    assert payload["rules"] == ["*.snap.de"]
+    assert payload["allowAll"] is False
+    assert payload["primaryColor"] == app.EMBED_LAUNCHER_COLORS["publishone"]
+    # The readable name must never appear in the widget config response.
+    assert "publishone" not in (await response.get_data()).decode()
+
+
+@pytest.mark.asyncio
+async def test_embed_widget_config_unknown_public_id_returns_404(client):
+    response = await client.get("/embed/not-a-real-id/config")
+    assert response.status_code == 404
+    assert (await response.get_json())["ok"] is False
+
+
+@pytest.mark.asyncio
+async def test_embed_route_serves_spa_with_injected_name_and_locked_csp(client, monkeypatch):
+    embed_store = client.app.config[app.CONFIG_CHATBOT_EMBED_CONFIG_STORE]
+
+    async def mock_load_allowed_rules(chatbot_name: str):
+        return ["*.snap.de", "publishone.snap.de/preise.html"]
+
+    monkeypatch.setattr(embed_store, "load_allowed_rules", mock_load_allowed_rules)
+
+    response = await client.get(f"/embed/{app.get_public_id('publishone')}")
+    assert response.status_code == 200
+    assert response.content_type.startswith("text/html")
+    # Origins only (paths dropped) plus 'self' so our own preview/demo can still frame it.
+    assert response.headers.get("Content-Security-Policy") == "frame-ancestors 'self' *.snap.de publishone.snap.de"
+    assert "X-Frame-Options" not in response.headers
+    body = (await response.get_data()).decode()
+    assert 'window.__EMBED_CHATBOT_NAME__="publishone"' in body
+
+
+@pytest.mark.asyncio
+async def test_embed_route_unknown_public_id_redirects_home(client):
+    response = await client.get("/embed/not-a-real-id")
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/")
+
+
+@pytest.mark.asyncio
+async def test_canonical_chatbot_route_locks_framing_to_whitelist(client, monkeypatch):
+    embed_store = client.app.config[app.CONFIG_CHATBOT_EMBED_CONFIG_STORE]
+
+    async def mock_load_allowed_rules(chatbot_name: str):
+        assert chatbot_name == "publishone"
+        return ["*.snap.de"]
+
+    monkeypatch.setattr(embed_store, "load_allowed_rules", mock_load_allowed_rules)
+
+    response = await client.get("/publishone")
+    assert response.status_code == 200
+    assert response.headers.get("Content-Security-Policy") == "frame-ancestors 'self' *.snap.de"
+
+
+@pytest.mark.asyncio
+async def test_internal_admin_embed_config_get_and_save(client, monkeypatch):
+    await login_internal_admin(client)
+    embed_store = client.app.config[app.CONFIG_CHATBOT_EMBED_CONFIG_STORE]
+    saved_rules: dict[str, list[str]] = {"rules": []}
+
+    async def mock_load_config(chatbot_name: str):
+        return app.ChatbotEmbedConfig(chatbot_name=chatbot_name, allowed_rules=saved_rules["rules"])
+
+    async def mock_save_rules(chatbot_name: str, rules: list[str]):
+        assert chatbot_name == "publishone"
+        saved_rules["rules"] = [rule.strip() for rule in rules if rule.strip()]
+        return app.ChatbotEmbedConfig(chatbot_name=chatbot_name, allowed_rules=saved_rules["rules"])
+
+    monkeypatch.setattr(embed_store, "load_config", mock_load_config)
+    monkeypatch.setattr(embed_store, "save_rules", mock_save_rules)
+
+    get_response = await client.get("/internal-admin/embed-config/publishone")
+    assert get_response.status_code == 200
+    get_payload = await get_response.get_json()
+    assert get_payload["embedConfig"]["publicId"] == app.get_public_id("publishone")
+    assert get_payload["embedConfig"]["allowedRules"] == []
+
+    put_response = await client.put(
+        "/internal-admin/embed-config/publishone",
+        json={"allowedRules": ["*.snap.de", ""]},
+    )
+    assert put_response.status_code == 200
+    put_payload = await put_response.get_json()
+    assert put_payload["embedConfig"]["allowedRules"] == ["*.snap.de"]
+
+
+@pytest.mark.asyncio
+async def test_internal_admin_embed_config_rejects_non_embeddable_bot(client):
+    await login_internal_admin(client)
+    response = await client.get("/internal-admin/embed-config/internal")
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_internal_admin_embed_config_requires_auth(client):
+    response = await client.get("/internal-admin/embed-config/publishone")
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_route_name_resolves_anonymized_embed_referer(client):
+    # Requests from inside the embed iframe carry Referer /embed/<publicId>; it must map to the bot
+    # so per-bot scoping (history, simple-auth, telemetry) matches the old /<name>?embed=1 behavior.
+    public_id = app.get_public_id("publishone")
+    async with client.app.test_request_context(
+        "/chat", method="POST", headers={"Referer": f"https://host.example/embed/{public_id}?embed=1"}
+    ):
+        assert app.get_request_route_chatbot_name() == "publishone"
+
+
+@pytest.mark.asyncio
+async def test_route_name_ignores_unknown_embed_referer(client):
+    async with client.app.test_request_context(
+        "/chat", method="POST", headers={"Referer": "https://host.example/embed/not-a-real-id"}
+    ):
+        assert app.get_request_route_chatbot_name() is None
+
+
+@pytest.mark.asyncio
+async def test_route_name_still_resolves_plain_chatbot_referer(client):
+    async with client.app.test_request_context(
+        "/chat", method="POST", headers={"Referer": "https://host.example/publishone"}
+    ):
+        assert app.get_request_route_chatbot_name() == "publishone"
 
 
 @pytest.mark.asyncio
@@ -751,6 +895,9 @@ def test_chat_history_scope_marks_internal_admin_routes_as_non_chatbot():
     assert '"free-users"' in chat_history_scope
     assert '"public-test-users"' in chat_history_scope
     assert '"manage-prompts"' in chat_history_scope
+    # The anonymized embed route (/embed/<publicId>) must resolve to the backend-injected bot name,
+    # not the shared "embed" path segment, or embedded bots would share one chat-history scope.
+    assert "__EMBED_CHATBOT_NAME__" in chat_history_scope
 
 
 @pytest.mark.asyncio

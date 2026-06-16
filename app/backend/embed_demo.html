@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Chatbot embed demo</title>
+  <title>Chatbot embed widget — admin & how-to</title>
   <style>
     :root {
       --ink: #0f172a;
@@ -14,6 +14,8 @@
       --card: #ffffff;
       --line: #e5e7eb;
       --code-bg: #1f1530;
+      --ok: #2f7d32;
+      --err: #c0392b;
     }
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; }
@@ -24,25 +26,28 @@
       line-height: 1.6;
       min-height: 100vh;
     }
-    .wrap { width: min(900px, calc(100% - 40px)); margin: 0 auto; padding: 56px 0 120px; }
+    .wrap { width: min(900px, calc(100% - 40px)); margin: 0 auto; padding: 56px 0 140px; }
     .eyebrow { color: var(--brand); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; font-size: .8rem; }
     h1 { font-size: clamp(2rem, 4vw, 2.9rem); line-height: 1.1; letter-spacing: -0.02em; margin: 12px 0 14px; }
-    .lead { font-size: 1.12rem; color: var(--muted); max-width: 62ch; margin: 0; }
+    .lead { font-size: 1.12rem; color: var(--muted); max-width: 64ch; margin: 0; }
+    [hidden] { display: none !important; }
 
     .card {
       background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 24px;
       box-shadow: 0 20px 50px rgba(15, 23, 42, 0.06); margin-top: 28px;
     }
-    .card h2 { margin: 0 0 6px; font-size: 1.15rem; }
+    .card h2 { margin: 0 0 6px; font-size: 1.25rem; }
     .card p.hint { margin: 0 0 16px; color: var(--muted); font-size: .96rem; }
+    .card h3.sub { margin: 22px 0 8px; font-size: 1.02rem; }
 
     .control { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
     label { font-weight: 600; }
-    select {
+    select, .textInput {
       font: inherit; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--line);
-      background: #fff; color: var(--ink); min-width: 220px; cursor: pointer;
+      background: #fff; color: var(--ink); min-width: 220px;
     }
-    select:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px rgba(172,68,198,.15); }
+    select { cursor: pointer; }
+    select:focus, .textInput:focus, .textarea:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px rgba(172,68,198,.15); }
     .badge {
       display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px;
       background: rgba(172,68,198,.1); color: var(--brand-dark); font-weight: 600; font-size: .85rem;
@@ -53,109 +58,383 @@
       margin: 0; padding: 18px; border-radius: 12px; background: var(--code-bg); color: #f4ecff;
       overflow-x: auto; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .9rem;
     }
-    .copyBtn {
-      position: absolute; top: 10px; right: 10px; border: none; border-radius: 9px; padding: 8px 14px;
-      background: var(--brand); color: #fff; font: inherit; font-weight: 600; cursor: pointer;
+    .btn {
+      border: none; border-radius: 10px; padding: 10px 16px; cursor: pointer; font: inherit; font-weight: 600;
+      background: linear-gradient(135deg, var(--brand) 0%, #c46bd9 100%); color: #fff;
+      box-shadow: 0 8px 18px rgba(172,68,198,.3);
     }
-    .copyBtn:hover { background: var(--brand-dark); }
+    .btn:hover:not(:disabled) { transform: translateY(-1px); }
+    .btn:disabled { opacity: .6; cursor: default; box-shadow: none; }
+    .btn.ghost { background: #fff; color: var(--brand-dark); border: 1px solid rgba(172,68,198,.3); box-shadow: none; }
+    .copyBtn { position: absolute; top: 10px; right: 10px; padding: 8px 14px; }
+    code.inline { background: rgba(172,68,198,.1); border-radius: 6px; padding: 1px 6px; font-size: .92em; }
+
+    .steps { counter-reset: step; display: grid; gap: 16px; margin: 4px 0 0; padding: 0; list-style: none; }
+    .steps > li { position: relative; padding-left: 52px; min-height: 36px; }
+    .steps > li::before {
+      counter-increment: step; content: counter(step);
+      position: absolute; left: 0; top: 0; width: 34px; height: 34px; border-radius: 50%;
+      display: grid; place-items: center; font-weight: 700;
+      background: linear-gradient(135deg, var(--brand) 0%, #c46bd9 100%); color: #fff;
+      box-shadow: 0 6px 16px rgba(172,68,198,.3);
+    }
+    .steps strong { display: block; font-size: 1.02rem; }
+    .steps span { color: var(--muted); }
+
+    table.rules { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: .94rem; }
+    table.rules th, table.rules td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    table.rules th { color: var(--muted); font-weight: 600; }
+    table.rules td code { background: rgba(172,68,198,.1); border-radius: 6px; padding: 1px 6px; white-space: nowrap; }
+
+    .note {
+      margin-top: 16px; padding: 14px 16px; border-radius: 12px; border: 1px solid rgba(172,68,198,.22);
+      background: rgba(172,68,198,.06); color: #5b3566; font-size: .94rem;
+    }
+    .note strong { color: var(--brand-dark); }
+
+    .editor { margin-top: 18px; display: grid; gap: 10px; }
+    .textarea {
+      width: 100%; resize: vertical; min-height: 110px; padding: 12px 14px; border-radius: 12px;
+      border: 1px solid var(--line); background: #fff; color: var(--ink);
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .9rem; line-height: 1.5;
+    }
+    .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .status { font-size: .9rem; font-weight: 600; }
+    .status.ok { color: var(--ok); }
+    .status.err { color: var(--err); }
+    .error { color: var(--err); font-weight: 600; min-height: 1.2em; margin: 10px 0 0; }
+
+    .loginForm { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-top: 6px; }
+    .headerRow { display: flex; justify-content: flex-end; margin-top: 18px; }
 
     .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-top: 8px; }
     .feature { background: #fbfbfe; border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
     .feature h3 { margin: 0 0 4px; font-size: 1rem; }
     .feature p { margin: 0; color: var(--muted); font-size: .92rem; }
-    .arrow { display: inline-block; }
     @media (max-width: 620px) { .grid { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
   <main class="wrap">
     <div class="eyebrow">Embeddable chatbot</div>
-    <h1>Add the chatbot to any website with one line of code</h1>
+    <h1>Embed widget — admin &amp; how-to</h1>
     <p class="lead">
-      This is a live demo of the embeddable widget. Pick a chatbot below and its chat bubble appears in the
-      bottom-right corner — click it to open the popup, exactly how it renders on any external site
-      (WordPress, TYPO3, Drupal, or a custom page). The only integration on a real site is the single
-      <code>&lt;script&gt;</code> snippet shown here.
+      The chatbot can live on any website by pasting a single <code class="inline">&lt;script&gt;</code> tag, the same way
+      you add Google Analytics. From here you can preview the bubble, copy a bot's embed snippet, and manage which domains
+      each bot is allowed to appear on. This page is restricted to internal admins.
     </p>
 
-    <section class="card">
-      <h2>Try it</h2>
-      <p class="hint">Switching the chatbot reloads this demo and shows that bot's chat bubble.</p>
-      <div class="control">
-        <label for="botSelect">Chatbot</label>
-        <select id="botSelect">{{CHATBOT_OPTIONS}}</select>
-        <span class="badge">⤢ Drag the popup's corner to resize — your size is remembered</span>
-      </div>
+    <p id="loading" class="hint" style="margin-top:28px;">Checking access…</p>
 
-      <div class="codeBlock">
-        <pre id="snippet">&lt;script&gt;</pre>
-        <button class="copyBtn" id="copyBtn" type="button">Copy</button>
-      </div>
+    <!-- Login gate (shown until authenticated) -->
+    <section class="card" id="gateCard" hidden>
+      <span class="badge">Protected</span>
+      <h2 style="margin-top:10px;">Internal access</h2>
+      <p class="hint">Sign in with the internal admin password to preview and manage embed settings.</p>
+      <form class="loginForm" id="loginForm" autocomplete="off">
+        <input class="textInput" id="pwd" type="password" name="admin-access-code" placeholder="Password"
+          autocomplete="off" spellcheck="false" autocapitalize="none" autocorrect="off"
+          data-lpignore="true" data-1p-ignore="true" data-form-type="other" />
+        <button class="btn" type="submit" id="loginBtn">Unlock</button>
+      </form>
+      <p class="error" id="gateError" role="alert" aria-live="polite"></p>
     </section>
 
-    <section class="card">
-      <h2>How the embed works</h2>
-      <div class="grid">
-        <div class="feature">
-          <h3>One snippet</h3>
-          <p>Paste a single <code>&lt;script&gt;</code> tag before <code>&lt;/body&gt;</code>. The chat bubble renders itself — no HTML, CSS, or build step.</p>
-        </div>
-        <div class="feature">
-          <h3>Fully isolated</h3>
-          <p>The chat runs in an iframe, so its styles and scripts never clash with your site, and your site can't break the chat.</p>
-        </div>
-        <div class="feature">
-          <h3>Auto-updates</h3>
-          <p>Improvements ship from the server. Customers never have to change the snippet on their site.</p>
-        </div>
-        <div class="feature">
-          <h3>Resizable & responsive</h3>
-          <p>Drag the popup to the size you like on desktop; on phones it expands to a comfortable near-fullscreen view.</p>
-        </div>
+    <!-- Admin content (revealed after authentication) -->
+    <div id="adminContent" hidden>
+      <div class="headerRow">
+        <button class="btn ghost" id="lockBtn" type="button">Lock page</button>
       </div>
-    </section>
+
+      <section class="card">
+        <h2>Try it live</h2>
+        <p class="hint">Pick a chatbot and its chat bubble appears in the bottom-right corner — click it to open the popup,
+          exactly how it renders on a real site. Switching the chatbot reloads this page with that bot's snippet and whitelist.</p>
+        <div class="control">
+          <label for="botSelect">Chatbot</label>
+          <select id="botSelect">{{CHATBOT_OPTIONS}}</select>
+          <span class="badge">⤢ Drag the popup's corner to resize — your size is remembered</span>
+        </div>
+
+        <div class="codeBlock">
+          <pre id="snippet">&lt;script&gt;</pre>
+          <button class="btn copyBtn" id="copyBtn" type="button">Copy</button>
+        </div>
+        <p class="hint" style="margin-top:12px;margin-bottom:0;">
+          This is exactly what you paste on a site, before the closing <code class="inline">&lt;/body&gt;</code> tag. The
+          <code class="inline">data-chatbot-id</code> value is an <strong>anonymous public ID</strong> — it does not reveal the
+          chatbot's name, and it stays stable so a snippet keeps working.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>Allowed domains (whitelist)</h2>
+        <p class="hint">
+          For security and licensing, each chatbot can be limited to specific pages. Edit the whitelist for
+          <strong id="rulesBotName">the selected bot</strong> below — one rule per line. If the page the snippet is on is
+          <strong>not</strong> on the list, the widget does not appear. Leave the list empty to allow it on any site.
+          This is the same setting available in the <em>Chatbot Directory</em> (<code class="inline">/chatbots</code>) Embed dialog —
+          changes from either place are saved to the same place.
+        </p>
+        <div class="editor">
+          <textarea class="textarea" id="rulesArea" spellcheck="false"
+            placeholder="*.snap.de&#10;publishone.snap.de/preise.html&#10;help.customer-website.com/*"
+            aria-label="Allowed domains, one per line"></textarea>
+          <div class="row">
+            <button class="btn" id="saveRulesBtn" type="button">Save whitelist</button>
+            <span class="status" id="rulesStatus" role="status"></span>
+          </div>
+        </div>
+
+        <h3 class="sub">Rule format</h3>
+        <table class="rules">
+          <thead><tr><th>Rule</th><th>Matches</th></tr></thead>
+          <tbody>
+            <tr><td><em>(empty)</em></td><td>Any site — the default.</td></tr>
+            <tr><td><code>*.snap.de</code></td><td>Any subdomain of <code>snap.de</code> (e.g. <code>app.snap.de</code>); the bare <code>snap.de</code> is not included.</td></tr>
+            <tr><td><code>publishone.snap.de</code></td><td>That exact host, on any page.</td></tr>
+            <tr><td><code>publishone.snap.de/preise.html</code></td><td>Only that one page.</td></tr>
+            <tr><td><code>help.customer-website.com/*</code></td><td>That host and every page beneath it.</td></tr>
+          </tbody>
+        </table>
+        <div class="note">
+          A leading <code class="inline">https://</code> is optional, host matching ignores capitalization, and the query
+          string is ignored. <strong>On this page:</strong> if you give a bot a whitelist that doesn't include this address,
+          its bubble will correctly stop appearing here.
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Add it to your website</h2>
+        <p class="hint">Two steps, then you're done.</p>
+        <ol class="steps">
+          <li>
+            <strong>Copy the snippet</strong>
+            <span>Use the snippet shown above (or the same one in the <em>Chatbot Directory</em> Embed dialog). It carries
+              the bot's anonymous public ID.</span>
+          </li>
+          <li>
+            <strong>Paste it just before <code class="inline">&lt;/body&gt;</code></strong>
+            <span>Drop the single <code class="inline">&lt;script&gt;</code> tag into your site's HTML (or your CMS's
+              "custom HTML / footer scripts" box) on every page where the bubble should appear. Save and publish.</span>
+          </li>
+        </ol>
+        <div class="note">
+          <strong>That's it.</strong> The bubble appears automatically on whitelisted pages. Fixes and new features are served
+          from our backend, so the widget updates itself with no change on your end.
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>How the embed works</h2>
+        <div class="grid">
+          <div class="feature">
+            <h3>One snippet</h3>
+            <p>Paste a single <code>&lt;script&gt;</code> tag before <code>&lt;/body&gt;</code>. The chat bubble renders itself — no HTML, CSS, or build step.</p>
+          </div>
+          <div class="feature">
+            <h3>Anonymous &amp; gated</h3>
+            <p>The snippet carries only an opaque ID, and the widget renders only on whitelisted pages — the name stays hidden and embedding stays controlled.</p>
+          </div>
+          <div class="feature">
+            <h3>Fully isolated</h3>
+            <p>The chat runs in an iframe, so its styles and scripts never clash with your site, and your site can't break the chat.</p>
+          </div>
+          <div class="feature">
+            <h3>Auto-updates</h3>
+            <p>Improvements ship from the server. You never have to change the snippet on your site again.</p>
+          </div>
+          <div class="feature">
+            <h3>Resizable &amp; responsive</h3>
+            <p>Drag the popup to the size you like on desktop; on phones it expands to a comfortable near-fullscreen view.</p>
+          </div>
+          <div class="feature">
+            <h3>Works when logged-in</h3>
+            <p>Bots behind the simple per-chatbot login work inside the iframe over HTTPS. (Microsoft sign-in bots can't be embedded.)</p>
+          </div>
+        </div>
+
+        <h3 class="sub">Optional settings (extra <code class="inline">data-</code> attributes)</h3>
+        <table class="rules">
+          <thead><tr><th>Attribute</th><th>Effect</th></tr></thead>
+          <tbody>
+            <tr><td><code>data-position</code></td><td>Launcher side: <code>right</code> (default) or <code>left</code>.</td></tr>
+            <tr><td><code>data-primary-color</code></td><td>Override the launcher bubble color (e.g. <code>#ac44c6</code>).</td></tr>
+            <tr><td><code>data-launcher-text</code></td><td>Accessible label for the launcher button.</td></tr>
+            <tr><td><code>data-locale</code></td><td>Force a language: <code>en</code>, <code>de</code>, or <code>nl</code>.</td></tr>
+            <tr><td><code>data-auto-open</code></td><td>Set <code>true</code> to open the panel automatically on load.</td></tr>
+          </tbody>
+        </table>
+      </section>
+    </div>
   </main>
 
   <script>
     (function () {
       var origin = window.location.origin;
-      var params = new URLSearchParams(window.location.search);
+
+      var loadingEl = document.getElementById("loading");
+      var gateCard = document.getElementById("gateCard");
+      var adminContent = document.getElementById("adminContent");
+      var loginForm = document.getElementById("loginForm");
+      var pwdInput = document.getElementById("pwd");
+      var loginBtn = document.getElementById("loginBtn");
+      var gateError = document.getElementById("gateError");
+      var lockBtn = document.getElementById("lockBtn");
+
       var select = document.getElementById("botSelect");
+      var snippetEl = document.getElementById("snippet");
+      var copyBtn = document.getElementById("copyBtn");
+      var rulesArea = document.getElementById("rulesArea");
+      var saveRulesBtn = document.getElementById("saveRulesBtn");
+      var rulesStatus = document.getElementById("rulesStatus");
+      var rulesBotName = document.getElementById("rulesBotName");
 
-      // Resolve the active chatbot id from ?bot=, falling back to the first option.
-      var requested = params.get("bot");
-      if (requested) {
-        select.value = requested;
+      var demoStarted = false;
+
+      function currentPublicId() { return select.value; }
+      function currentBotName() {
+        var opt = select.options[select.selectedIndex];
+        return opt ? opt.textContent.trim() : "";
       }
-      var bot = select.value;
+      function setStatus(el, kind, message) {
+        el.textContent = message;
+        el.className = "status" + (kind ? " " + kind : "");
+      }
 
-      // Show the exact snippet a customer would paste (simple data-attribute form).
-      var snippet = '<script async src="' + origin + '/widget.js" data-chatbot-id="' + bot + '"><\/script>';
-      document.getElementById("snippet").textContent = snippet;
+      // ---- internal admin auth (same endpoints as the React admin pages) -------------------
 
-      document.getElementById("copyBtn").addEventListener("click", function () {
-        navigator.clipboard.writeText(snippet).then(function () {
-          var b = document.getElementById("copyBtn");
-          var t = b.textContent; b.textContent = "Copied!";
-          setTimeout(function () { b.textContent = t; }, 1500);
+      async function checkSession() {
+        try {
+          var res = await fetch("/internal-admin/session", { method: "GET" });
+          var data = await res.json().catch(function () { return {}; });
+          if (res.ok && data.authenticated) { reveal(); } else { showGate(""); }
+        } catch (e) {
+          showGate("Could not verify admin session.");
+        }
+      }
+
+      function showGate(message) {
+        loadingEl.hidden = true;
+        adminContent.hidden = true;
+        gateCard.hidden = false;
+        gateError.textContent = message || "";
+        pwdInput.focus();
+      }
+
+      function reveal() {
+        loadingEl.hidden = true;
+        gateCard.hidden = true;
+        adminContent.hidden = false;
+        startDemo();
+        loadWhitelist();
+      }
+
+      loginForm.addEventListener("submit", async function (event) {
+        event.preventDefault();
+        loginBtn.disabled = true;
+        gateError.textContent = "";
+        try {
+          var res = await fetch("/internal-admin/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ password: pwdInput.value })
+          });
+          var data = await res.json().catch(function () { return {}; });
+          if (res.ok && data.authenticated) {
+            pwdInput.value = "";
+            reveal();
+          } else {
+            gateError.textContent = data.message || "Incorrect password.";
+          }
+        } catch (e) {
+          gateError.textContent = "Sign in failed. Try again.";
+        } finally {
+          loginBtn.disabled = false;
+        }
+      });
+
+      lockBtn.addEventListener("click", async function () {
+        try { await fetch("/internal-admin/logout", { method: "POST" }); } catch (e) { /* ignore */ }
+        // Reload so the (now cleared) session shows the gate and the demo widget is not re-injected.
+        window.location.reload();
+      });
+
+      // ---- domain whitelist (admin-gated; keyed by chatbot name) ---------------------------
+
+      async function loadWhitelist() {
+        rulesBotName.textContent = currentBotName() || "the selected bot";
+        setStatus(rulesStatus, "", "");
+        try {
+          var res = await fetch("/internal-admin/embed-config/" + encodeURIComponent(currentBotName()), { method: "GET" });
+          if (!res.ok) { setStatus(rulesStatus, "err", "Could not load the whitelist."); return; }
+          var data = await res.json();
+          rulesArea.value = (data.embedConfig && data.embedConfig.allowedRules || []).join("\n");
+        } catch (e) {
+          setStatus(rulesStatus, "err", "Could not load the whitelist.");
+        }
+      }
+
+      saveRulesBtn.addEventListener("click", async function () {
+        saveRulesBtn.disabled = true;
+        setStatus(rulesStatus, "", "Saving…");
+        var rules = rulesArea.value.split("\n").map(function (l) { return l.trim(); }).filter(function (l) { return l.length > 0; });
+        try {
+          var res = await fetch("/internal-admin/embed-config/" + encodeURIComponent(currentBotName()), {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ allowedRules: rules })
+          });
+          var data = await res.json().catch(function () { return {}; });
+          if (!res.ok) { setStatus(rulesStatus, "err", data.message || "Saving failed."); return; }
+          var saved = (data.embedConfig && data.embedConfig.allowedRules) || [];
+          rulesArea.value = saved.join("\n");
+          setStatus(rulesStatus, "ok", saved.length === 0 ? "Cleared — allowed on any site." : "Whitelist saved.");
+        } catch (e) {
+          setStatus(rulesStatus, "err", "Saving failed.");
+        } finally {
+          saveRulesBtn.disabled = false;
+        }
+      });
+
+      // ---- live demo (only after authentication) -------------------------------------------
+
+      function startDemo() {
+        if (demoStarted) { return; }
+        demoStarted = true;
+
+        var params = new URLSearchParams(window.location.search);
+        var requested = params.get("bot");
+        if (requested) { select.value = requested; }
+        var bot = select.value; // anonymous public ID (option value)
+
+        var snippet = '<script async src="' + origin + '/widget.js" data-chatbot-id="' + bot + '"><\/script>';
+        snippetEl.textContent = snippet;
+
+        copyBtn.addEventListener("click", function () {
+          navigator.clipboard.writeText(snippet).then(function () {
+            var t = copyBtn.textContent; copyBtn.textContent = "Copied!";
+            setTimeout(function () { copyBtn.textContent = t; }, 1500);
+          });
         });
-      });
 
-      // Reload with the chosen bot so the widget re-initialises cleanly for it.
-      select.addEventListener("change", function () {
-        window.location.search = "?bot=" + encodeURIComponent(select.value);
-      });
+        // Reload with the chosen bot so the widget re-initialises cleanly (session persists via cookie).
+        select.addEventListener("change", function () {
+          window.location.search = "?bot=" + encodeURIComponent(select.value);
+        });
 
-      // Load the widget for the selected bot (programmatic API + queue stub).
-      // Do not auto-open: the launcher bubble shows and the user opens it on click.
-      window.chatbot = window.chatbot || { q: [], init: function (o) { this.q.push(["init", o]); },
-        open: function () { this.q.push(["open"]); }, close: function () { this.q.push(["close"]); } };
-      window.chatbot.init({ chatbotId: bot });
+        // Load the widget for the selected bot (programmatic API + queue stub). Do not auto-open.
+        window.chatbot = window.chatbot || { q: [], init: function (o) { this.q.push(["init", o]); },
+          open: function () { this.q.push(["open"]); }, close: function () { this.q.push(["close"]); } };
+        window.chatbot.init({ chatbotId: bot });
 
-      var s = document.createElement("script");
-      s.async = true;
-      s.src = origin + "/widget.js";
-      document.body.appendChild(s);
+        var s = document.createElement("script");
+        s.async = true;
+        s.src = origin + "/widget.js";
+        document.body.appendChild(s);
+      }
+
+      checkSession();
     })();
   </script>
 </body>

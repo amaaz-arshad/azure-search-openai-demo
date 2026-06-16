@@ -32,7 +32,20 @@ import { msalConfig, useLogin } from "./authConfig";
 
 initializeIcons();
 
+declare global {
+    interface Window {
+        // Injected by the backend's anonymized /embed/<publicId> route so the SPA knows which bot to
+        // mount without the readable name appearing in the URL. Lives inside the cross-origin iframe.
+        __EMBED_CHATBOT_NAME__?: string;
+    }
+}
+
 const embedMode = isEmbedMode();
+
+// The anonymized embed route (/embed/<publicId>?embed=1) resolves the public ID server-side and
+// injects the resolved chatbot name. Resolve it to a chatbot definition at startup.
+const embedChatbotName = typeof window !== "undefined" ? window.__EMBED_CHATBOT_NAME__ : undefined;
+const embedChatbot = embedChatbotName ? chatbotDefinitions.find(chatbot => chatbot.name === embedChatbotName) : undefined;
 
 const wrapChatbotElement = (chatbot: (typeof chatbotDefinitions)[number], element: React.ReactNode) => (
     <ChatbotThemeRoot chatbotName={chatbot.name} embed={embedMode}>
@@ -105,6 +118,12 @@ const router = createBrowserRouter([
         element: <PortalPage />
     },
     ...chatbotRoutes,
+    {
+        // Anonymized embed target. The bot is chosen from the backend-injected name, never the URL.
+        path: "/embed/:publicId",
+        element: embedChatbot ? wrapChatbotElement(embedChatbot, <embedChatbot.LayoutWrapper />) : <Navigate to="/" replace />,
+        children: embedChatbot ? [{ index: true, element: <embedChatbot.Chat /> }] : undefined
+    },
     {
         path: "*",
         element: <Navigate to="/" replace />

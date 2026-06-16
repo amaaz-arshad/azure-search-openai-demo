@@ -17,6 +17,113 @@ Two categories per date:
 
 ## 2026-06-16
 
+### Fix: `/embed-demo` tab showed the stale Azure favicon, not the nerilio robot
+
+#### Decisions
+
+- Root cause: the React SPA template (`app/frontend/index.html`) declares an explicit
+  `<link rel="icon" … robo1.png>` (Vite bundles it to a hashed `/assets/*.png`), so every
+  chatbot/admin page shows the robot. The server-rendered `embed_demo.html` has **no** icon
+  link, so the browser falls back to `/favicon.ico` — which was still the leftover Azure-default
+  favicon from the original azure-search-openai-demo template (the blue "A").
+- Fixed at the shared fallback rather than per-page: regenerated `favicon.ico` from the nerilio
+  robot so `/favicon.ico` serves the robot everywhere it's used as a fallback (embed-demo and any
+  non-SPA page). The SPA keeps its own explicit link, so no SPA change was needed. Did not add a
+  per-page `<link>` to `embed_demo.html` because the robot asset is content-hashed per build (no
+  stable URL to point at from a static template).
+
+#### Changes
+
+- `app/frontend/public/favicon.ico` (committed source) and `app/backend/static/favicon.ico`
+  (served build artifact, not git-tracked): replaced the Azure default with a multi-size ICO
+  (16/24/32/48/64/128/256) generated from `app/frontend/src/assets/robo1.png` via Pillow. Source
+  was 885×885 (already square), so no padding/distortion.
+
+### Fix: embedded bots shared one chat history (publishone showed nerilio's chats)
+
+#### Decisions
+
+- Regression from the anonymized embed route: chat-history scope, the active-session pointer,
+  citation paths, and the cosmos `chatbot_name` all derive from `getCurrentChatbotName()`, which
+  reads the **first URL path segment**. The old embed URL was `/<name>?embed=1` (segment = the bot),
+  but the new one is `/embed/<publicId>` (segment = the literal `embed` for *every* bot) — so all
+  embedded bots collapsed onto a single `embed` scope and showed each other's history.
+- Fix at the single source: on the `/embed/...` route, `getCurrentChatbotName()` returns the
+  backend-injected `window.__EMBED_CHATBOT_NAME__` instead of the path segment, restoring exact
+  per-bot scoping. This simultaneously fixes the IndexedDB history bleed, the active-session
+  pointer, citation `/content/<name>/…` paths, and the cosmos history `chatbot_name`.
+- Also restored backend parity: `get_request_route_chatbot_name()` now maps an `/embed/<publicId>`
+  `Referer` back to the real bot (was returning None, falling back to the request-body name) so
+  telemetry and simple-auth route resolution match the old behavior.
+
+#### Changes
+
+- `app/frontend/src/chatHistoryScope.ts`: `getCurrentChatbotName()` resolves the `/embed` route via
+  `window.__EMBED_CHATBOT_NAME__`.
+- `app/backend/app.py`: `get_request_route_chatbot_name()` resolves an `/embed/<publicId>` referer
+  via `resolve_public_id`.
+- `tests/test_app.py`: added referer-resolution tests (embed public ID, unknown ID, plain name) and
+  a guard that `chatHistoryScope.ts` consults `__EMBED_CHATBOT_NAME__`.
+
+### Embeddable widget: anonymous public IDs + per-bot domain whitelist
+
+#### Decisions
+
+- Two new widget requirements: (1) reference each chatbot by an **anonymous public ID** (GA/Clarity
+  style, e.g. `oba6k03jtq`) instead of the readable route name in the embed code, and (2) a
+  configurable **domain whitelist** per bot so the widget renders only on allowed pages.
+- Confirmed four design forks with the user before building: public IDs are a **committed code map**
+  (stable across deploys), the whitelist is **blob-backed + admin-edited** (no redeploy), enforcement
+  is **client-side hide + backend `frame-ancestors` CSP** (layered), the public ID anonymizes **both
+  the script tag and the iframe URL**, and this is a **hard cutover** — the widget no longer accepts
+  plain chatbot names.
+- Public IDs cover the 15 embeddable bots (everything with a backend prompt module; `internal` and
+  `public-test` excluded). The committed values must never change once shipped, or live embeds break.
+- Empty whitelist = **allow all** (keeps today's `frame-ancestors *` default), so deploying the
+  feature does not silently break existing embeds; admins opt into restriction by adding rules.
+- Rule semantics (shared between Python `embed_rules.py` and the TS matcher in `widget.ts`):
+  case-insensitive host, `*.host` matches subdomains but not the apex, case-insensitive scheme is
+  ignored, path is case-sensitive with `/*`/trailing-`*` prefix matching, query ignored. Only the
+  **origin** part is enforceable via CSP; path-level rules are client-side only (documented).
+- The anonymized `/embed/<publicId>` route resolves the bot server-side and serves the SPA with
+  `window.__EMBED_CHATBOT_NAME__` injected, so the name never appears in the host DOM or iframe
+  `src`. The widget fetches `/embed/<publicId>/config` (CORS) for launcher color + rules, returning
+  **no name** so the host page cannot recover the bot identity. Launcher colors are mirrored in a
+  small backend map (kept in sync with `chatbotThemes.ts`) since the widget no longer bundles themes.
+- Canonical `/<chatbot_name>` routes stay (direct/admin browsing) and also get the per-bot
+  `frame-ancestors` lock, closing the bypass of iframing `/<name>?embed=1` directly.
+
+#### Changes
+
+- `app/backend/embed_public_ids.py` (new): committed public-ID↔name map, resolver helpers,
+  `generate_public_id`, and a `python -m embed_public_ids` generator for new bots.
+- `app/backend/embed_rules.py` (new): rule parsing/normalization, `match_url`, and
+  `rules_to_frame_ancestors` (CSP value builder).
+- `app/backend/core/chatbotembedconfigstore.py` (new): blob-backed per-bot whitelist store
+  (`chatbot-embed-config` container), mirrors `ChatbotPromptStore`.
+- `app/backend/config.py`: added `CONFIG_CHATBOT_EMBED_CONFIG_STORE`.
+- `app/backend/app.py`: imported the new modules; wired the store at startup; `serve_spa_index`
+  gained `chatbot_name`/`embed_public_id` params (per-bot CSP + name injection); added
+  `/embed/<publicId>/config` (CORS) and `/embed/<publicId>` routes, plus admin
+  `GET/PUT /internal-admin/embed-config/<name>`; `chatbot_entry` now locks framing per bot;
+  `/embed-demo` options now emit public IDs; reserved `embed`/`embed-demo` prefixes.
+- `app/frontend/src/widget/widget.ts`: treats `data-chatbot-id` as a public ID; fetches config,
+  validates the host URL against the whitelist (renders nothing on no match), resolves launcher
+  color from config, points the iframe at `/embed/<publicId>`; dropped the `chatbotThemes` import.
+- `app/frontend/src/index.tsx`: added the `/embed/:publicId` route that mounts the bot named by the
+  injected `window.__EMBED_CHATBOT_NAME__`.
+- `app/frontend/src/pages/embedAdminApi.ts` (new) + `EmbedSnippetModal.tsx`/`.module.css`: the Embed
+  dialog now loads the public ID, shows the public-ID snippet, and edits/saves the domain whitelist.
+- `app/backend/embed_demo.html`: rewrote the served `/embed-demo` page into a full how-to — live
+  demo, a two-step "add it to your website" guide, and plain-language explainers for the anonymous
+  ID and the domain whitelist (with a rules table), alongside the how-it-works + options tables.
+  Then gated it behind the internal-admin password (vanilla-JS login form posting to
+  `/internal-admin/login`/`session`/`logout`, mirroring `useInternalAdminAccess`) and added an
+  inline whitelist editor so the allowed-domains list can be managed from `/embed-demo` as well as
+  the `/chatbots` Embed dialog (both call the same admin-gated `/internal-admin/embed-config/<name>`).
+- `docs/embedding.md`, `CLAUDE.md` (embed contract): documented public IDs, the whitelist, and the
+  layered enforcement model.
+
 ### hyrox-assessment: drop the redundant LLM intro before Question 1
 
 #### Decisions

@@ -129,6 +129,7 @@ from config import (
     CONFIG_CHAT_MODEL_REASONING_EFFORTS,
     CONFIG_CHAT_MODEL_DEPLOYMENTS,
     CONFIG_CHATBOT_PROMPT_STORE,
+    CONFIG_CHATBOT_EMBED_CONFIG_STORE,
     CONFIG_CHAT_HISTORY_BROWSER_ENABLED,
     CONFIG_CHAT_HISTORY_COSMOS_ENABLED,
     CONFIG_CREDENTIAL,
@@ -171,6 +172,7 @@ from config import (
     CONFIG_WEB_SOURCE_ENABLED,
 )
 from core.authentication import AuthenticationHelper
+from core.chatbotembedconfigstore import ChatbotEmbedConfig, ChatbotEmbedConfigStore
 from core.chatbotpromptstore import ChatbotPromptOverride, ChatbotPromptStore
 from core.internaladminauth import (
     INTERNAL_ADMIN_INVALID_PASSWORD_MESSAGE,
@@ -187,6 +189,8 @@ from core.simplechatbotauth import (
     SimpleChatbotSession,
 )
 from decorators import authenticated, authenticated_path, internal_admin_required
+from embed_public_ids import get_public_id, is_embeddable, resolve_public_id
+from embed_rules import match_url, rules_to_frame_ancestors
 from error import ErrorContext, error_dict, error_response, get_request_error_context
 from prepdocs import (
     OpenAIHost,
@@ -229,6 +233,8 @@ NON_CHATBOT_FRONTEND_PREFIXES = {
     "chat_history",
     "config",
     "content",
+    "embed",
+    "embed-demo",
     "free-admin",
     "free-auth",
     "free-users",
@@ -303,9 +309,16 @@ def get_request_route_chatbot_name() -> str | None:
 
     referer = request.headers.get("Referer")
     if referer:
-        referer_first_segment = normalize_chatbot_name(urlparse(referer).path.strip("/").split("/", 1)[0])
+        referer_segments = urlparse(referer).path.strip("/").split("/")
+        referer_first_segment = normalize_chatbot_name(referer_segments[0] if referer_segments else None)
         if referer_first_segment in KNOWN_CHATBOT_NAMES:
             return referer_first_segment
+        # Anonymized embed route (/embed/<publicId>): map the public ID back to the real bot so
+        # route-name resolution matches the old /<name>?embed=1 referer behavior.
+        if referer_first_segment == "embed" and len(referer_segments) > 1:
+            resolved_chatbot_name = resolve_public_id(referer_segments[1])
+            if resolved_chatbot_name in KNOWN_CHATBOT_NAMES:
+                return resolved_chatbot_name
 
     return None
 
@@ -505,6 +518,13 @@ def get_chatbot_prompt_store() -> ChatbotPromptStore:
     return cast(ChatbotPromptStore, prompt_store)
 
 
+def get_chatbot_embed_config_store() -> ChatbotEmbedConfigStore:
+    embed_config_store = current_app.config.get(CONFIG_CHATBOT_EMBED_CONFIG_STORE)
+    if embed_config_store is None:
+        raise RuntimeError("Chatbot embed config store is not configured")
+    return cast(ChatbotEmbedConfigStore, embed_config_store)
+
+
 async def get_authenticated_public_test_user() -> PublicTestSession | None:
     auth_service = get_public_test_auth_service()
     return await auth_service.load_session(request.cookies.get(auth_service.session_cookie_name))
@@ -647,17 +667,44 @@ def build_prompt_admin_payload(
     }
 
 
-async def serve_spa_index():
+async def serve_spa_index(chatbot_name: str | None = None, embed_public_id: str | None = None):
+    # Allow the app to be embedded in a cross-origin iframe (the embeddable widget). When a chatbot
+    # is in scope we lock `frame-ancestors` to that bot's whitelist (origins only — CSP cannot match
+    # paths); with no whitelist (or no bot) framing stays permissive (`*`).
+    frame_ancestors = "*"
+    if chatbot_name is not None:
+        embed_config_store = current_app.config.get(CONFIG_CHATBOT_EMBED_CONFIG_STORE)
+        if embed_config_store is not None:
+            allowed_rules = await embed_config_store.load_allowed_rules(chatbot_name)
+            frame_ancestors = rules_to_frame_ancestors(allowed_rules)
+
     # Avoid caching index.html so route changes and new bundles are picked up immediately.
-    response = await send_from_directory(STATIC_ROOT, "index.html")
+    if embed_public_id is not None and chatbot_name is not None:
+        # The anonymized iframe route serves a templated index.html that tells the SPA which bot to
+        # mount, so the readable name never appears in the host page DOM or the iframe `src`. This
+        # marker lives inside the cross-origin iframe document, which the host page cannot read.
+        index_html = (STATIC_ROOT / "index.html").read_text(encoding="utf-8")
+        injection = (
+            "<script>"
+            f"window.__EMBED_CHATBOT_NAME__={json.dumps(chatbot_name)};"
+            f"window.__EMBED_PUBLIC_ID__={json.dumps(embed_public_id)};"
+            "</script>"
+        )
+        index_html = (
+            index_html.replace("</head>", injection + "</head>", 1)
+            if "</head>" in index_html
+            else injection + index_html
+        )
+        response = await make_response(index_html)
+        response.headers["Content-Type"] = "text/html; charset=utf-8"
+    else:
+        response = await send_from_directory(STATIC_ROOT, "index.html")
     response.cache_control.no_store = True
     response.cache_control.max_age = 0
     response.headers["Pragma"] = "no-cache"
-    # Allow the app to be embedded in a cross-origin iframe (the embeddable widget). We never set
-    # X-Frame-Options, but strip it defensively in case a proxy injects one, and advertise
-    # permissive framing via CSP. Can be tightened to a customer allowlist later.
+    # We never set X-Frame-Options, but strip it defensively in case a proxy injects one.
     response.headers.pop("X-Frame-Options", None)
-    response.headers["Content-Security-Policy"] = "frame-ancestors *"
+    response.headers["Content-Security-Policy"] = f"frame-ancestors {frame_ancestors}"
     return response
 
 
@@ -712,11 +759,74 @@ async def embed_demo():
     if default in names:
         names.remove(default)
         names.insert(0, default)
-    options = "\n".join(f'<option value="{name}">{name}</option>' for name in names)
+    options = "\n".join(
+        f'<option value="{get_public_id(name)}">{name}</option>'
+        for name in names
+        if is_embeddable(name)
+    )
     response = await make_response(template.replace("{{CHATBOT_OPTIONS}}", options))
     response.headers["Content-Type"] = "text/html; charset=utf-8"
     response.cache_control.no_store = True
     return response
+
+
+# Per-bot launcher bubble colors returned by the widget config endpoint. Mirrors the `primary`
+# values in app/frontend/src/chatbots/shared/theme/chatbotThemes.ts — keep in sync. Anything not
+# listed falls back to EMBED_LAUNCHER_DEFAULT_COLOR (matches the widget's own fallback).
+EMBED_LAUNCHER_DEFAULT_COLOR = "#4f46e5"
+EMBED_LAUNCHER_COLORS = {
+    "agindo": "#e2c200",
+    "demo": "#313335",
+    "fbn": "#00cc96",
+    "fhg": "#669d24",
+    "hyrox-assessment": "#FFED00",
+    "knoll": "#0199fe",
+    "lemon": "#fec701",
+    "moodle": "#f98012",
+    "nerilio": "#ac44c6",
+    "free": "#AC44C6",
+    "publishone": "#212529",
+    "rak": "#e30613",
+    "sartorius": "#ffed00",
+    "steuertipps": "#ffe016",
+    "vjoonk4": "#00cc96",
+}
+
+
+@bp.route("/embed/<public_id>/config")
+async def embed_widget_config(public_id: str):
+    # Public, CORS-enabled config the widget fetches cross-origin from the host page before it
+    # renders anything. Returns only non-secret data (launcher color + whitelist rules) and never
+    # the chatbot name, so the host page cannot recover the bot identity from this response.
+    chatbot_name = resolve_public_id(public_id)
+    if chatbot_name is None:
+        response = jsonify({"ok": False})
+        response.status_code = 404
+    else:
+        embed_config_store = current_app.config.get(CONFIG_CHATBOT_EMBED_CONFIG_STORE)
+        allowed_rules = await embed_config_store.load_allowed_rules(chatbot_name) if embed_config_store else []
+        response = jsonify(
+            {
+                "ok": True,
+                "primaryColor": EMBED_LAUNCHER_COLORS.get(chatbot_name, EMBED_LAUNCHER_DEFAULT_COLOR),
+                "allowAll": len(allowed_rules) == 0,
+                "rules": allowed_rules,
+            }
+        )
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@bp.route("/embed/<public_id>")
+async def embed_chatbot_entry(public_id: str):
+    # Anonymized iframe target. Resolves the public ID server-side and serves the SPA with the
+    # resolved bot injected, so the readable chatbot name never appears in the host page DOM or the
+    # iframe `src`. Per-bot `frame-ancestors` is applied via serve_spa_index.
+    chatbot_name = resolve_public_id(public_id)
+    if chatbot_name is None:
+        return quart_redirect("/")
+    return await serve_spa_index(chatbot_name=chatbot_name, embed_public_id=public_id)
 
 
 @bp.route("/chatbots")
@@ -771,7 +881,9 @@ async def chatbot_entry(chatbot_name: str, subpath: str | None = None):
         return quart_redirect(target)
     if chatbot_name not in KNOWN_CHATBOT_NAMES:
         return quart_redirect("/")
-    return await serve_spa_index()
+    # Lock framing on the canonical route too (origins only), so a determined embedder cannot dodge
+    # the whitelist by iframing /<name>?embed=1 directly instead of the anonymized /embed route.
+    return await serve_spa_index(chatbot_name=normalize_chatbot_name(chatbot_name))
 
 
 @bp.route("/content/<path:path>")
@@ -1281,6 +1393,55 @@ async def delete_internal_admin_prompt(chatbot_name: str):
             {
                 "message": "Prompt reset to default.",
                 "prompt": build_prompt_admin_payload(normalized_chatbot_name, default_prompt, None),
+            }
+        ),
+        200,
+    )
+
+
+def build_embed_admin_payload(chatbot_name: str, config) -> dict[str, Any]:
+    return {
+        "chatbotName": chatbot_name,
+        "publicId": get_public_id(chatbot_name),
+        "allowedRules": list(config.allowed_rules) if config is not None else [],
+        "updatedAt": config.updated_at if config is not None else None,
+    }
+
+
+@bp.get("/internal-admin/embed-config/<chatbot_name>")
+@internal_admin_required
+async def get_internal_admin_embed_config(chatbot_name: str):
+    normalized_chatbot_name = normalize_chatbot_name(chatbot_name)
+    if not normalized_chatbot_name or not is_embeddable(normalized_chatbot_name):
+        return jsonify({"message": "Unknown or non-embeddable chatbot."}), 404
+    config = await get_chatbot_embed_config_store().load_config(normalized_chatbot_name)
+    return jsonify({"embedConfig": build_embed_admin_payload(normalized_chatbot_name, config)}), 200
+
+
+@bp.put("/internal-admin/embed-config/<chatbot_name>")
+@internal_admin_required
+async def save_internal_admin_embed_config(chatbot_name: str):
+    if not request.is_json:
+        return jsonify({"message": "Request must be JSON."}), 415
+
+    request_json = await request.get_json()
+    if not isinstance(request_json, dict):
+        return jsonify({"message": "Request payload must be an object."}), 400
+
+    normalized_chatbot_name = normalize_chatbot_name(chatbot_name)
+    if not normalized_chatbot_name or not is_embeddable(normalized_chatbot_name):
+        return jsonify({"message": "Unknown or non-embeddable chatbot."}), 404
+
+    raw_rules = request_json.get("allowedRules")
+    if not isinstance(raw_rules, list) or not all(isinstance(rule, str) for rule in raw_rules):
+        return jsonify({"message": "allowedRules must be a list of strings."}), 400
+
+    config = await get_chatbot_embed_config_store().save_rules(normalized_chatbot_name, raw_rules)
+    return (
+        jsonify(
+            {
+                "message": "Embed whitelist saved.",
+                "embedConfig": build_embed_admin_payload(normalized_chatbot_name, config),
             }
         ),
         200,
@@ -2248,6 +2409,7 @@ async def setup_clients():
     public_test_upload_file_count_limit = 1  # e.g. 1 for a single PDF
     chatbot_prompt_store = ChatbotPromptStore(blob_manager=global_blob_manager)
     current_app.config[CONFIG_CHATBOT_PROMPT_STORE] = chatbot_prompt_store
+    current_app.config[CONFIG_CHATBOT_EMBED_CONFIG_STORE] = ChatbotEmbedConfigStore(blob_manager=global_blob_manager)
 
     internal_admin_auth_service = InternalAdminAuthStore(
         blob_manager=global_blob_manager,

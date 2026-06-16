@@ -2,27 +2,28 @@
  * Embeddable chatbot widget loader.
  *
  * A tiny, dependency-free script (no React/Fluent) that website owners embed with a single
- * <script> tag. It injects a floating launcher button and, on first open, a cross-origin iframe
- * that loads the existing chatbot page at `<origin>/<chatbotId>?embed=1`. All chat traffic stays
- * inside that iframe (same-origin to the backend), so no CORS is required on the host site.
+ * <script> tag. `data-chatbot-id` is an anonymous, generated public ID (GA/Clarity style) — never
+ * the readable chatbot name. On load the widget fetches the bot's public embed config
+ * (`<origin>/embed/<publicId>/config`); if the current page is not on that bot's whitelist it
+ * renders nothing. Otherwise it injects a floating launcher and, on first open, a cross-origin
+ * iframe that loads `<origin>/embed/<publicId>?embed=1` (which resolves the bot server-side, so the
+ * name never appears in the host DOM). All chat traffic stays inside that iframe (same-origin to
+ * the backend), so no CORS is required on the host site for chat.
  *
  * Usage (primary, race-free):
- *   <script async src="https://chat.nerilio.ai/widget.js" data-chatbot-id="lemon"></script>
+ *   <script async src="https://chat.nerilio.ai/widget.js" data-chatbot-id="muw0oowcw3"></script>
  *
  * Usage (programmatic, e.g. SPAs):
  *   <script async src="https://chat.nerilio.ai/widget.js"></script>
  *   <script>
  *     window.chatbot = window.chatbot || { q: [], init(o){this.q.push(["init",o])},
  *       open(){this.q.push(["open"])}, close(){this.q.push(["close"])} };
- *     chatbot.init({ chatbotId: "lemon" });
+ *     chatbot.init({ chatbotId: "muw0oowcw3" });
  *   </script>
  */
 
-// Per-bot brand colors (single source of truth shared with the React app). Used so the launcher
-// bubble matches the embedded bot's theme out of the box, without each site setting a color.
-import { chatbotThemes } from "../chatbots/shared/theme/chatbotThemes";
-
 interface ChatbotWidgetConfig {
+    /** Anonymous public ID from the embed snippet (never the readable chatbot name). */
     chatbotId: string;
     position?: "right" | "left";
     primaryColor?: string;
@@ -111,6 +112,10 @@ declare global {
     const backendOrigin = scriptEl ? new URL(scriptEl.src, window.location.href).origin : window.location.origin;
 
     let widget: WidgetInstance | null = null;
+    // init() kicks off an async config fetch; these guard against double-init and remember an
+    // open() that arrived before the widget finished initialising.
+    let initStarted = false;
+    let pendingOpen = false;
 
     interface WidgetInstance {
         config: Required<Pick<ChatbotWidgetConfig, "chatbotId" | "position" | "primaryColor">> & ChatbotWidgetConfig;
@@ -145,7 +150,95 @@ declare global {
         if (config.locale) {
             params.set("locale", config.locale);
         }
-        return `${backendOrigin}/${encodeURIComponent(config.chatbotId)}?${params.toString()}`;
+        // The anonymized route resolves the public ID server-side, so the chatbot name never
+        // appears in the iframe `src`.
+        return `${backendOrigin}/embed/${encodeURIComponent(config.chatbotId)}?${params.toString()}`;
+    }
+
+    // Public embed config returned by the backend, fetched cross-origin before anything renders.
+    interface WidgetRemoteConfig {
+        ok: boolean;
+        primaryColor?: string;
+        allowAll?: boolean;
+        rules?: string[];
+    }
+
+    async function fetchRemoteConfig(publicId: string): Promise<WidgetRemoteConfig | null> {
+        try {
+            const response = await fetch(`${backendOrigin}/embed/${encodeURIComponent(publicId)}/config`, {
+                method: "GET",
+                credentials: "omit"
+            });
+            if (!response.ok) {
+                return null;
+            }
+            const data = (await response.json()) as WidgetRemoteConfig;
+            return data && typeof data === "object" && data.ok === true ? data : null;
+        } catch {
+            // Network/CORS failure or unknown public ID — render nothing rather than guess.
+            return null;
+        }
+    }
+
+    // --- whitelist matching (mirrors app/backend/embed_rules.py; keep the two in lockstep) -------
+
+    function parseRule(rule: string): { host: string; path: string | null } | null {
+        const candidate = rule.trim().replace(/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//, "");
+        if (!candidate) {
+            return null;
+        }
+        const slash = candidate.indexOf("/");
+        const host = (slash === -1 ? candidate : candidate.slice(0, slash)).trim().toLowerCase();
+        if (!host) {
+            return null;
+        }
+        return { host, path: slash === -1 ? null : candidate.slice(slash) };
+    }
+
+    function hostMatches(patternHost: string, urlHost: string): boolean {
+        const host = (urlHost || "").toLowerCase();
+        if (!host) {
+            return false;
+        }
+        if (patternHost.startsWith("*.")) {
+            const suffix = patternHost.slice(1); // ".snap.de"
+            return host.endsWith(suffix) && host.length > suffix.length;
+        }
+        return host === patternHost;
+    }
+
+    function pathMatches(patternPath: string | null, urlPath: string): boolean {
+        if (patternPath === null || patternPath === "" || patternPath === "/" || patternPath === "/*") {
+            return true;
+        }
+        const path = urlPath || "/";
+        if (patternPath.endsWith("/*")) {
+            const prefix = patternPath.slice(0, -2);
+            return path === prefix || path.startsWith(prefix + "/");
+        }
+        if (patternPath.endsWith("*")) {
+            return path.startsWith(patternPath.slice(0, -1));
+        }
+        return path === patternPath;
+    }
+
+    function isUrlAllowed(rules: string[], url: string): boolean {
+        const parsed = rules
+            .map(parseRule)
+            .filter((rule): rule is { host: string; path: string | null } => rule !== null);
+        if (parsed.length === 0) {
+            return true; // empty whitelist => allow all
+        }
+        let host = "";
+        let path = "/";
+        try {
+            const parsedUrl = new URL(url);
+            host = parsedUrl.hostname;
+            path = parsedUrl.pathname || "/";
+        } catch {
+            return false;
+        }
+        return parsed.some(rule => hostMatches(rule.host, host) && pathMatches(rule.path, path));
     }
 
     const CHAT_ICON =
@@ -268,8 +361,9 @@ declare global {
         const config = {
             ...rawConfig,
             position: rawConfig.position === "left" ? ("left" as const) : ("right" as const),
-            // Precedence: explicit data-primary-color > the bot's own theme color > generic default.
-            primaryColor: rawConfig.primaryColor || chatbotThemes[rawConfig.chatbotId]?.primary || DEFAULT_PRIMARY_COLOR
+            // Precedence already resolved in startWidget: data-primary-color > backend theme color >
+            // generic default. This guard just covers the programmatic path.
+            primaryColor: rawConfig.primaryColor || DEFAULT_PRIMARY_COLOR
         };
 
         const host = document.createElement("div");
@@ -305,9 +399,10 @@ declare global {
         }
         addResizeHandles(instance);
 
-        // Open automatically when explicitly requested, or when the panel was open on the
-        // previous page (so the chat follows the user across same-site navigation/new tabs).
-        if (config.autoOpen || readStoredOpen(config.chatbotId)) {
+        // Open automatically when explicitly requested, when an open() arrived during async init,
+        // or when the panel was open on the previous page (so the chat follows the user across
+        // same-site navigation/new tabs).
+        if (config.autoOpen || pendingOpen || readStoredOpen(config.chatbotId)) {
             // Defer so the launcher paints first.
             window.setTimeout(() => openPanel(instance), 0);
         }
@@ -363,11 +458,34 @@ declare global {
             console.error("[chatbot] init() requires a chatbotId");
             return;
         }
-        if (widget) {
-            return; // already initialised; ignore re-init
+        if (widget || initStarted) {
+            return; // already initialised (or initialising); ignore re-init
         }
+        initStarted = true;
+        void startWidget(config);
+    }
+
+    async function startWidget(config: ChatbotWidgetConfig) {
+        const remote = await fetchRemoteConfig(config.chatbotId);
+        if (!remote) {
+            // Unknown public ID or fetch failure — show nothing, and allow a later retry.
+            initStarted = false;
+            return;
+        }
+        const rules = Array.isArray(remote.rules) ? remote.rules : [];
+        // Domain whitelist enforcement: if this page isn't allowed, the widget must not be displayed.
+        if (!isUrlAllowed(rules, window.location.href)) {
+            return;
+        }
+        const resolvedConfig: ChatbotWidgetConfig = {
+            ...config,
+            // Precedence: explicit data-primary-color > the bot's theme color from config > default.
+            primaryColor: config.primaryColor || remote.primaryColor || DEFAULT_PRIMARY_COLOR
+        };
         const start = () => {
-            widget = createWidget(config);
+            if (!widget) {
+                widget = createWidget(resolvedConfig);
+            }
         };
         if (document.body) {
             start();
@@ -379,10 +497,14 @@ declare global {
     function open() {
         if (widget) {
             openPanel(widget);
+        } else {
+            // Remember it so the panel opens as soon as async init finishes.
+            pendingOpen = true;
         }
     }
 
     function close() {
+        pendingOpen = false;
         if (widget) {
             closePanel(widget);
         }
