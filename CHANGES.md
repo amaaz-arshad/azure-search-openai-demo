@@ -17,6 +17,31 @@ Two categories per date:
 
 ## 2026-06-15
 
+### All bots: answer-table containment extended to tablet portrait (fix 768–991px x-scroll)
+
+#### Decisions
+
+- Bug: in `/nerilio` (embed/widget) the answer pricing table forced a **horizontal page scroll** at
+  tablet-portrait widths (iPad Mini 768, iPad Air 820) while phones (412px) were fine.
+- Root cause: the table guard `.tableScroll { contain: inline-size; }` — which stops a wide table's
+  intrinsic min-content from propagating up the answer bubble + `min-width:auto` flex chain and pushing
+  the page past the viewport — was gated at `@media (max-width: 767px)` (phones only). But the app's
+  compact-layout breakpoint is **991px** (`Chat.module.css`: mobile padding `max-width:991px`, history
+  overlay `min-width:992px`). So 768–991px rendered the compact layout **without** the containment → the
+  table grew the page. Phones had containment, hence "fine on mobile, broken on tablet".
+- Fix in the **shared** answer CSS (nerilio renders via `createBotAnswer` → `ChatbotAnswer` →
+  `SharedAnswer.module.css`; its local `Answer.module.css` is legacy/unused), so the fix lands for every
+  bot — consistent with the recent "All bots:" responsive-table work. Pulled `contain: inline-size` into
+  its own `@media (max-width: 991px)` block; desktop (≥992px) still intentionally lets wide tables grow
+  the bubble to fill width. Phone-only cosmetic tweaks (padding, font-size, `th/td` min-width, wordmark)
+  stay at `max-width:767px`.
+
+#### Changes
+
+- `app/frontend/src/chatbots/shared/answer/SharedAnswer.module.css` — moved `.tableScroll { contain:
+  inline-size; }` out of the `max-width:767px` block into a new `max-width:991px` block (with explanatory
+  comment); removed the now-redundant rule + comment from the 767px block.
+
 ### All bots: navbar menu + chat-history chrome mobile-legibility (14px)
 
 #### Decisions

@@ -482,22 +482,28 @@
     font-size: inherit;
 }
 
+/* Size-contain the table wrapper across the WHOLE compact-layout range, not just
+   phones. The app's mobile/compact breakpoint is 991px (see Chat.module.css), so
+   tablet-portrait widths (768–991px, e.g. iPad Mini 768, iPad Air 820) already
+   render the compact layout. Containment makes the table's intrinsic inline size
+   be computed from its container instead of its contents, so a wide table's
+   min-content can't propagate up through the answer bubble and the chat layout's
+   `min-width: auto` flex chain and push the whole page past the viewport; the
+   table scrolls inside .tableScroll instead. Gating this at 767px left the
+   768–991px tablet band uncontained, so wide tables forced a horizontal page
+   scroll there (fine on phones, broken on tablets). Desktop (>=992px) is
+   intentionally excluded so wide tables can still grow the bubble to fill the
+   available width instead of scrolling. */
+@media (max-width: 991px) {
+    .tableScroll {
+        contain: inline-size;
+    }
+}
+
 @media (max-width: 767px) {
     .answerContainer {
         padding: 1em;
         border-radius: var(--chatbot-answer-card-radius-mobile, var(--chatbot-answer-card-radius, 1.5em));
-    }
-
-    /* On phones, size-contain the inline axis so the table's intrinsic width is
-       computed WITHOUT looking at its contents. Otherwise a wide table's
-       min-content propagates up through the answer bubble and the chat layout's
-       `min-width: auto` flex chain and pushes the whole page past the viewport
-       (the table got cut off at the screen edge with no way to scroll). With
-       containment, this wrapper stays at its container's width and the table
-       scrolls inside it. Desktop is intentionally excluded so wide tables can
-       still grow the bubble to fill the available width instead of scrolling. */
-    .tableScroll {
-        contain: inline-size;
     }
 
     .answerMarkdown {
