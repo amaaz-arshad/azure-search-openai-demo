@@ -15,6 +15,33 @@ Two categories per date:
 
 ---
 
+## 2026-06-16
+
+### hyrox-assessment: drop the redundant LLM intro before Question 1
+
+#### Decisions
+
+- The `/hyrox-assessment` bot showed **two** welcome messages: (1) the static frontend
+  `initialAssistantMsg` ("Welcome to the HYROX Assessment 'Managing Performance'! … Type 'Start'
+  when you are ready to begin.") and, after the learner typed "start", (2) an LLM-generated intro
+  paragraph that restated the same rules (20 questions, free text, one revision, 80% to pass, topic
+  summary at the end) before Question 1. The second was redundant with the first.
+- Fix: keep the static frontend welcome; remove the model-authored intro so the assessment begins
+  **immediately with Question 1** after "start". The `is_first_of_run` branch in
+  `build_state_injection` (the only place that requested the intro) now explicitly tells the model
+  the learner has already seen the full welcome/rules and to output only `[[ASK]]` with no preamble.
+- Scope kept minimal: no change to the static welcome copy, the question flow, or the rendering
+  pipeline. No test asserted on the old intro wording, so no test changes were needed; all 51
+  `tests/test_hyrox_assessment.py` cases still pass.
+
+#### Changes
+
+- `app/backend/approaches/chatbots/hyrox_assessment/results.py`: rewrote the `is_first_of_run`
+  instruction in `build_state_injection` to forbid any intro/welcome/greeting/rules-recap and begin
+  immediately with the question (`[[ASK]]` only, nothing before it).
+
+---
+
 ## 2026-06-15
 
 ### All bots: answer-table containment extended to tablet portrait (fix 768–991px x-scroll)

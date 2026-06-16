@@ -756,9 +756,11 @@ def build_state_injection(state: dict[str, Any], language: Optional[str] = None)
         )
     if is_first_of_run:
         lines.append(
-            f"- This is the first question of the run: open with a brief, friendly intro ({total} questions, "
-            f"free-text answers, one correction each, {PASS_THRESHOLD_PERCENT}% overall to pass, a topic summary "
-            "at the end), then ask the question."
+            "- This is the first question of the run. The learner has ALREADY been shown a full welcome and the "
+            "assessment rules (20 questions, free-text answers, one correction each, 80% overall to pass, a topic "
+            'summary at the end) and has just typed "start" to begin. Do NOT write any intro, welcome, greeting, '
+            "rules recap, or other preamble — begin immediately with the question. Output only [[ASK]] on its own "
+            "line with no other text before it."
         )
     if is_last:
         lines.append(
