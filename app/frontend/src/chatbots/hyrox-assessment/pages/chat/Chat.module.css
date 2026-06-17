@@ -98,6 +98,65 @@
     z-index: 10; /* Ensure it stays above other content */
 }
 
+/* Footer call-to-action (the Restart button after a fail). Occupies the same sticky footer slot the
+   question input would, so a completed run's action reads as part of that consistent action area. */
+.footerAction {
+    position: sticky;
+    bottom: 0;
+    flex: 0 0 auto;
+    padding: 1rem;
+    width: 100%;
+    max-width: 64.25rem;
+    background: #f2f2f2;
+    display: flex;
+    justify-content: center;
+    z-index: 10;
+}
+
+/* Inline Start button on the welcome screen: sits directly below the welcome/rules message
+   (left-aligned with it), so the call-to-action reads as the next step rather than floating at the
+   bottom. Lives in the scrolling message stream, not the sticky footer. */
+.startInline {
+    display: flex;
+    justify-content: flex-start;
+    margin-bottom: 1.5rem;
+}
+
+/* Shared button look for both the inline Start button and the footer Restart button. */
+.footerActionButton {
+    appearance: none;
+    border: none;
+    /* Match the rounding of the question-input composer (1.5rem) and chat bubbles (1.5em) so the
+       button sits consistently within the chat surface at every breakpoint (all scale with root). */
+    border-radius: 1.5rem;
+    /* HYROX brand: black chrome with the yellow highlight as the focus accent. */
+    background: #000000;
+    color: #ffed00;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.2;
+    /* Comfortable, device-independent touch target. The root font-size scales 12px (320px phones)
+       → 16px (desktop), so rem sizing would shrink the tap area on phones; min-height in px keeps a
+       >=48px target everywhere, and em padding tracks the 15px label (not the shrinking root). */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 48px;
+    padding: 0.5em 2em;
+    max-width: 100%;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.footerActionButton:hover {
+    background: #1a1a1a;
+}
+
+.footerActionButton:focus-visible {
+    outline: 2px solid #ffed00;
+    outline-offset: 2px;
+}
+
 .chatAnalysisPanel {
     flex: 1;
     overflow-y: auto;

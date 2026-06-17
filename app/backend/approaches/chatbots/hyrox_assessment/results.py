@@ -55,9 +55,11 @@ PROGRESS_PASS_VALUE = 100
 PROGRESS_MARKER = f"[[PROGRESS value={PROGRESS_PASS_VALUE}]]"
 # Backend-authored, hidden: emitted once on ANY completion (pass OR fail) on the turn the final
 # question is graded. The frontend hides it at render and uses it to remove the question input,
-# since a completed run is terminal in this session regardless of outcome (retaking happens in the
-# Lemon app, which launches a fresh session). It replays in history, so a reopened completed
-# session stays terminal. Unlike PROGRESS (pass only), this fires for both pass and fail.
+# since a completed run is terminal in this session regardless of outcome. Retaking is never done by
+# sending another message here — it happens only by launching a fresh session (after a fail, the
+# frontend's in-app restart button; or a fresh Lemon-app launch), which starts a brand-new run. It
+# replays in history, so a reopened completed session stays terminal. Unlike PROGRESS (pass only),
+# this fires for both pass and fail.
 DONE_MARKER = "[[DONE]]"
 # Written by the model on the final turn only, between its feedback on the last answer and
 # its topic take-aways. The backend splits there so the final result verdict can be rendered
@@ -197,8 +199,7 @@ _LOCALES: dict[str, dict[str, str]] = {
         "closing_failed": (
             "You can take this assessment again. Before you do, go back over the topics highlighted above "
             "so your next attempt builds on what you've just worked through. When you're ready, you'll find "
-            "the option to restart the assessment in the lemon app. Take the time you need, and come back "
-            "when you feel prepared."
+            "the option to restart."
         ),
     },
     "de": {
@@ -241,9 +242,7 @@ _LOCALES: dict[str, dict[str, str]] = {
         "closing_failed": (
             "Du kannst dieses Assessment erneut absolvieren. Geh vorher noch einmal die oben "
             "hervorgehobenen Themen durch, damit dein nächster Versuch auf dem aufbaut, was du gerade "
-            "erarbeitet hast. Wenn du bereit bist, findest du die Option, das Assessment neu zu starten, in "
-            "der lemon App. Nimm dir die Zeit, die du brauchst, und komm zurück, wenn du dich vorbereitet "
-            "fühlst."
+            "erarbeitet hast. Wenn du bereit bist, findest du die Option zum Neustart."
         ),
     },
     "nl": {
@@ -284,8 +283,7 @@ _LOCALES: dict[str, dict[str, str]] = {
         "closing_failed": (
             "Je kunt dit assessment opnieuw maken. Neem van tevoren de hierboven gemarkeerde thema's nog "
             "eens door, zodat je volgende poging voortbouwt op wat je net hebt doorgewerkt. Wanneer je er "
-            "klaar voor bent, vind je de optie om het assessment opnieuw te starten in de lemon app. Neem "
-            "de tijd die je nodig hebt en kom terug wanneer je je voorbereid voelt."
+            "klaar voor bent, vind je de optie om opnieuw te starten."
         ),
     },
 }
@@ -601,8 +599,9 @@ def derive_turn_state(messages: list[dict[str, Any]], final_content: Optional[st
 
     A run's score window is everything after the most recent ``[[PLAN]]`` marker. A new
     session (no PLAN) starts a fresh run; a completed run is terminal in this session
-    whether it passed or failed — retaking happens in the Lemon app, which launches a
-    fresh session. The learner cannot restart by sending another message here.
+    whether it passed or failed. The learner cannot restart by sending another message
+    here — retaking happens only by launching a fresh session (after a fail, the frontend's
+    in-app restart button; or a fresh Lemon-app launch), which has no PLAN and so starts over.
     """
     texts = assistant_texts(messages, final_content)
     blob = "\n".join(texts)
@@ -626,8 +625,8 @@ def derive_turn_state(messages: list[dict[str, Any]], final_content: Optional[st
 
     if n_scored >= QUESTIONS_PER_RUN:
         # A completed run is terminal in this session, pass OR fail. The learner cannot retake
-        # the assessment by sending another message here; restarting happens in the Lemon app,
-        # which launches a fresh session. (Mirrors the passed case; the closing copy says so.)
+        # the assessment by sending another message here; restarting happens by launching a fresh
+        # session (the in-app restart button after a fail, or a fresh Lemon-app launch).
         return {
             "plan": plan_ids,
             "plan_is_new": False,
@@ -672,8 +671,9 @@ def build_state_injection(state: dict[str, Any], language: Optional[str] = None)
             "\n\n## CURRENT TURN STATE (system-controlled — obey exactly)\n"
             f"- All {total} questions are finalised and the learner {outcome}. The assessment is over and "
             "cannot be retaken in this session. Do NOT ask any further question and do NOT emit any marker.\n"
-            "- Briefly acknowledge that the assessment is complete; if they want another attempt, tell them "
-            "they can restart it from the Lemon app. The system already rendered the final score and verdict.\n"
+            "- Briefly acknowledge that the assessment is complete; if they did not pass and want another "
+            "attempt, tell them they can begin a fresh run with the restart button shown below the results. "
+            "The system already rendered the final score and verdict.\n"
         )
 
     n = state.get("n_scored", 0)
@@ -919,7 +919,7 @@ def render_completion_bubbles(
        token, or the deterministic fallback when that token is missing (rendered in BOTH
        the pass and the fail case),
     4. the motivational message (pass/fail variant),
-    5. the closing message (pass: certificate notice; fail: retake-via-Lemon-app note).
+    5. the closing message (pass: certificate notice; fail: retake note pointing to the restart button).
 
     The frontend renders one chat bubble per section while the stored message keeps the
     full content, so history replay and state re-derivation are unaffected. The model's

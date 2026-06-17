@@ -15,6 +15,130 @@ Two categories per date:
 
 ---
 
+## 2026-06-17
+
+### `hyrox-assessment`: Start button moved inline below the welcome text
+
+#### Decisions
+
+- Moved the Start button from the sticky bottom footer to **inline, directly below the welcome/rules
+  message** (left-aligned with it). On the welcome screen there is no transcript above, so a pinned
+  bottom button floated with a large empty gap on tall/desktop screens; inline placement gives strong
+  read→act proximity and reads as the natural next step. Consistent at the principle level: the action
+  follows the content it relates to — Start follows the welcome (top); Restart still follows the
+  completion bubbles (bottom footer). The button keeps the shared `.footerActionButton` look
+  (48px target, 1.5rem radius).
+
+#### Changes
+
+- `app/frontend/src/chatbots/hyrox-assessment/pages/chat/Chat.tsx`: render the Start button inside the
+  message stream right after the answers map (new `.startInline` container) instead of the footer.
+- `app/frontend/src/chatbots/hyrox-assessment/pages/chat/Chat.module.css`: added `.startInline`
+  (left-aligned, in-flow); `.footerAction` is now the Restart-only footer slot (comment updated).
+- No test changes needed — the e2e tests locate the button by role/name, independent of placement.
+
+### `hyrox-assessment`: footer button sizing + radius polish
+
+#### Decisions
+
+- The footer button (Start/Restart) was too small on phones and its radius didn't match the chat
+  surface. Root cause of the size: the html root font-size scales 12px (320px phones) → 16px
+  (desktop), so the button's rem-based padding shrank the tap area to ~36px on small phones (below
+  the 44–48px touch-target minimum). Fix: a fixed `min-height: 48px` (a device-independent floor),
+  `display: inline-flex` centering, and `padding: 0.5em 2em` (em tracks the fixed 15px label, not the
+  shrinking root), so the target is ≥48px on every device. Mirrors the px-not-rem rule already used
+  for readable text.
+- Border-radius changed `0.5rem` → `1.5rem` to match the question-input composer the button shares
+  the footer slot with (and the chat bubbles at 1.5em); both use 1.5rem so they look identical in
+  that slot at every breakpoint.
+
+#### Changes
+
+- `app/frontend/src/chatbots/hyrox-assessment/pages/chat/Chat.module.css`: reworked
+  `.footerActionButton` (min-height/flex/em-padding/max-width + `border-radius: 1.5rem`). Applies to
+  both the Start and Restart buttons (shared class).
+
+### `hyrox-assessment`: "Start assessment" button replaces typing "Start"
+
+#### Decisions
+
+- The welcome screen now shows a **"Start assessment"** button instead of instructing the learner to
+  type "Start" — chosen for consistency with the new Restart button, accessibility (no typing/locale
+  guessing), and one-tap mobile UX. Technically free: the backend begins the run on the *first*
+  message regardless of wording, so the button just calls `makeApiRequest("Start")` — identical to
+  the old typed flow.
+- On the welcome screen the text input is **hidden** and replaced by the button (there is nothing
+  meaningful to type until Q1). The input returns once the run begins. Footer states are mutually
+  exclusive: not-started → Start button; in-progress → input; failed → Restart button; passed →
+  nothing. Detection reuses `stripLeadingSyntheticInitialPairs(answers).length === 0` (no real turn
+  yet). After a Restart, the welcome's Start button is what reappears.
+
+#### Changes
+
+- `app/frontend/src/chatbots/hyrox-assessment/pages/chat/Chat.tsx`: added `assessmentNotStarted`;
+  render the Start button on the welcome screen (hidden while loading); input now gated on
+  `!assessmentNotStarted`.
+- `app/frontend/src/chatbots/hyrox-assessment/pages/chat/Chat.module.css`: renamed `.restartInput`/
+  `.restartButton` → neutral `.footerAction`/`.footerActionButton` (shared by Start + Restart).
+- `app/frontend/src/chatbots/hyrox-assessment/locales/{en,de,nl}/translation.json`: added
+  `startAssessment`; removed the trailing "type Start" instruction line from `initialAssistantMsg`.
+- Tests: `tests/e2e.py` — the three HYROX tests now begin via the Start button (and assert the input
+  is absent on the welcome screen / the Start button reappears after a Restart).
+
+#### Validation
+
+- `tests/test_hyrox_assessment.py`: 51 passed. Frontend `tsc --noEmit`: 0 errors. `npm run build`: ok.
+  All three locale JSON re-validated (parse OK, welcome lines trimmed, no leftover newline). e2e still
+  not runnable locally (same Azure-auth startup limitation).
+
+### `hyrox-assessment`: in-app "Restart assessment" after a failed run
+
+#### Decisions
+
+- A failed assessment can now be retaken in-app with no limit, instead of only via a fresh
+  Lemon-app launch. On a **failed** completion the chat shows a **"Restart assessment"** button in
+  the same sticky footer slot the question input occupied; clicking it calls the existing
+  `clearChat`, which resets to a fresh session (welcome + rules) exactly like a brand-new launch.
+  No backend message is sent — the reset just drops the conversation so the next run has no
+  `[[PLAN]]` and starts over. The backend remains stateless/terminal-in-session; only *where* a
+  fresh session is launched from changed.
+- Pass detection is the backend's hidden `[[PROGRESS value=N]]` marker (pass-only). A completed run
+  (`[[DONE]]`) **without** `[[PROGRESS]]` is a fail → show restart. A pass takes the certificate
+  flow with **no** restart button. `clearChat` now also re-arms `progressReportedRef` so a passing
+  run *after* a restart still fires the one-shot `lemon://save_progress` hand-off.
+- Edited the failed closing copy to the shorter, app-agnostic wording ("…you'll find the option to
+  restart.") and dropped the "lemon app" reference from `closing_failed` (en/de/nl) and from the
+  completed-run model state-injection (now points at the restart button). The completion bubble
+  structure (5 `[[BREAK]]` sections) is unchanged.
+
+#### Changes
+
+- `app/backend/approaches/chatbots/hyrox_assessment/results.py`: rewrote `closing_failed` for en/de/nl;
+  updated the `build_state_injection` completed-run branch to reference the restart button instead of
+  the Lemon app; refreshed the `[[DONE]]`/`derive_turn_state`/`render_completion_bubbles` comments to
+  the new retake model.
+- `app/frontend/src/chatbots/hyrox-assessment/pages/chat/Chat.tsx`: derive `assessmentPassed`
+  (`parseProgressValue`) / `assessmentFailed`; render the restart button on a fail; reset
+  `progressReportedRef` in `clearChat`; updated the completion comment.
+- `app/frontend/src/chatbots/hyrox-assessment/pages/chat/Chat.module.css`: added `.restartInput`
+  (footer slot) + `.restartButton` (HYROX black/yellow).
+- `app/frontend/src/chatbots/hyrox-assessment/locales/{en,de,nl}/translation.json`: added
+  `restartAssessment`.
+- `app/frontend/src/chatbots/hyrox-assessment/components/Answer/assessmentMarkers.ts`: refreshed the
+  `[[DONE]]` comment.
+- Tests: updated `tests/test_hyrox_assessment.py` (failed-injection + failed-closing assertions);
+  `tests/e2e.py` made the passed-completion mock faithful (`[[PROGRESS value=100]]`) + assert no
+  restart on pass, and added `test_hyrox_assessment_failed_offers_restart`.
+
+#### Validation
+
+- `tests/test_hyrox_assessment.py`: 51 passed. Frontend `tsc --noEmit`: 0 errors. `npm run build`: ok.
+- e2e (`tests/e2e.py -k hyrox_assessment`) could **not** run locally: the live-server fixture starts
+  the real app, whose startup uses `AzureDeveloperCliCredential` against the fixture's fake
+  `AZURE_SUBSCRIPTION_ID`; with `azd` logged in on this machine the CLI is invoked and fails. The
+  unchanged `test_hyrox_assessment_keeps_input_mid_assessment` fails identically — environment, not a
+  regression.
+
 ## 2026-06-16
 
 ### Fix: `/embed-demo` tab showed the stale Azure favicon, not the nerilio robot

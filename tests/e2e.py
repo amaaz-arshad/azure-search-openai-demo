@@ -1396,30 +1396,32 @@ def _hyrox_chat_response(content: str) -> str:
 
 
 def test_hyrox_assessment_hides_input_when_completed(page: Page, live_server_url: str):
-    """On a completed assessment the response carries the hidden [[DONE]] marker, so the question
-    input is removed entirely — the run is terminal in-session (pass OR fail; retaking happens in
-    the Lemon app). The hidden control markers ([[SCORE]], [[BREAK]], [[DONE]]) must never be shown
-    to the learner, and the [[BREAK]]-separated sections must render as distinct bubbles."""
+    """On a passed completion the response carries the hidden [[DONE]] and [[PROGRESS]] markers, so
+    the question input is removed entirely and the certificate flow takes over — no restart is
+    offered. The hidden control markers ([[SCORE]], [[BREAK]], [[DONE]], [[PROGRESS]]) must never be
+    shown to the learner, and the [[BREAK]]-separated sections must render as distinct bubbles."""
 
     # A passed completion ending: final question's score + feedback, the verdict, and the closing
-    # certificate notice — three [[BREAK]]-separated bubbles — with the hidden trailing markers.
+    # certificate notice — three [[BREAK]]-separated bubbles — with the hidden trailing markers. The
+    # [[PROGRESS value=100]] marker is what the backend emits on a pass (the frontend's pass signal).
     completion_content = (
         "**Question 20: 5/5**\n\nSolid finish, clear and complete."
         "\n\n[[BREAK]]\n\n"
         "**Assessment complete** - Total: 100/100 (100%) - **PASSED**"
         "\n\n[[BREAK]]\n\n"
         "You can now close the assessment, and your certificate will be generated."
-        '\n\n[[SCORE q=1 points="1,1,1,1,1" max=5 cat="CATEGORY 1"]]\n[[DONE]]'
+        '\n\n[[SCORE q=1 points="1,1,1,1,1" max=5 cat="CATEGORY 1"]]\n[[DONE]]\n[[PROGRESS value=100]]'
     )
 
     page.route("*/**/chat", lambda route: route.fulfill(body=_hyrox_chat_response(completion_content), status=200))
 
     page.goto(f"{live_server_url}hyrox-assessment")
 
-    question_input = page.get_by_placeholder("Type your message")
-    expect(question_input).to_be_visible()
-    question_input.fill("Start")
-    page.get_by_label("Submit question").click()
+    # The welcome screen offers a Start button (no text input until the run begins).
+    start_button = page.get_by_role("button", name="Start assessment")
+    expect(start_button).to_be_visible()
+    expect(page.get_by_placeholder("Type your message")).to_have_count(0)
+    start_button.click()
 
     # The completion rendered, split into its [[BREAK]]-separated bubbles.
     expect(page.get_by_text("Solid finish, clear and complete.")).to_be_visible()
@@ -1428,9 +1430,55 @@ def test_hyrox_assessment_hides_input_when_completed(page: Page, live_server_url
     # The input (and its submit control) are gone now that the assessment is complete.
     expect(page.get_by_placeholder("Type your message")).to_have_count(0)
     expect(page.get_by_label("Submit question")).to_have_count(0)
+    # A pass takes the certificate path — no restart button is offered.
+    expect(page.get_by_role("button", name="Restart assessment")).to_have_count(0)
 
     # No hidden control marker leaked into the visible transcript.
     expect(page.locator("#main-content")).not_to_contain_text("[[")
+
+
+def test_hyrox_assessment_failed_offers_restart(page: Page, live_server_url: str):
+    """On a failed completion the input is still removed, but the learner is offered an in-app
+    "Restart assessment" button. Clicking it clears the run and returns to a fresh session (the
+    welcome message + the Start button), with no limit on retaking."""
+
+    # A failed completion ending: final score + feedback, the verdict, the topic summary, the
+    # fail motivational text, and the fail closing copy. No [[PROGRESS]] marker (pass-only).
+    completion_content = (
+        "**Question 20: 1/5**\n\nThat one needed more depth."
+        "\n\n[[BREAK]]\n\n"
+        "**Assessment complete** - Total: 40/100 (40%) - **Failed**"
+        "\n\n[[BREAK]]\n\n"
+        "**Summary by topic**\n\nNeeds work: most topics."
+        "\n\n[[BREAK]]\n\n"
+        "That's not the result you were hoping for, and there's no reason to dress it up."
+        "\n\n[[BREAK]]\n\n"
+        "You can take this assessment again. When you're ready, you'll find the option to restart."
+        '\n\n[[SCORE q=1 points="1,0,0,0,0" max=5 cat="CATEGORY 1"]]\n[[DONE]]'
+    )
+
+    page.route("*/**/chat", lambda route: route.fulfill(body=_hyrox_chat_response(completion_content), status=200))
+
+    page.goto(f"{live_server_url}hyrox-assessment")
+
+    # Begin via the welcome Start button.
+    start_button = page.get_by_role("button", name="Start assessment")
+    expect(start_button).to_be_visible()
+    start_button.click()
+
+    # The fail closing copy rendered; the input is gone but the restart button is offered instead.
+    expect(page.get_by_text("you'll find the option to restart")).to_be_visible()
+    expect(page.get_by_placeholder("Type your message")).to_have_count(0)
+    restart_button = page.get_by_role("button", name="Restart assessment")
+    expect(restart_button).to_be_visible()
+
+    # Restarting clears the previous run and returns to a fresh session: the welcome message is back,
+    # the failed transcript is gone, the Start button returns, and the restart button is gone.
+    restart_button.click()
+    expect(page.get_by_text("Welcome to the HYROX Assessment")).to_be_visible()
+    expect(page.get_by_text("you'll find the option to restart")).to_have_count(0)
+    expect(page.get_by_role("button", name="Start assessment")).to_be_visible()
+    expect(page.get_by_role("button", name="Restart assessment")).to_have_count(0)
 
 
 NERILIO_QUESTION_PLACEHOLDER = "Type your message"
@@ -1586,10 +1634,8 @@ def test_hyrox_assessment_keeps_input_mid_assessment(page: Page, live_server_url
 
     page.goto(f"{live_server_url}hyrox-assessment")
 
-    question_input = page.get_by_placeholder("Type your message")
-    expect(question_input).to_be_visible()
-    question_input.fill("Start")
-    page.get_by_label("Submit question").click()
+    # Begin via the welcome Start button; the text input appears once the run is underway.
+    page.get_by_role("button", name="Start assessment").click()
 
     expect(page.get_by_text("Great answer, well reasoned.")).to_be_visible()
 

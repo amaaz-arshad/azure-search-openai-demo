@@ -527,6 +527,9 @@ const Chat = () => {
     const clearChat = () => {
         localHistorySessionIdRef.current = null;
         clearActiveSessionId();
+        // A fresh session may pass, so re-arm the one-shot Lemon save_progress hand-off. (After a
+        // pass there is no restart, so this only matters for restart-after-fail.)
+        progressReportedRef.current = false;
         lastQuestionRef.current = "";
         error && setError(undefined);
         setActiveCitation(undefined);
@@ -757,12 +760,24 @@ const Chat = () => {
         }
     };
 
-    // Once the assessment is finalised (pass OR fail) the run is terminal in this session — retaking
-    // happens in the Lemon app, which launches a fresh session, never by sending another message
-    // here. The backend signals completion with a hidden [[DONE]] marker on the final message
-    // (present for both outcomes) which replays from history, so a restored completed session is
-    // detected too. We remove the question input entirely once it is present.
+    // Once the assessment is finalised (pass OR fail) the run is terminal in this session — the
+    // learner never retakes it by sending another message here. The backend signals completion with
+    // a hidden [[DONE]] marker on the final message (present for both outcomes) which replays from
+    // history, so a restored completed session is detected too. We remove the question input entirely
+    // once it is present.
     const assessmentComplete = answers.some(([, response]) => hasAssessmentDoneMarker(response.message.content));
+    // Pass is signalled by the backend's hidden [[PROGRESS value=N]] marker (emitted only on a pass).
+    // A completed run without it is a fail; on a fail we offer an in-app restart button (clearChat)
+    // so the learner can begin a fresh run immediately, with no limit. On a pass there is no restart
+    // — the certificate flow takes over.
+    const assessmentPassed = answers.some(([, response]) => parseProgressValue(response.message.content) !== null);
+    const assessmentFailed = assessmentComplete && !assessmentPassed;
+    // The welcome state: only the synthetic welcome message is present, no real turn yet. Here we
+    // show a "Start assessment" button instead of the text input — the learner taps it to begin
+    // (the backend starts the run on the first message; the button just sends "Start"), so they
+    // never have to know to type "Start". Once the run has begun (or a session is restored), the
+    // text input takes over for answering questions.
+    const assessmentNotStarted = stripLeadingSyntheticInitialPairs(answers).length === 0;
 
     return (
         <div className={styles.container}>
@@ -858,6 +873,17 @@ const Chat = () => {
                                     </div>
                                 );
                             })}
+                        {/* Welcome screen: the Start button sits inline, right below the welcome/rules
+                            message (no transcript above it yet), so the call-to-action reads as the
+                            natural next step. It taps to begin instead of typing "Start". Hidden once
+                            the run begins or while it is starting. */}
+                        {assessmentNotStarted && !assessmentComplete && !isLoading && (
+                            <div className={styles.startInline}>
+                                <button type="button" className={styles.footerActionButton} onClick={() => makeApiRequest("Start")}>
+                                    {t("startAssessment")}
+                                </button>
+                            </div>
+                        )}
                         {isLoading && (
                             <>
                                 <UserChatMessage message={lastQuestionRef.current} />
@@ -878,7 +904,7 @@ const Chat = () => {
                     </div>
                     {/* )} */}
 
-                    {!assessmentComplete && (
+                    {!assessmentNotStarted && !assessmentComplete && (
                         <div className={styles.chatInput}>
                             <QuestionInput
                                 clearOnSend
@@ -891,6 +917,15 @@ const Chat = () => {
                                 onStop={onStopClick}
                                 initQuestion={restoredQuestion}
                             />
+                        </div>
+                    )}
+                    {/* A failed run can be retaken with no limit: clearChat resets to a fresh session
+                        (welcome + Start button), exactly as a brand-new launch. No restart on a pass. */}
+                    {assessmentFailed && (
+                        <div className={styles.footerAction}>
+                            <button type="button" className={styles.footerActionButton} onClick={clearChat}>
+                                {t("restartAssessment")}
+                            </button>
                         </div>
                     )}
                 </div>

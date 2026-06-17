@@ -20,8 +20,9 @@ const BUBBLE_BREAK_RE = /\[\[\s*BREAK\s*\]\]/i;
 
 // The backend emits this once, on ANY completion (pass OR fail), on the turn the final question is
 // graded. The frontend hides it at render and uses it to remove the question input, since a
-// completed run is terminal in this session regardless of outcome (retaking happens in the Lemon
-// app). Unlike PROGRESS (pass only), this is present for both pass and fail.
+// completed run is terminal in this session regardless of outcome. Retaking happens only by starting
+// a fresh session (on a fail, the chat's in-app restart button; or a fresh Lemon-app launch), never
+// by sending another message. Unlike PROGRESS (pass only), this is present for both pass and fail.
 const DONE_MARKER_RE = /\[\[\s*DONE\s*\]\]/i;
 
 export function stripAssessmentMarkers(text: string): string {

@@ -246,16 +246,17 @@ def test_failed_completed_run_is_terminal() -> None:
     for cid in plan:
         hist.append({"role": "assistant", "content": _score_marker(cid, all_correct=False)})
     st = results.derive_turn_state(hist)
-    # A failed run is terminal in this session — no in-session auto-restart. The learner retakes
-    # the assessment from the Lemon app (a fresh session), not by sending another message here.
+    # A failed run is terminal in this session — no in-session auto-restart by sending another
+    # message here. The learner retakes by starting a fresh session (the frontend's in-app restart
+    # button on a fail, or a fresh Lemon-app launch).
     assert st["plan_is_new"] is False
     assert st["n_scored"] == 20
     assert st["current_id"] is None
     assert st["completed_passed"] is False
-    # The next-turn injection tells the model the assessment is over and points to the Lemon app.
+    # The next-turn injection tells the model the assessment is over and points to the restart button.
     injection = results.build_state_injection(st, "en")
     assert "did NOT pass" in injection
-    assert "Lemon app" in injection
+    assert "restart button" in injection
     assert "[[ASK]]" not in injection
 
 
@@ -787,7 +788,7 @@ def test_completion_renders_passed_ending_as_break_separated_bubbles() -> None:
 
 def test_completion_renders_failed_ending_with_retry_note() -> None:
     # A failed run gets the same bubble structure, with the fail-variant motivational text and a
-    # retake-via-Lemon-app note instead of the certificate notice.
+    # retake note pointing to the in-app restart option instead of the certificate notice.
     content = f"Thanks — that's where we'll leave it.\n[[SUMMARY]]\nNeeds work: most topics.\n{_score_marker(1, all_correct=False)}"
     assembled, _all_scores, tally, just_completed = _completion_turn(False, content)
     assert just_completed is True and tally["passed"] is False
@@ -797,7 +798,7 @@ def test_completion_renders_failed_ending_with_retry_note() -> None:
     assert "Failed" in bubbles[1]
     assert "Needs work: most topics" in bubbles[2]
     assert "That's not the result you were hoping for" in bubbles[3]
-    assert "take this assessment again" in bubbles[4] and "lemon app" in bubbles[4]
+    assert "take this assessment again" in bubbles[4] and "option to restart" in bubbles[4]
     assert "certificate" not in assembled.lower()
 
 
