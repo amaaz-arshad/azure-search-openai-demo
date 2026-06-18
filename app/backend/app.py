@@ -221,7 +221,10 @@ FREE_CHATBOT_ROUTE_NAME = "free"
 RAK_CHATBOT_NAME = "rak"
 RAK_ALLOWED_USERNAMES = frozenset({"12345", "67890"})
 INTERNAL_ROUTER_CHATBOT_NAME = "internal"
-INTERNAL_INVALID_SOURCE_BOTS = frozenset({INTERNAL_ROUTER_CHATBOT_NAME, PUBLIC_TEST_CHATBOT_NAME, RAK_CHATBOT_NAME})
+HYROX_ASSESSMENT_CHATBOT_NAME = "hyrox-assessment"
+INTERNAL_INVALID_SOURCE_BOTS = frozenset(
+    {INTERNAL_ROUTER_CHATBOT_NAME, PUBLIC_TEST_CHATBOT_NAME, RAK_CHATBOT_NAME, HYROX_ASSESSMENT_CHATBOT_NAME}
+)
 
 NON_CHATBOT_FRONTEND_PREFIXES = {
     "assets",
@@ -256,6 +259,7 @@ NON_CHATBOT_FRONTEND_PREFIXES = {
 # Keep in sync with frontend chatbot routes in app/frontend/src/chatbots/registry.ts.
 KNOWN_CHATBOT_NAMES = {
     "agindo",
+    "bensberg",
     "nerilio",
     "free",
     "public-test",
@@ -776,6 +780,7 @@ async def embed_demo():
 EMBED_LAUNCHER_DEFAULT_COLOR = "#4f46e5"
 EMBED_LAUNCHER_COLORS = {
     "agindo": "#e2c200",
+    "bensberg": "#fec701",
     "demo": "#313335",
     "fbn": "#00cc96",
     "fhg": "#669d24",

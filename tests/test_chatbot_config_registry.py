@@ -39,6 +39,11 @@ def test_chatbot_config_registry_loads_known_configs() -> None:
     assert lemon.prompt_mode == "override"
     assert lemon.support_email == "info@lemon-systems.de"
 
+    bensberg = get_chatbot_config("bensberg")
+    assert bensberg is not None
+    assert bensberg.prompt_mode == "override"
+    assert bensberg.support_email == "info@lemon-systems.de"
+
 
 def test_chatbot_config_registry_returns_defaults_for_unknown_chatbots() -> None:
     load_chatbot_config.cache_clear()

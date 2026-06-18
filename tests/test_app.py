@@ -1115,13 +1115,14 @@ async def test_internal_chat_requires_source_bot_selection(client):
 
 
 @pytest.mark.asyncio
-async def test_internal_chat_rejects_invalid_source_bot(client):
+@pytest.mark.parametrize("source_chatbot", ["free", "hyrox-assessment"])
+async def test_internal_chat_rejects_invalid_source_bot(client, source_chatbot):
     response = await client.post(
         "/chat",
         headers={"X-Chatbot-Name": "internal"},
         json={
             "messages": [{"content": "What is the capital of France?", "role": "user"}],
-            "context": {"overrides": {"retrieval_mode": "text", "source_chatbot": "free"}},
+            "context": {"overrides": {"retrieval_mode": "text", "source_chatbot": source_chatbot}},
         },
     )
 

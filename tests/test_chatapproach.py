@@ -16,7 +16,7 @@ from approaches.approach import (
     ThoughtStep,
     WebResult,
 )
-from approaches.chatreadretrieveread import ChatReadRetrieveReadApproach
+from approaches.chatreadretrieveread import ChatReadRetrieveReadApproach, _is_lemon_chatbot, _sanitize_lemon_text
 from approaches.promptmanager import PromptManager
 from prepdocslib.embeddings import ImageEmbeddings
 
@@ -187,7 +187,7 @@ def test_get_system_prompt_variables_publishone_forces_english_language_locale(c
     assert variables["override_prompt"] == "Answer in English."
 
 
-@pytest.mark.parametrize("chatbot_name", ["lemon"])
+@pytest.mark.parametrize("chatbot_name", ["lemon", "bensberg"])
 def test_get_system_prompt_variables_renders_support_email_for_request_override_prompts(chat_approach, chatbot_name):
     variables = chat_approach.get_system_prompt_variables(
         "Please contact {{SUPPORT_EMAIL}} for assistance.",
@@ -197,7 +197,7 @@ def test_get_system_prompt_variables_renders_support_email_for_request_override_
     assert variables["override_prompt"] == "Please contact info@lemon-systems.de for assistance."
 
 
-@pytest.mark.parametrize("chatbot_name", ["lemon"])
+@pytest.mark.parametrize("chatbot_name", ["lemon", "bensberg"])
 def test_get_system_prompt_variables_renders_support_email_for_request_injected_prompts(chat_approach, chatbot_name):
     variables = chat_approach.get_system_prompt_variables(
         ">>>Please contact {{SUPPORT_EMAIL}} for assistance.",
@@ -205,6 +205,15 @@ def test_get_system_prompt_variables_renders_support_email_for_request_injected_
     )
 
     assert variables["injected_prompt"] == "Please contact info@lemon-systems.de for assistance."
+
+
+@pytest.mark.parametrize("chatbot_name", ["lemon", "bensberg"])
+def test_lemon_style_chatbots_sanitize_source_labels_and_filenames(chatbot_name):
+    assert _is_lemon_chatbot({"include_category": chatbot_name})
+
+    answer = "Antwort\nSource: hidden.pdf\nSiehe [training.pdf#page=3] und (ID-123)."
+
+    assert _sanitize_lemon_text(answer) == "Antwort\nSiehe  und ."
 
 
 def test_get_lowest_reasoning_effort_supports_selected_gpt_5_variants(chat_approach):

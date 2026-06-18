@@ -217,6 +217,7 @@ async def test_app_config_default(monkeypatch, minimal_env):
         assert result["defaultChatModel"] == "gpt-4.1-mini"
         assert result["internalSourceBots"] == [
             {"id": "agindo", "label": "agindo"},
+            {"id": "bensberg", "label": "bensberg"},
             {"id": "demo", "label": "demo"},
             {"id": "fbn", "label": "fbn"},
             {"id": "fhg", "label": "fhg"},

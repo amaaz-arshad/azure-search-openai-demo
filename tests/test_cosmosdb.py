@@ -165,6 +165,26 @@ async def test_chathistory_newitem_internal_requires_source_chatbot(auth_public_
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("source_chatbot", ["free", "hyrox-assessment"])
+async def test_chathistory_newitem_internal_rejects_invalid_source_chatbot(auth_public_documents_client, source_chatbot):
+    await login_simple_chatbot(auth_public_documents_client, "internal", "internal", "internal")
+
+    response = await auth_public_documents_client.post(
+        "/chat_history",
+        headers={"Authorization": "Bearer MockToken"},
+        json={
+            "id": "123",
+            "chatbot_name": "internal",
+            "answers": [["This is a test message", "This is a test answer"]],
+            "metadata": {"source_chatbot": source_chatbot},
+        },
+    )
+
+    assert response.status_code == 400
+    assert await response.get_json() == {"error": "Internal Bot requires a valid source bot selection."}
+
+
+@pytest.mark.asyncio
 async def test_chathistory_newitem_internal_stores_source_chatbot(auth_public_documents_client, monkeypatch):
     await login_simple_chatbot(auth_public_documents_client, "internal", "internal", "internal")
 

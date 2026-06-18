@@ -12,6 +12,7 @@ CHATBOT_NAME_ALIASES = {
 }
 CHATBOT_PROMPT_MODULES = {
     "agindo": "approaches.chatbots.agindo.sampleprompt",
+    "bensberg": "approaches.chatbots.bensberg.sampleprompt",
     "nerilio": "approaches.chatbots.nerilio.sampleprompt",
     "free": "approaches.chatbots.public_test.sampleprompt",
     "rak": "approaches.chatbots.rak.sampleprompt",

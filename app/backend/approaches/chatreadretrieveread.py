@@ -3,9 +3,10 @@ from collections.abc import AsyncGenerator, Awaitable
 from dataclasses import asdict
 from typing import Any, Optional, cast
 
-# --- Lemon-specific output sanitization -----------------------------------
-# Lemon must never expose source labels, filenames, or structural identifiers.
+# --- Lemon-style output sanitization --------------------------------------
+# Lemon-derived bots must never expose source labels, filenames, or structural identifiers.
 # These patterns scrub anything the model might leak from the retrieval context.
+_LEMON_STYLE_CHATBOTS = {"lemon", "bensberg"}
 _LEMON_SOURCE_LINE_RE = re.compile(
     r"""^\s*(?:>\s*)?[*_]{0,3}\s*
         (?:Source|Sources|Quelle|Quellen|
@@ -28,7 +29,7 @@ def _is_lemon_chatbot(overrides: dict[str, Any]) -> bool:
     if not isinstance(raw, str):
         return False
     primary = raw.split(",", 1)[0].strip().lower()
-    return primary == "lemon"
+    return primary in _LEMON_STYLE_CHATBOTS
 
 
 def _is_hyrox_assessment_chatbot(overrides: dict[str, Any]) -> bool:

@@ -44,6 +44,10 @@ export const chatbotThemes: Record<string, ChatbotThemeSeed> = {
         primary: "#e2c200",
         pageTone: "light"
     },
+    bensberg: {
+        primary: "#fec701",
+        pageTone: "light"
+    },
     demo: {
         primary: "#313335",
         pageTone: "light"

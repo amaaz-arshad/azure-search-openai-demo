@@ -22,6 +22,7 @@ from approaches.chatbot_prompt_registry import get_registered_chatbot_names, nor
 # "public-test"). Do not edit existing values — changing one breaks every embed already in the wild.
 EMBED_PUBLIC_IDS: dict[str, str] = {
     "agindo": "l43xvr1plu",
+    "bensberg": "bq6z8n2lad",
     "nerilio": "skmhmm4vzl",
     "free": "vlx3ztxsca",
     "rak": "nk0liu1lzo",

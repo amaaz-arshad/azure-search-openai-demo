@@ -2,6 +2,7 @@ import type { ComponentType } from "react";
 import type { i18n as I18nInstance } from "i18next";
 
 import { agindoChatbot } from "./agindo";
+import { bensbergChatbot } from "./bensberg";
 import { demoChatbot } from "./demo";
 import { fbnChatbot } from "./fbn";
 import { fhgChatbot } from "./fhg";
@@ -37,6 +38,7 @@ export interface ChatbotDefinition extends ChatbotMetadata {
 
 export const chatbotDefinitions: ChatbotDefinition[] = [
     { ...agindoChatbot, llm: "gpt-4.1", mode: "qna", agenticRetrievalDefault: false },
+    { ...bensbergChatbot, llm: "gpt-5.4-mini", reasoningEffort: "medium", mode: "tutor-qna", agenticRetrievalDefault: true },
     { ...nerilioChatbot, llm: "gpt-4.1-mini", mode: "qna", agenticRetrievalDefault: false },
     { ...freeChatbot, llm: "gpt-4.1", mode: "qna", agenticRetrievalDefault: false },
     { ...rakChatbot, llm: "gpt-4.1", mode: "qna", agenticRetrievalDefault: false },

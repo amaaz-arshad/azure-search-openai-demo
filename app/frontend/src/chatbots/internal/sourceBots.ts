@@ -1,6 +1,7 @@
 import type { i18n as I18nInstance } from "i18next";
 
 import agindoI18n from "../agindo/i18n/config";
+import bensbergI18n from "../bensberg/i18n/config";
 import demoI18n from "../demo/i18n/config";
 import fbnI18n from "../fbn/i18n/config";
 import fhgI18n from "../fhg/i18n/config";
@@ -20,6 +21,7 @@ export type SourceBotWelcome = {
 
 const INTERNAL_SOURCE_BOT_I18N: Record<string, I18nInstance> = {
     agindo: agindoI18n,
+    bensberg: bensbergI18n,
     demo: demoI18n,
     fbn: fbnI18n,
     fhg: fhgI18n,

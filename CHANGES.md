@@ -15,6 +15,36 @@ Two categories per date:
 
 ---
 
+## 2026-06-18
+
+### `bensberg`: Lemon-derived public Tutor + Q&A bot route
+
+#### Decisions
+
+- Added `/bensberg` as a Lemon-derived bot: same yellow Lemon visual theme, Lemon logo/chrome,
+  Tutor + Q&A mode, agentic retrieval default enabled, and no simple/basic-auth credential entry.
+- The visible browser/header title is `Bensberg`. The backend prompt/config retains Lemon's support
+  address (`info@lemon-systems.de`) because the request explicitly asked to base the bot on Lemon
+  and did not specify a different fallback contact.
+- Bensberg uses its own retrieval category (`bensberg`) so the attached document can be indexed as a
+  single-category knowledge base. No Bensberg source document was present in the workspace, so
+  ingestion was not completed in this session.
+- The HYROX assessment bot is now explicitly excluded from Internal Bot source-bot options/history
+  validation because it is an assessment flow, not a normal retrieval source bot.
+
+#### Changes
+
+- Backend: added `app/backend/approaches/chatbots/bensberg/` with Lemon prompt/config, registered
+  `bensberg` in `chatbot_prompt_registry.py`, `KNOWN_CHATBOT_NAMES`, embed public IDs, and widget
+  launcher colors.
+- Backend: expanded the Lemon-style output sanitizer to apply to `bensberg` as well, so Bensberg
+  suppresses source labels, filenames, and structural IDs like Lemon.
+- Frontend: added `app/frontend/src/chatbots/bensberg/` with Lemon-reused layout/chat components,
+  Bensberg i18n titles/examples, `/bensberg` routing, Lemon theme color, and Internal Bot labels.
+- Tests: updated chatbot config, `/config`, embed ID, prompt rendering, sanitizer, and invalid
+  Internal Bot source-bot coverage for Bensberg/HYROX.
+- Validation: focused pytest set passed (`22 passed`); `npm run build` in `app/frontend` passed.
+
 ## 2026-06-17
 
 ### `hyrox-assessment`: Start button moved inline below the welcome text
