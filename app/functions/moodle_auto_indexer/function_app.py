@@ -6,6 +6,7 @@ chatbot-owned folders such as `content/moodle/` and `content/publishone/`, and
 indexes them into Azure AI Search under the corresponding chatbot category.
 """
 
+import json
 import logging
 import os
 from dataclasses import dataclass
@@ -20,6 +21,8 @@ from prepdocslib.blobautoindex import (
     blob_name_from_event_grid_subject,
     parse_allowed_extensions,
 )
+from prepdocslib.fhgjson import prepare_fhg_dataset
+from prepdocslib.page import Chunk
 from prepdocslib.publishonefeed import build_publishone_feed_sections
 from prepdocslib.servicesetup import (
     OpenAIHost,
@@ -29,7 +32,7 @@ from prepdocslib.servicesetup import (
     setup_openai_client,
     setup_search_info,
 )
-from prepdocslib.searchmanager import SearchManager
+from prepdocslib.searchmanager import SearchManager, Section
 
 app = func.FunctionApp()
 
@@ -73,6 +76,17 @@ FEED_DEFINITIONS = {
         category_env="PUBLISHONE_AUTO_INDEX_CATEGORY",
         allowed_extensions_env="PUBLISHONE_AUTO_INDEX_ALLOWED_EXTENSIONS",
     ),
+    "fhg": FeedDefinition(
+        name="fhg",
+        source_prefix="nerilio/Nerilio-fhg",
+        target_prefix="fhg",
+        category="fhg",
+        allowed_extensions=(".json",),
+        source_prefix_env="FHG_AUTO_INDEX_SOURCE_PREFIX",
+        target_prefix_env="FHG_AUTO_INDEX_TARGET_PREFIX",
+        category_env="FHG_AUTO_INDEX_CATEGORY",
+        allowed_extensions_env="FHG_AUTO_INDEX_ALLOWED_EXTENSIONS",
+    ),
 }
 
 
@@ -91,6 +105,33 @@ def resolve_feed_value(explicit_env_name: Optional[str], default_value: str) -> 
     if explicit_env_name:
         return os.getenv(explicit_env_name, default_value)
     return default_value
+
+
+async def build_fhg_json_sections(*, file, file_processors, category: str) -> list[Section]:
+    del file_processors
+
+    payload = json.loads(file.content.read().decode("utf-8-sig"))
+    prepared_dataset = prepare_fhg_dataset(
+        payload,
+        dataset_filename=file.filename(),
+        category=category,
+    )
+
+    return [
+        Section(
+            chunk=Chunk(page_num=0, text=document.content),
+            content=file,
+            category=document.category,
+            id=document.id,
+            sourcepage=document.sourcepage,
+            sourcefile=document.sourcefile,
+            title=document.title,
+            url=document.url,
+            tags=document.tags,
+            user=document.user,
+        )
+        for document in prepared_dataset.documents
+    ]
 
 
 def build_auto_indexer(
@@ -117,6 +158,7 @@ def build_auto_indexer(
             category=category,
             allowed_extensions=allowed_extensions,
             manage_search_index=False,
+            remove_by_storage_url=feed.name == "fhg",
         ),
         blob_manager=blob_manager,
         search_manager=SearchManager(
@@ -130,7 +172,7 @@ def build_auto_indexer(
             enforce_access_control=False,
         ),
         file_processors=file_processors,
-        section_builder=build_publishone_feed_sections,
+        section_builder=build_fhg_json_sections if feed.name == "fhg" else build_publishone_feed_sections,
     )
 
 
@@ -298,6 +340,26 @@ async def publishone_delete_sync(event: func.EventGridEvent) -> None:
         await handle_delete_event(event, "publishone")
     except Exception:
         logger.exception("Unhandled exception in publishone_delete_sync")
+        raise
+
+
+@app.function_name(name="fhg_auto_index")
+@app.event_grid_trigger(arg_name="event")
+async def fhg_auto_index(event: func.EventGridEvent) -> None:
+    try:
+        await handle_create_event(event, "fhg")
+    except Exception:
+        logger.exception("Unhandled exception in fhg_auto_index")
+        raise
+
+
+@app.function_name(name="fhg_delete_sync")
+@app.event_grid_trigger(arg_name="event")
+async def fhg_delete_sync(event: func.EventGridEvent) -> None:
+    try:
+        await handle_delete_event(event, "fhg")
+    except Exception:
+        logger.exception("Unhandled exception in fhg_delete_sync")
         raise
 
 

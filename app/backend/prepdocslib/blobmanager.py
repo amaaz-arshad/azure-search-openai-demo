@@ -472,6 +472,11 @@ class BlobManager(BaseBlobManager):
         blob_client = container_client.get_blob_client(blob_name)
         return unquote(blob_client.url)
 
+    def url_for_blob_name(self, blob_name: str) -> str:
+        container_client = self.blob_service_client.get_container_client(self.container)
+        blob_client = container_client.get_blob_client(blob_name)
+        return unquote(blob_client.url)
+
     async def list_blob_names(self, prefix: str) -> list[str]:
         container_client = self.blob_service_client.get_container_client(self.container)
         if not await container_client.exists():

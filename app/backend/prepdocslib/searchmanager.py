@@ -715,6 +715,7 @@ class SearchManager:
         self,
         path: Optional[str] = None,
         category: Optional[str] = None,
+        storage_url: Optional[str] = None,
         user: Optional[str] = None,
     ) -> Optional[str]:
         filters = []
@@ -724,6 +725,9 @@ class SearchManager:
         if category is not None:
             category_for_filter = category.replace("'", "''")
             filters.append(f"category eq '{category_for_filter}'")
+        if storage_url is not None:
+            storage_url_for_filter = storage_url.replace("'", "''")
+            filters.append(f"storageUrl eq '{storage_url_for_filter}'")
         if user is not None:
             user_for_filter = user.replace("'", "''")
             filters.append(f"user eq '{user_for_filter}'")
@@ -855,6 +859,7 @@ class SearchManager:
         path: Optional[str] = None,
         only_oid: Optional[str] = None,
         category: Optional[str] = None,
+        storage_url: Optional[str] = None,
         storage_url_suffix: Optional[str] = None,
         user: Optional[str] = None,
     ):
@@ -863,7 +868,7 @@ class SearchManager:
         )
         async with self.search_info.create_search_client() as search_client:
             while True:
-                filter = self.build_filter(path=path, category=category, user=user)
+                filter = self.build_filter(path=path, category=category, storage_url=storage_url, user=user)
                 max_results = 1000
                 result = await search_client.search(
                     search_text="", filter=filter, top=max_results, include_total_count=True

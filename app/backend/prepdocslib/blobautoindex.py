@@ -26,6 +26,7 @@ class AutoBlobIndexerConfig:
     category: str
     allowed_extensions: frozenset[str]
     manage_search_index: bool = True
+    remove_by_storage_url: bool = False
 
 
 @dataclass(frozen=True)
@@ -119,6 +120,12 @@ class AutoBlobIndexer:
             return f"{target_prefix}/{filename}"
         return filename
 
+    def storage_url_for_target_blob(self, target_blob_name: str) -> Optional[str]:
+        url_for_blob_name = getattr(self.blob_manager, "url_for_blob_name", None)
+        if not callable(url_for_blob_name):
+            return None
+        return url_for_blob_name(target_blob_name)
+
     def is_supported(self, blob_name: str) -> bool:
         filename = os.path.basename(self.normalize_source_blob_name(blob_name))
         extension = os.path.splitext(filename)[1].lower()
@@ -194,11 +201,14 @@ class AutoBlobIndexer:
             content_type=target_content_type,
         )
 
-        await self.search_manager.remove_content(
-            path=filename,
-            category=self.config.category,
-            storage_url_suffix=target_blob_name,
-        )
+        remove_kwargs = {
+            "path": None if self.config.remove_by_storage_url else filename,
+            "category": self.config.category,
+            "storage_url_suffix": target_blob_name,
+        }
+        if self.config.remove_by_storage_url:
+            remove_kwargs["storage_url"] = storage_url
+        await self.search_manager.remove_content(**remove_kwargs)
 
         if not sections:
             logger.info("No searchable sections extracted from %s; blob copied but index cleared for that file", filename)
@@ -288,11 +298,17 @@ class AutoBlobIndexer:
 
         filename = os.path.basename(normalized_source_blob_name)
         target_blob_name = self.target_blob_name_for_source(normalized_source_blob_name)
-        await self.search_manager.remove_content(
-            path=filename,
-            category=self.config.category,
-            storage_url_suffix=target_blob_name,
-        )
+        storage_url = self.storage_url_for_target_blob(target_blob_name) if self.config.remove_by_storage_url else None
+        if self.config.remove_by_storage_url and storage_url is None:
+            raise RuntimeError("Blob manager must provide url_for_blob_name when remove_by_storage_url is enabled")
+        remove_kwargs = {
+            "path": None if self.config.remove_by_storage_url else filename,
+            "category": self.config.category,
+            "storage_url_suffix": target_blob_name,
+        }
+        if storage_url is not None:
+            remove_kwargs["storage_url"] = storage_url
+        await self.search_manager.remove_content(**remove_kwargs)
         await self.blob_manager.remove_blob_name(target_blob_name)
         return AutoBlobIndexResult(
             source_blob_name=normalized_source_blob_name,

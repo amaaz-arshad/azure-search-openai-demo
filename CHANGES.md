@@ -15,6 +15,37 @@ Two categories per date:
 
 ---
 
+## 2026-06-19
+
+### FHG: auto-index JSON drops from Nerilio folder
+
+#### Decisions
+
+- Reused the existing `moodle-auto-indexer` Function App instead of creating a separate FHG service,
+  because its blob mirror/delete/index workflow already matches the requested behavior.
+- FHG auto-index events watch `content/nerilio/Nerilio-fhg/*.json`, mirror accepted files into
+  `content/fhg/`, and index the generated search documents with category `fhg`.
+- Kept FHG on the existing `prepdocslib.fhgjson` parser so URL citations, titles, tags, and
+  FHG-specific chunk IDs stay aligned with the manual `prep_fhg_json.py` ingestion path.
+
+#### Changes
+
+- `app/functions/moodle_auto_indexer/function_app.py`: added an `fhg` feed definition, FHG JSON
+  section builder, and `fhg_auto_index` / `fhg_delete_sync` Event Grid handlers.
+- `app/backend/prepdocslib/{blobautoindex.py,blobmanager.py,searchmanager.py}`: added exact
+  storage-URL cleanup support so FHG updates/deletes remove indexed documents even though FHG
+  sections keep per-study `sourcefile` metadata instead of the dataset filename; synchronized the
+  `app/functions/*/prepdocslib/` copies with `scripts/copy_prepdocslib.py`.
+- `scripts/setup_moodle_delete_event_subscription.py`: added create/delete Event Grid subscriptions
+  for `nerilio/Nerilio-fhg/` JSON blobs.
+- `tests/test_function_apps.py`: covered FHG create/delete routing and metadata-preserving JSON
+  section generation.
+- `tests/test_blobautoindex.py` and `tests/test_searchmanager.py`: covered storage-URL-based
+  cleanup behavior and exact `storageUrl` filtering.
+- `CLAUDE.md`: documented FHG as part of the feed automation contract and adding-data workflow.
+- Validation: `.\.venv\Scripts\python.exe -m pytest tests/test_blobautoindex.py tests/test_fhgjson.py tests/test_function_apps.py tests/test_searchmanager.py::test_build_filter_can_match_exact_storage_url`
+  passed (`68 passed`).
+
 ## 2026-06-18
 
 ### Free Bot: finish the `public-test` → `free` code/folder rename (names only, persisted keys kept)

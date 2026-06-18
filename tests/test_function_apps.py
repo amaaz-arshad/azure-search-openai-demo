@@ -1,4 +1,5 @@
 import base64
+import io
 import json
 import logging
 import os
@@ -13,6 +14,7 @@ from document_extractor import function_app as document_extractor
 from figure_processor import function_app as figure_processor
 from moodle_auto_indexer import function_app as moodle_auto_indexer
 from prepdocslib.fileprocessor import FileProcessor
+from prepdocslib.listfilestrategy import File
 from prepdocslib.textparser import TextParser
 from prepdocslib.textsplitter import SentenceTextSplitter
 from tests.mocks import TEST_PNG_BYTES
@@ -200,6 +202,123 @@ async def test_publishone_delete_sync_removes_target_blob_for_delete_event(monke
     )
 
     assert auto_indexer.deleted == ["content/nerilio/Nerilio-PublishOne/test.xml"]
+
+
+@pytest.mark.asyncio
+async def test_fhg_auto_index_function_indexes_triggered_blob(monkeypatch: pytest.MonkeyPatch) -> None:
+    class MockAutoIndexer:
+        def __init__(self) -> None:
+            self.calls: list[dict[str, Any]] = []
+
+        async def index_blob_from_storage(self, *, blob_name: str):
+            self.calls.append({"blob_name": blob_name})
+            return type(
+                "Result",
+                (),
+                {
+                    "source_blob_name": blob_name,
+                    "status": "indexed",
+                    "indexed_sections": 1,
+                    "target_blob_name": "fhg/fhg.json",
+                },
+            )()
+
+    auto_indexer = MockAutoIndexer()
+    monkeypatch.setattr(
+        moodle_auto_indexer,
+        "settings",
+        moodle_auto_indexer.GlobalSettings(auto_indexers={"fhg": auto_indexer}),
+    )
+
+    await moodle_auto_indexer.fhg_auto_index(
+        EventGridEventStub(
+            "/blobServices/default/containers/content/blobs/nerilio/Nerilio-fhg/fhg.json",
+            "Microsoft.Storage.BlobCreated",
+        )
+    )
+
+    assert auto_indexer.calls == [{"blob_name": "content/nerilio/Nerilio-fhg/fhg.json"}]
+
+
+@pytest.mark.asyncio
+async def test_fhg_delete_sync_removes_target_blob_for_delete_event(monkeypatch: pytest.MonkeyPatch) -> None:
+    class MockAutoIndexer:
+        def __init__(self) -> None:
+            self.deleted: list[str] = []
+
+        async def delete_blob(self, *, blob_name: str):
+            self.deleted.append(blob_name)
+            return type(
+                "Result",
+                (),
+                {
+                    "source_blob_name": blob_name,
+                    "status": "deleted",
+                    "target_blob_name": "fhg/fhg.json",
+                },
+            )()
+
+    auto_indexer = MockAutoIndexer()
+    monkeypatch.setattr(
+        moodle_auto_indexer,
+        "settings",
+        moodle_auto_indexer.GlobalSettings(auto_indexers={"fhg": auto_indexer}),
+    )
+
+    await moodle_auto_indexer.fhg_delete_sync(
+        EventGridEventStub(
+            "/blobServices/default/containers/content/blobs/nerilio/Nerilio-fhg/fhg.json",
+            "Microsoft.Storage.BlobDeleted",
+        )
+    )
+
+    assert auto_indexer.deleted == ["content/nerilio/Nerilio-fhg/fhg.json"]
+
+
+@pytest.mark.asyncio
+async def test_fhg_json_section_builder_preserves_custom_metadata() -> None:
+    payload = {
+        "count": 1,
+        "documents": [
+            {
+                "category": ["Bachelor-Studiengänge", "Studium"],
+                "content": "Erster Absatz.\n\nZweiter Absatz.",
+                "doc_id": "page-812",
+                "filename": "studium/bachelor/radiologietechnologie",
+                "metadata": {
+                    "degree_abbreviation": "BSc",
+                    "degree_name": "Radiologietechnologie (BSc)",
+                    "degree_type": "Bachelor-Studiengänge",
+                    "studium_name": "Radiologietechnologie",
+                    "subtitle": "FH-Bachelor-Studiengang",
+                },
+                "parent_id": "page-224",
+                "tags": ["Radiologietechnologie", "Studiengang im Überblick"],
+                "title": "Radiologietechnologie",
+                "url": "https://www.fhg-tirol.ac.at/page.cfm?vpath=studium/bachelor/radiologietechnologie",
+            }
+        ],
+    }
+    stream = io.BytesIO(json.dumps(payload).encode("utf-8"))
+    stream.name = "fhg.json"
+
+    sections = await moodle_auto_indexer.build_fhg_json_sections(
+        file=File(content=stream),
+        file_processors={},
+        category="fhg",
+    )
+
+    assert len(sections) == 1
+    section = sections[0]
+    assert section.id == "fhg-page-812-chunk-001"
+    assert section.category == "fhg"
+    assert section.sourcefile == "studium/bachelor/radiologietechnologie"
+    assert section.sourcepage == "doc_id=page-812;parent_id=page-224"
+    assert section.title == "Radiologietechnologie"
+    assert section.url == "https://www.fhg-tirol.ac.at/page.cfm?vpath=studium/bachelor/radiologietechnologie"
+    assert section.tags == ["Radiologietechnologie", "Studiengang im Überblick"]
+    assert "degree_name: Radiologietechnologie (BSc)" in section.chunk.text
+    assert "content:\nErster Absatz.\n\nZweiter Absatz." in section.chunk.text
 
 
 def test_moodle_auto_indexer_warns_when_env_missing(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:

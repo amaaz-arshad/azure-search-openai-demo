@@ -878,6 +878,20 @@ async def test_remove_content_no_docs(monkeypatch, search_info):
     assert len(deleted_calls) == 0, "It should have made zero calls to delete_documents"
 
 
+def test_build_filter_can_match_exact_storage_url(search_info):
+    manager = SearchManager(search_info)
+
+    filter = manager.build_filter(
+        category="fhg",
+        storage_url="https://storage.example.com/content/fhg/o'brien.json",
+    )
+
+    assert (
+        filter
+        == "category eq 'fhg' and storageUrl eq 'https://storage.example.com/content/fhg/o''brien.json'"
+    )
+
+
 @pytest.mark.asyncio
 async def test_remove_content_only_oid(monkeypatch, search_info):
     search_results = AsyncSearchResultsIterator(

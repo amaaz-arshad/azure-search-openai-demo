@@ -44,6 +44,22 @@ SUBSCRIPTIONS = (
         "subject_prefix": "/blobServices/default/containers/content/blobs/nerilio/Nerilio-PublishOne/",
         "subject_suffix": ".xml",
     },
+    {
+        "name": "fhg-auto-indexer-create-sync",
+        "function_name": "fhg_auto_index",
+        "event_types": ("Microsoft.Storage.BlobCreated",),
+        "description": "FHG create/update",
+        "subject_prefix": "/blobServices/default/containers/content/blobs/nerilio/Nerilio-fhg/",
+        "subject_suffix": ".json",
+    },
+    {
+        "name": "fhg-auto-indexer-delete-sync",
+        "function_name": "fhg_delete_sync",
+        "event_types": ("Microsoft.Storage.BlobDeleted",),
+        "description": "FHG delete-sync",
+        "subject_prefix": "/blobServices/default/containers/content/blobs/nerilio/Nerilio-fhg/",
+        "subject_suffix": ".json",
+    },
 )
 
 

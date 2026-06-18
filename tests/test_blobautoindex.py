@@ -28,6 +28,9 @@ class MockBlobManager:
     async def download_blob(self, blob_name: str):
         return self.downloads.get(blob_name)
 
+    def url_for_blob_name(self, blob_name: str) -> str:
+        return f"https://storage.example.com/content/{blob_name}"
+
 
 class MockSearchManager:
     def __init__(self) -> None:
@@ -311,3 +314,76 @@ async def test_auto_blob_indexer_uses_custom_section_builder() -> None:
 
     assert result.status == "indexed"
     assert search_manager.updates[0]["sections"] == built_sections
+
+
+@pytest.mark.asyncio
+async def test_auto_blob_indexer_can_remove_by_storage_url_for_custom_sourcefiles() -> None:
+    built_sections = [object()]
+
+    async def custom_section_builder(*, file, file_processors, category):
+        return built_sections
+
+    blob_manager = MockBlobManager()
+    search_manager = MockSearchManager()
+    indexer = AutoBlobIndexer(
+        config=AutoBlobIndexerConfig(
+            trigger_container="content",
+            source_prefix="nerilio/Nerilio-fhg",
+            target_prefix="fhg",
+            category="fhg",
+            allowed_extensions=frozenset({".json"}),
+            remove_by_storage_url=True,
+        ),
+        blob_manager=blob_manager,
+        search_manager=search_manager,
+        file_processors={".json": object()},
+        section_builder=custom_section_builder,
+    )
+
+    result = await indexer.index_blob(
+        blob_name="content/nerilio/Nerilio-fhg/fhg.json",
+        content=b'{"documents":[]}',
+        content_type="application/json",
+    )
+
+    assert result.status == "indexed"
+    assert search_manager.removals == [
+        {
+            "path": None,
+            "category": "fhg",
+            "storage_url_suffix": "fhg/fhg.json",
+            "storage_url": "https://storage.example.com/content/fhg/fhg.json",
+        }
+    ]
+
+
+@pytest.mark.asyncio
+async def test_auto_blob_indexer_delete_can_remove_by_storage_url_for_custom_sourcefiles() -> None:
+    blob_manager = MockBlobManager()
+    search_manager = MockSearchManager()
+    indexer = AutoBlobIndexer(
+        config=AutoBlobIndexerConfig(
+            trigger_container="content",
+            source_prefix="nerilio/Nerilio-fhg",
+            target_prefix="fhg",
+            category="fhg",
+            allowed_extensions=frozenset({".json"}),
+            remove_by_storage_url=True,
+        ),
+        blob_manager=blob_manager,
+        search_manager=search_manager,
+        file_processors={".json": object()},
+    )
+
+    result = await indexer.delete_blob(blob_name="content/nerilio/Nerilio-fhg/fhg.json")
+
+    assert result.status == "deleted"
+    assert search_manager.removals == [
+        {
+            "path": None,
+            "category": "fhg",
+            "storage_url_suffix": "fhg/fhg.json",
+            "storage_url": "https://storage.example.com/content/fhg/fhg.json",
+        }
+    ]
+    assert blob_manager.removals == ["fhg/fhg.json"]
