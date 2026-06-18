@@ -9,7 +9,7 @@ import { UploadManagerModal } from "../../components/UploadManagerModal/UploadMa
 import { LoginButton } from "../../components/LoginButton";
 import nerilioLogo from "../../../nerilio/assets/robo1.png";
 import { LoginContext } from "../../loginContext";
-import { getCurrentProfile, logout, PublicTestProfile } from "../basicauth/basicAuth";
+import { getCurrentProfile, logout, FreeProfile } from "../basicauth/basicAuth";
 import styles from "./Layout.module.css";
 
 let globalClearChat: () => void = () => {};
@@ -27,7 +27,7 @@ const Layout = () => {
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [isProfileLoading, setIsProfileLoading] = useState(false);
     const [profileError, setProfileError] = useState("");
-    const [profile, setProfile] = useState<PublicTestProfile | null>(null);
+    const [profile, setProfile] = useState<FreeProfile | null>(null);
     const [recentChatsAction, setRecentChatsAction] = useState<{ run: () => void } | null>(null);
 
     useEffect(() => {

@@ -3,13 +3,13 @@ import { useMsal } from "@azure/msal-react";
 import { useLogin, checkLoggedIn } from "./authConfig";
 import { LoginContext } from "./loginContext";
 import BasicLogin from "./pages/basicauth/BasicLogin";
-import { getCurrentSession, PublicTestSession } from "./pages/basicauth/basicAuth";
+import { getCurrentSession, FreeSession } from "./pages/basicauth/basicAuth";
 import Layout from "./pages/layout/Layout";
 
 const LayoutWrapper = () => {
     const [loggedIn, setLoggedIn] = useState<boolean>(false);
     const [basicAuthenticated, setBasicAuthenticated] = useState<boolean>(false);
-    const [currentUser, setCurrentUser] = useState<PublicTestSession | null>(null);
+    const [currentUser, setCurrentUser] = useState<FreeSession | null>(null);
     const [isAuthResolved, setIsAuthResolved] = useState(false);
 
     useEffect(() => {
@@ -45,7 +45,7 @@ const LayoutWrapper = () => {
         };
     }, []);
 
-    const handleAuthSuccess = (session: PublicTestSession) => {
+    const handleAuthSuccess = (session: FreeSession) => {
         setBasicAuthenticated(true);
         setLoggedIn(true);
         setCurrentUser(session);

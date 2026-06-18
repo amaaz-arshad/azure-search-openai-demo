@@ -13,50 +13,53 @@ from config import (
     CONFIG_COSMOS_HISTORY_CONTAINER,
     CONFIG_COSMOS_HISTORY_VERSION,
     CONFIG_CREDENTIAL,
-    CONFIG_PUBLIC_TEST_AUTH_SERVICE,
+    CONFIG_FREE_AUTH_SERVICE,
     CONFIG_SIMPLE_CHATBOT_AUTH_SERVICE,
 )
-from core.publictestauth import PublicTestAuthStore
+from core.freeauth import FreeAuthStore
 from core.simplechatbotauth import SimpleChatbotAuthStore
 from decorators import authenticated
 from error import error_response
 
 chat_history_cosmosdb_bp = Blueprint("chat_history_cosmos", __name__, static_folder="static")
 
-PUBLIC_TEST_CHATBOT_NAME = "public-test"
-PUBLIC_TEST_ROUTE_CHATBOT_NAME = "free"
-PUBLIC_TEST_HISTORY_USER_PREFIX = "public-test:"
+# The Free Bot's chat history is scoped under its legacy "public-test" identifier. These VALUES
+# are intentionally kept ("public-test"/"public-test:") so existing CosmosDB history docs stay
+# addressable; only the route-facing name is "free". Renaming the VALUES would orphan all history.
+FREE_HISTORY_CHATBOT_NAME = "public-test"
+FREE_ROUTE_CHATBOT_NAME = "free"
+FREE_HISTORY_USER_PREFIX = "public-test:"
 RAK_CHATBOT_NAME = "rak"
 RAK_HISTORY_USER_PREFIX = "rak:"
 INTERNAL_ROUTER_CHATBOT_NAME = "internal"
 HYROX_ASSESSMENT_CHATBOT_NAME = "hyrox-assessment"
 INTERNAL_INVALID_SOURCE_BOTS = frozenset(
-    {INTERNAL_ROUTER_CHATBOT_NAME, PUBLIC_TEST_ROUTE_CHATBOT_NAME, RAK_CHATBOT_NAME, HYROX_ASSESSMENT_CHATBOT_NAME}
+    {INTERNAL_ROUTER_CHATBOT_NAME, FREE_ROUTE_CHATBOT_NAME, RAK_CHATBOT_NAME, HYROX_ASSESSMENT_CHATBOT_NAME}
 )
 
 
 def normalize_history_chatbot_name(chatbot_name: Any) -> str:
     normalized_chatbot_name = normalize_chatbot_name(chatbot_name)
-    if normalized_chatbot_name == PUBLIC_TEST_ROUTE_CHATBOT_NAME:
-        return PUBLIC_TEST_CHATBOT_NAME
+    if normalized_chatbot_name == FREE_ROUTE_CHATBOT_NAME:
+        return FREE_HISTORY_CHATBOT_NAME
     return normalized_chatbot_name or ""
 
 
 async def resolve_history_user_id(chatbot_name: str, auth_claims: dict[str, Any]) -> str | None:
     chatbot_name = normalize_history_chatbot_name(chatbot_name)
-    if chatbot_name == PUBLIC_TEST_CHATBOT_NAME:
-        auth_service = current_app.config.get(CONFIG_PUBLIC_TEST_AUTH_SERVICE)
+    if chatbot_name == FREE_HISTORY_CHATBOT_NAME:
+        auth_service = current_app.config.get(CONFIG_FREE_AUTH_SERVICE)
         if auth_service is None:
             return None
 
-        public_test_auth_service = auth_service
-        session = await public_test_auth_service.load_session(
-            request.cookies.get(public_test_auth_service.session_cookie_name)
+        free_auth_service = auth_service
+        session = await free_auth_service.load_session(
+            request.cookies.get(free_auth_service.session_cookie_name)
         )
         if session is None:
             return None
 
-        return f"{PUBLIC_TEST_HISTORY_USER_PREFIX}{PublicTestAuthStore.hash_email(session.email)}"
+        return f"{FREE_HISTORY_USER_PREFIX}{FreeAuthStore.hash_email(session.email)}"
 
     if chatbot_name == RAK_CHATBOT_NAME:
         auth_service = current_app.config.get(CONFIG_SIMPLE_CHATBOT_AUTH_SERVICE)

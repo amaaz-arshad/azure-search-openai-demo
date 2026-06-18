@@ -1,9 +1,9 @@
-export type PublicTestSession = {
+export type FreeSession = {
     displayName: string;
     email: string;
 };
 
-export type PublicTestProfile = PublicTestSession & {
+export type FreeProfile = FreeSession & {
     createdAt: string;
     updatedAt: string;
 };
@@ -11,7 +11,7 @@ export type PublicTestProfile = PublicTestSession & {
 type AuthResult =
     | {
           ok: true;
-          session: PublicTestSession;
+          session: FreeSession;
       }
     | {
           ok: false;
@@ -43,9 +43,9 @@ const normalizeEmail = (email: string) => email.trim().toLowerCase();
 
 const isEmailValid = (email: string) => emailPattern.test(normalizeEmail(email));
 
-let cachedSession: PublicTestSession | null | undefined = undefined;
+let cachedSession: FreeSession | null | undefined = undefined;
 
-const parseSession = (payload: unknown): PublicTestSession | null => {
+const parseSession = (payload: unknown): FreeSession | null => {
     if (
         !payload ||
         typeof payload !== "object" ||
@@ -61,7 +61,7 @@ const parseSession = (payload: unknown): PublicTestSession | null => {
     };
 };
 
-const parseProfile = (payload: unknown): PublicTestProfile | null => {
+const parseProfile = (payload: unknown): FreeProfile | null => {
     if (
         !payload ||
         typeof payload !== "object" ||
@@ -86,7 +86,7 @@ const readErrorKey = async (response: Response, fallbackErrorKey: string) => {
     return payload?.errorKey ?? fallbackErrorKey;
 };
 
-const readSessionResponse = async (response: Response): Promise<PublicTestSession | null> => {
+const readSessionResponse = async (response: Response): Promise<FreeSession | null> => {
     if (response.status === 401) {
         cachedSession = null;
         return null;
@@ -102,7 +102,7 @@ const readSessionResponse = async (response: Response): Promise<PublicTestSessio
     return session;
 };
 
-export const getCurrentSession = async (options?: { forceRefresh?: boolean }): Promise<PublicTestSession | null> => {
+export const getCurrentSession = async (options?: { forceRefresh?: boolean }): Promise<FreeSession | null> => {
     if (!options?.forceRefresh && cachedSession !== undefined) {
         return cachedSession;
     }
@@ -124,7 +124,7 @@ export const logout = async () => {
     }).catch(() => undefined);
 };
 
-export const getCurrentProfile = async (): Promise<PublicTestProfile> => {
+export const getCurrentProfile = async (): Promise<FreeProfile> => {
     const response = await fetch("/free-auth/profile", {
         method: "GET",
         credentials: "include"
@@ -464,5 +464,5 @@ export const login = async (email: string, password: string): Promise<AuthResult
     return { ok: true, session };
 };
 
-export const validatePublicTestEmail = (email: string) => isEmailValid(email);
+export const validateFreeEmail = (email: string) => isEmailValid(email);
 

@@ -215,26 +215,26 @@ async def test_chathistory_newitem_internal_stores_source_chatbot(auth_public_do
 
 
 @pytest.mark.asyncio
-async def test_chathistory_newitem_public_test_user_scope(auth_public_documents_client, monkeypatch):
-    public_test_history_user_id = f"public-test:{hashlib.sha256('person@example.com'.encode('utf-8')).hexdigest()}"
+async def test_chathistory_newitem_free_user_scope(auth_public_documents_client, monkeypatch):
+    free_history_user_id = f"public-test:{hashlib.sha256('person@example.com'.encode('utf-8')).hexdigest()}"
 
-    class FakePublicTestAuthService:
+    class FakeFreeAuthService:
         session_cookie_name = "public_test_session"
 
         async def load_session(self, _session_token):
             return SimpleNamespace(email="person@example.com")
 
-    auth_public_documents_client.app.config["public_test_auth_service"] = FakePublicTestAuthService()
+    auth_public_documents_client.app.config["public_test_auth_service"] = FakeFreeAuthService()
 
     async def mock_execute_item_batch(container_proxy, **kwargs):
         partition_key = kwargs["partition_key"]
-        assert partition_key == [public_test_history_user_id, "123"]
+        assert partition_key == [free_history_user_id, "123"]
         operations = kwargs["batch_operations"]
         session = operations[0][1][0]
-        assert session["entra_oid"] == public_test_history_user_id
+        assert session["entra_oid"] == free_history_user_id
         assert session["chatbot_name"] == "public-test"
         message = operations[1][1][0]
-        assert message["entra_oid"] == public_test_history_user_id
+        assert message["entra_oid"] == free_history_user_id
         assert message["chatbot_name"] == "public-test"
 
     monkeypatch.setattr(ContainerProxy, "execute_item_batch", mock_execute_item_batch)
@@ -412,22 +412,22 @@ async def test_chathistory_query_internal_filters_legacy_sessions_and_returns_me
 
 
 @pytest.mark.asyncio
-async def test_chathistory_query_public_test_user_scope(auth_public_documents_client, monkeypatch):
-    public_test_history_user_id = f"public-test:{hashlib.sha256('person@example.com'.encode('utf-8')).hexdigest()}"
+async def test_chathistory_query_free_user_scope(auth_public_documents_client, monkeypatch):
+    free_history_user_id = f"public-test:{hashlib.sha256('person@example.com'.encode('utf-8')).hexdigest()}"
 
-    class FakePublicTestAuthService:
+    class FakeFreeAuthService:
         session_cookie_name = "public_test_session"
 
         async def load_session(self, _session_token):
             return SimpleNamespace(email="person@example.com")
 
-    auth_public_documents_client.app.config["public_test_auth_service"] = FakePublicTestAuthService()
+    auth_public_documents_client.app.config["public_test_auth_service"] = FakeFreeAuthService()
 
     def mock_query_items(container_proxy, query, **kwargs):
         assert "c.chatbot_name = @chatbot_name" in query
-        assert kwargs["parameters"][0]["value"] == public_test_history_user_id
+        assert kwargs["parameters"][0]["value"] == free_history_user_id
         assert kwargs["parameters"][2]["value"] == "public-test"
-        assert kwargs["partition_key"] == [public_test_history_user_id]
+        assert kwargs["partition_key"] == [free_history_user_id]
         return MockCosmosDBResultsIterator(for_sessions_query)
 
     monkeypatch.setattr(ContainerProxy, "query_items", mock_query_items)

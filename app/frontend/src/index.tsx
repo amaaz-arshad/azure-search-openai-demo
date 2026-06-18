@@ -17,7 +17,7 @@ import { isEmbedMode } from "./chatbots/shared/embed/embedMode";
 import i18n from "./chatbots/nerilio/i18n/config";
 import ChatbotDirectory from "./pages/ChatbotDirectory";
 import ManagePromptsPage from "./pages/ManagePromptsPage";
-import PublicTestUsersPage from "./pages/PublicTestUsersPage";
+import FreeUsersPage from "./pages/FreeUsersPage";
 import UploadFilesPage from "./pages/UploadFilesPage";
 import {
     ConfigurePage,
@@ -90,7 +90,7 @@ const router = createBrowserRouter([
     },
     {
         path: "/free-users",
-        element: <PublicTestUsersPage />
+        element: <FreeUsersPage />
     },
     {
         path: "/public-test-users",

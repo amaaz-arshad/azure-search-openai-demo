@@ -14,7 +14,7 @@ import {
 import { useLogin, getToken, isUsingAppServicesLogin } from "../authConfig";
 import { getCurrentChatbotName } from "../../../chatHistoryScope";
 
-type PublicTestUserOptions = {
+type FreeUserOptions = {
     chatbotUser?: string;
 };
 
@@ -176,7 +176,7 @@ export async function uploadChatbotFilesApi(
     return (await response.json()) as ChatbotUploadResponse;
 }
 
-export async function listChatbotUploadedFilesApi(chatbotName: string, options?: PublicTestUserOptions): Promise<string[]> {
+export async function listChatbotUploadedFilesApi(chatbotName: string, options?: FreeUserOptions): Promise<string[]> {
     const headers: Record<string, string> = {};
     if (options?.chatbotUser) {
         headers["X-Chatbot-User"] = options.chatbotUser;
@@ -197,7 +197,7 @@ export async function listChatbotUploadedFilesApi(chatbotName: string, options?:
 export async function cancelChatbotUploadApi(
     chatbotName: string,
     uploadId: string,
-    options?: PublicTestUserOptions
+    options?: FreeUserOptions
 ): Promise<SimpleAPIResponse> {
     const headers: Record<string, string> = {};
     if (options?.chatbotUser) {
@@ -220,7 +220,7 @@ export async function cancelChatbotUploadApi(
 export async function deleteChatbotUploadedFileApi(
     chatbotName: string,
     filename: string,
-    options?: PublicTestUserOptions
+    options?: FreeUserOptions
 ): Promise<SimpleAPIResponse> {
     const headers: Record<string, string> = {};
     if (options?.chatbotUser) {
@@ -242,7 +242,7 @@ export async function deleteChatbotUploadedFileApi(
 
 export async function deleteAllChatbotUploadedFilesApi(
     chatbotName: string,
-    options?: PublicTestUserOptions
+    options?: FreeUserOptions
 ): Promise<ChatbotBulkDeleteResponse> {
     const headers: Record<string, string> = {};
     if (options?.chatbotUser) {

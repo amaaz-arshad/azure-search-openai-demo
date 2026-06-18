@@ -14,7 +14,7 @@ CHATBOT_PROMPT_MODULES = {
     "agindo": "approaches.chatbots.agindo.sampleprompt",
     "bensberg": "approaches.chatbots.bensberg.sampleprompt",
     "nerilio": "approaches.chatbots.nerilio.sampleprompt",
-    "free": "approaches.chatbots.public_test.sampleprompt",
+    "free": "approaches.chatbots.free.sampleprompt",
     "rak": "approaches.chatbots.rak.sampleprompt",
     "sartorius": "approaches.chatbots.sartorius.sampleprompt",
     "steuertipps": "approaches.chatbots.steuertipps.sampleprompt",

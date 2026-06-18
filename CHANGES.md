@@ -17,6 +17,47 @@ Two categories per date:
 
 ## 2026-06-18
 
+### Free Bot: finish the `public-test` → `free` code/folder rename (names only, persisted keys kept)
+
+#### Decisions
+
+- Scope confirmed with the user as **code & folder names only**: rename the source folder, Python
+  module, classes/functions, internal TS symbols, comments, and log text — but **leave every
+  persisted-state key and legacy route untouched** so live data and sessions stay stable. This is the
+  compatibility split the `public-test` contract in `CLAUDE.md` warns about; renaming the persisted
+  keys would orphan accounts/history or log users out.
+- Persisted VALUES kept exactly as-is (identifier *names* now say `free`, with explanatory comments):
+  blob container `"public-test-auth"`, session cookie `"public_test_session"`, serializer salt
+  `"public-test-auth-session"`, CosmosDB history scope id `"public-test"` and prefix `"public-test:"`,
+  the in-process app.config key value `"public_test_auth_service"`, all legacy `/public-test-*` routes
+  and the `/public-test` → `/free` redirect, the `KNOWN_CHATBOT_NAMES`/`EMBED_DEMO_EXCLUDED`/embed-id
+  `public-test` aliases, and per the user the infra `publicTest*` / `PUBLIC_TEST_SMTP_*` env vars.
+- Pre-existing, unrelated test failures left as-is (not caused by this change): `test_chatapproach.py`
+  ×2 (asserts old `info@snap.de` vs the bot's `hallo@nerilio.ai`) and `test_upload.py` ×6 (assert
+  stale `public-test/` upload paths; runtime already writes `free/` + a `MockBlobClient.delete_blob`
+  gap). Verified the failure set is unchanged before/after.
+
+#### Changes
+
+- Renamed (via `git mv`): `app/frontend/src/chatbots/public-test/` → `free/`;
+  `app/backend/core/publictestauth.py` → `core/freeauth.py`;
+  `app/backend/approaches/chatbots/public_test/` → `chatbots/free/`;
+  `pages/PublicTestUsersPage.tsx`(+`.module.css`) → `FreeUsersPage.*`;
+  `pages/publicTestUsersApi.ts` → `freeUsersApi.ts`; `tests/test_publictestauth.py` → `test_freeauth.py`.
+- Backend symbols: `PublicTestAuthStore`→`FreeAuthStore`, `PublicTestSession`→`FreeSession`,
+  `normalize_public_test_email`→`normalize_free_email`, `get_authenticated_public_test_user`→
+  `get_authenticated_free_user`, route handler fns `public_test_*`→`free_*`,
+  `CONFIG_PUBLIC_TEST_AUTH_SERVICE`→`CONFIG_FREE_AUTH_SERVICE` (value kept), app.py
+  `PUBLIC_TEST_CHATBOT_NAME`→`FREE_CHATBOT_NAME`, cosmosdb constants →
+  `FREE_HISTORY_CHATBOT_NAME`/`FREE_ROUTE_CHATBOT_NAME`/`FREE_HISTORY_USER_PREFIX` (values kept).
+- Registries: prompt module path → `approaches.chatbots.free.sampleprompt`; emptied
+  `CHATBOT_CONFIG_FOLDER_MAP` (folder now matches the name). Kept the `"public-test" → "free"` alias.
+- Frontend symbols inside `free/`: `PublicTestSession`/`PublicTestProfile`/`PublicTestUserOptions`/
+  `getPublicTestUserScope`/`validatePublicTestEmail` → `Free*`/`getFreeUserScope`/`validateFreeEmail`;
+  `registry.ts` import `./public-test` → `./free`; `index.tsx`/`FreeUsersPage`/`freeUsersApi` symbols.
+- Validation: backend pytest matched baseline (28 free/legacy app tests pass; app boots clean);
+  `npm run build` + `tsc --noEmit` pass; `ty` shows only pre-existing diagnostics.
+
 ### `bensberg`: Lemon-derived public Tutor + Q&A bot route
 
 #### Decisions

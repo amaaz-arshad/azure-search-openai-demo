@@ -43,9 +43,7 @@ def get_language_name(language_code: Optional[str]) -> str:
     return result
 
 # Maps chatbot names to their on-disk folder name when they differ.
-CHATBOT_CONFIG_FOLDER_MAP: dict[str, str] = {
-    "free": "public_test",
-}
+CHATBOT_CONFIG_FOLDER_MAP: dict[str, str] = {}
 
 
 @lru_cache(maxsize=None)

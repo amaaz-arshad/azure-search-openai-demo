@@ -1,4 +1,4 @@
-export type PublicTestAdminUser = {
+export type FreeAdminUser = {
     displayName: string;
     email: string;
     createdAt: string;
@@ -7,17 +7,17 @@ export type PublicTestAdminUser = {
     uploadedFiles: string[];
 };
 
-export type PublicTestAdminUsersResponse = {
-    users: PublicTestAdminUser[];
+export type FreeAdminUsersResponse = {
+    users: FreeAdminUser[];
 };
 
-type PublicTestDeleteUserResponse = {
+type FreeDeleteUserResponse = {
     message?: string;
     deletedUploadCount?: number;
     failedUploads?: { filename?: string; message?: string }[];
 };
 
-type PublicTestResetPasswordResponse = {
+type FreeResetPasswordResponse = {
     message?: string;
     email?: string;
     updatedAt?: string;
@@ -28,7 +28,7 @@ async function parseErrorMessage(response: Response, fallbackMessage: string): P
     throw new Error(errorBody?.message || fallbackMessage);
 }
 
-export async function listPublicTestUsersApi(signal?: AbortSignal): Promise<PublicTestAdminUsersResponse> {
+export async function listFreeUsersApi(signal?: AbortSignal): Promise<FreeAdminUsersResponse> {
     const response = await fetch("/free-admin/users", {
         method: "GET",
         signal
@@ -38,10 +38,10 @@ export async function listPublicTestUsersApi(signal?: AbortSignal): Promise<Publ
         await parseErrorMessage(response, `Listing nerilio users failed: ${response.statusText}`);
     }
 
-    return (await response.json()) as PublicTestAdminUsersResponse;
+    return (await response.json()) as FreeAdminUsersResponse;
 }
 
-export async function deletePublicTestUserApi(email: string): Promise<PublicTestDeleteUserResponse> {
+export async function deleteFreeUserApi(email: string): Promise<FreeDeleteUserResponse> {
     const response = await fetch(`/free-admin/users/${encodeURIComponent(email)}`, {
         method: "DELETE"
     });
@@ -50,14 +50,14 @@ export async function deletePublicTestUserApi(email: string): Promise<PublicTest
         await parseErrorMessage(response, `Deleting nerilio user failed: ${response.statusText}`);
     }
 
-    return (await response.json()) as PublicTestDeleteUserResponse;
+    return (await response.json()) as FreeDeleteUserResponse;
 }
 
-export async function resetPublicTestUserPasswordApi(
+export async function resetFreeUserPasswordApi(
     email: string,
     password: string,
     confirmPassword: string
-): Promise<PublicTestResetPasswordResponse> {
+): Promise<FreeResetPasswordResponse> {
     const response = await fetch(`/free-admin/users/${encodeURIComponent(email)}/password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -68,6 +68,6 @@ export async function resetPublicTestUserPasswordApi(
         await parseErrorMessage(response, `Resetting nerilio user password failed: ${response.statusText}`);
     }
 
-    return (await response.json()) as PublicTestResetPasswordResponse;
+    return (await response.json()) as FreeResetPasswordResponse;
 }
 

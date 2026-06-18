@@ -12,7 +12,7 @@ import { knollChatbot } from "./knoll";
 import { lemonChatbot } from "./lemon";
 import { moodleChatbot } from "./moodle";
 import { nerilioChatbot } from "./nerilio";
-import { freeChatbot } from "./public-test";
+import { freeChatbot } from "./free";
 import { publishoneChatbot } from "./publishone";
 import { rakChatbot } from "./rak";
 import { sartoriusChatbot } from "./sartorius";

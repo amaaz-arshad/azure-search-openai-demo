@@ -6,7 +6,7 @@ import { CosmosDBProvider } from "./CosmosDB";
 import { getChatHistoryScope } from "../../../../chatHistoryScope";
 import { LoginContext } from "../../loginContext";
 
-const getPublicTestUserScope = (email: string | null | undefined) => {
+const getFreeUserScope = (email: string | null | undefined) => {
     const normalizedEmail = (email || "").trim().toLowerCase();
     if (!normalizedEmail) {
         return "anonymous";
@@ -21,7 +21,7 @@ export const useHistoryManager = (provider: HistoryProviderOptions): IHistoryPro
     const providerInstance = useMemo(() => {
         switch (provider) {
             case HistoryProviderOptions.IndexedDB:
-                return new IndexedDBProvider(`chat-database-${getChatHistoryScope()}-${getPublicTestUserScope(currentUser?.email)}`, "chat-history");
+                return new IndexedDBProvider(`chat-database-${getChatHistoryScope()}-${getFreeUserScope(currentUser?.email)}`, "chat-history");
             case HistoryProviderOptions.CosmosDB:
                 return new CosmosDBProvider();
             case HistoryProviderOptions.None:

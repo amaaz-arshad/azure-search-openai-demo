@@ -2,11 +2,11 @@ from unittest import mock
 
 import pytest
 
-from core.publictestauth import PUBLIC_TEST_EMAIL_LOGO_CID, PublicTestAuthStore
+from core.freeauth import FREE_EMAIL_LOGO_CID, FreeAuthStore
 
 
-def build_auth_store() -> PublicTestAuthStore:
-    return PublicTestAuthStore(
+def build_auth_store() -> FreeAuthStore:
+    return FreeAuthStore(
         blob_manager=mock.Mock(),
         session_secret="test-secret",
         smtp_host="smtp.example.com",
@@ -39,8 +39,8 @@ async def test_verification_email_is_german_and_branded(monkeypatch):
     assert "deine E-Mail-Adresse für dein nerilio-Konto zu bestätigen" in plain_body
     assert "123456" in plain_body
     assert "nerilio" in html_body
-    assert f"cid:{PUBLIC_TEST_EMAIL_LOGO_CID}" in html_body
-    assert f"Content-ID: <{PUBLIC_TEST_EMAIL_LOGO_CID}>" in raw_message
+    assert f"cid:{FREE_EMAIL_LOGO_CID}" in html_body
+    assert f"Content-ID: <{FREE_EMAIL_LOGO_CID}>" in raw_message
     assert "Nerilio Bot" not in raw_message
 
 

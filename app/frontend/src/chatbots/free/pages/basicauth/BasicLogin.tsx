@@ -7,7 +7,7 @@ import sharedStyles from "../../../shared/basicauth/BasicLoginPage.module.css";
 import styles from "./BasicLogin.module.css";
 import {
     login,
-    PublicTestSession,
+    FreeSession,
     requestPasswordReset,
     resendPasswordResetCode,
     resendSignUpCode,
@@ -20,7 +20,7 @@ type Mode = "login" | "signup" | "reset";
 type SignupStage = "details" | "verify";
 type ResetStage = "request" | "verify";
 
-const BasicLogin = ({ onSuccess }: { onSuccess: (session: PublicTestSession) => void }) => {
+const BasicLogin = ({ onSuccess }: { onSuccess: (session: FreeSession) => void }) => {
     const { t } = useTranslation();
     const [mode, setMode] = useState<Mode>("login");
     const [signupStage, setSignupStage] = useState<SignupStage>("details");

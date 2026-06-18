@@ -24,21 +24,25 @@ from prepdocslib.blobmanager import BlobManager
 
 logger = logging.getLogger("scripts")
 
-PUBLIC_TEST_AUTH_CONTAINER = "public-test-auth"
-PUBLIC_TEST_AUTH_COOKIE = "public_test_session"
-PUBLIC_TEST_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7
-PUBLIC_TEST_PASSWORD_HASH_ITERATIONS = 600_000
-PUBLIC_TEST_SESSION_SECRET_BLOB = "session-secret.txt"
-PUBLIC_TEST_VERIFICATION_CODE_TTL_SECONDS = 15 * 60
-PUBLIC_TEST_VERIFICATION_RESEND_INTERVAL_SECONDS = 45
-PUBLIC_TEST_VERIFICATION_MAX_ATTEMPTS = 5
-PUBLIC_TEST_PASSWORD_MIN_LENGTH = 8
-PUBLIC_TEST_EMAIL_BRAND_NAME = "nerilio"
-PUBLIC_TEST_EMAIL_LOGO_CID = "nerilio-logo"
+# Legacy persisted namespaces for the Free Bot. The string VALUES below intentionally keep their
+# original "public-test" naming for backward compatibility: the blob container holds every
+# registered account and the cookie name identifies live sessions. Renaming either VALUE would
+# orphan all existing accounts / log every user out, so only the identifier names are "free".
+FREE_AUTH_CONTAINER = "public-test-auth"
+FREE_AUTH_COOKIE = "public_test_session"
+FREE_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7
+FREE_PASSWORD_HASH_ITERATIONS = 600_000
+FREE_SESSION_SECRET_BLOB = "session-secret.txt"
+FREE_VERIFICATION_CODE_TTL_SECONDS = 15 * 60
+FREE_VERIFICATION_RESEND_INTERVAL_SECONDS = 45
+FREE_VERIFICATION_MAX_ATTEMPTS = 5
+FREE_PASSWORD_MIN_LENGTH = 8
+FREE_EMAIL_BRAND_NAME = "nerilio"
+FREE_EMAIL_LOGO_CID = "nerilio-logo"
 
 
 @dataclass(frozen=True)
-class PublicTestAccount:
+class FreeAccount:
     display_name: str
     email: str
     password_salt: str
@@ -48,7 +52,7 @@ class PublicTestAccount:
 
 
 @dataclass(frozen=True)
-class PendingPublicTestSignup:
+class PendingFreeSignup:
     display_name: str
     email: str
     password_salt: str
@@ -64,7 +68,7 @@ class PendingPublicTestSignup:
 
 
 @dataclass(frozen=True)
-class PendingPublicTestPasswordReset:
+class PendingFreePasswordReset:
     email: str
     verification_salt: str
     verification_hash: str
@@ -77,25 +81,25 @@ class PendingPublicTestPasswordReset:
 
 
 @dataclass(frozen=True)
-class PublicTestSession:
+class FreeSession:
     display_name: str
     email: str
 
 
 @dataclass(frozen=True)
-class PublicTestVerificationChallenge:
+class FreeVerificationChallenge:
     email: str
     expires_in_seconds: int
 
 
-class PublicTestAuthError(Exception):
+class FreeAuthError(Exception):
     def __init__(self, error_key: str, status_code: int = 400):
         super().__init__(error_key)
         self.error_key = error_key
         self.status_code = status_code
 
 
-def normalize_public_test_email(raw_email: str | None) -> str | None:
+def normalize_free_email(raw_email: str | None) -> str | None:
     normalized_email = (raw_email or "").strip().lower()
     if not normalized_email:
         return None
@@ -116,7 +120,7 @@ def parse_utc(value: str) -> datetime:
     return datetime.fromisoformat(value).astimezone(timezone.utc)
 
 
-class PublicTestAuthStore:
+class FreeAuthStore:
     def __init__(
         self,
         *,
@@ -127,10 +131,10 @@ class PublicTestAuthStore:
         smtp_username: str | None,
         smtp_password: str | None,
         email_from: str | None,
-        email_from_name: str = PUBLIC_TEST_EMAIL_BRAND_NAME,
-        auth_container: str = PUBLIC_TEST_AUTH_CONTAINER,
-        session_cookie_name: str = PUBLIC_TEST_AUTH_COOKIE,
-        session_max_age_seconds: int = PUBLIC_TEST_SESSION_MAX_AGE_SECONDS,
+        email_from_name: str = FREE_EMAIL_BRAND_NAME,
+        auth_container: str = FREE_AUTH_CONTAINER,
+        session_cookie_name: str = FREE_AUTH_COOKIE,
+        session_max_age_seconds: int = FREE_SESSION_MAX_AGE_SECONDS,
         running_in_production: bool = False,
     ):
         self.blob_manager = blob_manager
@@ -144,13 +148,14 @@ class PublicTestAuthStore:
         self.smtp_username = (smtp_username or "").strip()
         self.smtp_password = smtp_password or ""
         self.email_from = (email_from or "").strip()
-        self.email_from_name = (email_from_name.strip() or PUBLIC_TEST_EMAIL_BRAND_NAME).replace(
-            "Nerilio Bot", PUBLIC_TEST_EMAIL_BRAND_NAME
+        self.email_from_name = (email_from_name.strip() or FREE_EMAIL_BRAND_NAME).replace(
+            "Nerilio Bot", FREE_EMAIL_BRAND_NAME
         )
         self.running_in_production = running_in_production
 
     async def setup(self):
         self.session_secret = await self.resolve_session_secret()
+        # Legacy serializer salt — kept as-is so existing signed session cookies stay valid.
         self.session_serializer = URLSafeTimedSerializer(self.session_secret, salt="public-test-auth-session")
 
     @staticmethod
@@ -164,7 +169,7 @@ class PublicTestAuthStore:
             "sha256",
             secret_value.encode("utf-8"),
             actual_salt,
-            PUBLIC_TEST_PASSWORD_HASH_ITERATIONS,
+            FREE_PASSWORD_HASH_ITERATIONS,
         )
         salt_token = base64.urlsafe_b64encode(actual_salt).decode("ascii")
         value_hash_token = base64.urlsafe_b64encode(value_hash).decode("ascii")
@@ -177,13 +182,13 @@ class PublicTestAuthStore:
         except Exception:
             return False
 
-        _, computed_hash_token = PublicTestAuthStore.build_secret_hash(secret_value, salt=salt)
+        _, computed_hash_token = FreeAuthStore.build_secret_hash(secret_value, salt=salt)
         return hmac.compare_digest(computed_hash_token, hash_token)
 
     @staticmethod
     def validate_password_requirements(password: str) -> None:
-        if len(password) < PUBLIC_TEST_PASSWORD_MIN_LENGTH:
-            raise PublicTestAuthError("authErrors.passwordTooShort")
+        if len(password) < FREE_PASSWORD_MIN_LENGTH:
+            raise FreeAuthError("authErrors.passwordTooShort")
 
     def get_account_blob_name(self, email: str) -> str:
         return f"accounts/{self.hash_email(email)}.json"
@@ -205,13 +210,13 @@ class PublicTestAuthStore:
             return self.session_secret
 
         logger.warning(
-            "AZURE_SERVER_APP_SECRET is not set. Falling back to a blob-backed shared session secret for public-test."
+            "AZURE_SERVER_APP_SECRET is not set. Falling back to a blob-backed shared session secret for free."
         )
         container_client = await self.ensure_container_exists()
-        blob_client = container_client.get_blob_client(PUBLIC_TEST_SESSION_SECRET_BLOB)
+        blob_client = container_client.get_blob_client(FREE_SESSION_SECRET_BLOB)
 
         download_response = await self.blob_manager.download_blob(
-            PUBLIC_TEST_SESSION_SECRET_BLOB,
+            FREE_SESSION_SECRET_BLOB,
             container=self.auth_container,
         )
         if download_response is not None:
@@ -230,20 +235,20 @@ class PublicTestAuthStore:
             return generated_secret
         except ResourceExistsError:
             download_response = await self.blob_manager.download_blob(
-                PUBLIC_TEST_SESSION_SECRET_BLOB,
+                FREE_SESSION_SECRET_BLOB,
                 container=self.auth_container,
             )
             if download_response is None:
-                raise RuntimeError("Unable to resolve public-test session secret from shared storage")
+                raise RuntimeError("Unable to resolve free session secret from shared storage")
             content, _properties = download_response
             persisted_secret = content.decode("utf-8").strip()
             if not persisted_secret:
-                raise RuntimeError("Persisted public-test session secret is empty")
+                raise RuntimeError("Persisted free session secret is empty")
             return persisted_secret
 
     def get_session_serializer(self) -> URLSafeTimedSerializer:
         if self.session_serializer is None:
-            raise RuntimeError("Public-test auth store has not been initialized")
+            raise RuntimeError("Free auth store has not been initialized")
         return self.session_serializer
 
     async def load_json_blob(self, blob_name: str) -> dict | None:
@@ -278,8 +283,8 @@ class PublicTestAuthStore:
         except ResourceNotFoundError:
             logger.debug("Blob already removed from %s: %s", self.auth_container, blob_name)
 
-    async def load_account(self, email: str) -> PublicTestAccount | None:
-        normalized_email = normalize_public_test_email(email)
+    async def load_account(self, email: str) -> FreeAccount | None:
+        normalized_email = normalize_free_email(email)
         if normalized_email is None:
             return None
 
@@ -296,10 +301,10 @@ class PublicTestAuthStore:
             "updated_at",
         }
         if not required_fields.issubset(payload):
-            logger.warning("Incomplete public-test account payload for email %s", normalized_email)
+            logger.warning("Incomplete free account payload for email %s", normalized_email)
             return None
 
-        return PublicTestAccount(
+        return FreeAccount(
             display_name=str(payload["display_name"]).strip(),
             email=str(payload["email"]).strip().lower(),
             password_salt=str(payload["password_salt"]),
@@ -308,8 +313,8 @@ class PublicTestAuthStore:
             updated_at=str(payload["updated_at"]),
         )
 
-    async def load_pending_signup(self, email: str) -> PendingPublicTestSignup | None:
-        normalized_email = normalize_public_test_email(email)
+    async def load_pending_signup(self, email: str) -> PendingFreeSignup | None:
+        normalized_email = normalize_free_email(email)
         if normalized_email is None:
             return None
 
@@ -335,7 +340,7 @@ class PublicTestAuthStore:
             logger.warning("Incomplete pending signup payload for email %s", normalized_email)
             return None
 
-        return PendingPublicTestSignup(
+        return PendingFreeSignup(
             display_name=str(payload["display_name"]).strip(),
             email=str(payload["email"]).strip().lower(),
             password_salt=str(payload["password_salt"]),
@@ -350,17 +355,17 @@ class PublicTestAuthStore:
             failed_attempts=int(payload["failed_attempts"]),
         )
 
-    async def save_pending_signup(self, pending_signup: PendingPublicTestSignup) -> None:
+    async def save_pending_signup(self, pending_signup: PendingFreeSignup) -> None:
         await self.save_json_blob(self.get_pending_signup_blob_name(pending_signup.email), asdict(pending_signup))
 
     async def delete_pending_signup(self, email: str) -> None:
-        normalized_email = normalize_public_test_email(email)
+        normalized_email = normalize_free_email(email)
         if normalized_email is None:
             return
         await self.delete_blob_if_exists(self.get_pending_signup_blob_name(normalized_email))
 
-    async def load_pending_password_reset(self, email: str) -> PendingPublicTestPasswordReset | None:
-        normalized_email = normalize_public_test_email(email)
+    async def load_pending_password_reset(self, email: str) -> PendingFreePasswordReset | None:
+        normalized_email = normalize_free_email(email)
         if normalized_email is None:
             return None
 
@@ -383,7 +388,7 @@ class PublicTestAuthStore:
             logger.warning("Incomplete pending password reset payload for email %s", normalized_email)
             return None
 
-        return PendingPublicTestPasswordReset(
+        return PendingFreePasswordReset(
             email=str(payload["email"]).strip().lower(),
             verification_salt=str(payload["verification_salt"]),
             verification_hash=str(payload["verification_hash"]),
@@ -395,19 +400,19 @@ class PublicTestAuthStore:
             failed_attempts=int(payload["failed_attempts"]),
         )
 
-    async def save_pending_password_reset(self, pending_password_reset: PendingPublicTestPasswordReset) -> None:
+    async def save_pending_password_reset(self, pending_password_reset: PendingFreePasswordReset) -> None:
         await self.save_json_blob(
             self.get_pending_password_reset_blob_name(pending_password_reset.email),
             asdict(pending_password_reset),
         )
 
     async def delete_pending_password_reset(self, email: str) -> None:
-        normalized_email = normalize_public_test_email(email)
+        normalized_email = normalize_free_email(email)
         if normalized_email is None:
             return
         await self.delete_blob_if_exists(self.get_pending_password_reset_blob_name(normalized_email))
 
-    async def save_account(self, account: PublicTestAccount) -> None:
+    async def save_account(self, account: FreeAccount) -> None:
         container_client = await self.ensure_container_exists()
         try:
             await container_client.upload_blob(
@@ -417,11 +422,11 @@ class PublicTestAuthStore:
                 content_settings=ContentSettings(content_type="application/json"),
             )
         except ResourceExistsError as resource_exists_error:
-            raise PublicTestAuthError("authErrors.accountExists") from resource_exists_error
+            raise FreeAuthError("authErrors.accountExists") from resource_exists_error
 
-    async def list_accounts(self) -> list[PublicTestAccount]:
+    async def list_accounts(self) -> list[FreeAccount]:
         container_client = await self.ensure_container_exists()
-        accounts: list[PublicTestAccount] = []
+        accounts: list[FreeAccount] = []
         async for blob in container_client.list_blobs(name_starts_with="accounts/"):
             blob_name = getattr(blob, "name", None)
             if not blob_name:
@@ -439,11 +444,11 @@ class PublicTestAuthStore:
                 "updated_at",
             }
             if not required_fields.issubset(payload):
-                logger.warning("Incomplete public-test account payload in blob %s", blob_name)
+                logger.warning("Incomplete free account payload in blob %s", blob_name)
                 continue
 
             accounts.append(
-                PublicTestAccount(
+                FreeAccount(
                     display_name=str(payload["display_name"]).strip(),
                     email=str(payload["email"]).strip().lower(),
                     password_salt=str(payload["password_salt"]),
@@ -456,7 +461,7 @@ class PublicTestAuthStore:
         return sorted(accounts, key=lambda account: account.updated_at, reverse=True)
 
     async def delete_account(self, email: str) -> bool:
-        normalized_email = normalize_public_test_email(email)
+        normalized_email = normalize_free_email(email)
         if normalized_email is None:
             return False
 
@@ -472,24 +477,24 @@ class PublicTestAuthStore:
         email: str,
         password: str,
         confirm_password: str,
-    ) -> PublicTestAccount:
-        normalized_email = normalize_public_test_email(email)
+    ) -> FreeAccount:
+        normalized_email = normalize_free_email(email)
         if normalized_email is None:
-            raise PublicTestAuthError("authErrors.invalidEmail")
+            raise FreeAuthError("authErrors.invalidEmail")
         if not password:
-            raise PublicTestAuthError("authErrors.passwordRequired")
+            raise FreeAuthError("authErrors.passwordRequired")
         self.validate_password_requirements(password)
         if not confirm_password:
-            raise PublicTestAuthError("authErrors.confirmPasswordRequired")
+            raise FreeAuthError("authErrors.confirmPasswordRequired")
         if password != confirm_password:
-            raise PublicTestAuthError("authErrors.passwordMismatch")
+            raise FreeAuthError("authErrors.passwordMismatch")
 
         account = await self.load_account(normalized_email)
         if account is None:
-            raise PublicTestAuthError("authErrors.invalidCredentials", status_code=404)
+            raise FreeAuthError("authErrors.invalidCredentials", status_code=404)
 
         password_salt, password_hash = self.build_secret_hash(password)
-        updated_account = PublicTestAccount(
+        updated_account = FreeAccount(
             display_name=account.display_name,
             email=account.email,
             password_salt=password_salt,
@@ -504,10 +509,10 @@ class PublicTestAuthStore:
     def generate_verification_code(self) -> str:
         return f"{secrets.randbelow(1_000_000):06d}"
 
-    def build_verification_challenge(self, email: str) -> PublicTestVerificationChallenge:
-        return PublicTestVerificationChallenge(
+    def build_verification_challenge(self, email: str) -> FreeVerificationChallenge:
+        return FreeVerificationChallenge(
             email=email,
-            expires_in_seconds=PUBLIC_TEST_VERIFICATION_CODE_TTL_SECONDS,
+            expires_in_seconds=FREE_VERIFICATION_CODE_TTL_SECONDS,
         )
 
     @staticmethod
@@ -553,7 +558,7 @@ class PublicTestAuthStore:
         try:
             return logo_path.read_bytes(), image_subtype
         except OSError:
-            logger.warning("Unable to read public-test email logo from %s", logo_path)
+            logger.warning("Unable to read free email logo from %s", logo_path)
             return None
 
     @staticmethod
@@ -562,7 +567,7 @@ class PublicTestAuthStore:
         escaped_intro = html.escape(intro)
         escaped_code = html.escape(verification_code)
         logo_html = (
-            f'<img src="cid:{PUBLIC_TEST_EMAIL_LOGO_CID}" alt="nerilio" width="76" '
+            f'<img src="cid:{FREE_EMAIL_LOGO_CID}" alt="nerilio" width="76" '
             'style="display:block;width:76px;max-width:76px;height:auto;margin:0 auto 18px;" />'
             if include_logo
             else ""
@@ -646,7 +651,7 @@ class PublicTestAuthStore:
                 logo_bytes,
                 maintype="image",
                 subtype=image_subtype,
-                cid=f"<{PUBLIC_TEST_EMAIL_LOGO_CID}>",
+                cid=f"<{FREE_EMAIL_LOGO_CID}>",
                 filename="nerilio.png",
             )
 
@@ -655,13 +660,13 @@ class PublicTestAuthStore:
     async def send_verification_email(self, email: str, verification_code: str) -> None:
         if not self.smtp_host or not self.email_from:
             message = (
-                "Public-test verification email requested, but SMTP is not configured."
+                "Free verification email requested, but SMTP is not configured."
                 if self.running_in_production
                 else f"nerilio verification code for {email}: {verification_code}"
             )
             if self.running_in_production:
                 logger.error(message)
-                raise PublicTestAuthError("authErrors.verificationEmailUnavailable", status_code=503)
+                raise FreeAuthError("authErrors.verificationEmailUnavailable", status_code=503)
             logger.warning(message)
             return
 
@@ -675,22 +680,22 @@ class PublicTestAuthStore:
 
         try:
             await asyncio.to_thread(self.send_email_sync, email_message)
-        except PublicTestAuthError:
+        except FreeAuthError:
             raise
         except Exception as error:
-            logger.exception("Failed to send public-test verification email to %s", email)
-            raise PublicTestAuthError("authErrors.verificationEmailFailed", status_code=503) from error
+            logger.exception("Failed to send free verification email to %s", email)
+            raise FreeAuthError("authErrors.verificationEmailFailed", status_code=503) from error
 
     async def send_password_reset_email(self, email: str, verification_code: str) -> None:
         if not self.smtp_host or not self.email_from:
             message = (
-                "Public-test password reset email requested, but SMTP is not configured."
+                "Free password reset email requested, but SMTP is not configured."
                 if self.running_in_production
                 else f"nerilio password reset code for {email}: {verification_code}"
             )
             if self.running_in_production:
                 logger.error(message)
-                raise PublicTestAuthError("authErrors.verificationEmailUnavailable", status_code=503)
+                raise FreeAuthError("authErrors.verificationEmailUnavailable", status_code=503)
             logger.warning(message)
             return
 
@@ -704,11 +709,11 @@ class PublicTestAuthStore:
 
         try:
             await asyncio.to_thread(self.send_email_sync, email_message)
-        except PublicTestAuthError:
+        except FreeAuthError:
             raise
         except Exception as error:
-            logger.exception("Failed to send public-test password reset email to %s", email)
-            raise PublicTestAuthError("authErrors.verificationEmailFailed", status_code=503) from error
+            logger.exception("Failed to send free password reset email to %s", email)
+            raise FreeAuthError("authErrors.verificationEmailFailed", status_code=503) from error
 
     def send_email_sync(self, email_message: EmailMessage) -> None:
         ssl_context = ssl.create_default_context()
@@ -733,31 +738,31 @@ class PublicTestAuthStore:
         email: str,
         password: str,
         confirm_password: str,
-    ) -> PublicTestVerificationChallenge:
+    ) -> FreeVerificationChallenge:
         normalized_display_name = display_name.strip()
-        normalized_email = normalize_public_test_email(email)
+        normalized_email = normalize_free_email(email)
 
         if not normalized_display_name:
-            raise PublicTestAuthError("authErrors.displayNameRequired")
+            raise FreeAuthError("authErrors.displayNameRequired")
         if normalized_email is None:
             if not (email or "").strip():
-                raise PublicTestAuthError("authErrors.emailRequired")
-            raise PublicTestAuthError("authErrors.invalidEmail")
+                raise FreeAuthError("authErrors.emailRequired")
+            raise FreeAuthError("authErrors.invalidEmail")
         if not password:
-            raise PublicTestAuthError("authErrors.passwordRequired")
+            raise FreeAuthError("authErrors.passwordRequired")
         self.validate_password_requirements(password)
         if not confirm_password:
-            raise PublicTestAuthError("authErrors.confirmPasswordRequired")
+            raise FreeAuthError("authErrors.confirmPasswordRequired")
         if password != confirm_password:
-            raise PublicTestAuthError("authErrors.passwordMismatch")
+            raise FreeAuthError("authErrors.passwordMismatch")
         if await self.load_account(normalized_email):
-            raise PublicTestAuthError("authErrors.accountExists")
+            raise FreeAuthError("authErrors.accountExists")
 
         verification_code = self.generate_verification_code()
         password_salt, password_hash = self.build_secret_hash(password)
         verification_salt, verification_hash = self.build_secret_hash(verification_code)
         now = datetime.now(timezone.utc)
-        pending_signup = PendingPublicTestSignup(
+        pending_signup = PendingFreeSignup(
             display_name=normalized_display_name,
             email=normalized_email,
             password_salt=password_salt,
@@ -766,7 +771,7 @@ class PublicTestAuthStore:
             verification_hash=verification_hash,
             created_at=format_utc(now),
             updated_at=format_utc(now),
-            expires_at=format_utc(now + timedelta(seconds=PUBLIC_TEST_VERIFICATION_CODE_TTL_SECONDS)),
+            expires_at=format_utc(now + timedelta(seconds=FREE_VERIFICATION_CODE_TTL_SECONDS)),
             last_sent_at=format_utc(now),
             send_count=1,
             failed_attempts=0,
@@ -775,28 +780,28 @@ class PublicTestAuthStore:
         await self.send_verification_email(normalized_email, verification_code)
         return self.build_verification_challenge(normalized_email)
 
-    async def resend_signup_code(self, *, email: str) -> PublicTestVerificationChallenge:
-        normalized_email = normalize_public_test_email(email)
+    async def resend_signup_code(self, *, email: str) -> FreeVerificationChallenge:
+        normalized_email = normalize_free_email(email)
         if normalized_email is None:
-            raise PublicTestAuthError("authErrors.invalidEmail")
+            raise FreeAuthError("authErrors.invalidEmail")
 
         pending_signup = await self.load_pending_signup(normalized_email)
         if pending_signup is None:
-            raise PublicTestAuthError("authErrors.verificationSessionNotFound", status_code=404)
+            raise FreeAuthError("authErrors.verificationSessionNotFound", status_code=404)
         if await self.load_account(normalized_email):
             await self.delete_pending_signup(normalized_email)
-            raise PublicTestAuthError("authErrors.accountExists")
+            raise FreeAuthError("authErrors.accountExists")
 
         now = datetime.now(timezone.utc)
         if (
-            parse_utc(pending_signup.last_sent_at) + timedelta(seconds=PUBLIC_TEST_VERIFICATION_RESEND_INTERVAL_SECONDS)
+            parse_utc(pending_signup.last_sent_at) + timedelta(seconds=FREE_VERIFICATION_RESEND_INTERVAL_SECONDS)
             > now
         ):
-            raise PublicTestAuthError("authErrors.verificationResendTooSoon", status_code=429)
+            raise FreeAuthError("authErrors.verificationResendTooSoon", status_code=429)
 
         verification_code = self.generate_verification_code()
         verification_salt, verification_hash = self.build_secret_hash(verification_code)
-        refreshed_pending_signup = PendingPublicTestSignup(
+        refreshed_pending_signup = PendingFreeSignup(
             display_name=pending_signup.display_name,
             email=pending_signup.email,
             password_salt=pending_signup.password_salt,
@@ -805,7 +810,7 @@ class PublicTestAuthStore:
             verification_hash=verification_hash,
             created_at=pending_signup.created_at,
             updated_at=format_utc(now),
-            expires_at=format_utc(now + timedelta(seconds=PUBLIC_TEST_VERIFICATION_CODE_TTL_SECONDS)),
+            expires_at=format_utc(now + timedelta(seconds=FREE_VERIFICATION_CODE_TTL_SECONDS)),
             last_sent_at=format_utc(now),
             send_count=pending_signup.send_count + 1,
             failed_attempts=0,
@@ -814,36 +819,36 @@ class PublicTestAuthStore:
         await self.send_verification_email(normalized_email, verification_code)
         return self.build_verification_challenge(normalized_email)
 
-    async def verify_signup(self, *, email: str, verification_code: str) -> PublicTestSession:
-        normalized_email = normalize_public_test_email(email)
+    async def verify_signup(self, *, email: str, verification_code: str) -> FreeSession:
+        normalized_email = normalize_free_email(email)
         normalized_code = (verification_code or "").strip()
         if normalized_email is None:
-            raise PublicTestAuthError("authErrors.invalidEmail")
+            raise FreeAuthError("authErrors.invalidEmail")
         if not normalized_code:
-            raise PublicTestAuthError("authErrors.verificationCodeRequired")
+            raise FreeAuthError("authErrors.verificationCodeRequired")
 
         pending_signup = await self.load_pending_signup(normalized_email)
         if pending_signup is None:
-            raise PublicTestAuthError("authErrors.verificationSessionNotFound", status_code=404)
+            raise FreeAuthError("authErrors.verificationSessionNotFound", status_code=404)
         if await self.load_account(normalized_email):
             await self.delete_pending_signup(normalized_email)
-            raise PublicTestAuthError("authErrors.accountExists")
+            raise FreeAuthError("authErrors.accountExists")
 
         now = datetime.now(timezone.utc)
         if parse_utc(pending_signup.expires_at) < now:
             await self.delete_pending_signup(normalized_email)
-            raise PublicTestAuthError("authErrors.verificationCodeExpired")
+            raise FreeAuthError("authErrors.verificationCodeExpired")
 
-        if pending_signup.failed_attempts >= PUBLIC_TEST_VERIFICATION_MAX_ATTEMPTS:
+        if pending_signup.failed_attempts >= FREE_VERIFICATION_MAX_ATTEMPTS:
             await self.delete_pending_signup(normalized_email)
-            raise PublicTestAuthError("authErrors.verificationTooManyAttempts", status_code=429)
+            raise FreeAuthError("authErrors.verificationTooManyAttempts", status_code=429)
 
         if not self.verify_secret_value(
             normalized_code,
             pending_signup.verification_salt,
             pending_signup.verification_hash,
         ):
-            updated_pending_signup = PendingPublicTestSignup(
+            updated_pending_signup = PendingFreeSignup(
                 display_name=pending_signup.display_name,
                 email=pending_signup.email,
                 password_salt=pending_signup.password_salt,
@@ -858,9 +863,9 @@ class PublicTestAuthStore:
                 failed_attempts=pending_signup.failed_attempts + 1,
             )
             await self.save_pending_signup(updated_pending_signup)
-            raise PublicTestAuthError("authErrors.invalidVerificationCode")
+            raise FreeAuthError("authErrors.invalidVerificationCode")
 
-        account = PublicTestAccount(
+        account = FreeAccount(
             display_name=pending_signup.display_name,
             email=pending_signup.email,
             password_salt=pending_signup.password_salt,
@@ -870,32 +875,32 @@ class PublicTestAuthStore:
         )
         await self.save_account(account)
         await self.delete_pending_signup(account.email)
-        return PublicTestSession(display_name=account.display_name, email=account.email)
+        return FreeSession(display_name=account.display_name, email=account.email)
 
-    async def start_password_reset(self, *, email: str) -> PublicTestVerificationChallenge:
-        normalized_email = normalize_public_test_email(email)
+    async def start_password_reset(self, *, email: str) -> FreeVerificationChallenge:
+        normalized_email = normalize_free_email(email)
         if normalized_email is None:
             if not (email or "").strip():
-                raise PublicTestAuthError("authErrors.emailRequired")
-            raise PublicTestAuthError("authErrors.invalidEmail")
+                raise FreeAuthError("authErrors.emailRequired")
+            raise FreeAuthError("authErrors.invalidEmail")
 
         account = await self.load_account(normalized_email)
         if account is None:
-            raise PublicTestAuthError("authErrors.accountNotFound", status_code=404)
+            raise FreeAuthError("authErrors.accountNotFound", status_code=404)
 
         now = datetime.now(timezone.utc)
         existing_pending_password_reset = await self.load_pending_password_reset(normalized_email)
         if (
             existing_pending_password_reset is not None
             and parse_utc(existing_pending_password_reset.last_sent_at)
-            + timedelta(seconds=PUBLIC_TEST_VERIFICATION_RESEND_INTERVAL_SECONDS)
+            + timedelta(seconds=FREE_VERIFICATION_RESEND_INTERVAL_SECONDS)
             > now
         ):
-            raise PublicTestAuthError("authErrors.verificationResendTooSoon", status_code=429)
+            raise FreeAuthError("authErrors.verificationResendTooSoon", status_code=429)
 
         verification_code = self.generate_verification_code()
         verification_salt, verification_hash = self.build_secret_hash(verification_code)
-        pending_password_reset = PendingPublicTestPasswordReset(
+        pending_password_reset = PendingFreePasswordReset(
             email=normalized_email,
             verification_salt=verification_salt,
             verification_hash=verification_hash,
@@ -903,7 +908,7 @@ class PublicTestAuthStore:
                 existing_pending_password_reset.created_at if existing_pending_password_reset else format_utc(now)
             ),
             updated_at=format_utc(now),
-            expires_at=format_utc(now + timedelta(seconds=PUBLIC_TEST_VERIFICATION_CODE_TTL_SECONDS)),
+            expires_at=format_utc(now + timedelta(seconds=FREE_VERIFICATION_CODE_TTL_SECONDS)),
             last_sent_at=format_utc(now),
             send_count=(existing_pending_password_reset.send_count + 1) if existing_pending_password_reset else 1,
             failed_attempts=0,
@@ -912,37 +917,37 @@ class PublicTestAuthStore:
         await self.send_password_reset_email(normalized_email, verification_code)
         return self.build_verification_challenge(normalized_email)
 
-    async def resend_password_reset_code(self, *, email: str) -> PublicTestVerificationChallenge:
-        normalized_email = normalize_public_test_email(email)
+    async def resend_password_reset_code(self, *, email: str) -> FreeVerificationChallenge:
+        normalized_email = normalize_free_email(email)
         if normalized_email is None:
-            raise PublicTestAuthError("authErrors.invalidEmail")
+            raise FreeAuthError("authErrors.invalidEmail")
 
         pending_password_reset = await self.load_pending_password_reset(normalized_email)
         if pending_password_reset is None:
-            raise PublicTestAuthError("authErrors.passwordResetSessionNotFound", status_code=404)
+            raise FreeAuthError("authErrors.passwordResetSessionNotFound", status_code=404)
 
         account = await self.load_account(normalized_email)
         if account is None:
             await self.delete_pending_password_reset(normalized_email)
-            raise PublicTestAuthError("authErrors.accountNotFound", status_code=404)
+            raise FreeAuthError("authErrors.accountNotFound", status_code=404)
 
         now = datetime.now(timezone.utc)
         if (
             parse_utc(pending_password_reset.last_sent_at)
-            + timedelta(seconds=PUBLIC_TEST_VERIFICATION_RESEND_INTERVAL_SECONDS)
+            + timedelta(seconds=FREE_VERIFICATION_RESEND_INTERVAL_SECONDS)
             > now
         ):
-            raise PublicTestAuthError("authErrors.verificationResendTooSoon", status_code=429)
+            raise FreeAuthError("authErrors.verificationResendTooSoon", status_code=429)
 
         verification_code = self.generate_verification_code()
         verification_salt, verification_hash = self.build_secret_hash(verification_code)
-        refreshed_pending_password_reset = PendingPublicTestPasswordReset(
+        refreshed_pending_password_reset = PendingFreePasswordReset(
             email=pending_password_reset.email,
             verification_salt=verification_salt,
             verification_hash=verification_hash,
             created_at=pending_password_reset.created_at,
             updated_at=format_utc(now),
-            expires_at=format_utc(now + timedelta(seconds=PUBLIC_TEST_VERIFICATION_CODE_TTL_SECONDS)),
+            expires_at=format_utc(now + timedelta(seconds=FREE_VERIFICATION_CODE_TTL_SECONDS)),
             last_sent_at=format_utc(now),
             send_count=pending_password_reset.send_count + 1,
             failed_attempts=0,
@@ -958,47 +963,47 @@ class PublicTestAuthStore:
         verification_code: str,
         password: str,
         confirm_password: str,
-    ) -> PublicTestSession:
-        normalized_email = normalize_public_test_email(email)
+    ) -> FreeSession:
+        normalized_email = normalize_free_email(email)
         normalized_code = (verification_code or "").strip()
         if normalized_email is None:
             if not (email or "").strip():
-                raise PublicTestAuthError("authErrors.emailRequired")
-            raise PublicTestAuthError("authErrors.invalidEmail")
+                raise FreeAuthError("authErrors.emailRequired")
+            raise FreeAuthError("authErrors.invalidEmail")
         if not normalized_code:
-            raise PublicTestAuthError("authErrors.verificationCodeRequired")
+            raise FreeAuthError("authErrors.verificationCodeRequired")
         if not password:
-            raise PublicTestAuthError("authErrors.passwordRequired")
+            raise FreeAuthError("authErrors.passwordRequired")
         self.validate_password_requirements(password)
         if not confirm_password:
-            raise PublicTestAuthError("authErrors.confirmPasswordRequired")
+            raise FreeAuthError("authErrors.confirmPasswordRequired")
         if password != confirm_password:
-            raise PublicTestAuthError("authErrors.passwordMismatch")
+            raise FreeAuthError("authErrors.passwordMismatch")
 
         pending_password_reset = await self.load_pending_password_reset(normalized_email)
         if pending_password_reset is None:
-            raise PublicTestAuthError("authErrors.passwordResetSessionNotFound", status_code=404)
+            raise FreeAuthError("authErrors.passwordResetSessionNotFound", status_code=404)
 
         account = await self.load_account(normalized_email)
         if account is None:
             await self.delete_pending_password_reset(normalized_email)
-            raise PublicTestAuthError("authErrors.accountNotFound", status_code=404)
+            raise FreeAuthError("authErrors.accountNotFound", status_code=404)
 
         now = datetime.now(timezone.utc)
         if parse_utc(pending_password_reset.expires_at) < now:
             await self.delete_pending_password_reset(normalized_email)
-            raise PublicTestAuthError("authErrors.verificationCodeExpired")
+            raise FreeAuthError("authErrors.verificationCodeExpired")
 
-        if pending_password_reset.failed_attempts >= PUBLIC_TEST_VERIFICATION_MAX_ATTEMPTS:
+        if pending_password_reset.failed_attempts >= FREE_VERIFICATION_MAX_ATTEMPTS:
             await self.delete_pending_password_reset(normalized_email)
-            raise PublicTestAuthError("authErrors.verificationTooManyAttempts", status_code=429)
+            raise FreeAuthError("authErrors.verificationTooManyAttempts", status_code=429)
 
         if not self.verify_secret_value(
             normalized_code,
             pending_password_reset.verification_salt,
             pending_password_reset.verification_hash,
         ):
-            updated_pending_password_reset = PendingPublicTestPasswordReset(
+            updated_pending_password_reset = PendingFreePasswordReset(
                 email=pending_password_reset.email,
                 verification_salt=pending_password_reset.verification_salt,
                 verification_hash=pending_password_reset.verification_hash,
@@ -1010,10 +1015,10 @@ class PublicTestAuthStore:
                 failed_attempts=pending_password_reset.failed_attempts + 1,
             )
             await self.save_pending_password_reset(updated_pending_password_reset)
-            raise PublicTestAuthError("authErrors.invalidVerificationCode")
+            raise FreeAuthError("authErrors.invalidVerificationCode")
 
         password_salt, password_hash = self.build_secret_hash(password)
-        updated_account = PublicTestAccount(
+        updated_account = FreeAccount(
             display_name=account.display_name,
             email=account.email,
             password_salt=password_salt,
@@ -1023,26 +1028,26 @@ class PublicTestAuthStore:
         )
         await self.save_json_blob(self.get_account_blob_name(updated_account.email), asdict(updated_account))
         await self.delete_pending_password_reset(updated_account.email)
-        return PublicTestSession(display_name=updated_account.display_name, email=updated_account.email)
+        return FreeSession(display_name=updated_account.display_name, email=updated_account.email)
 
-    async def login_user(self, *, email: str, password: str) -> PublicTestSession:
-        normalized_email = normalize_public_test_email(email)
+    async def login_user(self, *, email: str, password: str) -> FreeSession:
+        normalized_email = normalize_free_email(email)
         if normalized_email is None or not password:
-            raise PublicTestAuthError("authErrors.invalidCredentials", status_code=401)
+            raise FreeAuthError("authErrors.invalidCredentials", status_code=401)
 
         account = await self.load_account(normalized_email)
         if account is None:
-            raise PublicTestAuthError("authErrors.invalidCredentials", status_code=401)
+            raise FreeAuthError("authErrors.invalidCredentials", status_code=401)
 
         if not self.verify_secret_value(password, account.password_salt, account.password_hash):
-            raise PublicTestAuthError("authErrors.invalidCredentials", status_code=401)
+            raise FreeAuthError("authErrors.invalidCredentials", status_code=401)
 
-        return PublicTestSession(display_name=account.display_name, email=account.email)
+        return FreeSession(display_name=account.display_name, email=account.email)
 
-    def create_session_token(self, session: PublicTestSession) -> str:
+    def create_session_token(self, session: FreeSession) -> str:
         return self.get_session_serializer().dumps({"email": session.email})
 
-    async def load_session(self, session_token: str | None) -> PublicTestSession | None:
+    async def load_session(self, session_token: str | None) -> FreeSession | None:
         if not session_token:
             return None
 
@@ -1054,7 +1059,7 @@ class PublicTestAuthStore:
         except (BadSignature, SignatureExpired):
             return None
 
-        email = normalize_public_test_email(session_payload.get("email") if isinstance(session_payload, dict) else None)
+        email = normalize_free_email(session_payload.get("email") if isinstance(session_payload, dict) else None)
         if email is None:
             return None
 
@@ -1062,9 +1067,9 @@ class PublicTestAuthStore:
         if account is None:
             return None
 
-        return PublicTestSession(display_name=account.display_name, email=account.email)
+        return FreeSession(display_name=account.display_name, email=account.email)
 
-    def set_session_cookie(self, response, session: PublicTestSession, *, secure: bool) -> None:
+    def set_session_cookie(self, response, session: FreeSession, *, secure: bool) -> None:
         response.set_cookie(
             self.session_cookie_name,
             self.create_session_token(session),

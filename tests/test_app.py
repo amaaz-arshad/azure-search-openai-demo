@@ -396,8 +396,8 @@ async def test_auth_setup_returns_payload(client):
 
 
 @pytest.mark.asyncio
-async def test_public_test_signup_starts_verification(client, monkeypatch):
-    auth_service = client.app.config[app.CONFIG_PUBLIC_TEST_AUTH_SERVICE]
+async def test_free_signup_starts_verification(client, monkeypatch):
+    auth_service = client.app.config[app.CONFIG_FREE_AUTH_SERVICE]
 
     async def mock_start_signup(**kwargs):
         assert kwargs["display_name"] == "Test User"
@@ -426,13 +426,13 @@ async def test_public_test_signup_starts_verification(client, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_public_test_signup_verify_sets_session_cookie(client, monkeypatch):
-    auth_service = client.app.config[app.CONFIG_PUBLIC_TEST_AUTH_SERVICE]
+async def test_free_signup_verify_sets_session_cookie(client, monkeypatch):
+    auth_service = client.app.config[app.CONFIG_FREE_AUTH_SERVICE]
 
     async def mock_verify_signup(**kwargs):
         assert kwargs["email"] == "user@example.com"
         assert kwargs["verification_code"] == "123456"
-        return app.PublicTestSession(display_name="Test User", email="user@example.com")
+        return app.FreeSession(display_name="Test User", email="user@example.com")
 
     monkeypatch.setattr(auth_service, "verify_signup", mock_verify_signup)
 
@@ -451,8 +451,8 @@ async def test_public_test_signup_verify_sets_session_cookie(client, monkeypatch
 
 
 @pytest.mark.asyncio
-async def test_public_test_password_reset_starts_verification(client, monkeypatch):
-    auth_service = client.app.config[app.CONFIG_PUBLIC_TEST_AUTH_SERVICE]
+async def test_free_password_reset_starts_verification(client, monkeypatch):
+    auth_service = client.app.config[app.CONFIG_FREE_AUTH_SERVICE]
 
     async def mock_start_password_reset(**kwargs):
         assert kwargs["email"] == "user@example.com"
@@ -477,15 +477,15 @@ async def test_public_test_password_reset_starts_verification(client, monkeypatc
 
 
 @pytest.mark.asyncio
-async def test_public_test_password_reset_verify_sets_session_cookie(client, monkeypatch):
-    auth_service = client.app.config[app.CONFIG_PUBLIC_TEST_AUTH_SERVICE]
+async def test_free_password_reset_verify_sets_session_cookie(client, monkeypatch):
+    auth_service = client.app.config[app.CONFIG_FREE_AUTH_SERVICE]
 
     async def mock_verify_password_reset(**kwargs):
         assert kwargs["email"] == "user@example.com"
         assert kwargs["verification_code"] == "123456"
         assert kwargs["password"] == "new-secret"
         assert kwargs["confirm_password"] == "new-secret"
-        return app.PublicTestSession(display_name="Test User", email="user@example.com")
+        return app.FreeSession(display_name="Test User", email="user@example.com")
 
     monkeypatch.setattr(auth_service, "verify_password_reset", mock_verify_password_reset)
 
@@ -506,11 +506,11 @@ async def test_public_test_password_reset_verify_sets_session_cookie(client, mon
 
 
 @pytest.mark.asyncio
-async def test_public_test_password_reset_resend_returns_error_key(client, monkeypatch):
-    auth_service = client.app.config[app.CONFIG_PUBLIC_TEST_AUTH_SERVICE]
+async def test_free_password_reset_resend_returns_error_key(client, monkeypatch):
+    auth_service = client.app.config[app.CONFIG_FREE_AUTH_SERVICE]
 
     async def mock_resend_password_reset_code(**kwargs):
-        raise app.PublicTestAuthError("authErrors.passwordResetSessionNotFound", status_code=404)
+        raise app.FreeAuthError("authErrors.passwordResetSessionNotFound", status_code=404)
 
     monkeypatch.setattr(auth_service, "resend_password_reset_code", mock_resend_password_reset_code)
 
@@ -527,11 +527,11 @@ async def test_public_test_password_reset_resend_returns_error_key(client, monke
 
 
 @pytest.mark.asyncio
-async def test_public_test_login_returns_error_key(client, monkeypatch):
-    auth_service = client.app.config[app.CONFIG_PUBLIC_TEST_AUTH_SERVICE]
+async def test_free_login_returns_error_key(client, monkeypatch):
+    auth_service = client.app.config[app.CONFIG_FREE_AUTH_SERVICE]
 
     async def mock_login_user(**kwargs):
-        raise app.PublicTestAuthError("authErrors.invalidCredentials", status_code=401)
+        raise app.FreeAuthError("authErrors.invalidCredentials", status_code=401)
 
     monkeypatch.setattr(auth_service, "login_user", mock_login_user)
 
@@ -549,11 +549,11 @@ async def test_public_test_login_returns_error_key(client, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_public_test_session_returns_authenticated_user(client, monkeypatch):
-    async def mock_get_authenticated_public_test_user():
-        return app.PublicTestSession(display_name="Stored User", email="stored@example.com")
+async def test_free_session_returns_authenticated_user(client, monkeypatch):
+    async def mock_get_authenticated_free_user():
+        return app.FreeSession(display_name="Stored User", email="stored@example.com")
 
-    monkeypatch.setattr(app, "get_authenticated_public_test_user", mock_get_authenticated_public_test_user)
+    monkeypatch.setattr(app, "get_authenticated_free_user", mock_get_authenticated_free_user)
 
     response = await client.get("/free-auth/session")
 
@@ -563,11 +563,11 @@ async def test_public_test_session_returns_authenticated_user(client, monkeypatc
 
 
 @pytest.mark.asyncio
-async def test_public_test_profile_returns_account_details(client, monkeypatch):
-    auth_service = client.app.config[app.CONFIG_PUBLIC_TEST_AUTH_SERVICE]
+async def test_free_profile_returns_account_details(client, monkeypatch):
+    auth_service = client.app.config[app.CONFIG_FREE_AUTH_SERVICE]
 
-    async def mock_get_authenticated_public_test_user():
-        return app.PublicTestSession(display_name="Stored User", email="stored@example.com")
+    async def mock_get_authenticated_free_user():
+        return app.FreeSession(display_name="Stored User", email="stored@example.com")
 
     async def mock_load_account(email: str):
         assert email == "stored@example.com"
@@ -578,7 +578,7 @@ async def test_public_test_profile_returns_account_details(client, monkeypatch):
             updated_at="2026-03-31T11:00:00+00:00",
         )
 
-    monkeypatch.setattr(app, "get_authenticated_public_test_user", mock_get_authenticated_public_test_user)
+    monkeypatch.setattr(app, "get_authenticated_free_user", mock_get_authenticated_free_user)
     monkeypatch.setattr(auth_service, "load_account", mock_load_account)
 
     response = await client.get("/free-auth/profile")
@@ -901,7 +901,7 @@ def test_chat_history_scope_marks_internal_admin_routes_as_non_chatbot():
 
 
 @pytest.mark.asyncio
-async def test_legacy_public_test_route_redirects_to_free(client):
+async def test_legacy_free_route_redirects_to_free(client):
     response = await client.get("/public-test")
     assert response.status_code == 302
     assert response.headers["Location"].endswith("/free")
@@ -981,9 +981,9 @@ async def test_prompt_override_is_used_for_next_chat_request_and_delete_restores
 
 
 @pytest.mark.asyncio
-async def test_public_test_admin_users_lists_accounts(client, monkeypatch):
+async def test_free_admin_users_lists_accounts(client, monkeypatch):
     await login_internal_admin(client)
-    auth_service = client.app.config[app.CONFIG_PUBLIC_TEST_AUTH_SERVICE]
+    auth_service = client.app.config[app.CONFIG_FREE_AUTH_SERVICE]
 
     async def mock_list_accounts():
         return [
@@ -1020,9 +1020,9 @@ async def test_public_test_admin_users_lists_accounts(client, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_public_test_admin_user_delete_removes_uploads_and_account(client, monkeypatch):
+async def test_free_admin_user_delete_removes_uploads_and_account(client, monkeypatch):
     await login_internal_admin(client)
-    auth_service = client.app.config[app.CONFIG_PUBLIC_TEST_AUTH_SERVICE]
+    auth_service = client.app.config[app.CONFIG_FREE_AUTH_SERVICE]
     upload_manager = mock.AsyncMock()
     upload_manager.remove_all_files.return_value = (["deleted.pdf"], [])
 
@@ -1045,9 +1045,9 @@ async def test_public_test_admin_user_delete_removes_uploads_and_account(client,
 
 
 @pytest.mark.asyncio
-async def test_public_test_admin_user_password_reset_updates_account(client, monkeypatch):
+async def test_free_admin_user_password_reset_updates_account(client, monkeypatch):
     await login_internal_admin(client)
-    auth_service = client.app.config[app.CONFIG_PUBLIC_TEST_AUTH_SERVICE]
+    auth_service = client.app.config[app.CONFIG_FREE_AUTH_SERVICE]
 
     async def mock_reset_account_password(**kwargs):
         assert kwargs["email"] == "user@example.com"

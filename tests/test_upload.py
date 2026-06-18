@@ -878,8 +878,8 @@ async def test_cancel_chatbot_upload_prevents_indexing(client, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_public_test_rejects_non_pdf_upload(client, monkeypatch):
-    async def mock_get_authenticated_public_test_user():
+async def test_free_rejects_non_pdf_upload(client, monkeypatch):
+    async def mock_get_authenticated_free_user():
         return SimpleNamespace(email="user@example.com")
 
     async def mock_exists(*args, **kwargs):
@@ -898,7 +898,7 @@ async def test_public_test_rejects_non_pdf_upload(client, monkeypatch):
     monkeypatch.setattr(ContainerClient, "exists", mock_exists)
     monkeypatch.setattr(ContainerClient, "list_blobs", lambda *args, **kwargs: BlobListIterator([]))
     monkeypatch.setattr(SearchClient, "search", mock_search)
-    monkeypatch.setattr(app, "get_authenticated_public_test_user", mock_get_authenticated_public_test_user)
+    monkeypatch.setattr(app, "get_authenticated_free_user", mock_get_authenticated_free_user)
 
     response = await client.post(
         "/chatbot_uploads/free",
@@ -911,8 +911,8 @@ async def test_public_test_rejects_non_pdf_upload(client, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_public_test_rejects_pdf_over_total_page_limit(client, monkeypatch):
-    async def mock_get_authenticated_public_test_user():
+async def test_free_rejects_pdf_over_total_page_limit(client, monkeypatch):
+    async def mock_get_authenticated_free_user():
         return SimpleNamespace(email="user@example.com")
 
     async def mock_exists(*args, **kwargs):
@@ -931,7 +931,7 @@ async def test_public_test_rejects_pdf_over_total_page_limit(client, monkeypatch
     monkeypatch.setattr(ContainerClient, "exists", mock_exists)
     monkeypatch.setattr(ContainerClient, "list_blobs", lambda *args, **kwargs: BlobListIterator([]))
     monkeypatch.setattr(SearchClient, "search", mock_search)
-    monkeypatch.setattr(app, "get_authenticated_public_test_user", mock_get_authenticated_public_test_user)
+    monkeypatch.setattr(app, "get_authenticated_free_user", mock_get_authenticated_free_user)
 
     response = await client.post(
         "/chatbot_uploads/free",
@@ -944,8 +944,8 @@ async def test_public_test_rejects_pdf_over_total_page_limit(client, monkeypatch
 
 
 @pytest.mark.asyncio
-async def test_public_test_rejects_pdf_when_existing_uploads_exceed_total_page_limit(client, monkeypatch):
-    async def mock_get_authenticated_public_test_user():
+async def test_free_rejects_pdf_when_existing_uploads_exceed_total_page_limit(client, monkeypatch):
+    async def mock_get_authenticated_free_user():
         return SimpleNamespace(email="user@example.com")
 
     async def mock_exists(*args, **kwargs):
@@ -983,7 +983,7 @@ async def test_public_test_rejects_pdf_when_existing_uploads_exceed_total_page_l
     monkeypatch.setattr(SearchClient, "search", mock_search)
     monkeypatch.setattr(manager, "list_files", mock_list_files)
     monkeypatch.setattr(manager, "get_manifest", mock_get_manifest)
-    monkeypatch.setattr(app, "get_authenticated_public_test_user", mock_get_authenticated_public_test_user)
+    monkeypatch.setattr(app, "get_authenticated_free_user", mock_get_authenticated_free_user)
 
     response = await client.post(
         "/chatbot_uploads/free",
@@ -996,8 +996,8 @@ async def test_public_test_rejects_pdf_when_existing_uploads_exceed_total_page_l
 
 
 @pytest.mark.asyncio
-async def test_public_test_upload_indexes_user_and_uses_user_scoped_blob_path(client, monkeypatch):
-    async def mock_get_authenticated_public_test_user():
+async def test_free_upload_indexes_user_and_uses_user_scoped_blob_path(client, monkeypatch):
+    async def mock_get_authenticated_free_user():
         return SimpleNamespace(email="person@example.com")
 
     existing_blobs = set()
@@ -1053,7 +1053,7 @@ async def test_public_test_upload_indexes_user_and_uses_user_scoped_blob_path(cl
     monkeypatch.setattr(OpenAIEmbeddings, "create_embeddings", mock_create_embeddings)
     monkeypatch.setattr(SearchClient, "search", mock_search)
     monkeypatch.setattr(SearchClient, "upload_documents", mock_upload_documents)
-    monkeypatch.setattr(app, "get_authenticated_public_test_user", mock_get_authenticated_public_test_user)
+    monkeypatch.setattr(app, "get_authenticated_free_user", mock_get_authenticated_free_user)
 
     response = await client.post(
         "/chatbot_uploads/free",

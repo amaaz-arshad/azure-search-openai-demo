@@ -4,13 +4,13 @@ import { Link } from "react-router-dom";
 import { Icon } from "@fluentui/react";
 
 import {
-    PublicTestAdminUser,
-    deletePublicTestUserApi,
-    listPublicTestUsersApi,
-    resetPublicTestUserPasswordApi
-} from "./publicTestUsersApi";
+    FreeAdminUser,
+    deleteFreeUserApi,
+    listFreeUsersApi,
+    resetFreeUserPasswordApi
+} from "./freeUsersApi";
 import { useInternalAdminAccess } from "./useInternalAdminAccess";
-import styles from "./PublicTestUsersPage.module.css";
+import styles from "./FreeUsersPage.module.css";
 
 const FREE_BOT_PASSWORD_MIN_LENGTH = 8;
 
@@ -22,7 +22,7 @@ const formatTimestamp = (timestamp: string) => {
     return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(parsedDate);
 };
 
-const PublicTestUsersPage = () => {
+const FreeUsersPage = () => {
     const {
         isAuthenticated,
         isCheckingAuthentication,
@@ -35,7 +35,7 @@ const PublicTestUsersPage = () => {
     const [password, setPassword] = useState("");
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
     const [query, setQuery] = useState("");
-    const [users, setUsers] = useState<PublicTestAdminUser[]>([]);
+    const [users, setUsers] = useState<FreeAdminUser[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [statusMessage, setStatusMessage] = useState("");
     const [deletingEmail, setDeletingEmail] = useState<string | null>(null);
@@ -64,7 +64,7 @@ const PublicTestUsersPage = () => {
         setIsLoading(true);
         setStatusMessage("");
         try {
-            const response = await listPublicTestUsersApi();
+            const response = await listFreeUsersApi();
             setUsers(response.users);
         } catch (error) {
             if (handleUnauthorizedError(error)) {
@@ -118,7 +118,7 @@ const PublicTestUsersPage = () => {
         void logout();
     };
 
-    const handleDeleteUser = async (user: PublicTestAdminUser) => {
+    const handleDeleteUser = async (user: FreeAdminUser) => {
         const confirmed = window.confirm(
             `Delete the nerilio user ${user.email}? This will also remove ${user.uploadCount} uploaded file(s).`
         );
@@ -129,7 +129,7 @@ const PublicTestUsersPage = () => {
         setDeletingEmail(user.email);
         setStatusMessage("");
         try {
-            const response = await deletePublicTestUserApi(user.email);
+            const response = await deleteFreeUserApi(user.email);
             setUsers(currentUsers => currentUsers.filter(currentUser => currentUser.email !== user.email));
             const deletedUploadCount = response.deletedUploadCount ?? 0;
             setStatusMessage(`Deleted ${user.email} and removed ${deletedUploadCount} uploaded file(s).`);
@@ -163,7 +163,7 @@ const PublicTestUsersPage = () => {
         setIsConfirmPasswordVisible(false);
     };
 
-    const handleResetPassword = async (event: FormEvent<HTMLFormElement>, user: PublicTestAdminUser) => {
+    const handleResetPassword = async (event: FormEvent<HTMLFormElement>, user: FreeAdminUser) => {
         event.preventDefault();
         if (newPassword.length < FREE_BOT_PASSWORD_MIN_LENGTH) {
             setStatusMessage(`Passwords must be at least ${FREE_BOT_PASSWORD_MIN_LENGTH} characters.`);
@@ -172,7 +172,7 @@ const PublicTestUsersPage = () => {
         setResettingEmail(user.email);
         setStatusMessage("");
         try {
-            const response = await resetPublicTestUserPasswordApi(user.email, newPassword, confirmNewPassword);
+            const response = await resetFreeUserPasswordApi(user.email, newPassword, confirmNewPassword);
             setUsers(currentUsers =>
                 currentUsers.map(currentUser =>
                     currentUser.email === user.email
@@ -453,5 +453,5 @@ const PublicTestUsersPage = () => {
     );
 };
 
-export default PublicTestUsersPage;
+export default FreeUsersPage;
 
