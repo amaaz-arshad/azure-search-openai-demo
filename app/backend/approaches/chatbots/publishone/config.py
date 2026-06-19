@@ -6,4 +6,5 @@ config = ChatbotConfig(
     prompt_mode="override",
     language_locale="English",
     citation_target="url",
+    reasoning_effort="high",
 )

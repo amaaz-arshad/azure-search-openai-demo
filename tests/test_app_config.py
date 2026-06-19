@@ -447,13 +447,18 @@ async def test_app_creates_chatbot_override_for_nerilio_config(monkeypatch, mini
         chatbot_approaches = quart_app.config[app.CONFIG_CHATBOT_CHAT_APPROACHES]
 
         assert "nerilio" in chatbot_approaches
-        assert "moodle" not in chatbot_approaches
-        assert "publishone" not in chatbot_approaches
-        assert "fhg" not in chatbot_approaches
+        # Tutor bots pin reasoning_effort="high", which differs from the default, so they
+        # now get a per-bot override approach (previously they inherited the default).
+        assert "moodle" in chatbot_approaches
+        assert "publishone" in chatbot_approaches
+        assert chatbot_approaches["moodle"].reasoning_effort == "high"
+        assert chatbot_approaches["publishone"].reasoning_effort == "high"
+        # fhg pins a different chatgpt_model, so it is also overridden.
+        assert "fhg" in chatbot_approaches
 
         nerilio_approach = chatbot_approaches["nerilio"]
-        assert nerilio_approach.chatgpt_model == "gpt-4.1-nano"
-        assert nerilio_approach.chatgpt_deployment == "gpt-4.1-nano"
+        assert nerilio_approach.chatgpt_model == "gpt-4.1-mini"
+        assert nerilio_approach.chatgpt_deployment == "gpt-4.1-mini"
 
 
 @pytest.mark.asyncio

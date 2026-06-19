@@ -1,7 +1,7 @@
 # Graph Report - agentic-retrieval  (2026-06-19)
 
 ## Corpus Check
-- 1446 files · ~2,501,620 words
+- 1446 files · ~2,509,767 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -419,8 +419,8 @@
   app\functions\text_processor\prepdocslib\publishonefeed.py → app\functions\text_processor\prepdocslib\xmlparser.py
 - `Blob-backed, admin-editable per-chatbot embed whitelist (mirrors ChatbotPromptSt` --uses--> `BlobManager`  [INFERRED]
   app\backend\core\chatbotembedconfigstore.py → app\functions\text_processor\prepdocslib\blobmanager.py
-- `test_normalize_blob_prefix_defaults_to_folder_under_content_container()` --calls--> `normalize_blob_prefix()`  [INFERRED]
-  tests\test_delete_category_data.py → app\functions\text_processor\prepdocslib\blobmanager.py
+- `normalize_blob_prefix()` --calls--> `test_normalize_blob_prefix_defaults_to_folder_under_content_container()`  [INFERRED]
+  app\functions\text_processor\prepdocslib\blobmanager.py → tests\test_delete_category_data.py
 - `Manager for Azure Data Lake Storage blob operations, particularly for user-speci` --uses--> `File`  [INFERRED]
   app\functions\text_processor\prepdocslib\blobmanager.py → app\functions\text_processor\prepdocslib\listfilestrategy.py
 - `Initializes the AdlsBlobManager with the necessary parameters.          Args:` --uses--> `File`  [INFERRED]

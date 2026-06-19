@@ -17,6 +17,121 @@ Two categories per date:
 
 ## 2026-06-19
 
+### Tutor mode: re-offer-on-"what topics?" fix didn't hold — anchor to observable history
+
+#### Decisions
+
+- The earlier same-day fix still failed in testing: after choosing Tutor mode and being asked for a
+  topic, asking "Welche Themen gibt es?" again produced the topic list **plus** the "Tutor or Q&A?"
+  re-offer. Root cause of the miss: the guard keyed off an abstract "INITIAL state" vs. "already entered
+  Tutor Mode" that the model has to infer — but Tutor Mode has **no explicit entry message** (unlike
+  Q&A's mandatory "Du befindest dich jetzt im Q&A-Modus"), so during topic-asking the model still
+  classifies itself as "initial" and re-fires the Material Overview handler (whose example list contains
+  the verbatim "Welche Themen sind verfügbar?").
+- New approach: anchor the Material-Overview-vs-Topic-Selection decision to an **observable chat-history
+  event** instead of an inferred state — the instant the user expresses any wish to be tested, Tutor Mode
+  is already chosen (even before topic/level/count, even while the bot is still asking for a topic). The
+  re-offer template may therefore only run on the user's first turn. Reinforced at the exact failure
+  point (the topic-asking step) so the rule is restated where the model actually decides.
+- Prompt-only, scoped to the same nine tutor prompts. No model/config/backend changes. The first-turn
+  Material Overview template (which legitimately ends by offering Tutor/Q&A) was left intact; only its
+  firing condition was tightened.
+
+#### Changes
+
+- `app/backend/approaches/chatbots/{lemon,bensberg,internal,demo,fbn,moodle,steuertipps,publishone}/sampleprompt.py`:
+  rewrote the Material Overview context guard and the Topic Recognition "available topics" bullet to use
+  the observable-history anchor, and added a step-5 note at the Topic Selection "no topic yet" branch.
+- `app/backend/approaches/chatbots/knoll/sampleprompt.py`: equivalent three edits in its compact style.
+- Validation: `py_compile` clean on all nine; new guard/anchor strings present once per file. One-off
+  script used then deleted.
+
+### Add framer-motion to frontend for Framer Motion skills
+
+#### Decisions
+
+- Installed `framer-motion` in `app/frontend` at the user's request, to back the globally-installed
+  Framer Motion Claude Code skills. Skills/MCP generate code but never manage repo dependencies, so the
+  runtime package must physically exist in the project for animation imports to resolve.
+- Chose the `framer-motion` package over the rebranded `motion` package so imports match what the
+  installed skills emit (`import { motion } from "framer-motion"`). Same library, legacy package name.
+- Noted but accepted: the frontend already ships `@react-spring/web`; framer-motion is now a second
+  animation library in the bundle.
+
+#### Changes
+
+- `app/frontend/package.json`: added `"framer-motion": "^12.40.0"` to dependencies.
+- `app/frontend/package-lock.json`: updated (framer-motion + 2 transitive packages, v12.40.0).
+
+### Tutor mode: don't re-offer mode selection on "what topics are there?"
+
+#### Decisions
+
+- Bug report: after choosing Tutor mode and being asked for a topic, a user who asks "what topics are
+  there?" got the topics list followed by "Would you like Tutor mode or Q&A mode?" — bouncing them back
+  to mode selection. Root cause: two overlapping handlers for that request. The initial-state **Material
+  Overview Questions** handler (which ends by re-offering the mode choice and says "keep the user in the
+  initial state") was firing even though the user was already inside Tutor Mode at the topic-selection
+  step, instead of the **Topic Recognition & Selection** "available topics" branch that lists topics and
+  re-asks which one to test.
+- Fix is prompt-only and scoped to the same nine tutor prompts: guard the Material Overview handler to
+  the INITIAL state and explicitly redirect an "available topics?" request to topic selection once a mode
+  is already active (no Tutor/Q&A re-offer). No model/config changes.
+
+#### Changes
+
+- `app/backend/approaches/chatbots/{lemon,bensberg,internal,demo,fbn,moodle,steuertipps,publishone}/sampleprompt.py`:
+  added an INITIAL-state context guard to the Material Overview handler and a reinforcing bullet in the
+  Topic Recognition "no match / available topics" branch (one-off script).
+- `app/backend/approaches/chatbots/knoll/sampleprompt.py`: equivalent guard + topic-recognition bullet in
+  its compact style (by hand).
+- Validation: `py_compile` clean on all nine prompts; guard marker present once per file.
+
+### Deterministic tutor flow + reasoning_effort=high for tutor bots
+
+#### Decisions
+
+- Root cause of the "bot never asks how many questions" bug: the count step lived at 🟡 P2 among
+  ~30 other rules with no hard gate, the salient "Beginnen wir mit Frage 1" template sat at the top
+  of the level/count section (priming an early start), and level (1–5) vs. count (3/5/10) overlap on
+  the values 3 and 5, so a level answer of "3" was read as "intake complete". Counter drift came from
+  there being no visible anchor for the total — the model had to recount prior questions from history
+  across hint/revision/Case-2 detours.
+- Fix is prompt-hardening only (no backend state machine), per user choice: true 100% determinism
+  isn't guaranteeable from an LLM prompt, but a P1 start gate + a mandatory visible `Frage {{N}} von
+  {{Total}}:` counter + an explicit terminal stop + `reasoning_effort="high"` make it effectively
+  deterministic in normal use. User explicitly approved the visible "Frage 3 von 5" progress label.
+- Reasoning effort is set per bot in each `config.py` (triggers the per-bot override approach in
+  `app.py`); models were intentionally left following the global default (`gpt-5.4-mini`) rather than
+  pinned, since only the effort was meant to change.
+- `internal` routes prompts through its selected `source_chatbot`, so it inherits the prompt fix from
+  whichever source bot is active; its own `sampleprompt.py` was patched too for consistency, and its
+  `config.py` effort was raised because `internal` runs under its own approach (selected by name).
+
+#### Changes
+
+- `app/backend/approaches/chatbots/{lemon,bensberg,demo,fbn,moodle,steuertipps,publishone,internal,knoll}/sampleprompt.py`:
+  added a 🟠 P1 "Tutor Start Gate" (no Frage 1 until topic+level+count collected; count question
+  mandatory; level-vs-count disambiguation) and a 🟠 P1 "Deterministic Question Count" block; changed
+  question transitions and the start-confirmation template to render `Frage {{N}} von {{Total}}:`;
+  reinforced the counter rules and reconciled the "no number prefix" rule with the mandatory visible
+  heading. (Standard 8 patched by a one-off script; knoll patched by hand to match its compact style.)
+- `app/backend/approaches/chatbots/{lemon,bensberg,demo,fbn,moodle,steuertipps,publishone,internal,knoll}/config.py`:
+  set `reasoning_effort="high"` (lemon/bensberg changed from `"medium"`; the other seven added it).
+- `app/frontend/src/chatbots/registry.ts`: `reasoningEffort` `medium` → `high` for all nine tutor-mode
+  entries (display metadata mirrors the backend config).
+- `tests/test_app_config.py::test_app_creates_chatbot_override_for_nerilio_config`: updated to the new
+  override behavior — moodle/publishone now get per-bot override approaches (reasoning differs) and
+  assert `reasoning_effort == "high"`; also corrected pre-existing staleness (fhg is overridden via its
+  pinned model; nerilio model/deployment is `gpt-4.1-mini`).
+- `CLAUDE.md`: added a Contracts-To-Preserve bullet describing the tutor start gate, visible counter,
+  terminal stop, and `reasoning_effort="high"` for tutor bots.
+- Validation: `pytest tests/test_app_config.py::test_app_creates_chatbot_override_for_nerilio_config
+  tests/test_app_config.py::test_app_creates_chatbot_overrides_for_deployment_and_reasoning_only_differences
+  tests/test_chatbot_config_registry.py` pass; `py_compile` clean on all 18 edited backend files. The
+  other `test_app_config.py` failures are pre-existing (app-startup `Lifespan`/network in this offline
+  env), confirmed identical on baseline via `git stash`.
+
 ### Generic category purge script
 
 #### Decisions
