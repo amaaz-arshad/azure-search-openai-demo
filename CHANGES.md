@@ -17,6 +17,29 @@ Two categories per date:
 
 ## 2026-06-19
 
+### Generic category purge script
+
+#### Decisions
+
+- Added a new generic script instead of changing `delete_documents_by_category.py`, because the
+  existing script is a narrowly scoped search-index-only tool and remains useful for index-only
+  purges.
+- The new command defaults storage deletion to `content/<category>/` by translating the storage
+  container (`content`) to a blob prefix of `<category>/`. It accepts `--blobprefix` for exceptional
+  layouts and strips a leading `content/` segment when supplied.
+
+#### Changes
+
+- `app/backend/delete_category_data.py` (new): deletes Azure AI Search documents where
+  `category=<category>` and blobs under the matching content-container prefix in one run, using the
+  same azd environment and Azure credential setup as the existing backend scripts.
+- `tests/test_delete_category_data.py` (new): covered category/prefix validation, blob-prefix
+  deletion, combined search/storage deletion, and Azure setup/cleanup wiring.
+- `CLAUDE.md`: documented `delete_category_data.py <category>` for combined category purges and kept
+  `delete_documents_by_category.py <category>` documented for search-only purges.
+- Validation: `.\.venv\Scripts\python.exe -m pytest tests/test_delete_category_data.py tests/test_delete_documents_by_category.py`
+  passed (`9 passed`).
+
 ### FHG: auto-index JSON drops from Nerilio folder
 
 #### Decisions

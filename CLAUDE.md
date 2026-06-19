@@ -91,7 +91,10 @@ Use graphify as the map, then inspect the smallest relevant code surface. The hi
 - FHG JSON feeds are auto-indexed from `content/nerilio/Nerilio-fhg/`, mirrored into `content/fhg/`, and indexed into Azure AI Search with category `fhg` using the FHG JSON parser.
 - The feed parser maps outer `<document id="...">` to `sourcepage`, direct `<naam>` to `title`, `url` to the external PublishOne document URL, structured document text into `content`, and extra metadata into `tags`; citations use first-class `title` and `url`.
 - Deleting one of those source XML blobs must remove the mirrored target blob and matching indexed documents.
-- To purge one indexed category without re-ingesting, run `python app/backend/delete_documents_by_category.py <category>`.
+- To purge one category from both Azure AI Search and blob storage without re-ingesting, run
+  `python app/backend/delete_category_data.py <category>`; it deletes search docs with
+  `category=<category>` and blobs under `content/<category>/`. To purge only the search index, run
+  `python app/backend/delete_documents_by_category.py <category>`.
 
 ## Adding A Chatbot
 
