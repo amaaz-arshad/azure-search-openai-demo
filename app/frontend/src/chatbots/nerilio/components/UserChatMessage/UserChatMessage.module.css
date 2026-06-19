@@ -7,7 +7,7 @@
 }
 
 .message {
-    padding: 1em;
+    padding: 0.6em 1em;
     background: var(--chatbot-user-bubble-background);
     border-radius: 1.2em;
     box-shadow:
@@ -16,4 +16,14 @@
     outline: transparent solid 0.0625em;
     color: var(--chatbot-user-bubble-text);
     font-size: 15px;
+}
+
+
+/* cleaner-ui-refresh */
+/* Cleaner unified look: flat user bubble (no border, outline, or shadow). The
+   themed bubble fill alone separates it from the page. */
+.message {
+    box-shadow: none;
+    outline: none;
+    border: none;
 }

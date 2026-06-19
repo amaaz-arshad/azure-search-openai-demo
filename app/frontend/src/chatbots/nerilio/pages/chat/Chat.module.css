@@ -194,3 +194,33 @@
         min-width: 31.25rem;
     }
 }
+
+
+/* cleaner-ui-refresh */
+/* Cleaner unified look: center the conversation column and connect the composer
+   to the chat by dropping the gap above it. Stream and input share the same
+   max-width so messages stay aligned and nothing peeks beside the sticky input. */
+.chatMessageStream {
+    max-width: 48rem;
+}
+
+.chatInput {
+    max-width: 48rem;
+    padding-top: 0;
+}
+
+
+/* Soft fade above the sticky composer: content dissolves into the page colour as
+   it scrolls up behind the input instead of hitting the rounded white edge
+   abruptly. Invisible at rest (page is the same colour), so the connected look
+   stays. .chatInput is sticky (positioned), so this absolute child anchors to it. */
+.chatInput::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 100%;
+    height: 2rem;
+    background: linear-gradient(to top, #f2f2f2 0%, rgba(242, 242, 242, 0) 100%);
+    pointer-events: none;
+}

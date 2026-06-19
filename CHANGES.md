@@ -17,6 +17,87 @@ Two categories per date:
 
 ## 2026-06-19
 
+### Cleaner chat UI refresh, applied to all bots
+
+#### Decisions
+
+- Refreshed the chat surface for a flatter, cleaner look, then rolled it out to **every** bot:
+  response cards drop their drop-shadow for a subtle `1px` hairline border; user bubbles go fully
+  flat (no shadow, outline, or border); the gap above the composer is removed and the conversation
+  column is centered at `max-width: 48rem` (composer + message stream kept in lockstep so messages
+  stay aligned and nothing peeks beside the sticky input). The shared disclaimer banner was narrowed
+  to the same `48rem` so it aligns with the column instead of spanning wider.
+- The main response card is centralized in `shared/answer/SharedAnswer.module.css`, so its base rule
+  was edited directly (one change covers all bots). The per-bot user bubble, loading/error answer
+  card, and chat layout are **forked copies** (15 bots each, with drift), so rather than edit drifted
+  rules in place, a small, drift-proof override block was **appended** to each copy (later source
+  order + equal specificity wins; no dependence on existing values). Bensberg has no own copies — it
+  reuses lemon's files + SharedAnswer, so it is covered transitively (same for internal).
+- The answer card border color is themeable via `--chatbot-answer-card-border-color` (default
+  `#e6e6e6`). hyrox-assessment (black answer card) sets it to `rgba(255,255,255,0.16)` so the border
+  reads as a refined edge instead of a stark light ring, and its sticky `.footerAction` (Restart
+  button) is narrowed to `48rem` in lockstep with the composer.
+- An earlier first pass scoped these to Bensberg only via `:global([data-chatbot-theme="bensberg"])`
+  on the shared rules; that scoping was reverted once the request expanded to all bots.
+- Verified visually (vite dev + Playwright route-mocks, no Azure) across theme/layout variants:
+  bensberg, lemon, publishone (dark user bubble), hyrox-assessment (dark answer card), nerilio
+  (avatar-outside, purple). Production `npm run build` (tsc + vite + widget) passes.
+
+#### Changes
+
+- `app/frontend/src/chatbots/shared/answer/SharedAnswer.module.css`: base `.answerContainer` now uses
+  `box-shadow: none` + `border: 1px solid var(--chatbot-answer-card-border-color, #e6e6e6)`.
+- `app/frontend/src/chatbots/shared/disclaimer/ChatbotDisclaimerBanner.module.css`: `.wrapper`
+  max-width and `.banner` width narrowed `64.25rem` → `48rem`.
+- Appended a `/* cleaner-ui-refresh */` override block to all 15 per-bot copies of
+  `components/UserChatMessage/UserChatMessage.module.css` (flat `.message`),
+  `components/Answer/Answer.module.css` (flat `.answerContainer` for loading/error), and
+  `pages/chat/Chat.module.css` (`.chatMessageStream`/`.chatInput` at `48rem`, `padding-top: 0`).
+- `app/frontend/src/chatbots/hyrox-assessment/pages/chat/Chat.module.css`: added
+  `--chatbot-answer-card-border-color` override and `.footerAction { max-width: 48rem }`.
+
+#### Follow-up: composer matched to the flat look
+
+- The sticky composer was the last element still wearing a heavy floating drop-shadow, so it stood
+  out against the now-flat cards. Appended the same `/* cleaner-ui-refresh */` override to all 15
+  per-bot `components/QuestionInput/QuestionInput.module.css` copies: `.questionInputContainer` now
+  `box-shadow: none` + `border: 1px solid #e6e6e6` (kept pure white, and the plain `#e6e6e6` — not the
+  themeable answer-card var — since the composer is white on every bot, including dark-card hyrox).
+  Each bot keeps its own border-radius (e.g. nerilio's 2.5rem pill). Verified via computed styles +
+  screenshots; `npm run build` passes.
+
+#### Follow-up: hyrox inverted user bubble + smooth scroll fade
+
+- **hyrox-assessment is inverted** (black assistant card, white user bubble), so the hairline
+  `1px solid #e6e6e6` border that the light assistant cards get elsewhere belongs on hyrox's *user*
+  bubble instead. Changed hyrox's `components/UserChatMessage/UserChatMessage.module.css` cleaner-ui
+  override from `border: none` to `border: 1px solid #e6e6e6` (still no shadow/outline) so the white
+  user bubble is defined against the light page. Verified via computed style + the Start-flow user
+  bubble screenshot.
+- **Smooth scroll blend:** with the gap removed, content scrolling up behind the sticky composer hit
+  the composer's rounded white edge abruptly (most visible on hyrox's dark card). Rather than restore
+  a gap, added a soft fade mask — a `.chatInput::before` (and hyrox `.footerAction::before`) absolute
+  strip, `2rem` tall, `linear-gradient(to top, #f2f2f2, transparent)`, anchored to the sticky
+  (positioned) composer. Content dissolves into the page colour before reaching the rounded edge; it's
+  invisible at rest (same colour), so the connected look is preserved. Appended to all 15 per-bot
+  `pages/chat/Chat.module.css`. Verified scrolled on lemon, publishone (light cards) and
+  hyrox-assessment (dark card); `npm run build` passes.
+
+#### Follow-up: tighter user-bubble padding + unified polished navbar dropdown
+
+- **User-bubble padding:** `1em` all-round made short one-line messages read as a chunky blob.
+  Changed the base `.message` padding to `0.6em 1em` (less vertical, same horizontal) across all 15
+  per-bot `components/UserChatMessage/UserChatMessage.module.css` so one-liners read as a balanced
+  pill. Picked `0.6em` after comparing 0.55/0.6/0.7 on screen (0.55 a hair tight, 0.7 a hair tall).
+- **Navbar dropdown:** the demo bot's dropdown was the most polished, so unified every other bot to
+  it — appended a `/* polished-dropdown */` override to each `pages/layout/Layout.module.css`:
+  `.menuButton` pill hover (`border-radius: 999px`), `.dropdownMenu` rounded floating panel
+  (`margin-top: 0.5rem; border-radius: 18px; padding: 0.45rem; min-width: 220px`), and `.dropdownItem`
+  rounded, roomier, bolder (`gap: 0.65rem; padding: 0.75rem 0.9rem; border-radius: 14px;
+  font-weight: 600`). demo is the reference (skipped); bensberg + internal import lemon's layout so
+  editing lemon covers them. Verified the open menu on lemon, nerilio (chevron trigger), and
+  publishone (dark navbar); `npm run build` passes.
+
 ### Tutor mode: re-offer-on-"what topics?" fix didn't hold — anchor to observable history
 
 #### Decisions

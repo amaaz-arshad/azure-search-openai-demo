@@ -1,12 +1,14 @@
 .wrapper {
     width: 100%;
-    max-width: 64.25rem;
+    /* Match the centered conversation column width (.chatMessageStream/.chatInput)
+       so the disclaimer aligns with the chat instead of spanning wider. */
+    max-width: 48rem;
     padding: 1rem 1rem 0;
     box-sizing: border-box;
 }
 
 .banner {
-    width: min(100%, 64.25rem);
+    width: min(100%, 48rem);
     margin: 0 auto;
     display: flex;
     align-items: flex-start;

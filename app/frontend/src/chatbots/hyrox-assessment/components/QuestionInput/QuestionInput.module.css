@@ -26,3 +26,12 @@
         /* Allow the container to grow; text area will scroll instead */
     }
 }
+
+
+/* cleaner-ui-refresh */
+/* Match the flat answer/user cards: drop the floating shadow for a hairline
+   border so the composer reads as part of the same surface. */
+.questionInputContainer {
+    box-shadow: none;
+    border: 1px solid #e6e6e6;
+}

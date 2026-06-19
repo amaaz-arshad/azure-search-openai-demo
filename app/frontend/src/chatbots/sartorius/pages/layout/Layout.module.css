@@ -133,3 +133,26 @@
         height: 20px;
     }
 }
+
+
+/* polished-dropdown */
+/* Unify the navbar dropdown to the demo bot's more polished look: a rounded
+   floating menu with a gap below the trigger, a pill hover on the trigger, and
+   rounded, roomier, bolder items. */
+.menuButton {
+    border-radius: 999px;
+}
+
+.dropdownMenu {
+    margin-top: 0.5rem;
+    border-radius: 18px;
+    padding: 0.45rem;
+    min-width: 220px;
+}
+
+.dropdownItem {
+    gap: 0.65rem;
+    padding: 0.75rem 0.9rem;
+    border-radius: 14px;
+    font-weight: 600;
+}

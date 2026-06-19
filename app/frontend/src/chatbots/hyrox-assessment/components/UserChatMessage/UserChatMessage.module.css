@@ -7,7 +7,7 @@
 }
 
 .message {
-    padding: 1em;
+    padding: 0.6em 1em;
     font-size: 15px;
     background: var(--chatbot-user-bubble-background);
     color: var(--chatbot-user-bubble-text);
@@ -16,4 +16,15 @@
         0px 0.125em 0.25em rgba(0, 0, 0, 0.14),
         0px 0px 0.125em rgba(0, 0, 0, 0.12);
     outline: transparent solid 0.0625em;
+}
+
+
+/* cleaner-ui-refresh */
+/* HYROX is inverted: the assistant card is black and the USER bubble is white.
+   So the user bubble takes the same hairline border the light assistant cards
+   get elsewhere, to define it against the light page (no shadow/outline). */
+.message {
+    box-shadow: none;
+    outline: none;
+    border: 1px solid #e6e6e6;
 }

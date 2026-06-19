@@ -211,3 +211,12 @@ sup {
     height: 30px;
     max-width: min(228px, 64vw);
 }
+
+
+/* cleaner-ui-refresh */
+/* Cleaner unified look: flat response card (loading/error) — a subtle hairline
+   border instead of a drop shadow, matching SharedAnswer.module.css. */
+.answerContainer {
+    box-shadow: none;
+    border: 1px solid var(--chatbot-answer-card-border-color, #e6e6e6);
+}

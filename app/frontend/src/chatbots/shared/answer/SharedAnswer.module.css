@@ -28,9 +28,10 @@
     padding: 1em;
     background: var(--chatbot-answer-background, rgb(249, 249, 249));
     border-radius: var(--chatbot-answer-card-radius, 1.5em);
-    box-shadow:
-        0em 0.125em 0.25em rgba(0, 0, 0, 0.14),
-        0em 0em 0.125em rgba(0, 0, 0, 0.12);
+    /* Cleaner, flatter card: a subtle hairline border instead of a drop shadow.
+       Border color is themeable so dark-card bots (e.g. hyrox) can soften it. */
+    box-shadow: none;
+    border: 1px solid var(--chatbot-answer-card-border-color, #e6e6e6);
     outline: transparent solid 0.0625em;
     box-sizing: border-box;
 }
