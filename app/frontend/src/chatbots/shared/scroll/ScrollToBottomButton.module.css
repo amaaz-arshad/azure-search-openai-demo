@@ -1,0 +1,65 @@
+/* Floating "jump to latest message" control (ChatGPT-style down arrow).
+   Anchored to the sticky `.chatInput` composer it is rendered inside, so it
+   stays centered above the input and follows it as the composer grows. */
+.scrollButton {
+    position: absolute;
+    left: 50%;
+    bottom: 100%;
+    /* Hidden resting state: nudged down + slightly small so it eases in. */
+    transform: translate(-50%, 2px) scale(0.9);
+    z-index: 30;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    margin: 0;
+
+    border-radius: 50%;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    background-color: #ffffff;
+    color: #3a3a3a;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.16);
+    cursor: pointer;
+
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.visible {
+    opacity: 1;
+    pointer-events: auto;
+    /* Float a small gap above the composer's top edge. */
+    transform: translate(-50%, -10px) scale(1);
+}
+
+.scrollButton:hover {
+    background-color: #f5f5f5;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+}
+
+.scrollButton:active {
+    background-color: #ededed;
+}
+
+.scrollButton:focus-visible {
+    outline: 2px solid #0078d4;
+    outline-offset: 2px;
+}
+
+.scrollButton svg {
+    display: block;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .scrollButton {
+        transition: opacity 0.12s ease;
+    }
+    .scrollButton,
+    .visible {
+        transform: translate(-50%, -10px);
+    }
+}

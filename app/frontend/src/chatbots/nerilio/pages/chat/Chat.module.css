@@ -1,8 +1,8 @@
 .container {
     --chatbot-answer-font-size: 15px;
     --chatbot-answer-font-size-mobile: 15px;
-    --chatbot-answer-card-radius: 1.2em;
-    --chatbot-answer-card-radius-mobile: 1.2em;
+    --chatbot-answer-card-radius: 1.5em;
+    --chatbot-answer-card-radius-mobile: 1.5em;
     --chatbot-answer-outside-avatar-size: 30px;
     --chatbot-disclaimer-message-font-size: 15px;
     --chatbot-disclaimer-message-font-size-mobile: 15px;

@@ -43,7 +43,10 @@
        allowed to shrink so the table is constrained and scrolls internally
        rather than stretching the whole answer bubble beyond the screen. */
     min-width: 0;
-    padding: 1em;
+    /* Match the user bubble's vertical padding (UserChatMessage .message is
+       0.6em 1em) so a single-line answer reads the same height as a single-line
+       user message instead of looking taller. */
+    padding: 0.6em 1em;
     background: var(--chatbot-answer-background, rgb(249, 249, 249));
     border-radius: var(--chatbot-answer-card-radius, 1.5em);
     /* Cleaner, flatter card: a subtle hairline border instead of a drop shadow.
@@ -521,7 +524,7 @@
 
 @media (max-width: 767px) {
     .answerContainer {
-        padding: 1em;
+        padding: 0.6em 1em;
         border-radius: var(--chatbot-answer-card-radius-mobile, var(--chatbot-answer-card-radius, 1.5em));
     }
 

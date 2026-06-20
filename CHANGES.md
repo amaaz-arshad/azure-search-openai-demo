@@ -15,7 +15,121 @@ Two categories per date:
 
 ---
 
+## 2026-06-21
+
+### nerilio loading bubble centering + bubble border-radius audit
+
+#### Decisions
+
+- The nerilio "assistant is typing" bubble (`AnswerLoading.tsx`, which reuses the shared
+  `.answerContainer` plus the local `.loadingAnswerContainer`) had its three dots stuck to the TOP of
+  the bubble and the bubble was oversized. Root cause: `.loadingAnswerContainer` set `display:flex` +
+  `align-items:center` but the card is a Fluent `Stack` (flex-direction: column), so `align-items`
+  only centered horizontally — there was no `justify-content`, so the dots sat at the column's
+  main-axis start (top). `min-height: 3.5rem` (56px) also made it much taller than a one-line answer,
+  which the 2026-06-20 answer-padding reduction (1em → 0.6em vertical) made more obvious. Fixed by
+  centering on BOTH axes (direction-agnostic for the single child) and sizing the bubble to one line
+  of answer text + the card's 0.6em padding so it matches a single-line answer.
+- Audited user-vs-assistant bubble border-radius across all bots per request. Found them already
+  consistent WITHIN each bot: nerilio uses 1.2em for both (its user bubble is 1.2em and it overrides
+  `--chatbot-answer-card-radius` to 1.2em, base + mobile); the other 14 bots with a user bubble use
+  1.5em for both (user bubble 1.5em + the shared `--chatbot-answer-card-radius` default of 1.5em).
+  bensberg/internal have no own user bubble (shells). Initially made no change since each bot was
+  already internally consistent, but on follow-up request normalized nerilio (the lone outlier at
+  1.2em) UP to 1.5em so the radius is now uniform across ALL bots, not just within each. Noted but
+  did not act on a subtle em-anchor difference (user bubble em is relative to its fixed 15px font;
+  the assistant card em is relative to the responsive html root 12–16px), which diverges a few px
+  only on small screens.
+
+#### Changes
+
+- `app/frontend/src/chatbots/nerilio/components/Answer/Answer.module.css` — `.loadingAnswerContainer`:
+  added `justify-content: center`; replaced `min-height: 3.5rem` with
+  `min-height: calc(var(--chatbot-answer-font-size, 15px) * 1.72 + 1.2em)` (one line of answer text +
+  the 0.6em top/bottom card padding).
+- `app/frontend/src/chatbots/nerilio/components/UserChatMessage/UserChatMessage.module.css` —
+  `.message` border-radius `1.2em` → `1.5em`.
+- `app/frontend/src/chatbots/nerilio/pages/chat/Chat.module.css` — `--chatbot-answer-card-radius` and
+  `--chatbot-answer-card-radius-mobile` `1.2em` → `1.5em` (assistant card now matches the all-bot
+  1.5em default).
+
 ## 2026-06-20
+
+### Chat bubble + composer padding tightening (nerilio request)
+
+#### Decisions
+
+- A single-line assistant answer rendered taller than a single-line user message. Root cause: the
+  shared answer card (`SharedAnswer.module.css` `.answerContainer`) used `padding: 1em` (1em vertical)
+  while every bot's user bubble (`UserChatMessage.module.css` `.message`) uses `padding: 0.6em 1em`
+  (0.6em vertical). The assistant card is the SHARED component used by all 17 bots (every bot's
+  `components/Answer/Answer.tsx` calls `createBotAnswer`), and all 17 user bubbles are already
+  `0.6em 1em`, so the mismatch was universal, not nerilio-specific. Chose to fix it in the shared CSS
+  (assistant → `0.6em 1em`) for all bots rather than add a nerilio-only override variable — consistent
+  with the recent "applied to all bots" UI refresh and a smaller change. Also updated the
+  `@media (max-width: 767px)` override (which re-set `padding: 1em`) to `0.6em 1em` so phones stay
+  consistent.
+- nerilio input composer read as bulky. Established the ~65px height was driven by the 50×50px circular
+  send button, NOT the container padding (`0.4rem` ≈ 6px, already slim — trimming padding alone saves
+  only ~3px since the button is the tallest flex child). Chose a modest tighten: send button 50→44px
+  (still meets the iOS 44px touch-target minimum) and container padding `0.4rem`→`0.3rem`, bringing the
+  bubble to ~54px on desktop/~53px on phones. Scoped to nerilio only (per-bot `QuestionInput.module.css`)
+  since the request was nerilio-specific; other bots have their own composer copies and were left
+  unchanged.
+
+#### Changes
+
+- `app/frontend/src/chatbots/shared/answer/SharedAnswer.module.css` — `.answerContainer` padding
+  `1em` → `0.6em 1em` (base rule + the `max-width: 767px` override).
+- `app/frontend/src/chatbots/nerilio/components/QuestionInput/QuestionInput.module.css` —
+  `.questionInputContainer` padding `0.4rem` → `0.3rem`; `.sendButton` width/height/min-width
+  `50px` → `44px`.
+
+### "Scroll to latest message" floating button (ChatGPT-style, all bots)
+
+#### Decisions
+
+- Added a ChatGPT-style down-arrow button that appears when the user has scrolled up away from the
+  bottom of the conversation and jumps back to the latest message on click. Requested for every bot.
+- Built it as ONE fully self-contained shared component
+  (`app/frontend/src/chatbots/shared/scroll/ScrollToBottomButton.tsx` + its own CSS module) rather
+  than touching each bot's `Chat.module.css`. The per-bot `Chat.module.css` files diverge (several
+  distinct md5 groups), but the relevant layout invariants are uniform across all 17 bots:
+  `.chatContainer` is the `overflow-y:auto` scroll container and `.chatInput` is the
+  `position: sticky; bottom: 0` composer with `--composer-overlap: 1.5rem`. The button is rendered as
+  an absolutely-positioned child of `.chatInput` (sticky → it is the containing block), so it stays
+  centered above the composer and follows it without any per-bot CSS. Net per-bot edits are only in
+  `Chat.tsx`: import, a `chatContainerRef`, `ref` on `.chatContainer`, and the button inside `.chatInput`.
+- Visibility is driven by the component itself: a scroll listener + `ResizeObserver` + `MutationObserver`
+  on the scroll container (rAF-coalesced) reveal it only when `scrollHeight - scrollTop - clientHeight`
+  exceeds a 240px threshold, so it never shows on the short welcome screen and auto-hides at the bottom.
+- Design is theme-neutral on purpose (white circle, subtle border, soft shadow, thin dark arrow) so the
+  single component reads as consistent across every bot's light theme. Uses an inline SVG arrow (no new
+  icon dependency; matches the existing inline-SVG pattern in `pages/verwaltung/components/icons.tsx`).
+- For `hyrox-assessment` the composer (`.chatInput`) is conditionally mounted only during an active
+  run, so the button is naturally scoped to that state — the pre-start and completed-summary screens
+  (which use `footerAction`, not `.chatInput`) intentionally have no scroll button.
+- Scope decision: the `aria-label`/tooltip is a single English default ("Scroll to latest message")
+  rather than localized per bot — localizing would mean editing ~51 i18n files for an accessibility
+  label; left as a follow-up if desired.
+
+- Tooltip styling: the button's hint uses the same Fluent v9 `Tooltip` (`relationship="label"`) →
+  shared `.fui-Tooltip__content` dark pill as the other icon-button tooltips, instead of a native
+  `title=`. Because the trigger is a real DOM `<button>` (not a v8 `IconButton` that forwards `ref`
+  to a class instance), the Tooltip anchors directly — no `TooltipTarget` `<span>` wrapper needed,
+  which also keeps the button's absolute positioning intact.
+
+#### Changes
+
+- Added `app/frontend/src/chatbots/shared/scroll/ScrollToBottomButton.tsx` and
+  `app/frontend/src/chatbots/shared/scroll/ScrollToBottomButton.module.css`.
+- Wired the button into all 17 bots' `pages/chat/Chat.tsx` (agindo, bensberg, demo, fbn, fhg, free,
+  hyrox-assessment, internal, knoll, lemon, moodle, nerilio, publishone, rak, sartorius, steuertipps,
+  vjoonk4): import, `chatContainerRef`, `ref` on `.chatContainer`, and `<ScrollToBottomButton>` as the
+  first child of `.chatInput`.
+- Validation: `npm run build` (tsc + vite + chained widget build) passed. Visually verified on `lemon`
+  via the running Vite dev server + Playwright — button shows when scrolled up (34px circle, 10px gap
+  above the composer, centered) and hits opacity 0 at the bottom.
 
 ### Dark-pill tooltips for the answer-toolbar / panel icon buttons (all bots)
 

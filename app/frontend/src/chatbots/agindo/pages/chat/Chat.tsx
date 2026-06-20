@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect, useContext } from "react";
+import { ScrollToBottomButton } from "../../../shared/scroll/ScrollToBottomButton";
 import { useTranslation } from "react-i18next";
 import { Helmet } from "react-helmet-async";
 import { useOutletContext } from "react-router-dom";
@@ -87,6 +88,7 @@ const Chat = () => {
 
     const lastQuestionRef = useRef<string>("");
     const chatMessageStreamEnd = useRef<HTMLDivElement | null>(null);
+    const chatContainerRef = useRef<HTMLDivElement | null>(null);
     const localHistorySessionIdRef = useRef<string | null>(null);
     const hasRestoredSessionRef = useRef<boolean>(false);
 
@@ -752,7 +754,7 @@ const Chat = () => {
                 </div>
             </div> */}
             <div className={`${styles.chatRoot} ${isHistoryPanelOpen ? styles.chatRootHistoryOpen : ""}`}>
-                <div className={styles.chatContainer}>
+                <div className={styles.chatContainer} ref={chatContainerRef}>
                     <ChatbotDisclaimerBanner isLoggedIn={loggedIn} />
                     {/* {!lastQuestionRef.current && answers.length === 1 && answers[0][0] === "" ? (
                         <div className={styles.chatEmptyState}>
@@ -831,6 +833,7 @@ const Chat = () => {
                     {/* )} */}
 
                     <div className={styles.chatInput}>
+                        <ScrollToBottomButton containerRef={chatContainerRef} />
                         <QuestionInput
                             clearOnSend
                             placeholder={t("defaultExamples.placeholder")}

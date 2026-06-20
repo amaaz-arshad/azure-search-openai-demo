@@ -209,8 +209,17 @@ sup {
 
 .loadingAnswerContainer {
     display: flex;
+    /* The card is a Fluent Stack (flex-direction: column), so align-items alone
+       only centers horizontally and the dots stuck to the top. Setting BOTH axes
+       centers the single BeatLoader child regardless of flex direction. */
     align-items: center;
-    min-height: 3.5rem;
+    justify-content: center;
+    /* Size to a single line of answer text (font-size * line-height) plus the
+       shared card's 0.6em top+bottom padding (1.2em), so the loading bubble is
+       the same height as a one-line answer instead of an oversized 3.5rem box.
+       border-box (inherited from .answerContainer) means min-height includes the
+       padding, so add it here. */
+    min-height: calc(var(--chatbot-answer-font-size, 15px) * 1.72 + 1.2em);
 }
 
 

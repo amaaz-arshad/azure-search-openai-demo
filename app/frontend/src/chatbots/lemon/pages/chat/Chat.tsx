@@ -28,6 +28,7 @@ import { setGlobalClearChat } from "../layout/Layout";
 import { buildOptionTexts, isOptionSelectionTurn, matchesChoiceValue, parseChoiceMarker } from "../../../shared/answer";
 import { applyChatbotSpeechFeatureFlags } from "../../../shared/speech/chatbotSpeechFeatureFlags";
 import { ChatbotDisclaimerBanner } from "../../../shared/disclaimer/ChatbotDisclaimerBanner";
+import { ScrollToBottomButton } from "../../../shared/scroll/ScrollToBottomButton";
 import { readActiveSessionId, writeActiveSessionId, clearActiveSessionId } from "../../../shared/history/activeSession";
 
 const INITIAL_ASSISTANT_SENTINEL_USER_MESSAGE = "__initial_assistant__";
@@ -90,6 +91,7 @@ const Chat = () => {
 
     const lastQuestionRef = useRef<string>("");
     const chatMessageStreamEnd = useRef<HTMLDivElement | null>(null);
+    const chatContainerRef = useRef<HTMLDivElement | null>(null);
     const chatInputRef = useRef<HTMLDivElement | null>(null);
     // "Andere Option": unlock and focus the chat input so the user can type a free answer.
     const focusInput = () => {
@@ -786,7 +788,7 @@ const Chat = () => {
                 </div>
             </div> */}
             <div className={`${styles.chatRoot} ${isHistoryPanelOpen ? styles.chatRootHistoryOpen : ""}`}>
-                <div className={styles.chatContainer}>
+                <div className={styles.chatContainer} ref={chatContainerRef}>
                     <ChatbotDisclaimerBanner isLoggedIn={loggedIn} />
                     {/* {!lastQuestionRef.current && answers.length === 1 && answers[0][0] === "" ? (
                         <div className={styles.chatEmptyState}>
@@ -881,6 +883,7 @@ const Chat = () => {
                     {/* )} */}
 
                     <div className={styles.chatInput} ref={chatInputRef}>
+                        <ScrollToBottomButton containerRef={chatContainerRef} />
                         <QuestionInput
                             clearOnSend
                             placeholder={t("defaultExamples.placeholder")}
