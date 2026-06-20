@@ -25,6 +25,7 @@ import styles from "./SharedAnswer.module.css";
 import { CitationDetail, isCitationHref, parseAnswerToMarkdown, stripCitationLinks } from "./answerParsing";
 import { AnswerOptions } from "./AnswerOptions";
 import { OptionTexts, parseChoiceMarker, splitBubbleSegments, stripChoiceMarker } from "./optionMarkers";
+import { TooltipTarget } from "../tooltip/TooltipTarget";
 
 SyntaxHighlighter.registerLanguage("bash", bash);
 SyntaxHighlighter.registerLanguage("css", css);
@@ -499,17 +500,18 @@ export const ChatbotAnswer = ({
                                 <div className={styles.headerActions}>
                                     {extraHeaderActions}
                                     {showCopyButton && (
-                                        <IconButton
-                                            style={{ color: "var(--chatbot-answer-action-color, black)" }}
-                                            styles={{
-                                                rootHovered: { backgroundColor: "var(--chatbot-answer-action-hover-background, #f3f2f1)" },
-                                                rootPressed: { backgroundColor: "var(--chatbot-answer-action-pressed-background, #edebe9)" }
-                                            }}
-                                            iconProps={{ iconName: copied ? "CheckMark" : "Copy" }}
-                                            title={copied ? copiedLabel : copyLabel}
-                                            ariaLabel={copied ? copiedLabel : copyLabel}
-                                            onClick={handleCopy}
-                                        />
+                                        <TooltipTarget label={copied ? copiedLabel : copyLabel}>
+                                            <IconButton
+                                                style={{ color: "var(--chatbot-answer-action-color, black)" }}
+                                                styles={{
+                                                    rootHovered: { backgroundColor: "var(--chatbot-answer-action-hover-background, #f3f2f1)" },
+                                                    rootPressed: { backgroundColor: "var(--chatbot-answer-action-pressed-background, #edebe9)" }
+                                                }}
+                                                iconProps={{ iconName: copied ? "CheckMark" : "Copy" }}
+                                                ariaLabel={copied ? copiedLabel : copyLabel}
+                                                onClick={handleCopy}
+                                            />
+                                        </TooltipTarget>
                                     )}
                                     {showSpeechOutputAzure && SpeechOutputAzureComponent && (
                                         <SpeechOutputAzureComponent answer={answerForSpeech} isStreaming={isStreaming} />

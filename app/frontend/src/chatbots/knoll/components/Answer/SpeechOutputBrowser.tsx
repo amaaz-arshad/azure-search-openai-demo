@@ -2,6 +2,7 @@ import { useState } from "react";
 import { IconButton } from "@fluentui/react";
 import { useTranslation } from "react-i18next";
 import { supportedLngs } from "../../i18n/config";
+import { TooltipTarget } from "../../../shared/tooltip/TooltipTarget";
 
 interface Props {
     answer: string;
@@ -73,13 +74,14 @@ export const SpeechOutputBrowser = ({ answer }: Props) => {
     const color = isPlaying ? "red" : "black";
 
     return (
-        <IconButton
-            style={{ color: color }}
-            iconProps={{ iconName: "Volume3" }}
-            title={t("tooltips.speakAnswer")}
-            ariaLabel={t("tooltips.speakAnswer")}
-            onClick={() => startOrStopSpeech(answer)}
-            disabled={!synth}
-        />
+        <TooltipTarget label={t("tooltips.speakAnswer")}>
+            <IconButton
+                style={{ color: color }}
+                iconProps={{ iconName: "Volume3" }}
+                ariaLabel={t("tooltips.speakAnswer")}
+                onClick={() => startOrStopSpeech(answer)}
+                disabled={!synth}
+            />
+        </TooltipTarget>
     );
 };

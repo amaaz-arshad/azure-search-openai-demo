@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import * as SpeechSDK from "microsoft-cognitiveservices-speech-sdk";
 
 import { getPreferredSpeechSynthesisOutputFormat, getSpeechToken } from "./azureSpeech";
+import { TooltipTarget } from "../tooltip/TooltipTarget";
 
 let activePlaybackOwner: symbol | null = null;
 let activePlaybackStop: (() => void) | null = null;
@@ -179,18 +180,19 @@ export const SpeechOutputAzureButton = ({ answer, isStreaming }: Props) => {
     const iconName = isLoading ? "Sync" : isPlaying ? "Stop" : "Volume3";
 
     return (
-        <IconButton
-            style={{ color }}
-            styles={{
-                rootHovered: { backgroundColor: "var(--chatbot-answer-action-hover-background, #f3f2f1)" },
-                rootPressed: { backgroundColor: "var(--chatbot-answer-action-pressed-background, #edebe9)" },
-                rootDisabled: { backgroundColor: "transparent" }
-            }}
-            iconProps={{ iconName }}
-            title={title}
-            ariaLabel={title}
-            onClick={isPlaying ? handleStop : () => void handlePlay()}
-            disabled={isStreaming || isLoading}
-        />
+        <TooltipTarget label={title}>
+            <IconButton
+                style={{ color }}
+                styles={{
+                    rootHovered: { backgroundColor: "var(--chatbot-answer-action-hover-background, #f3f2f1)" },
+                    rootPressed: { backgroundColor: "var(--chatbot-answer-action-pressed-background, #edebe9)" },
+                    rootDisabled: { backgroundColor: "transparent" }
+                }}
+                iconProps={{ iconName }}
+                ariaLabel={title}
+                onClick={isPlaying ? handleStop : () => void handlePlay()}
+                disabled={isStreaming || isLoading}
+            />
+        </TooltipTarget>
     );
 };

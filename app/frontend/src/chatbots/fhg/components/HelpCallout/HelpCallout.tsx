@@ -2,6 +2,8 @@ import { ITextFieldProps, DefaultButton, IconButton, IButtonStyles, Callout, ISt
 import { useBoolean, useId } from "@fluentui/react-hooks";
 import { useTranslation } from "react-i18next";
 
+import { TooltipTarget } from "../../../shared/tooltip/TooltipTarget";
+
 const stackTokens: IStackTokens = {
     childrenGap: 4,
     maxWidth: 300
@@ -30,14 +32,15 @@ export const HelpCallout = (props: IHelpCalloutProps): JSX.Element => {
                 <label id={props.labelId} htmlFor={props.fieldId}>
                     {props.label}
                 </label>
-                <IconButton
-                    id={iconButtonId}
-                    iconProps={iconProps}
-                    title={t("tooltips.info")}
-                    ariaLabel={t("tooltips.info")}
-                    onClick={toggleIsCalloutVisible}
-                    styles={iconButtonStyles}
-                />
+                <TooltipTarget label={t("tooltips.info")}>
+                    <IconButton
+                        id={iconButtonId}
+                        iconProps={iconProps}
+                        ariaLabel={t("tooltips.info")}
+                        onClick={toggleIsCalloutVisible}
+                        styles={iconButtonStyles}
+                    />
+                </TooltipTarget>
             </Stack>
             {isCalloutVisible && (
                 <Callout target={"#" + iconButtonId} setInitialFocus onDismiss={toggleIsCalloutVisible} ariaDescribedBy={descriptionId} role="alertdialog">

@@ -5,6 +5,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import styles from "./MarkdownViewer.module.css";
+import { TooltipTarget } from "../../../shared/tooltip/TooltipTarget";
 
 interface MarkdownViewerProps {
     src: string;
@@ -69,15 +70,15 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ src }) => {
             ) : (
                 <div className={`${styles.markdownViewer} ${styles.markdownContent}`}>
                     <div className={styles.viewerToolbar}>
-                        <IconButton
-                            className={styles.downloadButton}
-                            style={{ color: "black" }}
-                            iconProps={{ iconName: "Save" }}
-                            title={t("tooltips.save")}
-                            ariaLabel={t("tooltips.save")}
-                            href={src}
-                            download
-                        />
+                        <TooltipTarget label={t("tooltips.save")} className={styles.downloadButton}>
+                            <IconButton
+                                style={{ color: "black" }}
+                                iconProps={{ iconName: "Save" }}
+                                ariaLabel={t("tooltips.save")}
+                                href={src}
+                                download
+                            />
+                        </TooltipTarget>
                     </div>
                     <div className={styles.markdownScroll}>
                         <ReactMarkdown children={content} remarkPlugins={[remarkGfm]} className={styles.markdown} />

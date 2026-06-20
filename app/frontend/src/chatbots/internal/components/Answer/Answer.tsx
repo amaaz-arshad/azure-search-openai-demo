@@ -7,6 +7,7 @@ import { buildOptionTexts, ChatbotAnswer } from "../../../shared/answer";
 import { ChatAppResponse, SpeechConfig } from "../../api";
 import { SpeechOutputBrowser } from "../../../lemon/components/Answer/SpeechOutputBrowser";
 import { SpeechOutputAzure } from "../../../lemon/components/Answer/SpeechOutputAzure";
+import { TooltipTarget } from "../../../shared/tooltip/TooltipTarget";
 
 interface Props {
     answer: ChatAppResponse;
@@ -58,14 +59,15 @@ export const Answer = (props: Props) => {
             followupQuestionsLabel={t("followupQuestions")}
             buildCitationPath={props.buildCitationPath}
             extraHeaderActions={
-                <IconButton
-                    style={{ color: "black" }}
-                    iconProps={{ iconName: "Lightbulb" }}
-                    title={t("tooltips.showThoughtProcess")}
-                    ariaLabel={t("tooltips.showThoughtProcess")}
-                    onClick={props.onThoughtProcessClicked}
-                    disabled={!hasThoughtProcess || props.isStreaming}
-                />
+                <TooltipTarget label={t("tooltips.showThoughtProcess")}>
+                    <IconButton
+                        style={{ color: "black" }}
+                        iconProps={{ iconName: "Lightbulb" }}
+                        ariaLabel={t("tooltips.showThoughtProcess")}
+                        onClick={props.onThoughtProcessClicked}
+                        disabled={!hasThoughtProcess || props.isStreaming}
+                    />
+                </TooltipTarget>
             }
             SpeechOutputBrowserComponent={SpeechOutputBrowser}
             SpeechOutputAzureComponent={SpeechOutputAzure}

@@ -17,6 +17,79 @@ Two categories per date:
 
 ## 2026-06-20
 
+### Dark-pill tooltips for the answer-toolbar / panel icon buttons (all bots)
+
+#### Decisions
+
+- The earlier "global tooltip restyle" only reached Fluent UI **v9** `<Tooltip>` instances (the
+  composer send/stop button and the mic `SpeechInputButton`). The Copy and Speak buttons in the
+  answer toolbar — plus the HelpCallout info, MarkdownViewer save, and internal thought-process
+  buttons — are Fluent **v8** `IconButton`s that expose their hint via the native `title=` attribute.
+  Native `title` tooltips are browser-rendered and cannot be styled by CSS, so the global
+  `.fui-Tooltip__content` dark pill never applied to them — they showed as the plain native boxes the
+  user reported.
+- Could not simply wrap a v8 `IconButton` in a v9 `<Tooltip>`: v9 Tooltip anchors by injecting a DOM
+  `ref` into its single child, but v8 `styled()` forwards `ref` to the **BaseButton class instance**
+  (verified in `@fluentui/utilities/lib/styled.js` and `BaseButton.js` — the DOM ref is only reachable
+  via the v8-specific `elementRef`/`_buttonElement`). A class-instance ref breaks Floating UI
+  positioning.
+- Fix: a tiny shared `TooltipTarget` wrapper renders `<Tooltip relationship="label"><span …>{child}</span></Tooltip>`.
+  The host `<span>` is a real DOM element, so the Tooltip anchors correctly; hovering the inner
+  IconButton still fires the span's `onPointerEnter` (pointerenter fires for an element when entering
+  via a descendant). The native `title` is dropped from each button; the existing `ariaLabel` keeps the
+  accessible name, so a11y is unchanged. This reuses the SAME `.fui-Tooltip__content` dark pill — no new
+  tooltip system, full visual consistency with the send/mic buttons.
+- Scope (user-chosen): all icon-button tooltips — Copy, Speak (Azure + browser), info, thought-process,
+  save. Intentionally **excluded** the inline citation/footer source-link `title=` hovers (plain
+  `<a>`/`<button>` showing a reference/URL) — different semantics, long strings read poorly in a pill.
+- The `MarkdownViewer` save button carried `float: right` via `styles.downloadButton`; moved that class
+  onto the wrapper span (float is ignored on a flex item) so right-alignment is preserved. steuertipps
+  uses a `viewerToolbar` (flex-end) instead and was handled separately. The hyrox speech button has an
+  extra `styles` block and was edited individually. Per-bot `SpeechOutputBrowser`/`HelpCallout`/
+  `MarkdownViewer` copies were verified byte-identical (md5) before propagating the canonical edit.
+
+#### Changes
+
+- Added `app/frontend/src/chatbots/shared/tooltip/TooltipTarget.tsx` (the shared span+v9-Tooltip wrapper).
+- Wrapped the icon button and removed the native `title` in: shared `ChatbotAnswer.tsx` (Copy), shared
+  `SpeechOutputAzureButton.tsx` (Azure speak), all 15 per-bot `components/Answer/SpeechOutputBrowser.tsx`
+  (browser speak), all 15 `components/HelpCallout/HelpCallout.tsx` (info), all 15
+  `components/MarkdownViewer/MarkdownViewer.tsx` (save), and `internal/components/Answer/Answer.tsx`
+  (thought-process). Citation/footer link `title`s left as-is.
+- Validation: `npm run build` (tsc + vite) passed, including the chained widget build. Visually verified
+  via Vite dev + Playwright (lemon welcome card): hovering Copy / Speak (browser) / Speak (Azure) shows
+  `.fui-Tooltip__content` with `background rgb(31,39,51)`, white text, 8px radius, positioned above the
+  button — matching the established dark pill, toolbar layout intact.
+
+### Beautiful global tooltip restyle (all bots)
+
+#### Decisions
+
+- Every bot's tooltips are Fluent UI v9 `<Tooltip relationship="label">`, whose surface is the
+  stable class `.fui-Tooltip__content`. Fluent's default (near-white box, 4px radius, faint
+  drop-shadow) reads as plain floating text on the light page — the reported "plain/ugly" look.
+- Restyled all tooltips from a single global rule in `index.css` rather than editing the dozens of
+  per-bot `QuestionInput`/speech/answer files, because the tooltip renders in a portal at `<body>`
+  (outside `ChatbotThemeRoot`, so per-bot `--chatbot-*` vars don't reach it) and the surface class
+  is shared by every usage.
+- Chose a neutral **dark slate pill** (bg `#1f2733`, white text, 8px radius, layered drop-shadow,
+  120ms opacity fade-in) over a light or per-bot-accent variant (user-selected). Neutral dark is the
+  premium standard on light UIs (GitHub/Linear/Vercel), stays consistent across all 17 bots'
+  differing accent colors, and sidesteps plumbing an accent into the portal.
+- Selector is the doubled class `.fui-Tooltip__content.fui-Tooltip__content` (specificity 0,2,0) so
+  it beats Fluent's runtime-injected Griffel atomic classes (0,1,0) regardless of insertion order —
+  no `!important`. Verified with a standalone Playwright screenshot that placed the atomic rules
+  *after* the override (worst case) and confirmed the override still won.
+- Used `filter: drop-shadow` (not `box-shadow`) so the elevation wraps the arrow shape; the arrow
+  recolors automatically via its `background-color: inherit`. Animated opacity only (never transform —
+  the positioning manager owns the element's inline transform) and disabled it under
+  `prefers-reduced-motion`.
+
+#### Changes
+
+- `app/frontend/src/index.css`: added the global `.fui-Tooltip__content` dark-pill override, a
+  `chatbotTooltipIn` opacity keyframe, and a `prefers-reduced-motion` guard.
+
 ### Chat composers: fill rounded-corner gap with chat content
 
 #### Decisions

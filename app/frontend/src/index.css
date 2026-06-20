@@ -54,6 +54,57 @@ body {
     height: 0; /* Chromium/Safari: zero-width scrollbar */
 }
 
+/* ---------------------------------------------------------------------------
+   Tooltips (global, all bots)
+
+   Every bot uses Fluent UI v9 <Tooltip relationship="label">; its surface is the
+   stable class `.fui-Tooltip__content`, rendered in a portal at <body> (so the
+   per-bot `--chatbot-*` theme vars on ChatbotThemeRoot do NOT reach it). Fluent's
+   default is a near-white box with a 4px radius and a faint shadow, which reads as
+   plain floating text on the light page. Restyle it once here into a modern dark
+   "pill" — neutral, so it stays consistent across every bot regardless of accent.
+
+   Selector note: the class is repeated (`.x.x`) to raise specificity to (0,2,0)
+   so it beats Fluent's runtime-injected Griffel atomic classes (each 0,1,0)
+   regardless of stylesheet insertion order — no !important needed.
+
+   The arrow is a child with `background-color: inherit`, so giving the content a
+   solid background-color recolors the arrow automatically; `filter: drop-shadow`
+   (rather than box-shadow) keeps the elevation wrapping the arrow shape too. */
+.fui-Tooltip__content.fui-Tooltip__content {
+    background-color: #1f2733;
+    color: #f3f5f9;
+    border: 0;
+    border-radius: 8px;
+    padding: 7px 12px;
+    max-width: 280px;
+    font-size: 12.5px;
+    font-weight: 500;
+    line-height: 1.45;
+    letter-spacing: 0.01em;
+    /* Layered soft shadow; drop-shadow so the arrow casts it too. */
+    filter: drop-shadow(0 2px 4px rgba(15, 23, 42, 0.16)) drop-shadow(0 8px 18px rgba(15, 23, 42, 0.18));
+    /* Plays each time the tooltip flips from display:none -> block (re-show). */
+    animation: chatbotTooltipIn 120ms ease-out;
+}
+
+/* Opacity-only fade — never animate transform here, the positioning manager owns
+   the element's inline transform for placement. */
+@keyframes chatbotTooltipIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .fui-Tooltip__content.fui-Tooltip__content {
+        animation: none;
+    }
+}
+
 @media (min-width: 480px) {
     html {
         font-size: 13px; /* Slightly larger font size for larger phones */
