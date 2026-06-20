@@ -33,3 +33,16 @@
     box-shadow: none;
     border: 1px solid #e6e6e6;
 }
+
+.questionInputContainerDisabled {
+    background: #f3f3f3;
+    border-color: #dedede;
+}
+
+.questionInputContainerDisabled .questionInputButtonsContainer {
+    opacity: 0.45;
+}
+
+.questionInputContainerDisabled :global(button) {
+    background: transparent;
+}

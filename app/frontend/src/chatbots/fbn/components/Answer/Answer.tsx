@@ -1,6 +1,7 @@
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
-import { ChatbotAnswer, type CitationDetail } from "../../../shared/answer";
+import { buildOptionTexts, ChatbotAnswer, type CitationDetail } from "../../../shared/answer";
 import { ChatAppResponse, getCitationFilePath, SpeechConfig } from "../../api";
 import { SpeechOutputBrowser } from "./SpeechOutputBrowser";
 import { SpeechOutputAzure } from "./SpeechOutputAzure";
@@ -19,6 +20,10 @@ interface Props {
     showFollowupQuestions?: boolean;
     showSpeechOutputBrowser?: boolean;
     showSpeechOutputAzure?: boolean;
+    optionSelectedValue?: string;
+    optionsLocked?: boolean;
+    onOptionSelected?: (value: string) => void;
+    onOptionOther?: () => void;
 }
 
 const buildPublishOneUrl = (reference: string): string | null => {
@@ -30,6 +35,7 @@ const getCitationLabel = (detail: CitationDetail): string => detail.reference.re
 
 export const Answer = (props: Props) => {
     const { t } = useTranslation();
+    const optionTexts = useMemo(() => buildOptionTexts(t), [t]);
 
     return (
         <ChatbotAnswer
@@ -41,6 +47,11 @@ export const Answer = (props: Props) => {
             showFollowupQuestions={props.showFollowupQuestions}
             showSpeechOutputBrowser={props.showSpeechOutputBrowser}
             showSpeechOutputAzure={props.showSpeechOutputAzure}
+            optionTexts={optionTexts}
+            optionSelectedValue={props.optionSelectedValue}
+            optionsLocked={props.optionsLocked}
+            onOptionSelected={props.onOptionSelected}
+            onOptionOther={props.onOptionOther}
             assistantLogoSrc={fbnLogo}
             assistantLogoAlt={`${t("headerTitle")} logo`}
             assistantName={t("headerTitle")}

@@ -9,6 +9,24 @@
     min-width: 0;
 }
 
+/* A single assistant message can split into several stacked bubbles (tutor end-of-flow
+   via the [[SPLIT]] marker: final feedback, summary, closing prompt). The parent message
+   row is a flex row, so the bubbles must be wrapped in a vertical group. The single-bubble
+   case uses display:contents so the lone .answerShell stays a direct child of the message
+   row, keeping the original layout byte-for-byte. */
+.answerBubbleGroupSingle {
+    display: contents;
+}
+
+.answerBubbleGroup {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.25rem;
+    min-width: 0;
+    max-width: 100%;
+}
+
 .answerShellWithOutsideAvatar {
     --assistant-avatar-outside-size: var(--chatbot-answer-outside-avatar-size, 25px);
 }

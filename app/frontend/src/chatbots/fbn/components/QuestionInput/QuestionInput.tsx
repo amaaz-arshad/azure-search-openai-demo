@@ -16,9 +16,11 @@ interface Props {
     placeholder?: string;
     clearOnSend?: boolean;
     showSpeechInput?: boolean;
+    isStreaming?: boolean;
+    isLoading?: boolean;
 }
 
-export const QuestionInput = ({ onSend, disabled, placeholder, clearOnSend, initQuestion, showSpeechInput }: Props) => {
+export const QuestionInput = ({ onSend, disabled, placeholder, clearOnSend, initQuestion, showSpeechInput, isStreaming = false, isLoading = false }: Props) => {
     const [question, setQuestion] = useState<string>("");
     const { loggedIn } = useContext(LoginContext);
     const { t } = useTranslation();
@@ -66,16 +68,17 @@ export const QuestionInput = ({ onSend, disabled, placeholder, clearOnSend, init
 
     const disableRequiredAccessControl = requireLogin && !loggedIn;
     const sendQuestionDisabled = disabled || !question.trim() || disableRequiredAccessControl;
+    const showDisabledSurface = disabled;
 
     if (disableRequiredAccessControl) {
         placeholder = "Please login to continue...";
     }
 
     return (
-        <Stack horizontal className={styles.questionInputContainer}>
+        <Stack horizontal className={`${styles.questionInputContainer} ${showDisabledSurface ? styles.questionInputContainerDisabled : ""}`}>
             <TextField
                 className={styles.questionInputTextArea}
-                disabled={disableRequiredAccessControl}
+                disabled={disabled || disableRequiredAccessControl}
                 placeholder={placeholder}
                 multiline
                 resizable={false}

@@ -76,16 +76,17 @@ export const QuestionInput = ({ onSend, onStop, disabled, placeholder, clearOnSe
 
     const disableRequiredAccessControl = requireLogin && !loggedIn;
     const sendQuestionDisabled = disabled || !question.trim() || disableRequiredAccessControl;
+    const showDisabledSurface = disabled;
 
     if (disableRequiredAccessControl) {
         placeholder = "Please login to continue...";
     }
 
     return (
-        <Stack horizontal className={styles.questionInputContainer}>
+        <Stack horizontal className={`${styles.questionInputContainer} ${showDisabledSurface ? styles.questionInputContainerDisabled : ""}`}>
             <TextField
                 className={styles.questionInputTextArea}
-                disabled={disableRequiredAccessControl}
+                disabled={disabled || disableRequiredAccessControl}
                 placeholder={placeholder}
                 multiline
                 resizable={false}

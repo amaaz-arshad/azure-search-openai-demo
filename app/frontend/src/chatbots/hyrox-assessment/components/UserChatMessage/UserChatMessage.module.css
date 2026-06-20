@@ -27,4 +27,8 @@
     box-shadow: none;
     outline: none;
     border: 1px solid #e6e6e6;
+    /* Preserve the user's original line breaks and spacing instead of
+       collapsing them into one run-on line (default white-space: normal). */
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
 }

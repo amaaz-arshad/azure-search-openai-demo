@@ -103,6 +103,25 @@
     },
     "chatEmptyStateTitle": "Chat met je gegevens",
     "chatEmptyStateSubtitle": "Stel een vraag of probeer een voorbeeld",
+    "options": {
+        "other": "Andere optie",
+        "mode": {
+            "checkKnowledge": "Kennis testen",
+            "askQuestions": "Ik heb een vraag"
+        },
+        "count": {
+            "3": "3 vragen",
+            "5": "5 vragen",
+            "10": "10 vragen"
+        },
+        "level": {
+            "1": { "label": "Niveau 1 – Beginner", "description": "Ik ken dit onderwerp nauwelijks" },
+            "2": { "label": "Niveau 2 – Basis", "description": "Ik heb basiskennis, maar voel me onzeker" },
+            "3": { "label": "Niveau 3 – Gevorderd", "description": "Ik kan het toepassen in typische situaties" },
+            "4": { "label": "Niveau 4 – Zeer goed", "description": "Ik kan het zeker uitleggen, ook in complexe gevallen" },
+            "5": { "label": "Niveau 5 – Expert", "description": "Ik kan anderen hierover adviseren of begeleiden" }
+        }
+    },
     "defaultExamples": {
         "1": "Wie heeft HYROX opgericht?",
         "2": "Wat zijn de belangrijkste fysieke kwaliteiten die nodig zijn voor een sterke HYROX-prestatie?",

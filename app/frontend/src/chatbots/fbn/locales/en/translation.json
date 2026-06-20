@@ -60,6 +60,25 @@
     },
     "chatEmptyStateTitle": "Chat with your data",
     "chatEmptyStateSubtitle": "Ask anything or try an example",
+    "options": {
+        "other": "Other option",
+        "mode": {
+            "checkKnowledge": "Test my knowledge",
+            "askQuestions": "I have a question"
+        },
+        "count": {
+            "3": "3 questions",
+            "5": "5 questions",
+            "10": "10 questions"
+        },
+        "level": {
+            "1": { "label": "Level 1 – Beginner", "description": "I'm barely familiar with this topic" },
+            "2": { "label": "Level 2 – Basic", "description": "I have basic knowledge but feel uncertain" },
+            "3": { "label": "Level 3 – Intermediate", "description": "I can apply it in typical situations" },
+            "4": { "label": "Level 4 – Advanced", "description": "I can confidently explain it, even in complex cases" },
+            "5": { "label": "Level 5 – Expert", "description": "I can advise or guide others on this" }
+        }
+    },
     "defaultExamples": {
         "1": "Who founded HYROX?",
         "2": "What are the key physical qualities required for strong HYROX performance?",

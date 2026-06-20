@@ -23,6 +23,8 @@ import supersub from "remark-supersub";
 
 import styles from "./SharedAnswer.module.css";
 import { CitationDetail, isCitationHref, parseAnswerToMarkdown, stripCitationLinks } from "./answerParsing";
+import { AnswerOptions } from "./AnswerOptions";
+import { OptionTexts, parseChoiceMarker, splitBubbleSegments, stripChoiceMarker } from "./optionMarkers";
 
 SyntaxHighlighter.registerLanguage("bash", bash);
 SyntaxHighlighter.registerLanguage("css", css);
@@ -96,6 +98,14 @@ type Props = {
     SpeechOutputAzureComponent?: ComponentType<SpeechOutputAzureProps>;
     // Display-only transform applied to the answer text before parsing/rendering.
     preprocessAnswerText?: (text: string) => string;
+    // Interactive option buttons (tutor-mode bots). When the message carries a hidden
+    // [[CHOICES …]] marker and a handler is wired, render the option group beneath the
+    // answer text. The marker itself is always stripped from the displayed text.
+    optionTexts?: OptionTexts;
+    optionSelectedValue?: string;
+    optionsLocked?: boolean;
+    onOptionSelected?: (value: string) => void;
+    onOptionOther?: () => void;
 };
 
 const syntaxStyle = oneLight as SyntaxHighlighterProps["style"];
@@ -286,20 +296,54 @@ export const ChatbotAnswer = ({
     extraHeaderActions,
     SpeechOutputBrowserComponent,
     SpeechOutputAzureComponent,
-    preprocessAnswerText
+    preprocessAnswerText,
+    optionTexts,
+    optionSelectedValue,
+    optionsLocked,
+    onOptionSelected,
+    onOptionOther
 }: Props) => {
     const followupQuestions = answer.context?.followup_questions;
-    // Apply an optional display-only text transform (e.g. strip hidden markers) without
-    // mutating the stored answer, so the original content still replays into history.
+    // Apply an optional display-only text transform (e.g. strip hidden markers) and
+    // always strip the interactive [[CHOICES …]] marker, without mutating the stored
+    // answer so the original content still replays into history.
     const displayAnswer = useMemo(() => {
-        if (!preprocessAnswerText) {
-            return answer;
-        }
         const content = answer.message?.content;
         if (typeof content !== "string") {
             return answer;
         }
-        return { ...answer, message: { ...answer.message, content: preprocessAnswerText(content) } };
+        // A [[SPLIT]] marker breaks the message into separate bubbles (tutor end-of-flow):
+        // the main card renders the first segment, extra bubbles render the rest below.
+        const mainSegment = splitBubbleSegments(content)[0] ?? "";
+        const transformed = preprocessAnswerText ? preprocessAnswerText(mainSegment) : mainSegment;
+        const stripped = stripChoiceMarker(transformed);
+        if (stripped === content) {
+            return answer;
+        }
+        return { ...answer, message: { ...answer.message, content: stripped } };
+    }, [answer, preprocessAnswerText]);
+    // Parse the choice marker from the RAW content (a complete block only — a partly
+    // streamed marker yields null and renders nothing). It lives at the very end of the
+    // content, so it belongs to the last rendered bubble.
+    const parsedChoice = useMemo(() => {
+        const content = answer.message?.content;
+        return typeof content === "string" ? parseChoiceMarker(content) : null;
+    }, [answer]);
+    // Bubble segments after the first (display-stripped). Empty unless a [[SPLIT]] marker
+    // is present, so non-tutor messages render exactly as before (single card).
+    const extraBubbles = useMemo(() => {
+        const content = answer.message?.content;
+        if (typeof content !== "string") {
+            return [] as string[];
+        }
+        const segments = splitBubbleSegments(content);
+        if (segments.length <= 1) {
+            return [] as string[];
+        }
+        return segments
+            .slice(1)
+            .map(segment => stripChoiceMarker(preprocessAnswerText ? preprocessAnswerText(segment) : segment))
+            .filter(segment => segment.trim() !== "");
     }, [answer, preprocessAnswerText]);
     const parsedAnswer = useMemo(() => parseAnswerToMarkdown(displayAnswer, isStreaming), [displayAnswer, isStreaming]);
     const [copied, setCopied] = useState(false);
@@ -412,7 +456,22 @@ export const ChatbotAnswer = ({
         }
     };
 
+    // The interactive option group belongs to the last rendered bubble: the main card
+    // when there is no [[SPLIT]], otherwise the final extra bubble.
+    const optionsNode =
+        parsedChoice && optionTexts && onOptionSelected ? (
+            <AnswerOptions
+                parsed={parsedChoice}
+                texts={optionTexts}
+                selectedValue={optionSelectedValue}
+                locked={!!optionsLocked}
+                onSelect={onOptionSelected}
+                onOther={onOptionOther}
+            />
+        ) : null;
+
     return (
+        <div className={extraBubbles.length > 0 ? styles.answerBubbleGroup : styles.answerBubbleGroupSingle}>
         <div className={`${styles.answerShell} ${useOutsideLeftAvatar ? styles.answerShellWithOutsideAvatar : ""}`}>
             {useOutsideLeftAvatar && (
                 <img
@@ -469,6 +528,8 @@ export const ChatbotAnswer = ({
                         </ReactMarkdown>
                     </div>
                 </Stack.Item>
+
+                {extraBubbles.length === 0 && optionsNode && <Stack.Item>{optionsNode}</Stack.Item>}
 
                 {!!parsedAnswer.citations.length && (
                     <Stack.Item>
@@ -555,6 +616,36 @@ export const ChatbotAnswer = ({
                     </Stack.Item>
                 )}
             </Stack>
+        </div>
+
+        {extraBubbles.map((bubbleText, bubbleIndex) => {
+            const isLastBubble = bubbleIndex === extraBubbles.length - 1;
+            const showBubbleHeader = showInsideAssistantHeader && (assistantLogoSrc || (showAssistantName && assistantName));
+            return (
+                <div className={styles.answerShell} key={`bubble-${bubbleIndex}`}>
+                    <Stack className={styles.answerContainer} data-testid="chatbot-answer-card" verticalAlign="space-between">
+                        {showBubbleHeader && (
+                            <Stack.Item>
+                                <Stack horizontal className={styles.headerRow}>
+                                    <div className={styles.assistantHeader}>
+                                        <img src={assistantLogoSrc} alt={assistantLogoAlt} className={assistantLogoClasses} />
+                                        {showAssistantName && assistantName && <div className={styles.assistantName}>{assistantName}</div>}
+                                    </div>
+                                </Stack>
+                            </Stack.Item>
+                        )}
+                        <Stack.Item grow>
+                            <div className={styles.answerMarkdown}>
+                                <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm, remarkBreaks, supersub]}>
+                                    {bubbleText}
+                                </ReactMarkdown>
+                            </div>
+                        </Stack.Item>
+                        {isLastBubble && optionsNode && <Stack.Item>{optionsNode}</Stack.Item>}
+                    </Stack>
+                </div>
+            );
+        })}
         </div>
     );
 };

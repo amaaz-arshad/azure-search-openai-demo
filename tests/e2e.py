@@ -201,6 +201,84 @@ def test_demo_recent_chats_dropdown_opens_history_panel(page: Page, live_server_
     expect(page.get_by_text("No chat history")).to_be_visible()
 
 
+def test_bensberg_option_prompt_disables_input_and_dedupes_topics(page: Page, live_server_url: str):
+    topic_prompt = (
+        "Understood — let's start your knowledge test. Which topic should I ask you about?\n\n"
+        "The provided learning materials cover these topics, for example:\n\n"
+        "- **Selection**\n"
+        "- **Abrufvergleich**\n\n"
+        "[[CHOICES kind=topic]]Selection | Abrufvergleich[[/CHOICES]]"
+    )
+    chat_stream_request_count = 0
+    pending_chat_routes: list[Route] = []
+
+    def handle_chat_stream(route: Route):
+        nonlocal chat_stream_request_count
+        chat_stream_request_count += 1
+        if chat_stream_request_count > 1:
+            pending_chat_routes.append(route)
+            return
+
+        jsonl = "\n".join(
+            [
+                json.dumps(
+                    {
+                        "delta": {"role": "assistant"},
+                        "context": {
+                            "data_points": {"text": [], "images": [], "citations": [], "external_results_metadata": []},
+                            "thoughts": [],
+                            "followup_questions": None,
+                        },
+                        "session_state": None,
+                    }
+                ),
+                json.dumps({"delta": {"role": None, "content": topic_prompt}}),
+            ]
+        )
+        route.fulfill(
+            body=f"{jsonl}\n",
+            status=200,
+            headers={"Transfer-encoding": "Chunked", "Content-Type": "application/x-ndjson"},
+        )
+
+    def handle_bensberg_spa(route: Route):
+        with open("app/backend/static/index.html", encoding="utf-8") as index_file:
+            route.fulfill(body=index_file.read(), status=200, headers={"Content-Type": "text/html"})
+
+    page.route("**/bensberg", handle_bensberg_spa)
+    page.route("*/**/chat/stream", handle_chat_stream)
+
+    page.goto(f"{live_server_url}bensberg")
+
+    question_input = page.get_by_placeholder("Type your message")
+    expect(page.get_by_role("button", name="Test my knowledge")).to_be_visible()
+    expect(question_input).to_be_disabled()
+
+    page.get_by_role("button", name="Other option").click()
+    expect(question_input).to_be_enabled()
+
+    page.reload()
+    question_input = page.get_by_placeholder("Type your message")
+    mode_button = page.get_by_role("button", name="Test my knowledge")
+    mode_button.click()
+    expect(mode_button).to_have_attribute("aria-pressed", "true")
+
+    expect(page.get_by_text("Understood — let's start your knowledge test. Which topic should I ask you about?")).to_be_visible()
+    expect(page.get_by_text("The provided learning materials cover")).to_have_count(0)
+    expect(page.get_by_text("Selection", exact=True)).to_have_count(1)
+    expect(page.get_by_text("Abrufvergleich", exact=True)).to_have_count(1)
+    expect(question_input).to_be_disabled()
+
+    topic_button = page.get_by_role("button", name="Selection").first
+    topic_button.click()
+    expect(page.locator("[class*='chatMessageGptMinWidth']").last).to_be_visible()
+    expect(question_input).to_be_enabled()
+    expect(page.locator("[class*='questionInputContainer']").last).to_have_css("background-color", "rgb(255, 255, 255)")
+    expect(topic_button).to_have_attribute("aria-pressed", "true")
+    for pending_route in pending_chat_routes:
+        pending_route.abort()
+
+
 def test_chat(sized_page: Page, live_server_url: str):
     page = sized_page
 

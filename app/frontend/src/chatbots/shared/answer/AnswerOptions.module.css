@@ -1,0 +1,147 @@
+/* Interactive choice buttons rendered under a tutor-bot question (see AnswerOptions.tsx).
+   Neutral, monochrome selected state by design: it reads clearly on every bot theme
+   (yellow/orange/green primaries would be low-contrast as a selected fill), matching
+   the requested mockups. Colors are themeable via the vars below. Text sizes are in
+   px (not rem) so they stay legible when the html root shrinks on small screens — same
+   rationale as .answerMarkdown. */
+
+.group {
+    display: flex;
+    margin-top: 0.85rem;
+}
+
+.groupRow {
+    flex-flow: row wrap;
+    gap: 0.5rem;
+}
+
+.groupList {
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.option {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    box-sizing: border-box;
+    min-height: 44px;
+    padding: 0.55rem 0.95rem;
+    border: 1px solid var(--chatbot-option-border, #dcdcdc);
+    border-radius: 0.7rem;
+    background: var(--chatbot-option-surface, #ffffff);
+    color: var(--chatbot-answer-text, #1f2937);
+    font-family: inherit;
+    font-size: 15px;
+    line-height: 1.4;
+    text-align: left;
+    cursor: pointer;
+    transition:
+        border-color 0.15s ease,
+        background-color 0.15s ease,
+        box-shadow 0.15s ease;
+}
+
+/* Knowledge level / topic cards: full width, top-aligned for multi-line content. */
+.groupList .option {
+    width: 100%;
+    align-items: flex-start;
+    padding: 0.8rem 1rem;
+    border-radius: 0.85rem;
+}
+
+.option:not(:disabled):hover {
+    border-color: var(--chatbot-option-accent, #2b2b2b);
+    background: var(--chatbot-option-hover-bg, #f4f4f4);
+}
+
+.option:focus-visible {
+    outline: 2px solid var(--chatbot-option-accent, #2b2b2b);
+    outline-offset: 2px;
+}
+
+.optionSelected,
+.optionSelected:not(:disabled):hover {
+    border: 1.5px solid var(--chatbot-option-accent, #2b2b2b);
+    background: var(--chatbot-option-selected-bg, #f4f3ef);
+    box-shadow: inset 0 0 0 1px var(--chatbot-option-accent, #2b2b2b);
+}
+
+.optionSelected .optionLabel {
+    font-weight: 600;
+}
+
+/* "Andere Option" — same solid border as the other buttons. */
+.optionOther {
+    color: var(--chatbot-option-other-text, #5b5b5b);
+}
+
+.optionBody {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.optionLabel {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--chatbot-answer-text, #1f2937);
+}
+
+.optionDescription {
+    margin-top: 2px;
+    font-size: 13.5px;
+    line-height: 1.4;
+    color: var(--chatbot-option-description-text, #6b7280);
+}
+
+/* Radio dot for list layout (level/topic). */
+.radio {
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    margin-top: 1px;
+    border: 2px solid var(--chatbot-option-border, #c7c7c7);
+    border-radius: 50%;
+    position: relative;
+}
+
+.optionSelected .radio {
+    border-color: var(--chatbot-option-accent, #2b2b2b);
+}
+
+.optionSelected .radio::after {
+    content: "";
+    position: absolute;
+    inset: 3px;
+    border-radius: 50%;
+    background: var(--chatbot-option-accent, #2b2b2b);
+}
+
+/* Check icon for row layout (mode/count/generic). */
+.checkIcon {
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    fill: var(--chatbot-option-accent, #2b2b2b);
+}
+
+/* Locked: read-only once a newer turn exists. Keep the selection legible; fade the rest. */
+.groupLocked .option {
+    cursor: default;
+}
+
+.groupLocked .option:not(.optionSelected) {
+    opacity: 0.5;
+}
+
+.option:disabled {
+    cursor: default;
+}
+
+@media (max-width: 767px) {
+    .groupRow .option {
+        flex: 1 1 auto;
+        justify-content: center;
+    }
+}

@@ -1,8 +1,9 @@
+import { useMemo } from "react";
 import { IconButton } from "@fluentui/react";
 import { useTranslation } from "react-i18next";
 
 import appLogo from "../../../../assets/applogo.svg";
-import { ChatbotAnswer } from "../../../shared/answer";
+import { buildOptionTexts, ChatbotAnswer } from "../../../shared/answer";
 import { ChatAppResponse, SpeechConfig } from "../../api";
 import { SpeechOutputBrowser } from "../../../lemon/components/Answer/SpeechOutputBrowser";
 import { SpeechOutputAzure } from "../../../lemon/components/Answer/SpeechOutputAzure";
@@ -22,10 +23,15 @@ interface Props {
     showFollowupQuestions?: boolean;
     showSpeechOutputBrowser?: boolean;
     showSpeechOutputAzure?: boolean;
+    optionSelectedValue?: string;
+    optionsLocked?: boolean;
+    onOptionSelected?: (value: string) => void;
+    onOptionOther?: () => void;
 }
 
 export const Answer = (props: Props) => {
     const { t } = useTranslation();
+    const optionTexts = useMemo(() => buildOptionTexts(t), [t]);
     const hasThoughtProcess = Array.isArray(props.answer.context?.thoughts) && props.answer.context.thoughts.length > 0;
 
     return (
@@ -38,6 +44,11 @@ export const Answer = (props: Props) => {
             showFollowupQuestions={props.showFollowupQuestions}
             showSpeechOutputBrowser={props.showSpeechOutputBrowser}
             showSpeechOutputAzure={props.showSpeechOutputAzure}
+            optionTexts={optionTexts}
+            optionSelectedValue={props.optionSelectedValue}
+            optionsLocked={props.optionsLocked}
+            onOptionSelected={props.onOptionSelected}
+            onOptionOther={props.onOptionOther}
             assistantLogoSrc={appLogo}
             assistantLogoAlt={`${props.assistantName} logo`}
             assistantName={props.assistantName}

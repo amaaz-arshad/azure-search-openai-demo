@@ -15,6 +15,319 @@ Two categories per date:
 
 ---
 
+## 2026-06-20
+
+### "Andere Option" button: solid border to match the other choice buttons
+
+#### Decisions
+
+- The "Andere Option" button rendered with a dashed border (deliberately, to read as "type your
+  own"), which looked inconsistent next to the solid-bordered choice buttons. Per the user's request,
+  switched it to the same solid border so all buttons in the option group match visually.
+- Investigated (no change) whether the tutor end-of-flow's three stacked bubbles
+  (final-answer feedback / Performance Summary / re-offer) appear simultaneously or one by one: they
+  are a single streamed assistant message split on `[[SPLIT]]` markers, and `splitBubbleSegments`
+  re-runs on every streamed chunk while a partial `[[SPLIT` does not split until its closing `]]`
+  arrives — so each bubble already pops in sequentially as the model generates it (only a non-streamed
+  delivery would render all three at once).
+
+#### Changes
+
+- `app/frontend/src/chatbots/shared/answer/AnswerOptions.module.css`: removed `border-style: dashed`
+  from `.optionOther` so it inherits the base `.option` solid border; updated the comment.
+
+### User bubble preserved line breaks and spacing (all bots)
+
+#### Decisions
+
+- The user message bubble rendered every input as one run-on line: newlines collapsed to spaces and
+  runs of spaces collapsed to one. Root cause was purely presentational — `UserChatMessage` renders
+  the raw string into a `<div>` (`{message}`), and the `.message` rule had no `white-space`, so the
+  browser default `white-space: normal` collapsed all whitespace. The input pipeline was never at
+  fault: `QuestionInput` sends `question` verbatim (only `.trim()` gates the disabled state) and the
+  multiline textarea keeps `\n`, so the newlines were always present in the DOM.
+- Fix: set `white-space: pre-wrap` (preserve newlines and spacing, still wrap) plus
+  `overflow-wrap: break-word` (so a long unbroken token still wraps inside the bubble) on the final
+  `.message` override block. Chose `pre-wrap` over `pre-line` to honor multiple spaces too, matching
+  the user's report about spaces being dropped.
+
+#### Changes
+
+- All 15 `chatbots/*/components/UserChatMessage/UserChatMessage.module.css` (agindo, demo, fbn, fhg,
+  free, hyrox-assessment, knoll, lemon, moodle, nerilio, publishone, rak, sartorius, steuertipps,
+  vjoonk4): added `white-space: pre-wrap` and `overflow-wrap: break-word` to the `.message` override.
+  Covers bensberg and internal as well, which both reuse `lemon`'s `UserChatMessage`.
+
+### Fix "Other option" highlight flickering off during loading/streaming
+
+#### Decisions
+
+- When a user picked "Andere Option" and sent a free-typed answer, the option's black highlight
+  disappeared while the response loaded and only returned once content arrived. Root cause: the
+  highlight for the free-text path relied on `AnswerOptions`' local `optimisticOtherSelected` state,
+  but the `answers`↔`streamedAnswers` render switch (streaming) remounts the component and drops that
+  state, while no durable `selectedValue` exists for the free-text path until the answer is added.
+- Fix mirrors the normal option-click path: record the free-typed value in Chat-level
+  `pendingOptionSelection` at send time so `getOptionSelectedValue` returns it through the whole
+  loading/streaming window, keeping the "Other" highlight stable (independent of remount).
+
+#### Changes
+
+- All 9 tutor `pages/chat/Chat.tsx`: in `makeApiRequest`, when `freeTextOptionAnswerIndex` is set
+  (a free-typed "Other" answer), set `pendingOptionSelection` to that answer index + the typed value
+  before clearing `freeTextOptionAnswerIndex`.
+- `CLAUDE.md`: documented the `pendingOptionSelection` persistence for the "Other" highlight.
+
+### Tutor summary trigger: fire on the final ANSWER, not on asking the last question
+
+#### Decisions
+
+- The previous "auto-continue" wording made the model summarize too eagerly: it asked
+  "Frage {{Total}} von {{Total}}" and appended the Performance Summary in the SAME turn, before the
+  user answered the final question (the summary even claimed all answers were correct). Clarified
+  across all 9 tutor prompts that the trigger is the user's **answer** to the final question, not the
+  act of asking it: asking `Frage {{Total}}` still stops and waits like any other question, and the
+  summary (with its `[[SPLIT]]` bubbles) only appears in the next turn that evaluates that final
+  answer. Added explicit "never summarize in a turn that asks a question / never invent the final
+  answer" guards.
+
+#### Changes
+
+- All 9 tutor `sampleprompt.py`: rewrote the terminal-stop / counter rule and the Performance Summary
+  WHEN note to gate the summary on the final answer being given.
+- `CLAUDE.md`: clarified the summary-emitting turn is the one evaluating the final answer, not the one
+  asking the last question.
+
+### Tutor summary follow-ups: auto-continue, stacked bubbles, Q&A label fix
+
+#### Decisions
+
+- The end-of-test ending must arrive in the SAME turn that evaluates the final answer — the model was
+  stopping after the final-question feedback and only producing the summary after the user typed
+  something. Strengthened the 🟠 P1 terminal-stop rule (and the summary intro) so the final response
+  is one turn with THREE `[[SPLIT]]`-separated bubbles: final feedback, Performance Summary, closing
+  Tutor/Q&A prompt. (Earlier today this was two bubbles; the final-answer feedback is now its own
+  bubble too, matching the requested feedback→summary→closing sequence.)
+- Split bubbles were tiling side-by-side because `.chatMessageGpt` is a flex *row*. Fixed in shared
+  CSS by wrapping the bubbles in a `.answerBubbleGroup` column; the single-bubble case uses
+  `display:contents` so every non-split message keeps its exact previous layout.
+- The mode button "Ask a question"/"Fragen stellen" was ambiguous and the model read it as a tutor
+  request, so clicking it started Tutor mode. Relabeled the Q&A mode option to "I have a question" /
+  "Ich habe eine Frage" / "Ik heb een vraag" (the sent value equals the label), which is unambiguous
+  Q&A intent and is also the user-requested wording.
+
+#### Changes
+
+- `app/frontend/src/chatbots/shared/answer/SharedAnswer.module.css`: add `.answerBubbleGroup`
+  (column) and `.answerBubbleGroupSingle` (`display:contents`).
+- `app/frontend/src/chatbots/shared/answer/ChatbotAnswer.tsx`: wrap the rendered bubbles in the
+  group/single wrapper (no other structural change; supports 2+ `[[SPLIT]]` segments).
+- All 9 tutor bots' `locales/{en,de,nl}/translation.json`: `options.mode.askQuestions` →
+  "I have a question" / "Ich habe eine Frage" / "Ik heb een vraag".
+- All 9 tutor `sampleprompt.py`: terminal-stop / counter rule now mandates same-turn, three-bubble
+  ending; Performance Summary intro adds a SAME-TURN note; the `[[SPLIT]]` marker-section doc updated
+  to describe two `[[SPLIT]]`s (feedback → summary → closing).
+- `CLAUDE.md`: tutor marker contract updated for the three-bubble same-turn close, the
+  `.answerBubbleGroup` layout, and the Q&A label change.
+
+### Tutor option buttons: no "Other" on level/count + two-bubble summary close
+
+#### Decisions
+
+- The knowledge-level (1–5) and question-count (3/5/10) option groups are fixed sets, so they must
+  never render an "Andere Option"/"Other option" button. Rather than relying on the model to omit
+  `allowOther`, the frontend now force-disables `allowOther` for `kind=level`/`kind=count` in
+  `parseChoiceMarker` — authoritative regardless of what the LLM emits.
+- The Performance Summary close should read as two separate assistant bubbles (summary, then the
+  "another topic or Q&A?" prompt with Tutor/Q&A buttons), mirroring the welcome message. Chosen a
+  display-only hidden `[[SPLIT]]` bubble-separator marker handled entirely inside shared
+  `ChatbotAnswer` (no per-bot `Chat.tsx` or history/state changes): the split is purely visual, the
+  stored message stays single so history replay is unchanged, and the trailing `[[CHOICES …]]` marker
+  keeps driving the existing option-click/suppression logic untouched.
+- The end-of-test re-offer is now `kind=mode` (was `generic`), so its buttons match the welcome's
+  Tutor/Q&A choice. The abort-confirm yes/no stays `kind=generic`.
+
+#### Changes
+
+- `app/frontend/src/chatbots/shared/answer/optionMarkers.ts`: force `allowOther=false` for
+  `level`/`count`; add `[[SPLIT]]` regexes, `splitBubbleSegments()`, and SPLIT stripping in
+  `stripChoiceMarker()`; update module header doc.
+- `app/frontend/src/chatbots/shared/answer/index.ts`: export `splitBubbleSegments`.
+- `app/frontend/src/chatbots/shared/answer/ChatbotAnswer.tsx`: render the first bubble segment in the
+  main card and any extra `[[SPLIT]]` segments as additional assistant cards below, placing the
+  option group on the LAST bubble (non-split path byte-identical to before).
+- All 9 tutor `sampleprompt.py` (bensberg, demo, fbn, internal, lemon, moodle, publishone,
+  steuertipps, knoll): Performance Summary now emits `[[SPLIT]]` + closing question +
+  `[[CHOICES kind=mode]]`; INTERACTIVE OPTION MARKERS section documents `[[SPLIT]]`, marks
+  `level`/`count` as never taking `allowOther`, moves the end-of-test re-offer to `kind=mode`.
+- `CLAUDE.md`: updated the tutor interactive-marker contract for the `[[SPLIT]]` marker, the forced
+  `allowOther` off for level/count, and the two-bubble summary close.
+
+### Follow-up: keep composer enabled during answer loading
+
+#### Decisions
+
+- Answer loading by itself should not disable or grey the composer. Closed-choice prompts still block
+  typing while idle, but once an option click has started a request the composer returns to its normal
+  enabled surface while the stop control is shown.
+
+#### Changes
+
+- All 9 tutor `pages/chat/Chat.tsx`: changed the composer disabled condition from
+  `isLoading || optionPromptBlocksInput` to `optionPromptBlocksInput && !isLoading` (with the internal
+  source-bot guard preserved).
+- `tests/e2e.py`: updated the Bensberg regression to assert the composer is enabled and white during a
+  pending answer request.
+- Validation: `npm run build` in `app/frontend` passed; `.venv\Scripts\python.exe -m pytest
+  tests/e2e.py::test_bensberg_option_prompt_disables_input_and_dedupes_topics` passed after rerunning
+  against the rebuilt bundle; `git diff --check` passed. `graphify update .` was attempted and timed
+  out again after 3 minutes; no leftover graphify/test-server process remained.
+
+### Follow-up: keep option selection visible during loading
+
+#### Decisions
+
+- The selected option is now stored at the chat-page level while a request is pending. Local optimistic
+  state inside the option component is still useful for the first click frame, but the page-level pending
+  value is what keeps the selected styling stable when the parent locks/re-renders during loading.
+- A disabled composer should use the disabled surface whenever the input is disabled, including during
+  answer generation/streaming, so the text area and action-button side read as one grey bubble.
+
+#### Changes
+
+- All 9 tutor `pages/chat/Chat.tsx`: added `pendingOptionSelection`, feed it into
+  `optionSelectedValue`, route option clicks through `handleOptionSelected`, and clear pending selection
+  on free-text override, clear/reset, and history restore.
+- Tutor `QuestionInput.tsx` copies used by Bensberg/Lemon, Demo, FBN, Knoll, Moodle, PublishOne, and
+  Steuertipps now apply the disabled surface class for any disabled state, not only non-loading prompts.
+- `tests/e2e.py`: expanded the Bensberg regression so the second option click leaves the mocked request
+  pending and asserts both the selected option and the full grey composer while the loading bubble is
+  visible.
+- Validation: `npm run build` in `app/frontend` passed; `git diff --check` passed;
+  `.venv\Scripts\python.exe -m pytest
+  tests/e2e.py::test_bensberg_option_prompt_disables_input_and_dedupes_topics` passed. `graphify
+  update .` was attempted and timed out again after 3 minutes; no leftover graphify/test-server
+  processes remained after cleanup.
+
+### Follow-up: topic prompt text, disabled composer surface, and immediate option feedback
+
+#### Decisions
+
+- Topic-selection prompts should keep the actual question text visible above the buttons. The frontend
+  duplicate-topic cleanup now strips only visible topic-list prose/bullets, not question lines ending in
+  a question mark.
+- Option buttons now show selected feedback optimistically on click, before the backend stream returns,
+  so users get immediate visual confirmation.
+- When an option prompt disables free typing, the whole composer surface is greyed as one disabled
+  bubble instead of leaving the send-button side on a white background.
+
+#### Changes
+
+- `optionMarkers.ts`: narrowed duplicate topic-list intro stripping and preserved visible
+  topic-selection questions.
+- `AnswerOptions.tsx`: added marker-keyed optimistic selected/other state for immediate
+  `aria-pressed` and selected styling.
+- Tutor `sampleprompt.py` files: made the topic-selection question template explicit in English,
+  German, and Dutch, while keeping dynamic topic labels only in the `kind=topic` marker body.
+- Tutor `QuestionInput` CSS/TSX copies used by Bensberg/Lemon, Demo, FBN, Knoll, Moodle,
+  PublishOne, and Steuertipps: added the disabled composer surface styling.
+- `tests/e2e.py`: extended the Bensberg option regression to assert the restored topic question,
+  no duplicate visible topic list, disabled composer, and immediate selected button state.
+- Validation: `npm run build` in `app/frontend` passed; `python -m py_compile` passed on the 9 tutor
+  prompts; `.venv\Scripts\python.exe -m pytest
+  tests/e2e.py::test_bensberg_option_prompt_disables_input_and_dedupes_topics` passed. `graphify
+  update .` was attempted again and timed out after 3 minutes; leftover graphify/test-server
+  processes were stopped.
+
+### Follow-up: interactive option prompt UX fixes
+
+#### Decisions
+
+- The chat composer is now treated as unavailable while the latest assistant message is waiting for an
+  interactive option choice. It unlocks only when the user explicitly clicks "Other option", because
+  free typing is the exception path for these closed-choice prompts.
+- Topic-choice prompts now use the option buttons as the single visible topic list. The model is still
+  allowed to put dynamic topic labels in the hidden `kind=topic` marker body, but prompt rules now tell
+  it not to duplicate those same labels as visible bullets/plain text. The frontend also strips duplicate
+  visible topic bullet lists defensively when a topic marker is present.
+
+#### Changes
+
+- All 9 tutor `pages/chat/Chat.tsx`: derive whether the latest assistant message has an active
+  `[[CHOICES ...]]` marker, disable the composer while it is active, and reset the free-text override on
+  send/clear/restore. "Other option" now flips that override before focusing the textarea.
+- Tutor `QuestionInput.tsx` copies used by lemon/bensberg/internal, demo, fbn, knoll, moodle,
+  publishone, and steuertipps now pass the existing `disabled` prop through to the actual Fluent
+  `TextField`, not only to the send button.
+- English tutor option i18n changed `"Check my knowledge"` to `"Test my knowledge"` across all 9 tutor
+  bots.
+- All 9 tutor `sampleprompt.py`: topic selection after choosing Tutor Mode must include available
+  topics in a `kind=topic` marker in the same message, and topic names must not be duplicated in visible
+  text.
+- Added a focused Playwright regression in `tests/e2e.py` for Bensberg option locking and topic-list
+  deduplication.
+- Validation: `npm run build` in `app/frontend` passed; `python -m py_compile` passed on all 9 tutor
+  prompts; `.venv\Scripts\python.exe -m pytest
+  tests/e2e.py::test_bensberg_option_prompt_disables_input_and_dedupes_topics` passed. `graphify update
+  .` was attempted twice (2-minute and 5-minute timeouts) but did not complete on this corpus; leftover
+  graphify/python processes from those attempts were stopped.
+
+### Interactive option buttons for tutor-mode bots
+
+#### Decisions
+
+- Closed-choice prompts in the tutor flow (Tutor-vs-Q&A mode, topic, knowledge level 1–5, question
+  count 3/5/10, and in-flow yes/no choices) now render as **buttons / radio-cards** instead of free
+  text. They are driven by a hidden marker the model appends at the end of a message —
+  `[[CHOICES kind=mode|topic|level|count|generic allowOther=0|1]]Label | Label[[/CHOICES]]` — the same
+  proven pattern as the HYROX assessment markers (`assessmentMarkers.ts`). The marker is stripped from
+  the displayed text but kept in the stored content so it replays into history. Chosen over a
+  frontend-only heuristic because the **topic list is dynamic** (depends on the learning unit) and must
+  come from the model.
+- **Core UX fix (the point of the change):** clicking an option still sends the choice to the backend
+  so history and the model see it, but the user **bubble is suppressed** for predefined selections;
+  instead the selection is shown **locked inside the assistant's option group** (derived from
+  `answers[i+1][0]`, so it survives history restore). This replaces the rejected HYROX behavior where
+  the clicked label re-appeared as a fake user message. Free-typed "Andere Option" answers don't match
+  a predefined value, so they still render as a normal user bubble.
+- `mode`/`level`/`count` labels (and the level descriptions) are **frontend-owned via i18n**
+  (`options.*` keys in de/en/nl) so they are always localized and consistent; `topic`/`generic` labels
+  come from the marker body (dynamic). The welcome mode marker is appended in code
+  (`t("initialAssistantMsg") + "\n\n[[CHOICES kind=mode]][[/CHOICES]]"`) rather than editing 24 welcome
+  strings; the synthetic welcome pair is stripped before any backend call, so the marker never reaches
+  the model.
+- Selected state is **neutral/monochrome** (dark border + check icon for buttons / filled radio for
+  cards + faint tint) by design — a saturated brand color would be low-contrast on the yellow/orange
+  bots. Themeable via `--chatbot-option-*` CSS vars. "Andere Option" focuses the always-visible chat
+  input through a ref on the input wrapper, so the 7 forked `QuestionInput` copies were left untouched.
+- Scope (per user direction): applied to **all tutor bots** — bensberg, lemon, demo, fbn, knoll,
+  moodle, publishone, steuertipps, internal — plus a fix so the HYROX assessment Start/Restart buttons
+  no longer render the literal "Start" as a user bubble.
+- Verification: the repo has **no JS unit-test runner** (no Vitest/Jest), so `optionMarkers` was
+  validated by `tsc`, a full `npm run build` (incl. widget), an esbuild sanity run (16/16 assertions),
+  and a Playwright route-mock screenshot pass of the `AnswerOptions` variants. Vitest was deliberately
+  not introduced (out of repo convention).
+
+#### Changes
+
+- New shared module `app/frontend/src/chatbots/shared/answer/optionMarkers.ts` (parse / strip /
+  resolve / `matchesChoiceValue` / `isOptionSelectionTurn` / `buildOptionTexts`) and
+  `AnswerOptions.tsx` + `AnswerOptions.module.css`; both exported from `shared/answer/index.ts`.
+- `shared/answer/ChatbotAnswer.tsx`: always strips the `[[CHOICES …]]` marker for display, parses it,
+  renders `<AnswerOptions>`; added props `optionTexts`, `optionSelectedValue`, `optionsLocked`,
+  `onOptionSelected`, `onOptionOther`. `createBotAnswer.tsx` supplies `optionTexts` from the bot's
+  i18n and forwards the rest; `fbn` and `internal` custom Answer wrappers forward the same.
+- All 9 tutor `pages/chat/Chat.tsx`: suppress option-driven user bubbles, pass selected value +
+  locked + handlers to `Answer`, added `chatInputRef`/`focusInput` for "Andere Option", and appended
+  the welcome mode marker.
+- Added an `options` i18n block to all 9 tutor bots × `de`/`en`/`nl` (27 translation files).
+- `hyrox-assessment/pages/chat/Chat.tsx`: suppress the "Start" user bubble (maps + loading/error).
+- All 9 tutor `sampleprompt.py` (lemon/bensberg/internal, demo/fbn/moodle/steuertipps/publishone,
+  knoll): added a "🟠 P1 — INTERACTIVE OPTION MARKERS" section defining the grammar and exactly when
+  to emit each kind.
+
+---
+
 ## 2026-06-19
 
 ### Cleaner chat UI refresh, applied to all bots

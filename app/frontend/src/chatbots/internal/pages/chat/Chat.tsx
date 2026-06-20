@@ -29,6 +29,7 @@ import { TokenClaimsDisplay } from "../../../lemon/components/TokenClaimsDisplay
 import { LoginContext } from "../../loginContext";
 import { Settings } from "../../components/Settings/Settings";
 import { setGlobalClearChat, type InternalLayoutOutletContext } from "../layout/Layout";
+import { buildOptionTexts, isOptionSelectionTurn, matchesChoiceValue, parseChoiceMarker } from "../../../shared/answer";
 import { applyChatbotSpeechFeatureFlags } from "../../../shared/speech/chatbotSpeechFeatureFlags";
 import { ChatbotDisclaimerBanner } from "../../../shared/disclaimer/ChatbotDisclaimerBanner";
 import { getSourceBotLabel, getSourceBotWelcome } from "../../sourceBots";
@@ -92,6 +93,9 @@ const getHistorySourceBot = (historyAnswers: [user: string, response: ChatAppRes
 
 const Chat = () => {
     const { t, i18n } = useTranslation();
+    // Localized labels/descriptions for the interactive option buttons (mode/level/count);
+    // also used to detect when a turn was an option click so its user bubble is suppressed.
+    const optionTexts = useMemo(() => buildOptionTexts(t), [t]);
     const [isConfigPanelOpen, setIsConfigPanelOpen] = useState(false);
     const [isHistoryPanelOpen, setIsHistoryPanelOpen] = useState(false);
     const [selectedSourceBot, setSelectedSourceBot] = useState<string>("");
@@ -121,6 +125,13 @@ const Chat = () => {
 
     const lastQuestionRef = useRef<string>("");
     const chatMessageStreamEnd = useRef<HTMLDivElement | null>(null);
+    const chatInputRef = useRef<HTMLDivElement | null>(null);
+    // "Andere Option": unlock and focus the chat input so the user can type a free answer.
+    const focusInput = () => {
+        setFreeTextOptionAnswerIndex(answers.length - 1);
+        setPendingOptionSelection(null);
+        window.setTimeout(() => chatInputRef.current?.querySelector("textarea")?.focus(), 0);
+    };
     const localHistorySessionIdRef = useRef<string | null>(null);
 
     const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -135,6 +146,18 @@ const Chat = () => {
     const [selectedAnswer, setSelectedAnswer] = useState<number>(0);
     const [answers, setAnswers] = useState<[user: string, response: ChatAppResponse][]>([]);
     const [streamedAnswers, setStreamedAnswers] = useState<[user: string, response: ChatAppResponse][]>([]);
+    const [freeTextOptionAnswerIndex, setFreeTextOptionAnswerIndex] = useState<number | null>(null);
+    const [pendingOptionSelection, setPendingOptionSelection] = useState<{ answerIndex: number; value: string } | null>(null);
+    const getOptionSelectedValue = (sourceAnswers: [user: string, response: ChatAppResponse][], index: number) =>
+        sourceAnswers[index + 1]?.[0] ?? (pendingOptionSelection?.answerIndex === index ? pendingOptionSelection.value : undefined);
+    const activeOptionAnswerIndex = useMemo(() => {
+        const latestIndex = answers.length - 1;
+        if (latestIndex < 0 || isStreaming) {
+            return null;
+        }
+        return parseChoiceMarker(answers[latestIndex]?.[1]?.message?.content) ? latestIndex : null;
+    }, [answers, isStreaming]);
+    const optionPromptBlocksInput = activeOptionAnswerIndex !== null && freeTextOptionAnswerIndex !== activeOptionAnswerIndex;
     const [speechUrls, setSpeechUrls] = useState<(string | null)[]>([]);
 
     const [showMultimodalOptions, setShowMultimodalOptions] = useState<boolean>(false);
@@ -381,6 +404,8 @@ const Chat = () => {
         setSelectedAnswer(0);
         setAnswers(nextAnswers);
         setStreamedAnswers(nextAnswers);
+        setFreeTextOptionAnswerIndex(null);
+        setPendingOptionSelection(null);
         setSpeechUrls(nextAnswers.length ? [null] : []);
         setIsLoading(false);
         setIsStreaming(false);
@@ -465,6 +490,14 @@ const Chat = () => {
         const controller = new AbortController();
         setAbortController(controller);
         lastQuestionRef.current = question;
+        // A free-typed "Andere Option" answer: persist it as the active option message's
+        // selection so the option group stays highlighted through loading/streaming. Without this,
+        // the answers<->streamedAnswers render switch remounts AnswerOptions and drops its local
+        // optimistic "Other selected" state until the response content arrives.
+        if (freeTextOptionAnswerIndex !== null) {
+            setPendingOptionSelection({ answerIndex: freeTextOptionAnswerIndex, value: question });
+        }
+        setFreeTextOptionAnswerIndex(null);
 
         error && setError(undefined);
         setRestoredQuestion("");
@@ -584,6 +617,11 @@ const Chat = () => {
         }
     };
 
+    const handleOptionSelected = (answerIndex: number, value: string) => {
+        setPendingOptionSelection({ answerIndex, value });
+        makeApiRequest(value);
+    };
+
     const clearChat = () => {
         resetChatState(selectedSourceBot);
     };
@@ -603,6 +641,8 @@ const Chat = () => {
         const nextAnswers = initialAssistantPair ? [initialAssistantPair] : [];
         setAnswers(nextAnswers);
         setStreamedAnswers(nextAnswers);
+        setFreeTextOptionAnswerIndex(null);
+        setPendingOptionSelection(null);
         setSpeechUrls(nextAnswers.length ? [null] : []);
     }, [answers.length, initialAssistantPair]);
 
@@ -811,7 +851,9 @@ const Chat = () => {
                             {isStreaming &&
                                 streamedAnswers.map((streamedAnswer, index) => (
                                     <div key={index}>
-                                        {!isSyntheticInitialPair(streamedAnswer) && <UserChatMessage message={streamedAnswer[0]} />}
+                                        {!isSyntheticInitialPair(streamedAnswer) && !isOptionSelectionTurn(streamedAnswers, index, optionTexts) && (
+                                            <UserChatMessage message={streamedAnswer[0]} />
+                                        )}
                                         <div className={styles.chatMessageGpt}>
                                             <Answer
                                                 isStreaming={true}
@@ -822,6 +864,10 @@ const Chat = () => {
                                                 assistantName={selectedAssistantCardName}
                                                 buildCitationPath={reference => getCitationFilePath(reference, selectedSourceBot)}
                                                 isSelected={false}
+                                                optionSelectedValue={getOptionSelectedValue(streamedAnswers, index)}
+                                                optionsLocked={true}
+                                                onOptionSelected={q => handleOptionSelected(index, q)}
+                                                onOptionOther={focusInput}
                                                 onCitationClicked={c => onShowCitation(c, index)}
                                                 onThoughtProcessClicked={() => onToggleTab(AnalysisPanelTabs.ThoughtProcessTab, index)}
                                                 onSupportingContentClicked={() => onToggleTab(AnalysisPanelTabs.SupportingContentTab, index)}
@@ -836,7 +882,9 @@ const Chat = () => {
                             {!isStreaming &&
                                 answers.map((answer, index) => (
                                     <div key={index}>
-                                        {!isSyntheticInitialPair(answer) && <UserChatMessage message={answer[0]} />}
+                                        {!isSyntheticInitialPair(answer) && !isOptionSelectionTurn(answers, index, optionTexts) && (
+                                            <UserChatMessage message={answer[0]} />
+                                        )}
                                         <div className={styles.chatMessageGpt}>
                                             <Answer
                                                 isStreaming={false}
@@ -847,6 +895,10 @@ const Chat = () => {
                                                 assistantName={selectedAssistantCardName}
                                                 buildCitationPath={reference => getCitationFilePath(reference, selectedSourceBot)}
                                                 isSelected={selectedAnswer === index && activeAnalysisPanelTab !== undefined}
+                                                optionSelectedValue={getOptionSelectedValue(answers, index)}
+                                                optionsLocked={index !== answers.length - 1 || isLoading}
+                                                onOptionSelected={q => handleOptionSelected(index, q)}
+                                                onOptionOther={focusInput}
                                                 onCitationClicked={c => onShowCitation(c, index)}
                                                 onThoughtProcessClicked={() => onToggleTab(AnalysisPanelTabs.ThoughtProcessTab, index)}
                                                 onSupportingContentClicked={() => onToggleTab(AnalysisPanelTabs.SupportingContentTab, index)}
@@ -860,7 +912,9 @@ const Chat = () => {
                                 ))}
                             {isLoading && (
                                 <>
-                                    <UserChatMessage message={lastQuestionRef.current} />
+                                    {!matchesChoiceValue(answers[answers.length - 1]?.[1]?.message?.content, lastQuestionRef.current, optionTexts) && (
+                                        <UserChatMessage message={lastQuestionRef.current} />
+                                    )}
                                     <div className={styles.chatMessageGptMinWidth}>
                                         <AnswerLoading />
                                     </div>
@@ -868,7 +922,9 @@ const Chat = () => {
                             )}
                             {error ? (
                                 <>
-                                    <UserChatMessage message={lastQuestionRef.current} />
+                                    {!matchesChoiceValue(answers[answers.length - 1]?.[1]?.message?.content, lastQuestionRef.current, optionTexts) && (
+                                        <UserChatMessage message={lastQuestionRef.current} />
+                                    )}
                                     <div className={styles.chatMessageGptMinWidth}>
                                         <AnswerError error={error.toString()} onRetry={() => makeApiRequest(lastQuestionRef.current)} />
                                     </div>
@@ -878,11 +934,11 @@ const Chat = () => {
                         </div>
                     )}
 
-                    <div className={styles.chatInput}>
+                    <div className={styles.chatInput} ref={chatInputRef}>
                         <QuestionInput
                             clearOnSend
                             placeholder={selectedSourceBot ? t("defaultExamples.placeholder") : t("sourceBotSelection.placeholder")}
-                            disabled={isLoading || !selectedSourceBot}
+                            disabled={!selectedSourceBot || (optionPromptBlocksInput && !isLoading)}
                             onSend={question => makeApiRequest(question)}
                             showSpeechInput={showSpeechInput}
                             isStreaming={isStreaming}
@@ -922,6 +978,8 @@ const Chat = () => {
                             setSelectedSourceBot(restoredSourceBot);
                             setAnswers(restoredConversation);
                             setStreamedAnswers(restoredConversation);
+                            setFreeTextOptionAnswerIndex(null);
+                            setPendingOptionSelection(null);
                             setSpeechUrls(Array.from({ length: restoredConversation.length }, () => null));
                             setActiveCitation(undefined);
                             setActiveAnalysisPanelTab(undefined);

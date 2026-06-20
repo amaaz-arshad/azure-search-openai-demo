@@ -816,7 +816,7 @@ const Chat = () => {
                                 const bubbles = splitAssessmentBubbles(streamedAnswer[1].message.content);
                                 return (
                                     <div key={index}>
-                                        {!isSyntheticInitialPair(streamedAnswer) && <UserChatMessage message={streamedAnswer[0]} />}
+                                        {!isSyntheticInitialPair(streamedAnswer) && streamedAnswer[0] !== "Start" && <UserChatMessage message={streamedAnswer[0]} />}
                                         {bubbles.map((bubbleContent, bubbleIndex) => (
                                             <div className={styles.chatMessageGpt} key={`${index}-${bubbleIndex}`}>
                                                 <Answer
@@ -847,7 +847,7 @@ const Chat = () => {
                                 const bubbles = splitAssessmentBubbles(answer[1].message.content);
                                 return (
                                     <div key={index}>
-                                        {!isSyntheticInitialPair(answer) && <UserChatMessage message={answer[0]} />}
+                                        {!isSyntheticInitialPair(answer) && answer[0] !== "Start" && <UserChatMessage message={answer[0]} />}
                                         {bubbles.map((bubbleContent, bubbleIndex) => (
                                             <div className={styles.chatMessageGpt} key={`${index}-${bubbleIndex}`}>
                                                 <Answer
@@ -886,7 +886,7 @@ const Chat = () => {
                         )}
                         {isLoading && (
                             <>
-                                <UserChatMessage message={lastQuestionRef.current} />
+                                {lastQuestionRef.current !== "Start" && <UserChatMessage message={lastQuestionRef.current} />}
                                 <div className={styles.chatMessageGptMinWidth}>
                                     <AnswerLoading />
                                 </div>
@@ -894,7 +894,7 @@ const Chat = () => {
                         )}
                         {error ? (
                             <>
-                                <UserChatMessage message={lastQuestionRef.current} />
+                                {lastQuestionRef.current !== "Start" && <UserChatMessage message={lastQuestionRef.current} />}
                                 <div className={styles.chatMessageGptMinWidth}>
                                     <AnswerError error={error.toString()} onRetry={() => makeApiRequest(lastQuestionRef.current)} />
                                 </div>

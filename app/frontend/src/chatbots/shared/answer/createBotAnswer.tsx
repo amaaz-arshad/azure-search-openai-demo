@@ -1,7 +1,9 @@
 import type { ComponentType } from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { ChatbotAnswer } from "./ChatbotAnswer";
+import { buildOptionTexts } from "./optionMarkers";
 import { ChatAppResponse, getCitationFilePath, SpeechConfig } from "../../../api";
 
 interface AnswerProps {
@@ -17,6 +19,12 @@ interface AnswerProps {
     showFollowupQuestions?: boolean;
     showSpeechOutputBrowser?: boolean;
     showSpeechOutputAzure?: boolean;
+    // Interactive option buttons (tutor-mode bots). optionTexts is supplied by the
+    // factory from the bot's i18n; the Chat page wires the rest.
+    optionSelectedValue?: string;
+    optionsLocked?: boolean;
+    onOptionSelected?: (value: string) => void;
+    onOptionOther?: () => void;
 }
 
 type SpeechOutputBrowserComponent = ComponentType<{ answer: string }>;
@@ -46,6 +54,7 @@ export function createBotAnswer(
 ) {
     return function Answer(props: AnswerProps) {
         const { t } = useTranslation();
+        const optionTexts = useMemo(() => buildOptionTexts(t), [t]);
 
         return (
             <ChatbotAnswer
@@ -57,6 +66,11 @@ export function createBotAnswer(
                 showFollowupQuestions={props.showFollowupQuestions}
                 showSpeechOutputBrowser={props.showSpeechOutputBrowser}
                 showSpeechOutputAzure={props.showSpeechOutputAzure}
+                optionTexts={optionTexts}
+                optionSelectedValue={props.optionSelectedValue}
+                optionsLocked={props.optionsLocked}
+                onOptionSelected={props.onOptionSelected}
+                onOptionOther={props.onOptionOther}
                 assistantLogoSrc={logoSrc}
                 assistantLogoAlt={`${t("headerTitle")} logo`}
                 assistantLogoVariant={options.assistantLogoVariant}
