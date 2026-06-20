@@ -6,6 +6,13 @@
       "output_tokens": 32000,
       "files": 1532,
       "mode": "option-C-trimmed-duplicates"
+    },
+    {
+      "date": "2026-06-20T19:01:47.788590+00:00",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "files": 1618,
+      "mode": "update (AST-only)"
     }
   ],
   "total_input_tokens": 1045000,
