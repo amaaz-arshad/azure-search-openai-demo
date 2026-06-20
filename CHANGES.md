@@ -17,6 +17,30 @@ Two categories per date:
 
 ## 2026-06-20
 
+### Chat composers: fill rounded-corner gap with chat content
+
+#### Decisions
+
+- The visible gap beside the sticky composer was caused by the chat footer's opaque page-colour
+  background showing through the composer's rounded top corners after the soft fade was disabled.
+- Kept the fade disabled and fixed the root layout instead: the composer footer now overlaps the
+  message stream by the composer-radius band, and only that top band is transparent so scrolled chat
+  content shows behind the rounded corners while the lower footer still masks with the page colour.
+- Added matching bottom padding to the message stream so the overlap does not consume the final
+  assistant bubble's resting margin when the chat is scrolled fully to the latest message.
+- Applied the same treatment to every chatbot with its own `pages/chat/Chat.module.css`. Bensberg and
+  Internal do not have separate chat layout CSS here and inherit existing shared bot surfaces.
+
+#### Changes
+
+- All 15 `app/frontend/src/chatbots/*/pages/chat/Chat.module.css` files: added a
+  `--composer-overlap` band, negative top margin, and transparent-to-page-colour footer background
+  gradient for sticky composers; added bottom stream padding for the resting gap; removed the
+  soft-fade pseudo-element block. HYROX's sticky `.footerAction` restart footer uses the same overlap
+  treatment.
+- Validation: `npm run build` in `app/frontend` passed; `git diff --check` passed; `graphify update .`
+  was attempted and timed out after 3 minutes, and the leftover graphify process was stopped.
+
 ### "Andere Option" button: solid border to match the other choice buttons
 
 #### Decisions

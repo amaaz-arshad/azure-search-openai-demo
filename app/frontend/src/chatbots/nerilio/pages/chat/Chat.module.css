@@ -202,25 +202,16 @@
    max-width so messages stay aligned and nothing peeks beside the sticky input. */
 .chatMessageStream {
     max-width: 48rem;
+    padding-bottom: 1.5rem;
 }
 
+/* Let the conversation run beneath the composer's rounded top corners. The lower
+   footer still masks with the page colour, but the radius band shows scrolled
+   chat content instead of a blank grey wedge. */
 .chatInput {
+    --composer-overlap: 1.5rem;
     max-width: 48rem;
+    margin-top: calc(0rem - var(--composer-overlap));
     padding-top: 0;
-}
-
-
-/* Soft fade above the sticky composer: content dissolves into the page colour as
-   it scrolls up behind the input instead of hitting the rounded white edge
-   abruptly. Invisible at rest (page is the same colour), so the connected look
-   stays. .chatInput is sticky (positioned), so this absolute child anchors to it. */
-.chatInput::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 100%;
-    height: 2rem;
-    background: linear-gradient(to top, #f2f2f2 0%, rgba(242, 242, 242, 0) 100%);
-    pointer-events: none;
+    background: linear-gradient(to bottom, transparent 0 var(--composer-overlap), #f2f2f2 var(--composer-overlap));
 }
