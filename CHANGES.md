@@ -17,6 +17,44 @@ Two categories per date:
 
 ## 2026-06-21
 
+### Bensberg visible bot name aligned with Lemon
+
+#### Decisions
+
+- Renamed only Bensberg's user-facing browser/header title to `Lemon®AID`, matching Lemon's visible
+  bot name. Kept the `/bensberg` route, `bensberg` retrieval category, backend package name, and
+  storage/auth identifiers unchanged because those are routing and data contracts, not display labels.
+
+#### Changes
+
+- `app/frontend/src/chatbots/bensberg/locales/{de,en,nl}/translation.json` — changed `pageTitle` and
+  `headerTitle` from `Bensberg` to `Lemon®AID`.
+
+### Loading + error bubble padding unified across all bots
+
+#### Decisions
+
+- Follow-up to the nerilio loading-bubble fix: only nerilio's `AnswerLoading` uses the SHARED
+  `.answerContainer` (so it picked up the 2026-06-20 `0.6em 1em` padding). The other 14 bots'
+  `AnswerLoading.tsx` use their LOCAL `components/Answer/Answer.module.css` `.answerContainer`, which
+  was still `padding: 1em` — so their loading pills were more padded than nerilio's, and more padded
+  than their own (shared) answer bubble. The same local `.answerContainer` also backs every bot's
+  `AnswerError.tsx` (all 15). Reduced the local `.answerContainer` padding `1em` → `0.6em 1em` in all
+  15 per-bot Answer.module.css files so loading bubbles (14 others) match nerilio's loading padding,
+  and error bubbles (all 15, including nerilio's) match the answer bubble too. Done as a verified
+  one-occurrence-per-file literal replace.
+- Did NOT add nerilio's loading `min-height`/centering to the other bots: they have no `min-height`
+  and symmetric padding, so their dots already sit centered (nerilio's top-stuck-dots bug was caused
+  by its `min-height: 3.5rem` + column flex, which the others never had). Their loading pills are now
+  the same PADDING as nerilio's but slightly shorter (dots + padding, ~35px) vs nerilio's (sized to a
+  one-line answer, ~47px). Left as-is unless full height parity is requested.
+
+#### Changes
+
+- `app/frontend/src/chatbots/{agindo,demo,fbn,fhg,free,hyrox-assessment,knoll,lemon,moodle,nerilio,
+  publishone,rak,sartorius,steuertipps,vjoonk4}/components/Answer/Answer.module.css` —
+  `.answerContainer` padding `1em` → `0.6em 1em` (affects each bot's loading and error bubble).
+
 ### nerilio loading bubble centering + bubble border-radius audit
 
 #### Decisions

@@ -1,5 +1,5 @@
 .answerContainer {
-    padding: 1em;
+    padding: 0.6em 1em;
     background: var(--chatbot-answer-background, rgb(249, 249, 249));
     border-radius: 1.5em;
     box-shadow:
