@@ -17,6 +17,53 @@ Two categories per date:
 
 ## 2026-06-21
 
+### Nerilio premium frontend polish (motion + welcome screen; theme/functionality preserved)
+
+#### Decisions
+
+- Request: make the nerilio bot look more premium/production-grade with tasteful, interactive
+  motion — without changing functionality or the brand theme (`#ac44c6` purple, light tone),
+  and nothing over the top. Applied the frontend-design / ui-ux-pro-max / framer-motion skills.
+- Confirmed direction with the user: **motion + tasteful visual polish** (not a redesign),
+  **subtle & refined** intensity, and **add a polished welcome screen** with clickable example prompts.
+- **Isolation invariant**: every edit lives in nerilio-owned files. No edits to `shared/`, so no other
+  bot's appearance changes. The assistant answer card's look was left as-is — its `box-shadow` is
+  hardcoded in shared `SharedAnswer.module.css`, and we deliberately did not touch shared CSS.
+- Accessibility: all new motion honors `prefers-reduced-motion` (framer-motion `useReducedMotion`
+  + CSS `@media` guards), matching the existing `index.css` tooltip pattern.
+- Message entrance animates **once per index** (ref Set + `initial={false}`) to avoid a replay flash
+  when the list re-mounts as streaming flips `streamedAnswers` → `answers`.
+- Welcome example copy: the existing `defaultExamples` were leftover **HYROX** questions; replaced
+  with nerilio-relevant prompts (what is nerilio / integrations / pricing) in en/de/nl so the new
+  welcome screen is coherent. Copy is easily adjusted.
+- `graphify update .` **declined to overwrite** (AST-only re-extraction → 10058 nodes vs the
+  LLM-enriched `graph.json`'s 10122). Not forced, to preserve the richer graph; discrepancy predates
+  this session.
+- Verified locally with vite dev + Playwright route-mocks (no Azure): welcome screen, card hover, and
+  reduced-motion all render correctly; `tsc` + `vite build` pass clean.
+
+#### Changes
+
+- `app/frontend/src/chatbots/nerilio/pages/chat/Chat.tsx`: import framer-motion; add per-index
+  animate-once guard (`prefersReducedMotion`, `animatedMessageIndices` ref, `shouldAnimateMessage`);
+  wrap both assistant message branches (streamed + buffered) in `motion.div` with a subtle fade+rise
+  entrance; render new `WelcomePrompts` before the conversation starts (gated on the synthetic initial
+  pair, not loading/error).
+- `app/frontend/src/chatbots/nerilio/components/WelcomePrompts/{WelcomePrompts.tsx,WelcomePrompts.module.css,index.ts}`:
+  new nerilio-owned welcome component — staggered framer-motion entrance, premium prompt cards
+  (hairline border, brand-tinted hover lift, `→` affordance), reuses `onExampleClicked` +
+  `defaultExamples` i18n; reduced-motion safe.
+- `app/frontend/src/chatbots/nerilio/components/QuestionInput/QuestionInput.module.css`: composer
+  `:focus-within` brand ring; send-button rest glow + hover lift + active press; reduced-motion guard.
+- `app/frontend/src/chatbots/nerilio/components/Answer/AnswerLoading.tsx` + `Answer.module.css`:
+  replaced the grey `BeatLoader` with a brand-tinted three-dot typing pulse (localized aria-label via
+  `t("generatingAnswer")`); reduced-motion → static dots.
+- `app/frontend/src/chatbots/nerilio/pages/layout/Layout.module.css`: faint sticky-header separation;
+  logo hover scale; smoothed trigger/item hovers; gentle CSS-keyframe dropdown reveal; reduced-motion
+  guard. (`Layout.tsx` unchanged.)
+- `app/frontend/src/chatbots/nerilio/locales/{en,de,nl}/translation.json`: `defaultExamples.1/2/3`
+  updated from HYROX to nerilio prompts.
+
 ### Strengthened locale-language enforcement on the weak single-line Q&A bots
 
 #### Decisions
