@@ -88,7 +88,7 @@ export const ScrollToBottomButton = ({
     // other icon-button tooltips. The trigger is a real DOM <button>, so the Tooltip
     // anchors to it directly (no <span> wrapper as the v8 IconButtons need).
     return (
-        <Tooltip content={ariaLabel} relationship="label">
+        <Tooltip content={ariaLabel} relationship="label" showDelay={0} hideDelay={0}>
             <button
                 type="button"
                 className={`${styles.scrollButton} ${visible ? styles.visible : ""}`}

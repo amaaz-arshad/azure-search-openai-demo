@@ -23,7 +23,7 @@ interface TooltipTargetProps {
  * `ariaLabel`, so dropping the native `title` does not affect accessibility.
  */
 export const TooltipTarget = ({ label, className, children }: TooltipTargetProps) => (
-    <Tooltip content={label} relationship="label">
+    <Tooltip content={label} relationship="label" showDelay={0} hideDelay={0}>
         <span className={className} style={{ display: "inline-flex" }}>
             {children}
         </span>

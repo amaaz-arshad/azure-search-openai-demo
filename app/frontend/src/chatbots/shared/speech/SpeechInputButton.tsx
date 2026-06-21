@@ -162,11 +162,11 @@ export const SpeechInputButton = ({ updateQuestion, supportedLngs, containerClas
     return (
         <div className={containerClassName}>
             {isRecording ? (
-                <Tooltip content={t("tooltips.stopRecording")} relationship="label">
+                <Tooltip content={t("tooltips.stopRecording")} relationship="label" showDelay={0} hideDelay={0}>
                     <Button size="large" icon={<Mic28Filled primaryFill="rgba(250, 0, 0, 0.7)" />} onClick={() => void stopRecording()} />
                 </Tooltip>
             ) : (
-                <Tooltip content={t("tooltips.askWithVoice")} relationship="label">
+                <Tooltip content={t("tooltips.askWithVoice")} relationship="label" showDelay={0} hideDelay={0}>
                     <Button size="large" icon={<Mic28Filled primaryFill={idleMicColor} />} onClick={() => void startRecording()} disabled={isStarting} />
                 </Tooltip>
             )}

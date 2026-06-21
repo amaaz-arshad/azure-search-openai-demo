@@ -109,11 +109,11 @@ export const QuestionInput = ({ onSend, onStop, disabled, placeholder, clearOnSe
             />
             <div className={styles.questionInputButtonsContainer}>
                 {isStreaming || isLoading ? (
-                    <Tooltip content={t("tooltips.stopStreaming")} relationship="label">
+                    <Tooltip content={t("tooltips.stopStreaming")} relationship="label" showDelay={0} hideDelay={0}>
                         <Button size="large" icon={<StopCircleIcon />} onClick={onStop} />
                     </Tooltip>
                 ) : (
-                    <Tooltip content={t("tooltips.submitQuestion")} relationship="label">
+                    <Tooltip content={t("tooltips.submitQuestion")} relationship="label" showDelay={0} hideDelay={0}>
                         <Button size="large" icon={<Send28Filled primaryFill="black" />} disabled={sendQuestionDisabled} onClick={sendQuestion} />
                     </Tooltip>
                 )}

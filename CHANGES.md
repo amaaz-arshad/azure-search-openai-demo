@@ -17,6 +17,27 @@ Two categories per date:
 
 ## 2026-06-21
 
+### Tooltip hover delay removed across all bots
+
+#### Decisions
+
+- Made icon tooltips appear/disappear instantly on hover. Fluent v9 `Tooltip` defaults to a ~250ms
+  `showDelay` and `hideDelay`; set both to `0`. Applied at the shared layer wherever possible so the
+  fix covers every bot in one place rather than per-bot duplication.
+
+#### Changes
+
+- `app/frontend/src/chatbots/shared/tooltip/TooltipTarget.tsx` — added `showDelay={0} hideDelay={0}`
+  to the shared `Tooltip` wrapper. This covers all answer-toolbar icon buttons (copy, Azure speech)
+  plus every bot's `HelpCallout` info icon and `MarkdownViewer` save icon, which route through it.
+- `app/frontend/src/chatbots/shared/speech/SpeechInputButton.tsx` and
+  `app/frontend/src/chatbots/shared/scroll/ScrollToBottomButton.tsx` — added the same props to their
+  direct `Tooltip` usages (voice mic start/stop, scroll-to-bottom button).
+- `app/frontend/src/chatbots/<bot>/components/QuestionInput/QuestionInput.tsx` for `agindo`, `demo`,
+  `fbn`, `fhg`, `free`, `hyrox-assessment`, `knoll`, `lemon`, `moodle`, `publishone`, `rak`,
+  `sartorius`, `steuertipps`, `vjoonk4` — added the same props to the send/stop button `Tooltip`s.
+  `nerilio` skipped: its send/stop tooltips are commented out (renders plain buttons).
+
 ### Bensberg visible bot name aligned with Lemon
 
 #### Decisions
