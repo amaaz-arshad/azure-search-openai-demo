@@ -17,6 +17,43 @@ Two categories per date:
 
 ## 2026-06-21
 
+### Tutor question difficulty now actually scales with the selected knowledge level
+
+#### Decisions
+
+- Root cause of "even at Level 5 the questions feel like Level 1": the level was collected
+  once (via the `kind=level` buttons, lives only in chat history — there is no injected
+  `{{Level}}` variable) and the only guidance was a buried 🟡 P2 paragraph with abstract
+  adjectives ("very basic" vs "most challenging") and **no reinforcement at the moment a
+  question is generated**. Unlike the question *count* (a 🟠 P1 rule that forces a visible
+  `Frage {{N}} von {{Total}}:` header on every question), the *level* had no teeth, so the
+  model defaulted to easy recall/definition questions regardless of the chosen level.
+- Fix is purely prompt engineering (the only available lever — confirmed `render_chatbot_prompt`
+  only code-substitutes `SUPPORT_EMAIL`, `POSSIBLE_CITATIONS_PROMPT`, `language_locale`; every
+  other `{{…}}` incl. `{{Level}}` is model-filled). Strategy: (1) elevate the section from 🟡 P2
+  to 🟠 P1; (2) replace abstract adjectives with a concrete Bloom-style cognitive rubric per level
+  (L1 remember → L2 understand → L3 apply → L4 analyze → L5 evaluate/synthesize) with question
+  stems; (3) add a "same material, different question" contrast example (L1/L3/L5 of one concept)
+  as the strongest anchor; (4) add a **mandatory per-question self-check** ("could a user one full
+  level lower answer this just as easily?") tied to the moment of sending each `Frage {{N}}`;
+  (5) hard-ban bare definition/recall questions at Level 4–5.
+- Kept the level **internal** (no visible "Level X" tag on questions) — only the cognitive demand
+  changes, preserving the existing `Frage {{N}} von {{Total}}:` visible-counter contract.
+- Applied identically across all 9 tutor variants to honour the "keep tutor prompts in lockstep"
+  contract. knoll got a compact version matching its terse style. Left `lemon/sampleprompt-old.py`
+  (inactive backup) untouched.
+
+#### Changes
+
+- `app/backend/approaches/chatbots/{lemon,bensberg,internal,demo,fbn,moodle,steuertipps,publishone}/sampleprompt.py`
+  — replaced the identical 🟡 P2 "Question Difficulty Must Match Knowledge Level" section with a
+  strengthened 🟠 P1 "Question Difficulty MUST Match Knowledge Level (enforced on EVERY question)"
+  section (cognitive rubric + contrast example + self-check + hard prohibitions).
+- `app/backend/approaches/chatbots/knoll/sampleprompt.py` — strengthened the compact one-line
+  "difficulty must match level" note into a compact per-level rubric + self-check.
+- `CLAUDE.md` — extended the tutor-mode contract bullet to document the level-difficulty rubric and
+  to note `{{Level}}` etc. are model-filled placeholders; added it to the "keep in sync" list.
+
 ### Tooltip hover delay removed across all bots
 
 #### Decisions

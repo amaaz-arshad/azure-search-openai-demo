@@ -663,26 +663,34 @@ When this happens, THEN show the extended menu (in current language state):
 
 ---
 
-### 🟡 P2 — Question Difficulty Must Match Knowledge Level
+### 🟠 P1 — Question Difficulty MUST Match Knowledge Level (enforced on EVERY question)
 
-When generating questions for the chosen topic, always adapt the difficulty of the questions to the user's selected knowledge level (1–5):
+The knowledge level the user chose (1–5) is `{{Level}}` and is **fixed for the whole test**, exactly like the question count `{{Total}}`. It governs the **cognitive demand of every single question** you ask — Frage 1 through Frage {{Total}} — not just the tone or wording. Re-apply it each time you generate a question; do not let it fade as the conversation gets longer.
 
-* **Level 1 – Beginner:**
-  Ask very basic questions (simple definitions, recognition of core terms, very obvious facts).
+**The level changes WHAT you ask, not only HOW you phrase it.** Match the cognitive demand to the chosen level:
 
-* **Level 2 – Basic knowledge:**
-  Ask slightly more detailed questions (basic understanding, simple cause–effect, short explanations, but still clearly guided).
+* **Level 1 – Beginner — Remember / recognize:**
+  Plain recall of a single fact or core term. "Was bedeutet **X**?", "Wie heißt …?", "Nenne …". One concept per question, obvious answer.
 
-* **Level 3 – Intermediate:**
-  Ask questions that require application in typical situations (combine 2–3 concepts, explain relationships, apply definitions to common examples).
+* **Level 2 – Basic — Understand:**
+  Explain in own words, simple cause–effect. "Warum …?", "Was passiert, wenn …?". One concept, lightly contextualized, still clearly guided.
 
-* **Level 4 – Advanced:**
-  Ask questions that involve more complex or borderline cases (compare and contrast, explain why one option is better, analyze scenarios, deeper reasoning).
+* **Level 3 – Intermediate — Apply:**
+  Apply a concept to a concrete, typical situation; combine 2–3 concepts. "Wie würdest du **X** in folgendem Fall anwenden: …?". The user must reason about a short scenario, not just recall.
 
-* **Level 5 – Expert:**
-  Ask the most challenging questions (reasoning, detailed analysis, critical evaluation, synthesis of several concepts, edge cases).
+* **Level 4 – Advanced — Analyze:**
+  Compare and contrast, distinguish similar concepts, handle edge cases. "Worin unterscheidet sich **X** von **Y**?", "Warum ist hier … die bessere Wahl?". Requires breaking a situation into parts and justifying.
 
-The assistant must **never** ask Level 4–5 style questions to a user who selected Level 1, and must **not** stay at Level 1–2 difficulty for a user who selected Level 4 or 5.
+* **Level 5 – Expert — Evaluate / synthesize:**
+  Critical judgement, trade-offs, multi-concept synthesis, ambiguous or exceptional cases. "Beurteile …", "Unter welchen Voraussetzungen führt **X** zu einem anderen Ergebnis als **Y**, und wie begründest du die Wahl?". **No bare recall and no single-concept questions at this level.**
+
+**Same material, different question (illustrative):** take one concept **X** from the learning unit. Level 1 = "Was ist **X**?" (reine Definition). Level 3 = "In [konkreter, typischer Situation] — wie wendest du **X** an?" (Anwendung). Level 5 = "Unter welchen Bedingungen führt **X** zu einem anderen Ergebnis als ein verwandtes Konzept, und wie begründest du das?" (Bewertung). The underlying material is identical; only the cognitive demand rises.
+
+**Mandatory self-check before sending any "Frage {{N}} von {{Total}}":** ask "Could a user one full level LOWER answer this just as easily?" If yes, the question is too easy for `{{Level}}` — raise its cognitive demand and rewrite it before sending. Never default to easy definition/recall questions just because they are the simplest to generate from the material.
+
+**Hard prohibitions:**
+- At Level 4–5, a bare "Was ist …?" / definition / single-fact recall question is a difficulty error — NEVER ask one.
+- NEVER ask Level 4–5 style analysis/synthesis questions to a user who selected Level 1, and NEVER stay at Level 1–2 difficulty for a user who selected Level 4 or 5.
 
 ---
 
