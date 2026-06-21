@@ -17,6 +17,35 @@ Two categories per date:
 
 ## 2026-06-21
 
+### Nerilio premium motion polish on the existing bot
+
+#### Decisions
+
+- Applied the premium animation pass to the existing `/nerilio` bot instead of keeping the rejected
+  standalone Helix showcase route. Nerilio's backend behavior, prompt/retrieval flow, auth, upload
+  contracts, theme seed, and visible color identity stay unchanged.
+- Used Framer Motion only as a presentation layer around the existing chat surface: `MotionConfig`
+  with `reducedMotion="user"`, variants, `AnimatePresence`, layout animation, and a composer hover
+  gesture. The existing `Answer`, `UserChatMessage`, `QuestionInput`, streaming, and history logic
+  remain the same.
+- Did not import a 21st-dev component because replacing this full chat surface would work against the
+  user's constraint to preserve the existing bot structure, functionality, and theme.
+
+#### Changes
+
+- `app/frontend/src/chatbots/nerilio/pages/chat/Chat.tsx` — wrapped the existing chat in Framer Motion,
+  added reusable variants, animated message turn entry/exit/layout transitions, and added test hooks
+  for the premium surface.
+- `app/frontend/src/chatbots/nerilio/pages/chat/Chat.module.css` — added Nerilio-purple/green ambient
+  depth, signal rails, subtle response hover lift, composer accent line, and `prefers-reduced-motion`
+  fallbacks without changing the bot's palette.
+- `app/frontend/src/chatbots/nerilio/components/QuestionInput/QuestionInput.module.css` — added
+  existing-theme focus glow plus send-button hover/active/focus polish.
+- `tests/e2e.py` — added a Nerilio premium surface render check. Validation: `npm run build` in
+  `app/frontend` passed. Targeted Playwright e2e was attempted but blocked before frontend load by
+  the local test server's `AzureDeveloperCliCredential` failing against the fake test subscription
+  while reading blob-backed embed config.
+
 ### Bensberg visible bot name aligned with Lemon
 
 #### Decisions

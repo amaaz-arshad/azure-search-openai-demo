@@ -3,6 +3,7 @@ import { ScrollToBottomButton } from "../../../shared/scroll/ScrollToBottomButto
 import { useTranslation } from "react-i18next";
 import { Helmet } from "react-helmet-async";
 import { useOutletContext } from "react-router-dom";
+import { AnimatePresence, MotionConfig, motion, type Variants } from "framer-motion";
 import { Panel, DefaultButton } from "@fluentui/react";
 import appLogo from "../../../../assets/applogo.svg";
 import styles from "./Chat.module.css";
@@ -31,6 +32,99 @@ import { ChatbotDisclaimerBanner } from "../../../shared/disclaimer/ChatbotDiscl
 import { readActiveSessionId, writeActiveSessionId, clearActiveSessionId } from "../../../shared/history/activeSession";
 
 const INITIAL_ASSISTANT_SENTINEL_USER_MESSAGE = "__initial_assistant__";
+
+const chatSurfaceVariants: Variants = {
+    hidden: {
+        opacity: 0,
+        y: 12,
+        filter: "blur(10px)"
+    },
+    show: {
+        opacity: 1,
+        y: 0,
+        filter: "blur(0px)",
+        transition: {
+            type: "spring",
+            stiffness: 190,
+            damping: 24,
+            mass: 0.8
+        }
+    }
+};
+
+const streamVariants: Variants = {
+    hidden: {},
+    show: {
+        transition: {
+            delayChildren: 0.08,
+            staggerChildren: 0.045
+        }
+    }
+};
+
+const messageTurnVariants: Variants = {
+    hidden: {
+        opacity: 0,
+        y: 16,
+        scale: 0.985,
+        filter: "blur(5px)"
+    },
+    show: {
+        opacity: 1,
+        y: 0,
+        scale: 1,
+        filter: "blur(0px)",
+        transition: {
+            type: "spring",
+            stiffness: 360,
+            damping: 32,
+            mass: 0.72
+        }
+    },
+    exit: {
+        opacity: 0,
+        y: -8,
+        scale: 0.992,
+        filter: "blur(3px)",
+        transition: {
+            duration: 0.16,
+            ease: "easeOut"
+        }
+    }
+};
+
+const composerVariants: Variants = {
+    hidden: {
+        opacity: 0,
+        y: 18
+    },
+    show: {
+        opacity: 1,
+        y: 0,
+        transition: {
+            type: "spring",
+            stiffness: 260,
+            damping: 28,
+            delay: 0.12
+        }
+    }
+};
+
+const signalRailVariants: Variants = {
+    hidden: {
+        opacity: 0,
+        scaleX: 0.88
+    },
+    show: {
+        opacity: 1,
+        scaleX: 1,
+        transition: {
+            duration: 0.42,
+            ease: "easeOut",
+            delay: 0.18
+        }
+    }
+};
 
 const createClientSessionId = () => {
     if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -734,13 +828,32 @@ const Chat = () => {
         }
     };
 
+    const visibleAnswers = isStreaming ? streamedAnswers : answers;
+
     return (
-        <div className={styles.container}>
-            {/* Setting the page title using react-helmet-async */}
-            <Helmet>
-                <title>{t("pageTitle")}</title>
-            </Helmet>
-            {/* <div className={styles.commandsSplitContainer}>
+        <MotionConfig reducedMotion="user" transition={{ type: "spring", stiffness: 300, damping: 30 }}>
+            <motion.div
+                className={styles.container}
+                data-testid="nerilio-premium-chat-surface"
+                initial="hidden"
+                animate="show"
+                variants={chatSurfaceVariants}
+            >
+                {/* Setting the page title using react-helmet-async */}
+                <Helmet>
+                    <title>{t("pageTitle")}</title>
+                </Helmet>
+                <motion.div
+                    className={styles.premiumSignalRail}
+                    aria-hidden="true"
+                    data-testid="nerilio-premium-signal-rail"
+                    variants={signalRailVariants}
+                >
+                    <span />
+                    <span />
+                    <span />
+                </motion.div>
+                {/* <div className={styles.commandsSplitContainer}>
                 <div className={styles.commandsContainer}>
                     {((useLogin && showChatHistoryCosmos) || showChatHistoryBrowser) && (
                         <HistoryButton className={styles.commandButton} onClick={() => setIsHistoryPanelOpen(!isHistoryPanelOpen)} />
@@ -752,10 +865,10 @@ const Chat = () => {
                     <SettingsButton className={styles.commandButton} onClick={() => setIsConfigPanelOpen(!isConfigPanelOpen)} />
                 </div>
             </div> */}
-            <div className={`${styles.chatRoot} ${isHistoryPanelOpen ? styles.chatRootHistoryOpen : ""}`}>
-                <div className={styles.chatContainer} ref={chatContainerRef}>
-                    <ChatbotDisclaimerBanner isLoggedIn={loggedIn} />
-                    {/* {!lastQuestionRef.current && answers.length === 1 && answers[0][0] === "" ? (
+                <motion.div className={`${styles.chatRoot} ${isHistoryPanelOpen ? styles.chatRootHistoryOpen : ""}`} layout>
+                    <motion.div className={styles.chatContainer} ref={chatContainerRef} layout data-testid="nerilio-chat-container">
+                        <ChatbotDisclaimerBanner isLoggedIn={loggedIn} />
+                        {/* {!lastQuestionRef.current && answers.length === 1 && answers[0][0] === "" ? (
                         <div className={styles.chatEmptyState}>
                             <img src={appLogo} alt="App logo" width="120" height="120" />
                             <h1 className={styles.chatEmptyStateTitle}>{t("chatEmptyStateTitle")}</h1>
@@ -764,163 +877,173 @@ const Chat = () => {
                             <ExampleList onExampleClicked={onExampleClicked} useMultimodalAnswering={showMultimodalOptions} />
                         </div>
                     ) : ( */}
-                    <div className={styles.chatMessageStream}>
-                        {isStreaming &&
-                            streamedAnswers.map((streamedAnswer, index) => (
-                                <div key={index}>
-                                    {!isSyntheticInitialPair(streamedAnswer) && <UserChatMessage message={streamedAnswer[0]} />}
-                                    <div className={styles.chatMessageGpt}>
-                                        <Answer
-                                            isStreaming={true}
-                                            key={index}
-                                            answer={streamedAnswer[1]}
-                                            index={index}
-                                            speechConfig={speechConfig}
-                                            isSelected={false}
-                                            onCitationClicked={c => onShowCitation(c, index)}
-                                            onThoughtProcessClicked={() => onToggleTab(AnalysisPanelTabs.ThoughtProcessTab, index)}
-                                            onSupportingContentClicked={() => onToggleTab(AnalysisPanelTabs.SupportingContentTab, index)}
-                                            onFollowupQuestionClicked={q => makeApiRequest(q)}
-                                            showFollowupQuestions={useSuggestFollowupQuestions && answers.length - 1 === index}
-                                            showSpeechOutputAzure={showSpeechOutputAzure}
-                                            showSpeechOutputBrowser={showSpeechOutputBrowser}
-                                        />
-                                    </div>
-                                </div>
-                            ))}
-                        {!isStreaming &&
-                            answers.map((answer, index) => (
-                                <div key={index}>
-                                    {!isSyntheticInitialPair(answer) && <UserChatMessage message={answer[0]} />}
-                                    <div className={styles.chatMessageGpt}>
-                                        <Answer
-                                            isStreaming={false}
-                                            key={index}
-                                            answer={answer[1]}
-                                            index={index}
-                                            speechConfig={speechConfig}
-                                            isSelected={selectedAnswer === index && activeAnalysisPanelTab !== undefined}
-                                            onCitationClicked={c => onShowCitation(c, index)}
-                                            onThoughtProcessClicked={() => onToggleTab(AnalysisPanelTabs.ThoughtProcessTab, index)}
-                                            onSupportingContentClicked={() => onToggleTab(AnalysisPanelTabs.SupportingContentTab, index)}
-                                            onFollowupQuestionClicked={q => makeApiRequest(q)}
-                                            showFollowupQuestions={useSuggestFollowupQuestions && answers.length - 1 === index}
-                                            showSpeechOutputAzure={showSpeechOutputAzure}
-                                            showSpeechOutputBrowser={showSpeechOutputBrowser}
-                                        />
-                                    </div>
-                                </div>
-                            ))}
-                        {isLoading && (
-                            <>
-                                <UserChatMessage message={lastQuestionRef.current} />
-                                <div className={styles.chatMessageGptMinWidth}>
-                                    <AnswerLoading />
-                                </div>
-                            </>
-                        )}
-                        {error ? (
-                            <>
-                                <UserChatMessage message={lastQuestionRef.current} />
-                                <div className={styles.chatMessageGptMinWidth}>
-                                    <AnswerError error={error.toString()} onRetry={() => makeApiRequest(lastQuestionRef.current)} />
-                                </div>
-                            </>
-                        ) : null}
-                        <div ref={chatMessageStreamEnd} />
-                    </div>
-                    {/* )} */}
+                        <motion.div
+                            className={styles.chatMessageStream}
+                            variants={streamVariants}
+                            aria-live="polite"
+                            aria-relevant="additions text"
+                        >
+                            <AnimatePresence mode="popLayout">
+                                {visibleAnswers.map((answer, index) => (
+                                    <motion.div
+                                        key={`${isStreaming ? "streamed" : "answer"}-${index}`}
+                                        className={styles.messageTurn}
+                                        variants={messageTurnVariants}
+                                        initial="hidden"
+                                        animate="show"
+                                        exit="exit"
+                                        layout="position"
+                                    >
+                                        {!isSyntheticInitialPair(answer) && <UserChatMessage message={answer[0]} />}
+                                        <div className={styles.chatMessageGpt}>
+                                            <Answer
+                                                isStreaming={isStreaming}
+                                                key={index}
+                                                answer={answer[1]}
+                                                index={index}
+                                                speechConfig={speechConfig}
+                                                isSelected={!isStreaming && selectedAnswer === index && activeAnalysisPanelTab !== undefined}
+                                                onCitationClicked={c => onShowCitation(c, index)}
+                                                onThoughtProcessClicked={() => onToggleTab(AnalysisPanelTabs.ThoughtProcessTab, index)}
+                                                onSupportingContentClicked={() => onToggleTab(AnalysisPanelTabs.SupportingContentTab, index)}
+                                                onFollowupQuestionClicked={q => makeApiRequest(q)}
+                                                showFollowupQuestions={useSuggestFollowupQuestions && answers.length - 1 === index}
+                                                showSpeechOutputAzure={showSpeechOutputAzure}
+                                                showSpeechOutputBrowser={showSpeechOutputBrowser}
+                                            />
+                                        </div>
+                                    </motion.div>
+                                ))}
+                                {isLoading && (
+                                    <motion.div
+                                        key="loading"
+                                        className={styles.messageTurn}
+                                        variants={messageTurnVariants}
+                                        initial="hidden"
+                                        animate="show"
+                                        exit="exit"
+                                        layout="position"
+                                    >
+                                        <UserChatMessage message={lastQuestionRef.current} />
+                                        <div className={styles.chatMessageGptMinWidth}>
+                                            <AnswerLoading />
+                                        </div>
+                                    </motion.div>
+                                )}
+                                {error ? (
+                                    <motion.div
+                                        key="error"
+                                        className={styles.messageTurn}
+                                        variants={messageTurnVariants}
+                                        initial="hidden"
+                                        animate="show"
+                                        exit="exit"
+                                        layout="position"
+                                    >
+                                        <UserChatMessage message={lastQuestionRef.current} />
+                                        <div className={styles.chatMessageGptMinWidth}>
+                                            <AnswerError error={error.toString()} onRetry={() => makeApiRequest(lastQuestionRef.current)} />
+                                        </div>
+                                    </motion.div>
+                                ) : null}
+                            </AnimatePresence>
+                            <div ref={chatMessageStreamEnd} />
+                        </motion.div>
+                        {/* )} */}
 
-                    <div className={styles.chatInput}>
-                        <ScrollToBottomButton containerRef={chatContainerRef} />
-                        <QuestionInput
-                            clearOnSend
-                            placeholder={t("defaultExamples.placeholder")}
-                            disabled={isLoading}
-                            onSend={question => makeApiRequest(question)}
-                            showSpeechInput={showSpeechInput}
-                            isStreaming={isStreaming}
-                            isLoading={isLoading}
-                            onStop={onStopClick}
-                            initQuestion={restoredQuestion}
+                        <motion.div className={styles.chatInput} variants={composerVariants} whileHover={{ y: -1 }} layout>
+                            <ScrollToBottomButton containerRef={chatContainerRef} />
+                            <QuestionInput
+                                clearOnSend
+                                placeholder={t("defaultExamples.placeholder")}
+                                disabled={isLoading}
+                                onSend={question => makeApiRequest(question)}
+                                showSpeechInput={showSpeechInput}
+                                isStreaming={isStreaming}
+                                isLoading={isLoading}
+                                onStop={onStopClick}
+                                initQuestion={restoredQuestion}
+                            />
+                        </motion.div>
+                    </motion.div>
+
+                    {answers.length > 0 && activeAnalysisPanelTab && (
+                        <AnalysisPanel
+                            className={styles.chatAnalysisPanel}
+                            activeCitation={activeCitation}
+                            onActiveTabChanged={x => onToggleTab(x, selectedAnswer)}
+                            citationHeight="810px"
+                            answer={answers[selectedAnswer][1]}
+                            activeTab={activeAnalysisPanelTab}
+                            onCitationClicked={c => onShowCitation(c, selectedAnswer)}
                         />
-                    </div>
-                </div>
+                    )}
 
-                {answers.length > 0 && activeAnalysisPanelTab && (
-                    <AnalysisPanel
-                        className={styles.chatAnalysisPanel}
-                        activeCitation={activeCitation}
-                        onActiveTabChanged={x => onToggleTab(x, selectedAnswer)}
-                        citationHeight="810px"
-                        answer={answers[selectedAnswer][1]}
-                        activeTab={activeAnalysisPanelTab}
-                        onCitationClicked={c => onShowCitation(c, selectedAnswer)}
-                    />
-                )}
+                    {((useLogin && showChatHistoryCosmos) || showChatHistoryBrowser) && (
+                        <HistoryPanel
+                            provider={historyProvider}
+                            isOpen={isHistoryPanelOpen}
+                            notify={!isStreaming && !isLoading}
+                            onClose={() => setIsHistoryPanelOpen(false)}
+                            onChatSelected={historyAnswers => restoreConversation(historyAnswers, null)}
+                        />
+                    )}
 
-                {((useLogin && showChatHistoryCosmos) || showChatHistoryBrowser) && (
-                    <HistoryPanel
-                        provider={historyProvider}
-                        isOpen={isHistoryPanelOpen}
-                        notify={!isStreaming && !isLoading}
-                        onClose={() => setIsHistoryPanelOpen(false)}
-                        onChatSelected={historyAnswers => restoreConversation(historyAnswers, null)}
-                    />
-                )}
-
-                <Panel
-                    headerText={t("labels.headerText")}
-                    isOpen={isConfigPanelOpen}
-                    isBlocking={false}
-                    onDismiss={() => setIsConfigPanelOpen(false)}
-                    closeButtonAriaLabel={t("labels.closeButton")}
-                    onRenderFooterContent={() => <DefaultButton onClick={() => setIsConfigPanelOpen(false)}>{t("labels.closeButton")}</DefaultButton>}
-                    isFooterAtBottom={true}
-                >
-                    <Settings
-                        promptTemplate={promptTemplate}
-                        temperature={temperature}
-                        retrieveCount={retrieveCount}
-                        agenticReasoningEffort={agenticReasoningEffort}
-                        seed={seed}
-                        minimumSearchScore={minimumSearchScore}
-                        minimumRerankerScore={minimumRerankerScore}
-                        useSemanticRanker={useSemanticRanker}
-                        useSemanticCaptions={useSemanticCaptions}
-                        useQueryRewriting={useQueryRewriting}
-                        reasoningEffort={reasoningEffort}
-                        excludeCategory={excludeCategory}
-                        includeCategory={includeCategory}
-                        retrievalMode={retrievalMode}
-                        showMultimodalOptions={showMultimodalOptions}
-                        sendTextSources={sendTextSources}
-                        sendImageSources={sendImageSources}
-                        searchTextEmbeddings={searchTextEmbeddings}
-                        searchImageEmbeddings={searchImageEmbeddings}
-                        showSemanticRankerOption={showSemanticRankerOption}
-                        showQueryRewritingOption={showQueryRewritingOption}
-                        showReasoningEffortOption={showReasoningEffortOption}
-                        showVectorOption={showVectorOption}
-                        useLogin={!!useLogin}
-                        loggedIn={loggedIn}
-                        requireAccessControl={requireAccessControl}
-                        shouldStream={shouldStream}
-                        streamingEnabled={streamingEnabled}
-                        useSuggestFollowupQuestions={useSuggestFollowupQuestions}
-                        showAgenticRetrievalOption={showAgenticRetrievalOption}
-                        useAgenticKnowledgeBase={useAgenticKnowledgeBase}
-                        useWebSource={webSourceEnabled}
-                        showWebSourceOption={webSourceSupported}
-                        useSharePointSource={sharePointSourceEnabled}
-                        showSharePointSourceOption={sharePointSourceSupported}
-                        hideMinimalRetrievalReasoningOption={hideMinimalRetrievalReasoningOption}
-                        onChange={handleSettingsChange}
-                    />
-                    {useLogin && <TokenClaimsDisplay />}
-                </Panel>
-            </div>
-        </div>
+                    <Panel
+                        headerText={t("labels.headerText")}
+                        isOpen={isConfigPanelOpen}
+                        isBlocking={false}
+                        onDismiss={() => setIsConfigPanelOpen(false)}
+                        closeButtonAriaLabel={t("labels.closeButton")}
+                        onRenderFooterContent={() => (
+                            <DefaultButton onClick={() => setIsConfigPanelOpen(false)}>{t("labels.closeButton")}</DefaultButton>
+                        )}
+                        isFooterAtBottom={true}
+                    >
+                        <Settings
+                            promptTemplate={promptTemplate}
+                            temperature={temperature}
+                            retrieveCount={retrieveCount}
+                            agenticReasoningEffort={agenticReasoningEffort}
+                            seed={seed}
+                            minimumSearchScore={minimumSearchScore}
+                            minimumRerankerScore={minimumRerankerScore}
+                            useSemanticRanker={useSemanticRanker}
+                            useSemanticCaptions={useSemanticCaptions}
+                            useQueryRewriting={useQueryRewriting}
+                            reasoningEffort={reasoningEffort}
+                            excludeCategory={excludeCategory}
+                            includeCategory={includeCategory}
+                            retrievalMode={retrievalMode}
+                            showMultimodalOptions={showMultimodalOptions}
+                            sendTextSources={sendTextSources}
+                            sendImageSources={sendImageSources}
+                            searchTextEmbeddings={searchTextEmbeddings}
+                            searchImageEmbeddings={searchImageEmbeddings}
+                            showSemanticRankerOption={showSemanticRankerOption}
+                            showQueryRewritingOption={showQueryRewritingOption}
+                            showReasoningEffortOption={showReasoningEffortOption}
+                            showVectorOption={showVectorOption}
+                            useLogin={!!useLogin}
+                            loggedIn={loggedIn}
+                            requireAccessControl={requireAccessControl}
+                            shouldStream={shouldStream}
+                            streamingEnabled={streamingEnabled}
+                            useSuggestFollowupQuestions={useSuggestFollowupQuestions}
+                            showAgenticRetrievalOption={showAgenticRetrievalOption}
+                            useAgenticKnowledgeBase={useAgenticKnowledgeBase}
+                            useWebSource={webSourceEnabled}
+                            showWebSourceOption={webSourceSupported}
+                            useSharePointSource={sharePointSourceEnabled}
+                            showSharePointSourceOption={sharePointSourceSupported}
+                            hideMinimalRetrievalReasoningOption={hideMinimalRetrievalReasoningOption}
+                            onChange={handleSettingsChange}
+                        />
+                        {useLogin && <TokenClaimsDisplay />}
+                    </Panel>
+                </motion.div>
+            </motion.div>
+        </MotionConfig>
     );
 };
 

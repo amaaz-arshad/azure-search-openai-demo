@@ -8,11 +8,82 @@
     --chatbot-disclaimer-message-font-size-mobile: 15px;
     --chat-mobile-inline-padding: clamp(0.75rem, 4.25vw, 1rem);
     --chat-mobile-input-bottom-padding: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+    --nerilio-premium-primary: #ac44c6;
+    --nerilio-premium-secondary: #00cc96;
+    --nerilio-premium-page: #f2f2f2;
     flex: 1;
     display: flex;
     flex-direction: column;
     /* Remove margin-top: 1rem; */
     height: calc(100vh - 56px); /* Subtract navbar height (56px from Layout.module.css) */
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    background:
+        radial-gradient(circle at 13% 7%, rgba(172, 68, 198, 0.14), transparent 28rem),
+        radial-gradient(circle at 89% 12%, rgba(0, 204, 150, 0.12), transparent 26rem),
+        linear-gradient(180deg, #fbf9fc 0%, var(--nerilio-premium-page) 34%, var(--nerilio-premium-page) 100%);
+}
+
+.container::before,
+.container::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.container::before {
+    background-image:
+        linear-gradient(rgba(172, 68, 198, 0.055) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 204, 150, 0.045) 1px, transparent 1px);
+    background-size: 4.75rem 4.75rem;
+    mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.82), transparent 70%);
+    animation: nerilioAmbientDrift 18s ease-in-out infinite alternate;
+}
+
+.container::after {
+    background:
+        linear-gradient(112deg, transparent 7%, rgba(255, 255, 255, 0.54) 18%, transparent 32%),
+        radial-gradient(circle at 50% 100%, rgba(172, 68, 198, 0.08), transparent 38rem);
+    mix-blend-mode: soft-light;
+    opacity: 0.8;
+    transform: translateX(-8%);
+    animation: nerilioLightSweep 14s ease-in-out infinite alternate;
+}
+
+.premiumSignalRail {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    z-index: 3;
+    width: min(48rem, calc(100% - 2rem));
+    height: 0.25rem;
+    display: grid;
+    grid-template-columns: 1fr 0.58fr 0.28fr;
+    gap: 0.5rem;
+    pointer-events: none;
+    transform-origin: center;
+    translate: -50% 0;
+}
+
+.premiumSignalRail span {
+    height: 1px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, transparent, rgba(172, 68, 198, 0.72), rgba(0, 204, 150, 0.76), transparent);
+    box-shadow:
+        0 0 18px rgba(172, 68, 198, 0.36),
+        0 0 22px rgba(0, 204, 150, 0.2);
+    animation: nerilioSignalPulse 2.8s ease-in-out infinite;
+}
+
+.premiumSignalRail span:nth-child(2) {
+    animation-delay: 0.36s;
+}
+
+.premiumSignalRail span:nth-child(3) {
+    animation-delay: 0.72s;
 }
 
 .chatRoot {
@@ -20,6 +91,8 @@
     display: flex;
     height: 100%;
     transition: margin-left 0.3s ease;
+    position: relative;
+    z-index: 1;
 }
 
 /* History panel shifts the chat aside only on wide layouts. On compact and
@@ -48,6 +121,26 @@
     overflow-y: auto;
     scrollbar-width: none;
     -ms-overflow-style: none;
+    position: relative;
+    z-index: 1;
+}
+
+.chatContainer::before {
+    content: "";
+    position: absolute;
+    top: 0.5rem;
+    left: 50%;
+    width: min(50rem, calc(100% - 1.5rem));
+    height: 10rem;
+    border-radius: 999px;
+    background:
+        radial-gradient(ellipse at 24% 50%, rgba(172, 68, 198, 0.14), transparent 58%),
+        radial-gradient(ellipse at 78% 50%, rgba(0, 204, 150, 0.12), transparent 62%);
+    filter: blur(28px);
+    opacity: 0.85;
+    pointer-events: none;
+    transform: translateX(-50%);
+    z-index: -1;
 }
 
 .chatContainer::-webkit-scrollbar {
@@ -83,17 +176,41 @@
     display: flex;
     flex-direction: column;
     max-width: 64.25rem;
+    position: relative;
+    z-index: 1;
+}
+
+.messageTurn {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    transform-origin: center top;
+    will-change: transform, opacity, filter;
 }
 
 .chatMessageGpt {
     margin-bottom: 1.5rem;
     max-width: 100%;
     display: flex;
+    position: relative;
+    transition:
+        transform 180ms ease,
+        filter 180ms ease;
 }
 
 .chatMessageGptMinWidth {
     max-width: 31.25rem;
     margin-bottom: 1.25rem;
+    position: relative;
+    transition:
+        transform 180ms ease,
+        filter 180ms ease;
+}
+
+.messageTurn:hover .chatMessageGpt,
+.messageTurn:hover .chatMessageGptMinWidth {
+    transform: translateY(-1px);
+    filter: drop-shadow(0 12px 24px rgba(172, 68, 198, 0.08));
 }
 
 .chatInput {
@@ -106,6 +223,31 @@
     box-sizing: border-box;
     background: #f2f2f2;
     z-index: 10; /* Ensure it stays above other content */
+    position: sticky;
+    isolation: isolate;
+}
+
+.chatInput::before {
+    content: "";
+    position: absolute;
+    top: var(--composer-overlap, 0);
+    left: 1.25rem;
+    right: 1.25rem;
+    height: 1px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, transparent, rgba(172, 68, 198, 0.38), rgba(0, 204, 150, 0.34), transparent);
+    opacity: 0.68;
+    transition:
+        opacity 180ms ease,
+        box-shadow 180ms ease;
+    pointer-events: none;
+}
+
+.chatInput:focus-within::before {
+    opacity: 1;
+    box-shadow:
+        0 0 18px rgba(172, 68, 198, 0.16),
+        0 0 20px rgba(0, 204, 150, 0.12);
 }
 
 .chatAnalysisPanel {
@@ -214,4 +356,59 @@
     margin-top: calc(0rem - var(--composer-overlap));
     padding-top: 0;
     background: linear-gradient(to bottom, transparent 0 var(--composer-overlap), #f2f2f2 var(--composer-overlap));
+}
+
+@keyframes nerilioAmbientDrift {
+    from {
+        transform: translate3d(-0.5rem, -0.35rem, 0);
+    }
+
+    to {
+        transform: translate3d(0.65rem, 0.45rem, 0);
+    }
+}
+
+@keyframes nerilioLightSweep {
+    from {
+        transform: translateX(-10%);
+        opacity: 0.58;
+    }
+
+    to {
+        transform: translateX(8%);
+        opacity: 0.88;
+    }
+}
+
+@keyframes nerilioSignalPulse {
+    0%,
+    100% {
+        opacity: 0.42;
+        transform: scaleX(0.86);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scaleX(1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .container::before,
+    .container::after,
+    .premiumSignalRail span {
+        animation: none;
+    }
+
+    .chatMessageGpt,
+    .chatMessageGptMinWidth,
+    .chatInput::before {
+        transition: none;
+    }
+
+    .messageTurn:hover .chatMessageGpt,
+    .messageTurn:hover .chatMessageGptMinWidth {
+        transform: none;
+        filter: none;
+    }
 }

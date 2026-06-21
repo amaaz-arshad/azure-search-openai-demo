@@ -63,4 +63,53 @@
 .questionInputContainer {
     box-shadow: none;
     border: 1px solid #e6e6e6;
+    transition:
+        border-color 180ms ease,
+        box-shadow 180ms ease,
+        transform 180ms ease;
+}
+
+.questionInputContainer:focus-within {
+    border-color: rgba(172, 68, 198, 0.38);
+    box-shadow:
+        0 14px 34px rgba(172, 68, 198, 0.12),
+        0 0 0 4px rgba(172, 68, 198, 0.08),
+        0 0 0 1px rgba(0, 204, 150, 0.1);
+}
+
+.sendButton:global(.fui-Button) {
+    transition:
+        transform 160ms ease,
+        box-shadow 160ms ease,
+        filter 160ms ease;
+    box-shadow: 0 8px 18px rgba(172, 68, 198, 0.22);
+}
+
+.sendButton:global(.fui-Button:hover) {
+    transform: translateY(-1px);
+    filter: saturate(1.08);
+    box-shadow: 0 12px 24px rgba(172, 68, 198, 0.28);
+}
+
+.sendButton:global(.fui-Button:active) {
+    transform: translateY(0) scale(0.97);
+    box-shadow: 0 6px 14px rgba(172, 68, 198, 0.2);
+}
+
+.sendButton:global(.fui-Button:focus-visible) {
+    box-shadow:
+        0 10px 22px rgba(172, 68, 198, 0.24),
+        0 0 0 4px rgba(172, 68, 198, 0.16);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .questionInputContainer,
+    .sendButton:global(.fui-Button) {
+        transition: none;
+    }
+
+    .sendButton:global(.fui-Button:hover),
+    .sendButton:global(.fui-Button:active) {
+        transform: none;
+    }
 }

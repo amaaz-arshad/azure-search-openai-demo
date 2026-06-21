@@ -134,6 +134,16 @@ def test_chatbot_disclaimer_visible_and_closable(page: Page, live_server_url: st
     expect(page.get_by_test_id("chatbot-disclaimer")).to_have_count(0)
 
 
+def test_nerilio_premium_motion_surface_renders(page: Page, live_server_url: str):
+    page.goto(f"{live_server_url}nerilio")
+
+    expect(page).to_have_title("nerilio")
+    expect(page.get_by_test_id("nerilio-premium-chat-surface")).to_be_visible()
+    expect(page.get_by_test_id("nerilio-premium-signal-rail")).to_be_visible()
+    expect(page.get_by_text("Hello, I'm nerilio. How can I assist you today?")).to_be_visible()
+    expect(page.get_by_placeholder("Type your message")).to_be_visible()
+
+
 def test_demo_disclaimer_visible_after_login(page: Page, live_server_url: str):
     page.goto(f"{live_server_url}demo")
 
