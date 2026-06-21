@@ -17,6 +17,72 @@ Two categories per date:
 
 ## 2026-06-21
 
+### Strengthened locale-language enforcement on the weak single-line Q&A bots
+
+#### Decisions
+
+- Request: ensure every bot always continues the conversation in the UI locale language and does
+  not drift. Audited all bots' `{{language_locale}}` handling (substituted to a language NAME —
+  "German"/"English"/"Dutch" — from `overrides.get("language")`, the per-request frontend locale, in
+  `render_chatbot_prompt`; a bot's `config.py` `language_locale` statically overrides it, as
+  publishone does with `"English"`).
+- Findings (3 tiers): publishone is hard-locked (no switch even on request; also statically pinned).
+  The 7 tutor bots + compact knoll already carry a 3-clause block (always respond / no automatic
+  mirroring, change only on explicit request / scope). The 7 Q&A bots (agindo, sartorius, rak,
+  nerilio, free, fhg, vjoonk4) had only a single line "Always respond in {{language_locale}}." with
+  no anti-mirroring/persistence clause — the real drift risk when a user writes in another language
+  mid-conversation. hyrox_assessment intentionally scopes language to model feedback only (visible
+  question text is backend-rendered), so it was left as-is.
+- Policy (user-chosen): **honor explicit in-chat switch requests** (do not hard-lock). So the 7 weak
+  bots were raised to the tutor-bot standard, and the tutor bots / knoll / publishone / hyrox were
+  left untouched (already compliant / intentionally different).
+
+#### Changes
+
+- `app/backend/approaches/chatbots/{agindo,sartorius,nerilio,free,fhg,vjoonk4}/sampleprompt.py`:
+  expanded the single "Always respond in {{language_locale}}." line into two bullets — "Always respond
+  in {{language_locale}}, regardless of the language the user writes in." + "All responses stay in
+  {{language_locale}} for the entire conversation — never automatically mirror or switch to the user's
+  language. Change the language only on the user's explicit request." The existing German du/Sie
+  formality bullet was preserved.
+- `app/backend/approaches/chatbots/rak/sampleprompt.py`: same upgrade, folding the now-redundant
+  "Maintain {{language_locale}} throughout all responses." line into the new pair (formal-Sie line kept).
+- Verified all 7 files `py_compile` cleanly.
+
+### Tutor question counter heading now localizes ("Frage N von Total" → "Question N of Total"/"Vraag N van Total")
+
+#### Decisions
+
+- Symptom: in an English (or Dutch) tutor session the per-question counter heading still rendered in
+  German — e.g. "Frage 1 von 3:" above an otherwise-English question (see PublishOne screenshot).
+- Root cause: the heading was hardcoded as the literal German string `Frage {{N}} von {{Total}}:`
+  throughout each tutor `sampleprompt.py`. Only `{{N}}`/`{{Total}}` are model-filled; the word
+  "Frage" was fixed German text. The string is repeated ~10× as a MANDATORY heading and reinforced
+  as "the only non-term text that may be bold", so the model treated it as a fixed literal to emit
+  verbatim — overriding the weaker global "respond in `{{language_locale}}`, translate all templates"
+  rule. Unlike the topic-selection question (which ships explicit en/de/nl variants), the counter had
+  no English/Dutch variant to copy, so German always won.
+- Chosen fix (user-approved): make the heading explicitly trilingual and active-language in the three
+  *governing* rules per bot — the bold-allowance rule, the 🟠 P1 DETERMINISTIC QUESTION COUNT master
+  rule, and the "Always head the question…" / "follows directly after the heading" rules. Each now
+  lists German "Frage {{N}} von {{Total}}:", English "Question {{N}} of {{Total}}:", Dutch
+  "Vraag {{N}} van {{Total}}:" and states the heading must render in `{{language_locale}}`, including
+  inside the German example/confirmation/transition templates.
+- Deliberately NOT changed: the German example templates themselves (confirmation structure,
+  Question Transitions) — they remain governed by the existing "translate to current language state"
+  notes, and the strengthened master rule removes the conflicting "fixed German literal" signal that
+  was causing the bug. Descriptive references to the heading by its German name (difficulty self-check,
+  Question Counter Rules) were left as-is.
+
+#### Changes
+
+- `app/backend/approaches/chatbots/{lemon,bensberg,internal,fbn,moodle,demo,publishone,steuertipps}/sampleprompt.py`:
+  localized the counter heading in the bold-allowance rule, the DETERMINISTIC QUESTION COUNT master
+  bullet, and the "Always head the question…"/"follows after heading" bullets (3 edits each).
+- `app/backend/approaches/chatbots/knoll/sampleprompt.py`: same fix adapted to its compact wording
+  (bold-allowance sentence, the count master bullet, and the single "Always head…" line).
+- Verified all 9 files still `py_compile` cleanly and no Dutch "von" typo slipped in.
+
 ### Tutor prompts no longer render whole question/feedback sentences in bold
 
 #### Decisions
