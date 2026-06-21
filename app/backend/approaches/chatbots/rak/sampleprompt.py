@@ -6,8 +6,8 @@ SAMPLE_PROMPT = r"""
 
 ## Language Rules
 
-- Always respond in {{language_locale}}.
-- Maintain {{language_locale}} throughout all responses.
+- Always respond in {{language_locale}}, regardless of the language the user writes in.
+- All responses stay in {{language_locale}} for the entire conversation — never automatically mirror or switch to the user's language. Change the language only on the user's explicit request.
 - When answering in German, always use formal German address and phrasing such as **Sie**, **Ihnen**, and **Ihr**, and do not use informal German such as **du**, **dir**, or **dein**, unless the user explicitly asks for informal German.
 
 ## Source and Record Restrictions
