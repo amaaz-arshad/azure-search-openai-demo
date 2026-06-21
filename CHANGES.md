@@ -17,6 +17,77 @@ Two categories per date:
 
 ## 2026-06-21
 
+### Tutor prompts no longer render whole question/feedback sentences in bold
+
+#### Decisions
+
+- Symptom: in tutor bots, entire sentences rendered bold — e.g. the topic-selection question
+  ("Understood — let's start your knowledge test. Which topic should I ask you about?") and the
+  level-rating question ("…How would you rate your knowledge on this topic?"). This violates the
+  bots' own P3 Emphasis Rules ("do not bold entire phrases; bold only terminology").
+- Root cause: the response templates in each tutor `sampleprompt.py` were written wrapped in
+  `**"…"**`. Those `**` were meant as *authoring delimiters* (marking the exact string to emit),
+  but the model can't distinguish prompt-authoring markdown from output markdown, so it reproduced
+  the `**` verbatim and bolded the whole sentence — and generalized the pattern even to the
+  topic-selection question, whose template was never `**`-wrapped.
+- Chosen fix (user-approved): (a) strip the `**` wrapping from every standalone whole-sentence
+  response template (confirmation structure, Cases B/C/D, Case 1 affirmation, Case 3
+  encouragement, all answer-reveal templates, the Performance Summary intro, and the end-of-test
+  re-offer question), and (b) add a HARD RULE to the "🟢 P3 — Formatting in Tutor Mode" section:
+  bold marks individual technical/legal terms only, never a full sentence; the `**…**` around
+  template strings are authoring delimiters; only the short counter heading
+  `Frage {{N}} von {{Total}}:` stays bold.
+- Deliberately KEPT bold: the `**English:**`/`**German:**`/`**Dutch:**` template labels, the
+  `**"Frage {{N}} von {{Total}}:"**` running counter heading (short label, explicitly a "visible
+  counter"), and the `**"Hidden Source" Policy …:**` heading.
+- Non-tutor (Q&A-only) bots (agindo, fhg, rak, sartorius, vjoonk4, nerilio, free) were checked and
+  have **no** whole-sentence `**"…"**` wrapping, so they were not touched.
+
+#### Changes
+
+- Stripped 15 whole-sentence `**"…"**` wraps and inserted the new HARD RULE in each of the 8
+  standard tutor prompts: `app/backend/approaches/chatbots/{bensberg,demo,fbn,internal,lemon,moodle,publishone,steuertipps}/sampleprompt.py`.
+- `knoll/sampleprompt.py` (compact): its level/count templates were already plain quotes (0 wraps
+  stripped); added the compact form of the new rule to its formatting section.
+
+### Tutor topic-selection now offers up to 10 distinct random topics
+
+#### Decisions
+
+- Symptom: in tutor mode, "test my knowledge" / "which topics?" sometimes showed only 1–2
+  topic buttons. Root cause: the model builds the `[[CHOICES kind=topic]]` button list purely
+  from the **retrieved text sources** it sees that turn, and default retrieval is `top=3`
+  (`run_search_approach`, `overrides.get("top", 3)`); 3 chunks usually cluster into 1–2 modules,
+  so the model has nothing else to list. The prompt wording was also inconsistent ("the available
+  topic/module names" with no count vs. "5 random topics").
+- Chosen fix (user decision, after weighing alternatives): **raise retrieval breadth + tighten the
+  prompt** — bump `top` 5→10 for tutor bots and instruct the prompt to surface **up to 10 distinct**
+  topics from the sources (all of them if fewer than 10 exist), re-randomized each time. Explicitly
+  rejected: (a) injecting a precomputed topic catalog into the prompt; (b) a live facet on the
+  module name — the friendly name lives in `title`, which is **not facetable** in the current index
+  schema (only `category`/`sourcepage`/`sourcefile`/`user` are), so a real facet would need a schema
+  change + full reindex of every bot's data.
+- Known limitation (accepted): `top` only affects the **classic search** path. The agentic-retrieval
+  path has no doc-count knob (the knowledge agent decides), so for bots that default to agentic —
+  **lemon** and **bensberg** (`setUseAgenticRetrieval(config.showAgenticRetrievalOption)`) — the
+  top=10 change is a no-op in their default mode; only the prompt change applies there. The other
+  seven tutor bots (demo, fbn, knoll, moodle, publishone, steuertipps, internal) default agentic-off
+  and get the full benefit. The catalog-injection approach remains the only fully-reliable option if
+  lemon/bensberg agentic mode needs guaranteed ≥10 topics later.
+- The lever for `top` is the frontend `retrieveCount` default (each tutor `Chat.tsx` always sends
+  `top: retrieveCount`, overriding the backend default of 3), so the change is made there.
+
+#### Changes
+
+- `app/backend/approaches/chatbots/{lemon,bensberg,internal,demo,fbn,moodle,steuertipps,publishone,knoll}/sampleprompt.py`:
+  topic-selection wording changed from "the available topic/module names from the learning unit" →
+  "up to 10 distinct topic/module names, selected at random from the topics present in the provided
+  materials (… all of them if fewer than 10 … never invent/repeat/split … re-randomize each time)";
+  "choose from 5 random topics" → "up to 10 distinct random topics"; "5 random/relevant module names"
+  → "up to 10 distinct random/relevant module names". Kept in lockstep across all tutor prompt variants.
+- `app/frontend/src/chatbots/{lemon,bensberg,internal,demo,fbn,moodle,steuertipps,publishone,knoll}/pages/chat/Chat.tsx`:
+  `retrieveCount` default `useState<number>(5)` → `useState<number>(10)` (sent as `top`).
+
 ### Tutor question difficulty now actually scales with the selected knowledge level
 
 #### Decisions
