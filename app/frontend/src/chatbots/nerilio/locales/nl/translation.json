@@ -61,9 +61,9 @@
     "chatEmptyStateTitle": "Chat met je gegevens",
     "chatEmptyStateSubtitle": "Stel een vraag of probeer een voorbeeld",
     "defaultExamples": {
-        "1": "Wie heeft HYROX opgericht?",
-        "2": "Welke fysieke kernkwaliteiten zijn nodig voor sterke HYROX-prestaties?",
-        "3": "Waar moeten coaches zich op richten bij het plannen van HYROX-training?",
+        "1": "Wat is nerilio?",
+        "2": "Welke integraties ondersteunt nerilio?",
+        "3": "Hoeveel kost nerilio?",
         "placeholder": "Typ je bericht"
     },
     "askTitle": "Stel je vraag aan de data",

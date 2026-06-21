@@ -230,3 +230,49 @@ sup {
     box-shadow: none;
     border: 1px solid var(--chatbot-answer-card-border-color, #e6e6e6);
 }
+
+
+/* premium-polish */
+/* Brand-tinted three-dot "typing" indicator — calmer and more on-brand than the
+   flat grey spinner. Reduced-motion users get static dots. */
+.typingDots {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.typingDot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: rgba(172, 68, 198, 0.55);
+    animation: nerilioTypingPulse 1.2s ease-in-out infinite;
+}
+
+.typingDot:nth-child(2) {
+    animation-delay: 0.18s;
+}
+
+.typingDot:nth-child(3) {
+    animation-delay: 0.36s;
+}
+
+@keyframes nerilioTypingPulse {
+    0%,
+    60%,
+    100% {
+        opacity: 0.3;
+        transform: translateY(0) scale(0.9);
+    }
+    30% {
+        opacity: 1;
+        transform: translateY(-2px) scale(1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .typingDot {
+        animation: none;
+        opacity: 0.55;
+    }
+}

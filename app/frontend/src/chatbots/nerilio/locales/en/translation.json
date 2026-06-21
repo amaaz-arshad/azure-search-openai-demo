@@ -61,9 +61,9 @@
     "chatEmptyStateTitle": "Chat with your data",
     "chatEmptyStateSubtitle": "Ask anything or try an example",
     "defaultExamples": {
-        "1": "Who founded HYROX?",
-        "2": "What are the key physical qualities required for strong HYROX performance?",
-        "3": "What should coaches focus on when planning HYROX training?",
+        "1": "What is nerilio?",
+        "2": "Which integrations does nerilio support?",
+        "3": "How much does nerilio cost?",
         "placeholder": "Type your message"
     },
     "askTitle": "Ask your data",

@@ -1,12 +1,13 @@
 import { Stack } from "@fluentui/react";
 import { animated, useSpring } from "@react-spring/web";
+import { useTranslation } from "react-i18next";
 
 import styles from "./Answer.module.css";
 import sharedAnswerStyles from "../../../shared/answer/SharedAnswer.module.css";
 import chatbotLogo from "../../assets/robo1.png";
-import { BeatLoader } from "react-spinners";
 
 export const AnswerLoading = () => {
+    const { t } = useTranslation();
     const animatedStyles = useSpring({
         from: { opacity: 0 },
         to: { opacity: 1 }
@@ -21,7 +22,11 @@ export const AnswerLoading = () => {
                     className={`${sharedAnswerStyles.assistantAvatar} ${sharedAnswerStyles.assistantAvatarOutside}`}
                 />
                 <Stack className={`${sharedAnswerStyles.answerContainer} ${styles.loadingAnswerContainer}`}>
-                    <BeatLoader color="grey" size={10} />
+                    <span className={styles.typingDots} role="status" aria-label={t("generatingAnswer")}>
+                        <span className={styles.typingDot} />
+                        <span className={styles.typingDot} />
+                        <span className={styles.typingDot} />
+                    </span>
                 </Stack>
             </div>
         </animated.div>

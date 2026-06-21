@@ -64,3 +64,54 @@
     box-shadow: none;
     border: 1px solid #e6e6e6;
 }
+
+
+/* premium-polish */
+/* Soft brand-tinted focus ring so the composer feels responsive and on-brand the
+   moment it's active, without changing its resting flat look. */
+.questionInputContainer {
+    transition:
+        border-color 0.18s ease,
+        box-shadow 0.18s ease;
+}
+
+.questionInputContainer:focus-within {
+    border-color: rgba(172, 68, 198, 0.55);
+    box-shadow: 0 0 0 3px rgba(172, 68, 198, 0.14);
+}
+
+/* Tactile send button: a gentle brand glow at rest, a small lift on hover, and a
+   press-down on click. Disabled stays flat (Fluent's greyed default). */
+.sendButton:global(.fui-Button) {
+    transition:
+        transform 0.15s ease,
+        box-shadow 0.15s ease;
+    box-shadow: 0 2px 6px rgba(172, 68, 198, 0.28);
+}
+
+.sendButton:global(.fui-Button:hover) {
+    transform: translateY(-1px) scale(1.04);
+    box-shadow: 0 4px 12px rgba(172, 68, 198, 0.38);
+}
+
+.sendButton:global(.fui-Button:active) {
+    transform: scale(0.96);
+    box-shadow: 0 1px 4px rgba(172, 68, 198, 0.3);
+}
+
+.sendButton:global(.fui-Button:disabled) {
+    transform: none;
+    box-shadow: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .questionInputContainer,
+    .sendButton:global(.fui-Button) {
+        transition: none;
+    }
+
+    .sendButton:global(.fui-Button:hover),
+    .sendButton:global(.fui-Button:active) {
+        transform: none;
+    }
+}

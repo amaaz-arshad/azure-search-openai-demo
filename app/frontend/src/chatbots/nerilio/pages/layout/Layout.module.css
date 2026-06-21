@@ -175,3 +175,61 @@
     border-radius: 14px;
     font-weight: 600;
 }
+
+
+/* premium-polish */
+/* Give the sticky header a faint separation so it reads as a distinct layer once
+   the conversation scrolls beneath it. */
+.header {
+    box-shadow:
+        0 1px 0 rgba(0, 0, 0, 0.06),
+        0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+/* Subtle logo press affordance on hover. */
+.logoCircle {
+    transition: transform 0.18s ease;
+}
+
+.logoContainer:hover .logoCircle {
+    transform: scale(1.06);
+}
+
+/* Smooth the trigger and item hovers. */
+.menuButton,
+.dropdownItem {
+    transition: background-color 0.14s ease;
+}
+
+/* Gentle dropdown reveal — entrance only, matching the app's tooltip motion. */
+@keyframes nerilioDropdownIn {
+    from {
+        opacity: 0;
+        transform: translateY(-6px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.dropdownMenu {
+    transform-origin: top right;
+    animation: nerilioDropdownIn 0.16s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .logoCircle,
+    .menuButton,
+    .dropdownItem {
+        transition: none;
+    }
+
+    .logoContainer:hover .logoCircle {
+        transform: none;
+    }
+
+    .dropdownMenu {
+        animation: none;
+    }
+}

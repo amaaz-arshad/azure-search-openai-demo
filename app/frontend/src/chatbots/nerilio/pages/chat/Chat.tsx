@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect, useContext } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import { ScrollToBottomButton } from "../../../shared/scroll/ScrollToBottomButton";
 import { useTranslation } from "react-i18next";
 import { Helmet } from "react-helmet-async";
@@ -11,6 +12,7 @@ import { chatApi, configApi, RetrievalMode, ChatAppResponse, ChatAppResponseOrEr
 import { Answer, AnswerError, AnswerLoading } from "../../components/Answer";
 import { QuestionInput } from "../../components/QuestionInput";
 import { ExampleList } from "../../components/Example";
+import { WelcomePrompts } from "../../components/WelcomePrompts";
 import { UserChatMessage } from "../../components/UserChatMessage";
 import { AnalysisPanel, AnalysisPanelTabs } from "../../components/AnalysisPanel";
 import { HistoryPanel } from "../../components/HistoryPanel";
@@ -31,6 +33,10 @@ import { ChatbotDisclaimerBanner } from "../../../shared/disclaimer/ChatbotDiscl
 import { readActiveSessionId, writeActiveSessionId, clearActiveSessionId } from "../../../shared/history/activeSession";
 
 const INITIAL_ASSISTANT_SENTINEL_USER_MESSAGE = "__initial_assistant__";
+
+// Subtle, premium message entrance: a gentle fade + rise. Kept short so it reads
+// as polish, never as a delay.
+const MESSAGE_ENTRANCE_TRANSITION = { duration: 0.28, ease: "easeOut" } as const;
 
 const createClientSessionId = () => {
     if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -91,6 +97,13 @@ const Chat = () => {
     const chatContainerRef = useRef<HTMLDivElement | null>(null);
     const localHistorySessionIdRef = useRef<string | null>(null);
     const hasRestoredSessionRef = useRef<boolean>(false);
+
+    // Each assistant bubble should play its entrance animation exactly once. The
+    // message list re-mounts when streaming finishes (the streamed branch swaps for
+    // the buffered branch), so without this guard the bubble would re-animate then.
+    const prefersReducedMotion = useReducedMotion();
+    const animatedMessageIndices = useRef<Set<number>>(new Set());
+    const shouldAnimateMessage = (index: number) => !prefersReducedMotion && !animatedMessageIndices.current.has(index);
 
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [isStreaming, setIsStreaming] = useState<boolean>(false);
@@ -769,7 +782,13 @@ const Chat = () => {
                             streamedAnswers.map((streamedAnswer, index) => (
                                 <div key={index}>
                                     {!isSyntheticInitialPair(streamedAnswer) && <UserChatMessage message={streamedAnswer[0]} />}
-                                    <div className={styles.chatMessageGpt}>
+                                    <motion.div
+                                        className={styles.chatMessageGpt}
+                                        initial={shouldAnimateMessage(index) ? { opacity: 0, y: 8 } : false}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={MESSAGE_ENTRANCE_TRANSITION}
+                                        onAnimationComplete={() => animatedMessageIndices.current.add(index)}
+                                    >
                                         <Answer
                                             isStreaming={true}
                                             key={index}
@@ -785,14 +804,20 @@ const Chat = () => {
                                             showSpeechOutputAzure={showSpeechOutputAzure}
                                             showSpeechOutputBrowser={showSpeechOutputBrowser}
                                         />
-                                    </div>
+                                    </motion.div>
                                 </div>
                             ))}
                         {!isStreaming &&
                             answers.map((answer, index) => (
                                 <div key={index}>
                                     {!isSyntheticInitialPair(answer) && <UserChatMessage message={answer[0]} />}
-                                    <div className={styles.chatMessageGpt}>
+                                    <motion.div
+                                        className={styles.chatMessageGpt}
+                                        initial={shouldAnimateMessage(index) ? { opacity: 0, y: 8 } : false}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={MESSAGE_ENTRANCE_TRANSITION}
+                                        onAnimationComplete={() => animatedMessageIndices.current.add(index)}
+                                    >
                                         <Answer
                                             isStreaming={false}
                                             key={index}
@@ -808,7 +833,7 @@ const Chat = () => {
                                             showSpeechOutputAzure={showSpeechOutputAzure}
                                             showSpeechOutputBrowser={showSpeechOutputBrowser}
                                         />
-                                    </div>
+                                    </motion.div>
                                 </div>
                             ))}
                         {isLoading && (
@@ -827,6 +852,9 @@ const Chat = () => {
                                 </div>
                             </>
                         ) : null}
+                        {!lastQuestionRef.current && answers.length === 1 && isSyntheticInitialPair(answers[0]) && !isLoading && !error && (
+                            <WelcomePrompts onPromptClick={onExampleClicked} />
+                        )}
                         <div ref={chatMessageStreamEnd} />
                     </div>
                     {/* )} */}
