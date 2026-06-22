@@ -8,7 +8,8 @@ import appLogo from "../../../../assets/applogo.svg";
 import styles from "../../../lemon/pages/chat/Chat.module.css";
 
 import { chatApi, configApi, RetrievalMode, ChatAppResponse, ChatAppResponseOrError, ChatAppRequest, ResponseMessage, SpeechConfig } from "../../../lemon/api";
-import { Answer, AnswerError, AnswerLoading } from "../../../lemon/components/Answer";
+import { AnswerError, AnswerLoading } from "../../../lemon/components/Answer";
+import { Answer } from "../../components/Answer/Answer";
 import { QuestionInput } from "../../../lemon/components/QuestionInput";
 import { ExampleList } from "../../../lemon/components/Example";
 import { UserChatMessage } from "../../../lemon/components/UserChatMessage";

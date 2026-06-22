@@ -6,7 +6,7 @@ import { ChatAdd24Regular, History24Regular } from "@fluentui/react-icons";
 
 import { useLogin } from "../../../lemon/authConfig";
 import { LoginButton } from "../../../lemon/components/LoginButton";
-import chatbotLogo from "../../../lemon/assets/lemon-chatbot.png";
+import chatbotLogo from "../../assets/bensberg.png";
 import styles from "../../../lemon/pages/layout/Layout.module.css";
 
 let globalClearChat: () => void = () => {};
@@ -51,9 +51,7 @@ const Layout = () => {
             <header className={styles.header} role="banner">
                 <div className={styles.headerContainer}>
                     <Link className={styles.logoContainer} to="/bensberg">
-                        <div className={styles.logoCircle}>
-                            <img alt="Logo" src={chatbotLogo} />
-                        </div>
+                        <img alt="Logo" src={chatbotLogo} style={{ height: 36, width: "auto", display: "block" }} />
                     </Link>
 
                     <div className={styles.navbarTitle}>{t("headerTitle")}</div>

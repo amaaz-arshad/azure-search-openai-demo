@@ -15,6 +15,74 @@ Two categories per date:
 
 ---
 
+## 2026-06-22
+
+### Tutor bots: collapse duplicate running-counter heading in a single bubble
+
+#### Decisions
+
+- Bug (lemon/Lemon®AID screenshot): when the user partially answers then says "I don't know",
+  the Case-5 "reveal answer + move to next question" turn renders the next question's counter
+  heading **twice** — once spuriously at the top of the turn (above the previous answer's
+  feedback) and once correctly right before the next question. The rendering is faithful; the
+  **model emits the heading twice** in the raw content.
+- Fixed in the **frontend display layer**, not the prompts: a deterministic strip guarantees the
+  duplicate is gone regardless of model behavior, fixes **all tutor bots at once** (single shared
+  chokepoint), and stays inherently in sync — matching the existing `stripDuplicateTopicList`
+  precedent in the same module. Did not edit the 9 tutor `sampleprompt.py` files (a prompt rule
+  only lowers probability, isn't guaranteed, and risks drift across variants).
+- Rule: each rendered bubble shows exactly one question, so the real heading is always the **last**
+  counter occurrence. Drop any *standalone* heading line that precedes a later counter occurrence;
+  the final heading (standalone or inline) is preserved. Locale-agnostic — matches all three forms
+  (`Frage N von Total:` / `Question N of Total:` / `Vraag N van Total:`).
+
+#### Changes
+
+- `app/frontend/src/chatbots/shared/answer/optionMarkers.ts`: added `COUNTER_HEADING_RE` /
+  `COUNTER_HEADING_LINE_RE` and a `dropDuplicateCounterHeadings()` helper; wired it into
+  `stripChoiceMarker()` (after `stripDuplicateTopicList`, before final whitespace cleanup) so it
+  applies to the main bubble and every `[[SPLIT]]` segment. Verified the exact screenshot content
+  (de + en) collapses correctly while single/inline headings and non-tutor text are untouched;
+  `tsc --noEmit` clean.
+
+### Bensberg bot rebrand: dark-teal theme + mint accents + new navbar logo
+
+#### Decisions
+
+- Request: bensberg main color `#005155` (top bar etc.), title text `#96f0eb`, user-input bubble
+  `#96f0eb`, and a new small navbar logo (attached `bensberg.png`).
+- "Color of the textbubbles (user input)" was ambiguous (fill vs. text). User chose **mint bubble
+  fill**, so the bubble background is `#96f0eb` with explicit dark-teal `#005155` text (6.91:1
+  contrast, ≥ WCAG AA). Title `#96f0eb` on `#005155` navbar is also 6.91:1.
+- The attached `bensberg.png` was actually an **AVIF** image with a `.png` extension (header
+  `ftypavif`). Converted it to a real PNG in place (Pillow 12 native AVIF decode) so it bundles
+  reliably and matches its extension, rather than renaming to `.avif`.
+- Only the small navbar logo was swapped (was the lemon logo). The large empty-state mark in
+  `Chat.tsx` stays the generic `assets/applogo.svg` per the repo's generic-app-mark contract.
+- Follow-up: the assistant-bubble avatar was still the lemon logo because bensberg reused lemon's
+  shared `Answer` (`createBotAnswer(lemonChatbotLogo, …)`). Gave bensberg its **own** `Answer` built
+  with `bensberg.png` rather than editing lemon's (shared by lemon + other bots). `AnswerError` /
+  `AnswerLoading` stay imported from lemon (they carry no bot logo).
+- Follow-up: header logo is now shown **without** the white avatar circle. The logo PNG's background
+  is exactly `#005155` (== navbar), so rendering it bare blends into the bar (only the mint monogram
+  shows). Done bot-locally via inline sizing on the `<img>` so lemon's shared `Layout.module.css`
+  (`logoCircle`) is untouched.
+
+#### Changes
+
+- `app/frontend/src/chatbots/shared/theme/chatbotThemes.ts`: bensberg seed `primary` `#fec701` →
+  `#005155`; added `overrides.navbar.text = #96f0eb` and `overrides.userBubble = { background:
+  #96f0eb, text: #005155 }`.
+- `app/frontend/src/chatbots/bensberg/pages/layout/Layout.tsx`: navbar logo import changed from
+  `../../../lemon/assets/lemon-chatbot.png` to `../../assets/bensberg.png`; removed the
+  `styles.logoCircle` wrapper so the logo renders bare (inline `height:36` on the `<img>`).
+- `app/frontend/src/chatbots/bensberg/components/Answer/Answer.tsx`: **new** — bensberg-specific
+  `Answer` = `createBotAnswer(bensbergLogo, …)`, reusing lemon's Speech components.
+- `app/frontend/src/chatbots/bensberg/pages/chat/Chat.tsx`: import `Answer` from the new bensberg
+  module; keep `AnswerError`/`AnswerLoading` from lemon.
+- `app/frontend/src/chatbots/bensberg/assets/bensberg.png`: new asset; AVIF-in-`.png` converted to a
+  real 300×300 PNG.
+
 ## 2026-06-21
 
 ### Strengthened locale-language enforcement on the weak single-line Q&A bots

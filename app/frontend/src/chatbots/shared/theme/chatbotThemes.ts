@@ -45,8 +45,17 @@ export const chatbotThemes: Record<string, ChatbotThemeSeed> = {
         pageTone: "light"
     },
     bensberg: {
-        primary: "#fec701",
-        pageTone: "light"
+        primary: "#005155",
+        pageTone: "light",
+        overrides: {
+            navbar: {
+                text: "#96f0eb"
+            },
+            userBubble: {
+                background: "#96f0eb",
+                text: "#005155"
+            }
+        }
     },
     demo: {
         primary: "#313335",

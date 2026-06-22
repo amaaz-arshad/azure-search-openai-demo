@@ -81,6 +81,14 @@ const TOPIC_LIST_INTRO_RE =
     /\b(materials?|lernmaterialien|cover|covers|covered|decken|verf[üu]gbar|available|following|folgenden)\b/i;
 const QUESTION_LINE_RE = /[?؟]\s*$/;
 
+// A tutor running-counter heading in any of the three supported locales: German
+// "Frage N von Total:", English "Question N of Total:", Dutch "Vraag N van Total:".
+// COUNTER_HEADING_RE matches it anywhere in a line (the heading may sit inline with
+// its question text); COUNTER_HEADING_LINE_RE matches a line that is ONLY the heading
+// (optionally bolded) — the redundant form a tutor turn stacks above the real question.
+const COUNTER_HEADING_RE = /(?:Frage|Question|Vraag)\s+\d+\s+(?:von|of|van)\s+\d+\s*:/i;
+const COUNTER_HEADING_LINE_RE = /^\*{0,2}\s*(?:Frage|Question|Vraag)\s+\d+\s+(?:von|of|van)\s+\d+\s*:\s*\*{0,2}$/i;
+
 function isChoiceKind(value: string): value is ChoiceKind {
     return (CHOICE_KINDS as string[]).includes(value);
 }
@@ -140,6 +148,34 @@ function stripDuplicateTopicList(text: string, parsed: ParsedChoice | null): str
     return lines.filter((_, index) => keepLines[index]).join("\n");
 }
 
+// Tutor turns that reveal an answer and then move on sometimes emit the next
+// question's running-counter heading TWICE: once spuriously at the top of the turn
+// (above the previous answer's feedback) and once correctly right before the next
+// question. Each rendered bubble shows exactly one question, so the real heading is
+// always the LAST counter occurrence. Drop any standalone heading line that precedes
+// a later counter occurrence; the final heading (standalone or inline) is preserved.
+function dropDuplicateCounterHeadings(text: string): string {
+    if (!text) {
+        return text;
+    }
+    const lines = text.split(/\r?\n/);
+    let lastCounterIdx = -1;
+    for (let index = 0; index < lines.length; index += 1) {
+        if (COUNTER_HEADING_RE.test(lines[index])) {
+            lastCounterIdx = index;
+        }
+    }
+    if (lastCounterIdx <= 0) {
+        return text;
+    }
+
+    const kept = lines.filter((line, index) => !(index < lastCounterIdx && COUNTER_HEADING_LINE_RE.test(line.trim())));
+    if (kept.length === lines.length) {
+        return text;
+    }
+    return kept.join("\n");
+}
+
 export function parseChoiceMarker(text: string | null | undefined): ParsedChoice | null {
     if (!text) {
         return null;
@@ -189,7 +225,7 @@ export function stripChoiceMarker(text: string): string {
         .replace(/\n{3,}/g, "\n\n")
         .trim();
 
-    return stripDuplicateTopicList(displayText, parsed)
+    return dropDuplicateCounterHeadings(stripDuplicateTopicList(displayText, parsed))
         .replace(/[ \t]+\n/g, "\n")
         .replace(/\n{3,}/g, "\n\n")
         .trim();
