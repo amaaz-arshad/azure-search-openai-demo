@@ -105,6 +105,19 @@ body {
     }
 }
 
+/* Tooltips are a pointer-hover affordance. On touch-first viewports (phones and
+   tablets, below the 992px desktop breakpoint) they either never trigger or pop
+   awkwardly on tap, so hide the shared Fluent pill entirely there — tooltips
+   stay visible only on desktop and larger. Every styled tooltip in the app is a
+   Fluent v9 <Tooltip> rendered into this single body-portal class, so this one
+   rule covers all bots. The control keeps its own ariaLabel, so hiding the
+   visual pill does not affect accessibility. */
+@media (max-width: 991.98px) {
+    .fui-Tooltip__content.fui-Tooltip__content {
+        display: none !important;
+    }
+}
+
 @media (min-width: 480px) {
     html {
         font-size: 13px; /* Slightly larger font size for larger phones */

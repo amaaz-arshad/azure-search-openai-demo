@@ -15,6 +15,31 @@ Two categories per date:
 
 ---
 
+## 2026-06-23
+
+### Hide tooltips below the desktop breakpoint (mobile/tablet)
+
+#### Decisions
+
+- Tooltips are a pointer-hover affordance; on touch-first viewports they either never trigger
+  or pop awkwardly on tap. Requirement: tooltips visible only on desktop and larger.
+- Fixed centrally in CSS rather than per-component. Every styled tooltip in the app is a Fluent
+  v9 `<Tooltip>` (via shared `TooltipTarget` or direct usage) that renders into the single
+  body-portal class `.fui-Tooltip__content`; no Fluent v8 `TooltipHost` exists. So one media
+  query hides them across all bots at once.
+- Breakpoint chosen to match the project's existing responsive family: desktop = `min-width: 992px`,
+  so tooltips are hidden at `max-width: 991.98px` (tablet and below).
+- Hides the visual pill only; the underlying controls keep their own `ariaLabel`, so
+  accessibility is unaffected. Click-triggered `HelpCallout` info dialogs are not tooltips and
+  remain functional on all viewports. Native `title=` attributes are browser-native (not
+  CSS-controllable) and don't render on touch devices, so they were left as-is.
+
+#### Changes
+
+- `app/frontend/src/index.css`: added a `@media (max-width: 991.98px)` rule setting
+  `.fui-Tooltip__content.fui-Tooltip__content { display: none !important; }`, grouped with the
+  existing global tooltip styling block.
+
 ## 2026-06-22
 
 ### Tutor bots: collapse duplicate running-counter heading in a single bubble
