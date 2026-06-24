@@ -17,6 +17,36 @@ Two categories per date:
 
 ## 2026-06-24
 
+### snap bot: enable embedding (assign embed public ID)
+
+#### Decisions
+
+- **`snap` is now embeddable — the prior session's deferral is reversed.** The earlier snap session
+  documented (below) that snap was *intentionally* left without an embed public ID. User now wants it
+  embeddable (snap.de is exactly the intended host), so assigned one. snap is `prompt_mode="override"`,
+  not MSAL-gated, so it embeds like the other public bots.
+- **One-line change only — everything else was already wired and is data-driven.** `EMBED_PUBLIC_IDS`
+  in [embed_public_ids.py](app/backend/embed_public_ids.py) is the single source of truth: `is_embeddable`
+  / `get_public_id` derive from it. The `/embed-demo` picker auto-includes any embeddable bot from
+  `KNOWN_CHATBOT_NAMES` ([app.py:762](app/backend/app.py#L762)); the directory's Embed modal fetches
+  `publicId` from `/internal-admin/embed-config/<name>` (admin endpoint gated on `is_embeddable`,
+  [app.py:1422](app/backend/app.py#L1422)); and the launcher color `"snap": "#ac44c6"` was *already*
+  present ([app.py:793](app/backend/app.py#L793)). So no frontend, config, or other backend change was
+  needed — adding the ID flips snap on across the picker, the directory Embed button (previously 404'd),
+  and the `/widget.js` loader.
+- **Public ID generated in the repo's own scheme**, collision-checked against the existing 16 (10-char,
+  leading letter, lowercase-alnum): `r54q95959d`. Per the file's contract, existing IDs are never edited
+  (changing one breaks embeds already in the wild); this only appends.
+
+#### Changes
+
+- `app/backend/embed_public_ids.py`: added `"snap": "r54q95959d"` to `EMBED_PUBLIC_IDS`.
+- Verified (with `app/.venv`): `is_embeddable("snap")` → True, `get_public_id("snap")` → `r54q95959d`,
+  `resolve_public_id("r54q95959d")` → `snap`, all 17 IDs unique.
+- Deployment: app-code only — takes effect after `azd deploy` (no re-provision, no re-index). Per-bot
+  allowed-domains whitelist (blob-backed) is empty by default → widget allowed on any site until an
+  admin sets a whitelist via the `/chatbots` Embed modal or `/embed-demo`.
+
 ### snap bot: tailor prompt to snap.de content + enable url citations (publishone/fhg-style)
 
 #### Decisions
@@ -85,7 +115,7 @@ Two categories per date:
 - **User uploads `data/snap.json` themselves** via the admin managed-file uploader under category `snap`; we do not index it. The `CategoryUploadStrategy.add_file` path runs `parse_file`, which now routes `snap` JSON through a dedicated parser, so the upload produces first-class live-URL citations.
 - **`snap` bot reuses nerilio's UI verbatim** (same components/theme/layout) but is rebranded to "SNAP" in visible text (header, greeting, NoPage/contact) per user choice, since it answers over all of SNAP's products. `citation_target="url"` so citations link to the live snap.de page.
 - The shared `NoPage` is hardcoded with nerilio links and re-exported by other bots, so `snap` got a forked SNAP-branded `NoPage` (reusing the shared styles/robot asset) rather than editing shared code.
-- `snap` has no embed public ID, so it is intentionally not embeddable yet (the embed-demo picker guards with `is_embeddable`); add one via `python -m embed_public_ids` if embedding is wanted.
+- `snap` has no embed public ID, so it is intentionally not embeddable yet (the embed-demo picker guards with `is_embeddable`); add one via `python -m embed_public_ids` if embedding is wanted. *(Superseded 2026-06-24 — a public ID was later assigned; see the "enable embedding" entry above.)*
 - **Completeness audit + Divi attribute recovery.** A per-page audit (live page vs scraped) confirmed all substantive prose is captured; the real losses were short labels held in Divi shortcode *attributes* (team-member names, section/card titles, hero headlines, CTA labels — delimited by `&#8220;` smart-quote entities, not straight quotes). `clean_html` now `html.unescape`s each opening shortcode and emits a whitelist of text-bearing attrs (`title`/`subhead`/`button_text`/`heading`) at the tag's position, so e.g. a team name precedes its bio. Verified: all 8 ueber-uns names + tool-page CTAs + home hero now present, no CSS/URL leakage. Remaining unrecoverable-by-REST: embedded contact/demo forms (external Caymland JS, not in `content.rendered`). The English Polylang locale is empty (`/en/` → 404) so German-only loses nothing; the `project` CPT is empty.
 - **End-to-end snap refresh is a single *manual* script for now; automation deferred.** User wants to eventually re-run on snap.de changes but chose to start with a manual command and run it locally. Discussed the "listen" reality: a website can't be push-notified unless it cooperates — true real-time needs a WordPress webhook (plugin/mu-plugin on `save_post`/`deleted_post`) → an HTTP-triggered Azure Function; otherwise "listen" means scheduled polling. Both unattended options also require running in Azure with a managed identity (the local scripts authenticate via `AzureDeveloperCliCredential`, which only works while azd-logged-in). Deferred all of that; built only the manual local orchestrator.
 - **Change detection is possible and worthwhile.** Can't reliably diff against `snap.json` alone (its per-doc `date` is day-granular). Instead `fetch_remote_state` queries the WP REST API for the latest `modified` timestamp + total count of pages/posts (two tiny requests) and stores them in `data/snap.state.json`; comparing across runs catches edits, additions, and (via count) deletions. `refresh_snap.py` skips the whole pipeline when unchanged unless `--force`.
