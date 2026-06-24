@@ -18,6 +18,7 @@ from .hyroxjson import build_hyrox_sections_if_applicable
 from .listfilestrategy import File, ListFileStrategy
 from .mediadescriber import ContentUnderstandingDescriber
 from .searchmanager import SearchManager, Section
+from .snapjson import build_snap_sections_if_applicable
 from .strategy import DocumentAction, SearchInfo, Strategy
 from .textprocessor import process_text
 
@@ -69,6 +70,14 @@ async def parse_file(
     )
     if hyrox_sections is not None:
         return hyrox_sections
+
+    snap_sections = await build_snap_sections_if_applicable(
+        file=file,
+        category=category,
+        check_cancel=check_cancel,
+    )
+    if snap_sections is not None:
+        return snap_sections
 
     processor = file_processors.get(key)
     if processor is None:

@@ -12,6 +12,7 @@ import { knollChatbot } from "./knoll";
 import { lemonChatbot } from "./lemon";
 import { moodleChatbot } from "./moodle";
 import { nerilioChatbot } from "./nerilio";
+import { snapChatbot } from "./snap";
 import { freeChatbot } from "./free";
 import { publishoneChatbot } from "./publishone";
 import { rakChatbot } from "./rak";
@@ -40,6 +41,7 @@ export const chatbotDefinitions: ChatbotDefinition[] = [
     { ...agindoChatbot, llm: "gpt-4.1", mode: "qna", agenticRetrievalDefault: false },
     { ...bensbergChatbot, llm: "gpt-5.4-mini", reasoningEffort: "high", mode: "tutor-qna", agenticRetrievalDefault: true },
     { ...nerilioChatbot, llm: "gpt-4.1-mini", mode: "qna", agenticRetrievalDefault: false },
+    { ...snapChatbot, llm: "gpt-4.1-mini", mode: "qna", agenticRetrievalDefault: false },
     { ...freeChatbot, llm: "gpt-4.1", mode: "qna", agenticRetrievalDefault: false },
     { ...rakChatbot, llm: "gpt-4.1", mode: "qna", agenticRetrievalDefault: false },
     { ...steuertippsChatbot, llm: "gpt-5.4-mini", reasoningEffort: "high", mode: "tutor-qna", agenticRetrievalDefault: false },

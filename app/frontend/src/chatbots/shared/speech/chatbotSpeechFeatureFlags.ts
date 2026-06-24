@@ -59,6 +59,11 @@ export const chatbotSpeechFeatureFlags: Record<string, ChatbotSpeechVisibility> 
         showSpeechOutputBrowser: false,
         showSpeechOutputAzure: false
     },
+    snap: {
+        showSpeechInput: false,
+        showSpeechOutputBrowser: false,
+        showSpeechOutputAzure: false
+    },
     free: {
         showSpeechInput: true,
         showSpeechOutputBrowser: true,

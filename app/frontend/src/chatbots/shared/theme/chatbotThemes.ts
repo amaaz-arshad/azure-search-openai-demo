@@ -118,6 +118,10 @@ export const chatbotThemes: Record<string, ChatbotThemeSeed> = {
         primary: "#ac44c6",
         pageTone: "light"
     },
+    snap: {
+        primary: "#ac44c6",
+        pageTone: "light"
+    },
     free: {
         primary: "#AC44C6",
         pageTone: "light"

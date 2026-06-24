@@ -17,6 +17,99 @@ Two categories per date:
 
 ## 2026-06-24
 
+### snap bot: tailor prompt to snap.de content + enable url citations (publishone/fhg-style)
+
+#### Decisions
+
+- **The snap prompt was a near-verbatim nerilio find/replace, not tailored — rewrote it.** The
+  original `snap/sampleprompt.py` was nerilio's prompt with `nerilio`→`SNAP` swapped, so it framed
+  SNAP as a single **SaaS product** with "plans / which plan should they choose / sessions /
+  supported formats" and carried pricing rules ("monthly vs. yearly", **zzgl. MwSt.**). But snap.de
+  is **SNAP Innovation** (Hamburg), a content-workflow **consultancy + systems integrator** with an
+  11-tool portfolio (Axaio, Callas, Caymland, Dataplan, EasyCatalog, Enfocus, nerilio, PublishOne,
+  Twixl, vjoon K4, vjoon Seven), plus Beratung, Betrieb & Support, Use Cases and News — and it has
+  **zero** pricing content (verified: 0 hits for MwSt/zzgl/€/EUR/Tarif/"pro Monat" across all 43
+  docs). Rewrote Role + Source/Knowledge + answer rules to that actual domain; removed the pricing
+  rules; added a rule to **never invent prices** and to route pricing/offer/individual-recommendation
+  requests to SNAP's consulting/contact channel ({{SUPPORT_EMAIL}}); added a rule to distinguish
+  SNAP's own services from the third-party portfolio tools it integrates, and to attribute use-case
+  testimonials to the named customer.
+- **Citations were invisible purely because of the prompt — prompt-only fix, no frontend/config/backend
+  code change.** snap uses `prompt_mode="override"`, so its `SAMPLE_PROMPT` *fully replaces* the base
+  RAG prompt ([chat_answer.system.jinja2](app/backend/approaches/prompts/chat_answer.system.jinja2)
+  lines 1–2 render only `{{ override_prompt }}`; the base citation instructions on lines 4–7/17 are
+  bypassed). The cloned prompt inherited nerilio's line *"Do **not** include citations…"*, so the
+  model never emitted citation markers even though `citation_target="url"` and the indexed snap docs
+  carry first-class `title`+`url`. Fix: removed the suppression line and added a **Source Citations**
+  block mirroring publishone (square-bracket citations + the `{{POSSIBLE_CITATIONS_PROMPT}}`
+  placeholder, which `render_chatbot_prompt` fills with the live URLs **only** in override mode —
+  [approach.py:1019](app/backend/approaches/approach.py#L1019)). The shared frontend
+  (`ChatbotAnswer.tsx` / `answerParsing.ts`) already renders url-target citations by showing the
+  document **title** (`external_results_metadata[i].title`) and opening the live **url** in a new tab
+  (`target="_blank"`), identical to publishone/fhg — so **no frontend change**. **No re-indexing
+  needed** (snap docs already carry title+url). Kept `prompt_mode="override"` (did not switch to
+  `inject`) so the base RAG prompt does not interfere.
+- **Fixed a pre-existing red test left by the prior snap session.**
+  `tests/test_snapjson.py::test_to_search_document_includes_title_and_url` expected
+  `SnapPreparedDocument.to_search_document()`, a method both sibling parsers (`hyroxjson`/`fhgjson`)
+  have but snap's clone omitted. Added it verbatim (snap's dataclass fields are identical to
+  hyrox's). It is the direct index-upload serializer used by the `prep_*_json.py` CLIs; snap ingests
+  via `Section`s (admin upload → `parse_file`), so it is not on snap's active path, but adding it
+  greens the test and keeps the parser consistent with its siblings.
+
+#### Changes
+
+- `app/backend/approaches/chatbots/snap/sampleprompt.py`: rewrote `SAMPLE_PROMPT` — Role/Source/answer
+  rules tailored to SNAP Innovation; removed the SaaS pricing-plan rules; replaced the
+  citation-suppression bullet with a **Source Citations** block incl. `{{POSSIBLE_CITATIONS_PROMPT}}`;
+  added a citation-coverage item to the Final Reminder. (`config.py` unchanged — already
+  `citation_target="url"`, `prompt_mode="override"`.)
+- `app/backend/prepdocslib/snapjson.py`: added `SnapPreparedDocument.to_search_document()` mirroring
+  `hyroxjson`/`fhgjson`.
+- `app/functions/{document_extractor,figure_processor,moodle_auto_indexer,text_processor}/prepdocslib/snapjson.py`:
+  refreshed via `python scripts/copy_prepdocslib.py`.
+- `tests/test_chatbot_config_registry.py`: added
+  `test_snap_prompt_requests_url_citations_instead_of_suppressing_them` and
+  `test_render_snap_prompt_injects_url_citations_and_support_email`.
+- Verified: `pytest tests/test_snapjson.py tests/test_chatbot_config_registry.py` → **13 passed**
+  (run with `app/.venv`). `graphify update` / `ty check` skipped (tools not installed in this env).
+- Deployment: prompt change is app-code only — takes effect after `azd deploy` (no re-provision, no
+  re-index).
+
+### snap.de scraper + new `/snap` chatbot (clone of nerilio over snap.de content)
+
+#### Decisions
+
+- **Scrape via the WordPress REST API, not HTML crawling.** snap.de is a small (~43 page) WordPress site (Rank Math SEO); `robots.txt` only blocks `/wp-admin/`. `/wp-json/wp/v2/pages` + `/posts` return clean structured JSON with a first-class `link` (live page URL) and `content.rendered`. Tool pages use the Divi page builder, so `content.rendered` is real prose wrapped in `[et_pb_*]` shortcodes + HTML entities — the scraper strips shortcode tags (keeping their text bodies), HTML tags, and decodes entities.
+- **Ship content as a JSON feed, not `.md`/`.html`.** Modeled on the existing FHG/HYROX importers so each record carries first-class `title` + live `url`. The generic file pipeline keys citations off the storage blob URL ([filestrategy.py](app/backend/prepdocslib/filestrategy.py) passes `url=blob_url`), which would point citations at a blob instead of the live page.
+- **User uploads `data/snap.json` themselves** via the admin managed-file uploader under category `snap`; we do not index it. The `CategoryUploadStrategy.add_file` path runs `parse_file`, which now routes `snap` JSON through a dedicated parser, so the upload produces first-class live-URL citations.
+- **`snap` bot reuses nerilio's UI verbatim** (same components/theme/layout) but is rebranded to "SNAP" in visible text (header, greeting, NoPage/contact) per user choice, since it answers over all of SNAP's products. `citation_target="url"` so citations link to the live snap.de page.
+- The shared `NoPage` is hardcoded with nerilio links and re-exported by other bots, so `snap` got a forked SNAP-branded `NoPage` (reusing the shared styles/robot asset) rather than editing shared code.
+- `snap` has no embed public ID, so it is intentionally not embeddable yet (the embed-demo picker guards with `is_embeddable`); add one via `python -m embed_public_ids` if embedding is wanted.
+- **Completeness audit + Divi attribute recovery.** A per-page audit (live page vs scraped) confirmed all substantive prose is captured; the real losses were short labels held in Divi shortcode *attributes* (team-member names, section/card titles, hero headlines, CTA labels — delimited by `&#8220;` smart-quote entities, not straight quotes). `clean_html` now `html.unescape`s each opening shortcode and emits a whitelist of text-bearing attrs (`title`/`subhead`/`button_text`/`heading`) at the tag's position, so e.g. a team name precedes its bio. Verified: all 8 ueber-uns names + tool-page CTAs + home hero now present, no CSS/URL leakage. Remaining unrecoverable-by-REST: embedded contact/demo forms (external Caymland JS, not in `content.rendered`). The English Polylang locale is empty (`/en/` → 404) so German-only loses nothing; the `project` CPT is empty.
+- **End-to-end snap refresh is a single *manual* script for now; automation deferred.** User wants to eventually re-run on snap.de changes but chose to start with a manual command and run it locally. Discussed the "listen" reality: a website can't be push-notified unless it cooperates — true real-time needs a WordPress webhook (plugin/mu-plugin on `save_post`/`deleted_post`) → an HTTP-triggered Azure Function; otherwise "listen" means scheduled polling. Both unattended options also require running in Azure with a managed identity (the local scripts authenticate via `AzureDeveloperCliCredential`, which only works while azd-logged-in). Deferred all of that; built only the manual local orchestrator.
+- **Change detection is possible and worthwhile.** Can't reliably diff against `snap.json` alone (its per-doc `date` is day-granular). Instead `fetch_remote_state` queries the WP REST API for the latest `modified` timestamp + total count of pages/posts (two tiny requests) and stores them in `data/snap.state.json`; comparing across runs catches edits, additions, and (via count) deletions. `refresh_snap.py` skips the whole pipeline when unchanged unless `--force`.
+- **Reindex = delete-then-add, and scrape-before-delete.** Chunk IDs are deterministic so re-adding overwrites changed pages, but deleted pages would leave orphan chunks — so the refresh deletes category `snap` first, then re-indexes (brief window with no `/snap` results; acceptable for a manual refresh). The scrape runs *before* the delete and the run aborts if it yields zero docs, so a failed scrape never wipes the index; the state watermark is written only after a successful re-index. Confirmed the local ingestion path is active in the deployment env (`rg-agentic-retrieval-nerilio` has no `USE_CLOUD_INGESTION`/`USE_FEATURE_INT_VECTORIZATION`), and that `FileStrategy.setup()`→`create_index` is non-destructive (creates only if absent; otherwise just adds missing fields), so refreshing `snap` cannot wipe other bots' data in the shared index.
+- **`content` stored as GitHub-flavored markdown (user choice, over a plain-text recommendation).** Analysis showed plain text is marginally better *for this pipeline*: `clean_source` ([approach.py](app/backend/approaches/approach.py), `get_sources_content`) flattens `\n`→space before sources reach the LLM, so newline-based structure (headings on their own line, tables, list layout) is lost at answer time; embeddings gain nothing from markup tokens; and the rest of the index is plain text (HTML parser uses `soup.get_text()`). The user chose markdown anyway. Net effect that survives flattening: inline emphasis (`**`/`*`) and — the one real gain — **inline body links**, which the plain-text path dropped. `clean_html` now maps headings→ATX, `strong`/`em`→`**`/`*`, `a`→`[text](url)` (relative hrefs absolutized to `https://www.snap.de/…`, `#`/`javascript:`/`data:` dropped but link text kept), `ul`/`ol`→`-`/`N.`, `table`→GFM pipe table, `img`→`![alt](src)` (decorative empty-alt images dropped), `blockquote`→`>`; `<script>`/`<style>` stripped. Regenerated `data/snap.json` = 43 docs / 99 chunks / ~191k chars; verified no raw HTML, shortcode, entity, CSS, or U+FFFD leakage and all 97 links absolute.
+
+#### Changes
+
+- `scripts/scrape_snap.py` (new): stdlib-only WP REST API scraper → `data/snap.json` (`{feed:"snap.de", documents:[{id,title,url,content,tags,type,date}]}`). `clean_html` converts the Divi/HTML body to GitHub-flavored markdown via `_MarkdownExtractor` (headings/emphasis/links/lists/tables/images), recovering Divi shortcode-attribute text inline; `collapse_whitespace` preserves list indentation.
+- `data/snap.json` (new): 43 scraped pages/posts, `content` as markdown (deliverable for admin upload; not indexed here).
+- `scripts/scrape_snap.py`: added `fetch_remote_state(base_url)` — cheap WP-REST change-detection watermark (latest `modified` + count for pages/posts).
+- `app/backend/refresh_snap.py` (new): single manual end-to-end refresh — change-check (`data/snap.state.json`, `--force`/`--check-only`) → re-scrape → delete category `snap` → re-index via `prepdocs.py`. Reuses `scrape_snap.py`, `delete_category_data.py`, `prepdocs.py` as sub-steps; runs locally under the backend venv with azd creds. `data/snap.state.json` is generated state (in untracked `data/`).
+- `CLAUDE.md`: added a snap-refresh playbook line under "Adding Data".
+- **Indexed the markdown `data/snap.json` into the live index** (category `snap`, 99 chunks in `gptkbindex-nerilio`, blob `content/snap/snap.json`) at the user's request — ran `delete_category_data.py snap` (found 0 existing) then `prepdocs.py data/snap.json --category snap`. The local azd env (`rg-agentic-retrieval-nerilio`) is missing `AZURE_OPENAI_ENDPOINT`, so the run set it to the derived `https://cog-bfmtryd6z3arm.openai.azure.com` plus `USE_AGENTIC_KNOWLEDGEBASE=false` and `LOADING_MODE_FOR_AZD_ENV_VARS=no-override`. Disabling agentic is deliberate: `prepdocs` `setup()`→`create_knowledgebase()` would `create_or_update_knowledge_base` on the production `gptkbindex-nerilio-agent-upgrade` KB ([searchmanager.py:600](app/backend/prepdocslib/searchmanager.py#L600)); document indexing doesn't need it (the agent reads the index at query time). Wrote `data/snap.state.json` watermark so `refresh_snap.py` reports up-to-date.
+- `app/backend/prepdocslib/snapjson.py` (new): `prepare_snap_sections` + `build_snap_sections_if_applicable` (gates on category `snap` + `.json` + `feed:"snap.de"` marker; reuses HYROX chunker).
+- `app/backend/prepdocslib/filestrategy.py`: `parse_file` now calls `build_snap_sections_if_applicable` after the HYROX hook.
+- `app/backend/approaches/chatbots/snap/` (new): `__init__.py`, `config.py` (gpt-4.1-mini, `citation_target="url"`, `support_email="info@snap.de"`), `sampleprompt.py` (nerilio prompt generalized to SNAP).
+- `app/backend/approaches/chatbot_prompt_registry.py`: registered `snap` prompt module.
+- `app/backend/app.py`: added `snap` to `KNOWN_CHATBOT_NAMES` and `EMBED_LAUNCHER_COLORS`.
+- `app/frontend/src/chatbots/snap/` (new): clone of `nerilio/`; edited `index.ts` (`snapChatbot`/name), `pages/chat/Chat.tsx` (`chatbotCategory="snap"`, speech flags), `pages/layout/Layout.tsx` (`/snap` link), forked `pages/NoPage.tsx` (snap.de links), `components/Answer/AnswerLoading.tsx` (alt), and de/en/nl locales (rebranded to SNAP).
+- `app/frontend/src/chatbots/registry.ts` + `shared/theme/chatbotThemes.ts`: registered `snap` (gpt-4.1-mini, qna; theme mirrors nerilio `#ac44c6`).
+- `app/functions/*/prepdocslib/`: refreshed via `scripts/copy_prepdocslib.py` (picks up `snapjson.py` + `filestrategy.py`).
+- `tests/test_snapjson.py` (new) and `tests/test_chatbot_config_registry.py`: snap parser + config coverage.
+
 ### Bensberg bot: rename display name from Lemon®AID to Bensberg
 
 #### Decisions
