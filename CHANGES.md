@@ -15,6 +15,20 @@ Two categories per date:
 
 ---
 
+## 2026-06-24
+
+### Bensberg bot: rename display name from Lemon®AID to Bensberg
+
+#### Decisions
+
+- Display name "Lemon®AID" was replaced with "Bensberg" per client request.
+
+#### Changes
+
+- `app/frontend/src/chatbots/bensberg/locales/de/translation.json`: updated `pageTitle` and `headerTitle` to `"Bensberg"`.
+- `app/frontend/src/chatbots/bensberg/locales/en/translation.json`: updated `pageTitle` and `headerTitle` to `"Bensberg"`.
+- `app/frontend/src/chatbots/bensberg/locales/nl/translation.json`: updated `pageTitle` and `headerTitle` to `"Bensberg"`.
+
 ## 2026-06-23
 
 ### Hide tooltips below the desktop breakpoint (mobile/tablet)
