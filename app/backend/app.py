@@ -775,9 +775,10 @@ async def embed_demo():
     return response
 
 
-# Per-bot launcher bubble colors returned by the widget config endpoint. Mirrors the `primary`
-# values in app/frontend/src/chatbots/shared/theme/chatbotThemes.ts — keep in sync. Anything not
-# listed falls back to EMBED_LAUNCHER_DEFAULT_COLOR (matches the widget's own fallback).
+# Per-bot launcher bubble background colors returned by the widget config endpoint. Mirrors the
+# `primary` values in app/frontend/src/chatbots/shared/theme/chatbotThemes.ts — keep in sync, except
+# where a bot's visible chrome differs from its abstract primary (see hyrox-assessment below).
+# Anything not listed falls back to EMBED_LAUNCHER_DEFAULT_COLOR (matches the widget's own fallback).
 EMBED_LAUNCHER_DEFAULT_COLOR = "#4f46e5"
 EMBED_LAUNCHER_COLORS = {
     "agindo": "#e2c200",
@@ -785,7 +786,10 @@ EMBED_LAUNCHER_COLORS = {
     "demo": "#313335",
     "fbn": "#00cc96",
     "fhg": "#669d24",
-    "hyrox-assessment": "#FFED00",
+    # hyrox-assessment's brand is black chrome + yellow accent (its theme overrides the navbar to a
+    # black background with #FFED00 text). The launcher mirrors that chrome rather than the abstract
+    # yellow primary: a black bubble with a yellow icon (see EMBED_LAUNCHER_ICON_COLORS below).
+    "hyrox-assessment": "#000000",
     "knoll": "#0199fe",
     "lemon": "#fec701",
     "moodle": "#f98012",
@@ -797,6 +801,18 @@ EMBED_LAUNCHER_COLORS = {
     "sartorius": "#ffed00",
     "steuertipps": "#ffe016",
     "vjoonk4": "#00cc96",
+}
+
+# Optional per-bot launcher icon (foreground) color. Unset => the widget's default white icon. Use
+# only when the bubble background is dark/branded enough that a colored icon reads better than white,
+# e.g. hyrox-assessment's yellow icon on the black bubble, matching its navbar accent.
+EMBED_LAUNCHER_ICON_COLORS = {
+    "hyrox-assessment": "#FFED00",
+    # Bright-yellow bubbles whose chrome already uses a black foreground (their navbar text resolves
+    # to black); a white launcher icon washes out, so match the chrome with a dark icon. lemon and
+    # agindo are intentionally left on the default white icon.
+    "sartorius": "#000000",
+    "steuertipps": "#000000",
 }
 
 
@@ -816,6 +832,7 @@ async def embed_widget_config(public_id: str):
             {
                 "ok": True,
                 "primaryColor": EMBED_LAUNCHER_COLORS.get(chatbot_name, EMBED_LAUNCHER_DEFAULT_COLOR),
+                "launcherIconColor": EMBED_LAUNCHER_ICON_COLORS.get(chatbot_name),
                 "allowAll": len(allowed_rules) == 0,
                 "rules": allowed_rules,
             }

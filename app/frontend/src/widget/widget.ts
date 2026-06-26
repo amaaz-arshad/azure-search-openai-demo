@@ -27,6 +27,8 @@ interface ChatbotWidgetConfig {
     chatbotId: string;
     position?: "right" | "left";
     primaryColor?: string;
+    /** Launcher icon (foreground) color. Defaults to white; used for dark/branded bubbles. */
+    launcherIconColor?: string;
     launcherText?: string;
     locale?: string;
     autoOpen?: boolean;
@@ -49,6 +51,8 @@ declare global {
 (function () {
     // Final fallback only — used when the chatbotId has no theme entry and no data-primary-color.
     const DEFAULT_PRIMARY_COLOR = "#4f46e5";
+    // Default launcher icon (foreground) color; overridden per-bot only for dark/branded bubbles.
+    const DEFAULT_ICON_COLOR = "#ffffff";
     const HOST_ELEMENT_ID = "nerilio-chatbot-widget-host";
     const MIN_WIDTH = 320;
     const MIN_HEIGHT = 380;
@@ -139,6 +143,7 @@ declare global {
             chatbotId,
             position: position === "left" ? "left" : "right",
             primaryColor: scriptEl.getAttribute("data-primary-color") || undefined,
+            launcherIconColor: scriptEl.getAttribute("data-icon-color") || undefined,
             launcherText: scriptEl.getAttribute("data-launcher-text") || undefined,
             locale: scriptEl.getAttribute("data-locale") || undefined,
             autoOpen: scriptEl.getAttribute("data-auto-open") === "true"
@@ -159,6 +164,7 @@ declare global {
     interface WidgetRemoteConfig {
         ok: boolean;
         primaryColor?: string;
+        launcherIconColor?: string;
         allowAll?: boolean;
         rules?: string[];
     }
@@ -246,7 +252,7 @@ declare global {
     const CLOSE_ICON =
         '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
 
-    function styleSheet(primaryColor: string, position: "right" | "left"): string {
+    function styleSheet(primaryColor: string, iconColor: string, position: "right" | "left"): string {
         const side = position === "left" ? "left" : "right";
         // The panel is anchored to `side`, so it grows from the opposite edge — that's where the
         // resize handles live (top edge, opposite side edge, and the corner between them).
@@ -258,7 +264,7 @@ declare global {
 .launcher {
     position: fixed; bottom: 20px; ${side}: 20px; z-index: 2147483000;
     width: 60px; height: 60px; border-radius: 50%; border: none; cursor: pointer;
-    background: ${primaryColor}; color: #fff; display: flex; align-items: center; justify-content: center;
+    background: ${primaryColor}; color: ${iconColor}; display: flex; align-items: center; justify-content: center;
     box-shadow: 0 6px 24px rgba(0,0,0,0.28); transition: transform .15s ease, box-shadow .15s ease;
 }
 .launcher:hover { transform: scale(1.06); box-shadow: 0 10px 28px rgba(0,0,0,0.34); }
@@ -372,7 +378,7 @@ declare global {
         const shadow = host.attachShadow({ mode: "open" });
 
         const style = document.createElement("style");
-        style.textContent = styleSheet(config.primaryColor, config.position);
+        style.textContent = styleSheet(config.primaryColor, config.launcherIconColor || DEFAULT_ICON_COLOR, config.position);
         shadow.appendChild(style);
 
         const panel = document.createElement("div");
@@ -480,7 +486,9 @@ declare global {
         const resolvedConfig: ChatbotWidgetConfig = {
             ...config,
             // Precedence: explicit data-primary-color > the bot's theme color from config > default.
-            primaryColor: config.primaryColor || remote.primaryColor || DEFAULT_PRIMARY_COLOR
+            primaryColor: config.primaryColor || remote.primaryColor || DEFAULT_PRIMARY_COLOR,
+            // Same precedence for the icon color; falsy stays undefined so createWidget applies white.
+            launcherIconColor: config.launcherIconColor || remote.launcherIconColor || undefined
         };
         const start = () => {
             if (!widget) {

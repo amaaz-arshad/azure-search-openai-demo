@@ -17,6 +17,39 @@ Two categories per date:
 
 ## 2026-06-26
 
+### Embed widget: per-bot launcher icon color; hyrox black bubble + yellow icon
+
+#### Decisions
+
+- **The launcher icon was hardcoded white on every bubble, which is poor contrast on hyrox's yellow
+  and on the other light/yellow bots.** `hyrox-assessment`'s brand is black chrome + `#FFED00` accent
+  (its theme overrides the navbar to black bg / yellow text), but the embed bubble was a yellow
+  background with a white icon. Switched the launcher to mirror the *visible chrome* rather than the
+  abstract theme `primary`: **black bubble, yellow icon**.
+- **Added a first-class, optional per-bot launcher icon (foreground) color** instead of special-casing
+  hyrox in the widget. Backend map `EMBED_LAUNCHER_ICON_COLORS` (parallel to `EMBED_LAUNCHER_COLORS`);
+  `/embed/<publicId>/config` now also returns `launcherIconColor` (null => the widget's default white).
+  The widget threads it through with the same precedence as the bubble color
+  (`data-icon-color` > backend config > white default) and applies it to the launcher's `currentColor`
+  icon. Also exposed `data-icon-color` as a host override for symmetry with `data-primary-color`.
+- **Dark icons for `sartorius` and `steuertipps`; `lemon` and `agindo` left on white.** The same
+  white-on-yellow contrast issue existed across the four yellow bubbles; per the user, sartorius and
+  steuertipps now use a black icon (`#000000`, matching their navbar's black foreground), while lemon
+  and agindo intentionally keep the default white icon.
+- **No iframe side effects.** `EmbedBridge` ignores the `chatbot:host-init` `primaryColor`; the launcher
+  color only paints the floating bubble, so changing hyrox's bubble background is isolated to the widget.
+
+#### Changes
+
+- [app/backend/app.py](app/backend/app.py): `EMBED_LAUNCHER_COLORS["hyrox-assessment"]` `#FFED00` →
+  `#000000`; added `EMBED_LAUNCHER_ICON_COLORS` (`hyrox-assessment` → `#FFED00`; `sartorius` and
+  `steuertipps` → `#000000`); `/embed/<publicId>/config` now returns `launcherIconColor`.
+- [app/frontend/src/widget/widget.ts](app/frontend/src/widget/widget.ts): `launcherIconColor` on the
+  config + remote-config interfaces, `data-icon-color` attribute, `DEFAULT_ICON_COLOR`, `styleSheet`
+  takes an icon color (`.launcher { color: … }`), resolved with `data-icon-color` > backend > white.
+- [app/backend/embed_demo.html](app/backend/embed_demo.html): documented `data-icon-color` in the
+  optional-settings table.
+
 ### Embed widget: sync bensberg launcher color to dark-teal rebrand
 
 #### Decisions
