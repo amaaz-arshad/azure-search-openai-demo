@@ -1,0 +1,36 @@
+I finally have everything I needed from the client. Attached is the Excel file with the final questions. It includes the primary answer, a possible alternative answer, the keywords, and the points that must be included in the answer. I’ve also created an XML file that contains all the background information the assessment needs from the complete Level 2 knowledge base to classify the user’s answers—in other words, only the information relevant to the questions. I hope this helps the assessment evaluate answer texts more effectively.
+ 
+The client wants a change to the assessment’s mechanics. Instead of evaluating all questions at once at the end, as was previously the case, this should now be done module by module. 
+We have questions for 13 modules—sometimes 3, sometimes 4, or sometimes 5, depending on the module’s weighting. The user accesses the assessment and starts with the first module. Here, they must achieve 80% of the points in that module. If they do not, they must repeat the entire module. They can only proceed to the next module once they have achieved the 80 percent threshold. I’ve listed the total points for the modules in a separate column. The numbering for each question includes the module and the question number—for example, M5-Q03.
+
+
+Of course, this must be reflected in the welcome text. We’ll also need some transitional text.
+ 
+New welcome message:
+"Welcome to the HYROX “Managing Performance” Assessment! This is the final test to earn your Level 2 certificate.
+ 
+The assessment covers all modules. Each module is tested and evaluated separately. You’ll answer the questions in free-text format and have one chance to revise your answer for each question if needed. To pass, you must score at least 80% on each module. Once you’ve passed a module, you’ll move on to the next one. You can pause the assessment at any time and return to continue later.
+ 
+At the end, you’ll receive a summary organized by topic.
+ 
+Start the assessment when you’re ready to begin.“
+ 
+The transitional text is something like this, plus the question of whether the user wants to continue with the next module:
+ 
+Well done — you passed this module.
+Great work — this module is complete.
+Nice job — you successfully passed the module.
+Module passed — keep going.
+You’ve successfully completed this module.
+
+
+If they don’t pass, they have to retake all the questions from that module… every single one. Until they pass.
+
+
+However, the strengths and weaknesses don’t appear until the very end and apply across all modules. Just like we already have with the texts for the end.
+
+
+I just thought of something that is probably obvious, but I'll mention it anyway. 😄
+ 
+The command you send to the LMS to mark the assessment as completed must no longer be tied to the 80% threshold. Otherwise, it would already be triggered after the first module where I reach 80%. 😄
+The completion should, of course, only be sent after Module 10 has been successfully completed.
