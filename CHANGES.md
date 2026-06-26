@@ -15,6 +15,28 @@ Two categories per date:
 
 ---
 
+## 2026-06-26
+
+### Embed widget: sync bensberg launcher color to dark-teal rebrand
+
+#### Decisions
+
+- **The chat-bubble launcher color is a backend-side duplicate of the frontend theme `primary`, and
+  bensberg's copy was stale.** `EMBED_LAUNCHER_COLORS` in [app.py:782](app/backend/app.py#L782) mirrors
+  the `primary` values in [chatbotThemes.ts](app/frontend/src/chatbots/shared/theme/chatbotThemes.ts)
+  and is what `/embed/<publicId>/config` returns to `/widget.js` to paint the floating bubble. The
+  bensberg rebrand (commit `57318eb7`, dark-teal `#005155` + mint) updated the frontend theme but not
+  this map, so the embed-demo bubble (and every real embed) still showed the old yellow `#fec701`
+  (identical to lemon, and lower-contrast under the white chat icon). All 16 other embeddable bots
+  already matched.
+
+#### Changes
+
+- [app/backend/app.py](app/backend/app.py): `EMBED_LAUNCHER_COLORS["bensberg"]` `#fec701` → `#005155`
+  to match the frontend theme `primary`.
+
+---
+
 ## 2026-06-24
 
 ### snap bot: enable embedding (assign embed public ID)

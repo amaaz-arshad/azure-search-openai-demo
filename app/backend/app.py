@@ -781,7 +781,7 @@ async def embed_demo():
 EMBED_LAUNCHER_DEFAULT_COLOR = "#4f46e5"
 EMBED_LAUNCHER_COLORS = {
     "agindo": "#e2c200",
-    "bensberg": "#fec701",
+    "bensberg": "#005155",
     "demo": "#313335",
     "fbn": "#00cc96",
     "fhg": "#669d24",

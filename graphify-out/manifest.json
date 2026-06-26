@@ -10,9 +10,9 @@
     "semantic_hash": "c8206d7e25a79e5a4ed79f965d38d672"
   },
   "app/backend/app.py": {
-    "mtime": 1782002644.4827764,
-    "ast_hash": "5b0ac6334e69014a21502c7fb7357bcd",
-    "semantic_hash": "5b0ac6334e69014a21502c7fb7357bcd"
+    "mtime": 1782474238.8699934,
+    "ast_hash": "42e951534f2b53de8e76052ba4fe66ca",
+    "semantic_hash": ""
   },
   "app/backend/config.py": {
     "mtime": 1781801486.1777415,
@@ -90,9 +90,9 @@
     "semantic_hash": "4624902cc3f82807a30c9d28d9dfdacf"
   },
   "app/backend/approaches/chatbot_prompt_registry.py": {
-    "mtime": 1781801477.446698,
-    "ast_hash": "25b9e22e8bb21832c5493ad2cd7bdb95",
-    "semantic_hash": "25b9e22e8bb21832c5493ad2cd7bdb95"
+    "mtime": 1782444876.0121372,
+    "ast_hash": "0c2e81076bad89a4a12721c8d650b6b8",
+    "semantic_hash": ""
   },
   "app/backend/approaches/chatreadretrieveread.py": {
     "mtime": 1781789472.2554512,
@@ -410,9 +410,9 @@
     "semantic_hash": "682562ff94abdcacaf7a5863de9b51b4"
   },
   "app/backend/prepdocslib/filestrategy.py": {
-    "mtime": 1779186564.212054,
-    "ast_hash": "d1a86a870da344c470cbbdfd2cb932d4",
-    "semantic_hash": "d1a86a870da344c470cbbdfd2cb932d4"
+    "mtime": 1782444876.017259,
+    "ast_hash": "ab04402c1b5e69b1bdb6067e6516e142",
+    "semantic_hash": ""
   },
   "app/backend/prepdocslib/htmlparser.py": {
     "mtime": 1763808595.9427671,
@@ -545,8 +545,8 @@
     "semantic_hash": "6f1461b10519cc116f90fbe01e0c7940"
   },
   "app/frontend/src/chatbots/registry.ts": {
-    "mtime": 1782002601.0685537,
-    "ast_hash": "e9d774b8980c2e432d3b3a5597d45d89",
+    "mtime": 1782444876.0256119,
+    "ast_hash": "a50fa234548fd08027eb416a7616f796",
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/agindo/authConfig.ts": {
@@ -4455,9 +4455,9 @@
     "semantic_hash": "834561f5b964ceeef8fcaccf048da17b"
   },
   "app/frontend/src/chatbots/shared/speech/chatbotSpeechFeatureFlags.ts": {
-    "mtime": 1776940772.616498,
-    "ast_hash": "5e9748118512d884de90286d6a1d7ded",
-    "semantic_hash": "5e9748118512d884de90286d6a1d7ded"
+    "mtime": 1782444876.0276093,
+    "ast_hash": "796646696182b244598ffd0c8da34248",
+    "semantic_hash": ""
   },
   "app/frontend/src/chatbots/shared/speech/SpeechInputButton.tsx": {
     "mtime": 1782006904.716041,
@@ -4475,8 +4475,8 @@
     "semantic_hash": "4be674c291ef51234ec3ea64c922bcca"
   },
   "app/frontend/src/chatbots/shared/theme/chatbotThemes.ts": {
-    "mtime": 1782134475.1032329,
-    "ast_hash": "3629a201a2877ed6ad77b1f97c3d95a7",
+    "mtime": 1782444876.0296092,
+    "ast_hash": "9bab61c0d6dc0c9a070908ecf42e8d91",
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/steuertipps/authConfig.ts": {
@@ -5965,9 +5965,9 @@
     "semantic_hash": "9c81d6b228aa06a7794ac9e2ab441b1b"
   },
   "tests/test_chatbot_config_registry.py": {
-    "mtime": 1781789410.5640118,
-    "ast_hash": "5e023b8e806c3f748e8fe7cc156a76b8",
-    "semantic_hash": "5e023b8e806c3f748e8fe7cc156a76b8"
+    "mtime": 1782444876.128723,
+    "ast_hash": "09ce5401f921cd2993e535ffa665d4ab",
+    "semantic_hash": ""
   },
   "tests/test_content_file.py": {
     "mtime": 1777160613.4044158,
@@ -6105,8 +6105,8 @@
     "semantic_hash": "77ec55ea90a84f95635bc9985e49b57a"
   },
   "CLAUDE.md": {
-    "mtime": 1782062744.6806648,
-    "ast_hash": "4fc393787447bad3d4a07bbe044bbc6b",
+    "mtime": 1782444876.009019,
+    "ast_hash": "61481bbf9b6bb7641c711a3d12da93e6",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -6770,9 +6770,9 @@
     "semantic_hash": "c3e4a13899d436474c2425a46c7f95b6"
   },
   "app/backend/embed_public_ids.py": {
-    "mtime": 1781789410.5599942,
-    "ast_hash": "d943ff1df1995759b981d43196bc10f6",
-    "semantic_hash": "d943ff1df1995759b981d43196bc10f6"
+    "mtime": 1782444876.0162587,
+    "ast_hash": "f3fb24f899a54c68341c533baf210995",
+    "semantic_hash": ""
   },
   "app/backend/embed_rules.py": {
     "mtime": 1781630289.4691205,
@@ -6845,18 +6845,18 @@
     "semantic_hash": "dccc544db05696abbc7e250e0c93ce54"
   },
   "app/frontend/src/chatbots/bensberg/locales/de/translation.json": {
-    "mtime": 1781995512.183859,
-    "ast_hash": "ac4ff5cb5ffb907b51b89fa6a730b696",
+    "mtime": 1782444876.0206282,
+    "ast_hash": "86fc8f1c587efa73f5c4f7a33f836029",
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/bensberg/locales/en/translation.json": {
-    "mtime": 1781995512.18786,
-    "ast_hash": "21d2d81c672d150fb16718d48c2bff57",
+    "mtime": 1782444876.0227022,
+    "ast_hash": "8db77ac6eb398f63bcb21e9f94ad0929",
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/bensberg/locales/nl/translation.json": {
-    "mtime": 1781995512.1928608,
-    "ast_hash": "cbca8b38b5a4e2cb93654ccea2672330",
+    "mtime": 1782444876.024354,
+    "ast_hash": "7e34a44eb30799f2ecfa40ba93842850",
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/bensberg/loginContext.tsx": {
@@ -8635,8 +8635,8 @@
     "semantic_hash": "b7d811e41ee8cb385db724f4491957fb"
   },
   "CHANGES.md": {
-    "mtime": 1782143435.2295744,
-    "ast_hash": "fa847f89c266fb65f8c7c5fccead6127",
+    "mtime": 1782474253.0494318,
+    "ast_hash": "29de0ad4465db425ef43776cecda3094",
     "semantic_hash": ""
   },
   "aci-openlit.example.yaml": {
@@ -8727,6 +8727,386 @@
   "app/frontend/src/chatbots/bensberg/assets/bensberg.png": {
     "mtime": 1782134062.9534266,
     "ast_hash": "5c1c39a537ace05fac0bf35e9cc23eee",
+    "semantic_hash": ""
+  },
+  "app/backend/approaches/chatbots/snap/__init__.py": {
+    "mtime": 1782444876.0142632,
+    "ast_hash": "8513dcfa2fb33721ac0a19b0eb126380",
+    "semantic_hash": ""
+  },
+  "app/backend/approaches/chatbots/snap/config.py": {
+    "mtime": 1782444876.015259,
+    "ast_hash": "78f9ff848c20e8f391cab1ab4410303b",
+    "semantic_hash": ""
+  },
+  "app/backend/approaches/chatbots/snap/sampleprompt.py": {
+    "mtime": 1782444876.015259,
+    "ast_hash": "320a9a23a8544183e05d0ae4a3f145c2",
+    "semantic_hash": ""
+  },
+  "app/backend/prepdocslib/snapjson.py": {
+    "mtime": 1782444876.0182593,
+    "ast_hash": "1b18755c260ddc807f65d837024d126b",
+    "semantic_hash": ""
+  },
+  "app/backend/refresh_snap.py": {
+    "mtime": 1782444876.0182593,
+    "ast_hash": "f63bd71b4f9627f6fbfeeee22ccf9496",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/api/index.ts": {
+    "mtime": 1782444876.0315838,
+    "ast_hash": "8486c502190cc9e4c54cc0882aba6b2c",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/authConfig.ts": {
+    "mtime": 1782444876.0397534,
+    "ast_hash": "7d145944f89b404fb69046dbd6a3b9b2",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/AnalysisPanel/AgentPlan.tsx": {
+    "mtime": 1782444876.0407543,
+    "ast_hash": "6d45043876525e775870a77117177310",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/AnalysisPanel/AnalysisPanel.tsx": {
+    "mtime": 1782444876.0417552,
+    "ast_hash": "6cecfbd7b12f3b7e023ab565ef34b940",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/AnalysisPanel/AnalysisPanelTabs.tsx": {
+    "mtime": 1782444876.0417552,
+    "ast_hash": "353c37bdedf123560f69e29c827548fa",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/AnalysisPanel/ThoughtProcess.tsx": {
+    "mtime": 1782444876.044137,
+    "ast_hash": "d5d81e609f58365518a475bd0156e4f9",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/AnalysisPanel/TokenUsageGraph.tsx": {
+    "mtime": 1782444876.0451474,
+    "ast_hash": "1383318b1d0756a88fcfad34eba68e2e",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/AnalysisPanel/agentPlanUtils.ts": {
+    "mtime": 1782444876.0471504,
+    "ast_hash": "905a9db94e2a0fa6b0157d7dff6329ed",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/AnalysisPanel/index.tsx": {
+    "mtime": 1782444876.0471504,
+    "ast_hash": "5f4d070a6216d6bcaa5b9fb1a524e797",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/Answer/Answer.tsx": {
+    "mtime": 1782444876.0501585,
+    "ast_hash": "02633a30f2b93b12862891b09ba9fd4f",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/Answer/AnswerError.tsx": {
+    "mtime": 1782444876.051158,
+    "ast_hash": "edee5e4deb21d9ef07c9e0ebbcf22477",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/Answer/AnswerIcon.tsx": {
+    "mtime": 1782444876.051158,
+    "ast_hash": "494346a2f21bf9b5a50bcc67edd23c46",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/Answer/AnswerLoading.tsx": {
+    "mtime": 1782444876.052159,
+    "ast_hash": "e795eb250a7e3c222003e109e74e0d62",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/Answer/AnswerParser.tsx": {
+    "mtime": 1782444876.0531588,
+    "ast_hash": "e59c6278db70986f3b4aef1c8e55eb5a",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/Answer/SpeechOutputAzure.tsx": {
+    "mtime": 1782444876.0541582,
+    "ast_hash": "63bb2b64427a44f00c7f541abe04579c",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/Answer/SpeechOutputBrowser.tsx": {
+    "mtime": 1782444876.055159,
+    "ast_hash": "9900f59ac4025f32f0244dae4598b650",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/Answer/index.ts": {
+    "mtime": 1782444876.0561612,
+    "ast_hash": "aa3a5dddef4b0a846380657deee269b2",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/ClearChatButton/ClearChatButton.tsx": {
+    "mtime": 1782444876.0581584,
+    "ast_hash": "c575786d4b056eb38be8a1b6873233dd",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/ClearChatButton/index.tsx": {
+    "mtime": 1782444876.0591607,
+    "ast_hash": "ece28c07bed9b625dcbc15f1a4c550b4",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/Example/Example.tsx": {
+    "mtime": 1782444876.0601604,
+    "ast_hash": "b80172c192c5f5c8c4ced9b017526e2c",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/Example/ExampleList.tsx": {
+    "mtime": 1782444876.0611582,
+    "ast_hash": "c0e3ca0150c1b477196d28babe0861c2",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/Example/index.tsx": {
+    "mtime": 1782444876.0621598,
+    "ast_hash": "d12c1710406e600bfcacc583a93b6958",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/HelpCallout/HelpCallout.tsx": {
+    "mtime": 1782444876.063109,
+    "ast_hash": "96ff61ed58b3260fc0edd24c0d8f9222",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/HelpCallout/index.ts": {
+    "mtime": 1782444876.0646667,
+    "ast_hash": "9fe8b80f4af1cfdecb7dda9686311863",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/HistoryButton/HistoryButton.tsx": {
+    "mtime": 1782444876.065207,
+    "ast_hash": "45ae6a6d5f037fa2ef2e60a38f213f8d",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/HistoryButton/index.tsx": {
+    "mtime": 1782444876.0663877,
+    "ast_hash": "f122bcba32faf6bd3fd9d639f53fac95",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/HistoryItem/HistoryItem.tsx": {
+    "mtime": 1782444876.0683978,
+    "ast_hash": "68f548ecece98be60b9907546edc3cfc",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/HistoryItem/index.tsx": {
+    "mtime": 1782444876.0693965,
+    "ast_hash": "7b5c82f28bdaa339a4fce84ac3d1c686",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/HistoryPanel/HistoryPanel.tsx": {
+    "mtime": 1782444876.0714169,
+    "ast_hash": "35362cd67486a582a9d638c7d23e51f8",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/HistoryPanel/index.tsx": {
+    "mtime": 1782444876.0724275,
+    "ast_hash": "d80e9f14c41fef0e69df0a99a97968b6",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/HistoryProviders/CosmosDB.ts": {
+    "mtime": 1782444876.0744398,
+    "ast_hash": "fea525a6e23835399f7ae3b4f4532a3a",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/HistoryProviders/HistoryManager.ts": {
+    "mtime": 1782444876.0744398,
+    "ast_hash": "65894bfe670c65db4898513ce3808378",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/HistoryProviders/IProvider.ts": {
+    "mtime": 1782444876.0744398,
+    "ast_hash": "d5ec3a97e28dadefe09cdd4b19213a16",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/HistoryProviders/IndexedDB.ts": {
+    "mtime": 1782444876.0765042,
+    "ast_hash": "e3d510e7eb99eb2134e9537cfc624487",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/HistoryProviders/None.ts": {
+    "mtime": 1782444876.0765042,
+    "ast_hash": "659df926583327c9c6a3fa3c1a286fff",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/HistoryProviders/index.ts": {
+    "mtime": 1782444876.0765042,
+    "ast_hash": "bc45973b0441d7b714de64efbbb88855",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/LoginButton/LoginButton.tsx": {
+    "mtime": 1782444876.0785148,
+    "ast_hash": "7490ecc19d8ee072436ee0289bfa2707",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/LoginButton/index.tsx": {
+    "mtime": 1782444876.0785148,
+    "ast_hash": "1f3ad518d36ce78815511ea2e8d62fbd",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/MarkdownViewer/MarkdownViewer.tsx": {
+    "mtime": 1782444876.082549,
+    "ast_hash": "86fa6e35762a1f33ab2397ef2b1b50b7",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/MarkdownViewer/index.tsx": {
+    "mtime": 1782444876.0835562,
+    "ast_hash": "98cd57580d78ea20c28403040c075d6c",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/QuestionInput/QuestionInput.tsx": {
+    "mtime": 1782444876.085544,
+    "ast_hash": "e15b2cc3dd2363d5e5eb89b35814c6ef",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/QuestionInput/SpeechInput.tsx": {
+    "mtime": 1782444876.087057,
+    "ast_hash": "c5cd4871946ee1461171c99e267c1ee1",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/QuestionInput/index.ts": {
+    "mtime": 1782444876.087057,
+    "ast_hash": "4d2561eef61a0d06ccf1b5474c228f17",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/SettingsButton/SettingsButton.tsx": {
+    "mtime": 1782444876.0922384,
+    "ast_hash": "b581948a30e37313ee0957ef7cc9fc09",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/SettingsButton/index.tsx": {
+    "mtime": 1782444876.093501,
+    "ast_hash": "378859068cf84c9416148ba86b62044f",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/Settings/Settings.tsx": {
+    "mtime": 1782444876.0911486,
+    "ast_hash": "61514f434a7b64262d9942e4b372bdb1",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/SupportingContent/SupportingContent.tsx": {
+    "mtime": 1782444876.095124,
+    "ast_hash": "00ebf619a148d27ee5e38bf8ab0a299f",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/SupportingContent/SupportingContentParser.ts": {
+    "mtime": 1782444876.095124,
+    "ast_hash": "0fd071027f6f470df720b77176cc22dd",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/SupportingContent/index.ts": {
+    "mtime": 1782444876.095124,
+    "ast_hash": "9338d1254b20735de9130a08c531150a",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/TokenClaimsDisplay/TokenClaimsDisplay.tsx": {
+    "mtime": 1782444876.0971327,
+    "ast_hash": "b624bf61c051daf55d287e215fa8cb05",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/TokenClaimsDisplay/index.tsx": {
+    "mtime": 1782444876.0991404,
+    "ast_hash": "34464230140f435a16182cc3b40c9526",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/UploadFile/UploadFile.tsx": {
+    "mtime": 1782444876.0999825,
+    "ast_hash": "57951fa3e9ec76a00ac7d603f1df7efb",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/UploadFile/index.tsx": {
+    "mtime": 1782444876.0999825,
+    "ast_hash": "ef368c65d3b6851029af596466a86ef6",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/UserChatMessage/UserChatMessage.tsx": {
+    "mtime": 1782444876.101991,
+    "ast_hash": "d06c616666b96234227e6c090d146cd2",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/UserChatMessage/index.ts": {
+    "mtime": 1782444876.1040006,
+    "ast_hash": "34355884efef016fb5386bc11638ab37",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/VectorSettings/VectorSettings.tsx": {
+    "mtime": 1782444876.1050165,
+    "ast_hash": "ea2c478bb1c32a44aa45d60775723e3a",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/components/VectorSettings/index.ts": {
+    "mtime": 1782444876.1050165,
+    "ast_hash": "a16c804400d7438741d350253d8e850d",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/i18n/LanguagePicker.tsx": {
+    "mtime": 1782444876.1090372,
+    "ast_hash": "137cccbca6f5a2408c18e51d2e489789",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/i18n/config.ts": {
+    "mtime": 1782444876.1090372,
+    "ast_hash": "e62b9d98f3e0ebb7dc1432493f05d157",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/index.ts": {
+    "mtime": 1782444876.1090372,
+    "ast_hash": "52caaa44ac43b9c3279a197aeab5165d",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/layoutWrapper.tsx": {
+    "mtime": 1782444876.1110487,
+    "ast_hash": "836acc0c343585c77e71f8454049617b",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/locales/de/translation.json": {
+    "mtime": 1782444876.1130629,
+    "ast_hash": "3d87f08a9c0490cd79601f4aa0ea7886",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/locales/en/translation.json": {
+    "mtime": 1782444876.1130629,
+    "ast_hash": "9e1e5565a047699313eb8e996010543e",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/locales/nl/translation.json": {
+    "mtime": 1782444876.1150742,
+    "ast_hash": "46ced94ba684e4965c57afce0c601b6b",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/loginContext.tsx": {
+    "mtime": 1782444876.1150742,
+    "ast_hash": "16feeaeaf8c52fd166f1bbdfef376618",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/pages/NoPage.tsx": {
+    "mtime": 1782444876.1170843,
+    "ast_hash": "b2c0bf06c79dd82e709e265beb6d34c0",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/pages/chat/Chat.tsx": {
+    "mtime": 1782444876.1228552,
+    "ast_hash": "23cdf237cfbb60c215c3420d6db4fd22",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/pages/layout/Layout.tsx": {
+    "mtime": 1782444876.1267133,
+    "ast_hash": "3b68def90200c2b1b243ab3da5068cd7",
+    "semantic_hash": ""
+  },
+  "scripts/scrape_snap.py": {
+    "mtime": 1782444876.1267133,
+    "ast_hash": "d592761735ca0c7330c67be343b3ac5a",
+    "semantic_hash": ""
+  },
+  "tests/test_snapjson.py": {
+    "mtime": 1782444876.128723,
+    "ast_hash": "af4ee27c67a8cad085ece46d7d9e3908",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/snap/assets/robo1.png": {
+    "mtime": 1782444876.0387542,
+    "ast_hash": "23f3a56527ec023c64fa728fafde24b0",
     "semantic_hash": ""
   }
 }
