@@ -10,8 +10,8 @@
     "semantic_hash": "c8206d7e25a79e5a4ed79f965d38d672"
   },
   "app/backend/app.py": {
-    "mtime": 1782474238.8699934,
-    "ast_hash": "42e951534f2b53de8e76052ba4fe66ca",
+    "mtime": 1782475493.6125228,
+    "ast_hash": "32571276b44f8d186c63faec120095e9",
     "semantic_hash": ""
   },
   "app/backend/config.py": {
@@ -6105,8 +6105,8 @@
     "semantic_hash": "77ec55ea90a84f95635bc9985e49b57a"
   },
   "CLAUDE.md": {
-    "mtime": 1782444876.009019,
-    "ast_hash": "61481bbf9b6bb7641c711a3d12da93e6",
+    "mtime": 1782480231.3574705,
+    "ast_hash": "f531963ece145875f9b906f913218802",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -6730,19 +6730,19 @@
     "semantic_hash": "78292af99decbd7b8aa3eb275dd8e573"
   },
   "app/backend/approaches/chatbots/hyrox_assessment/questions.py": {
-    "mtime": 1780395542.6791184,
-    "ast_hash": "7d8ba7f1425271e3b7158b0e221191a0",
-    "semantic_hash": "7d8ba7f1425271e3b7158b0e221191a0"
+    "mtime": 1782479667.8578954,
+    "ast_hash": "a12f6e73732a8f4ffdfc43c52794af04",
+    "semantic_hash": ""
   },
   "app/backend/approaches/chatbots/hyrox_assessment/results.py": {
-    "mtime": 1781694116.168707,
-    "ast_hash": "fe49e051dc9908323e34c1278f8dcf27",
-    "semantic_hash": "fe49e051dc9908323e34c1278f8dcf27"
+    "mtime": 1782479051.91845,
+    "ast_hash": "fabb218692f30527f6cbe49470513e0b",
+    "semantic_hash": ""
   },
   "app/backend/approaches/chatbots/hyrox_assessment/sampleprompt.py": {
-    "mtime": 1781180799.680647,
-    "ast_hash": "334cfad19837859728bede8b237208f0",
-    "semantic_hash": "334cfad19837859728bede8b237208f0"
+    "mtime": 1782479122.954403,
+    "ast_hash": "7ee82239ae5d6624fb704f19c4d07634",
+    "semantic_hash": ""
   },
   "app/backend/approaches/prompts/chat_query_rewrite_tools.json": {
     "mtime": 1763808595.683292,
@@ -7445,9 +7445,9 @@
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/hyrox-assessment/components/Answer/assessmentMarkers.ts": {
-    "mtime": 1781694179.9918358,
-    "ast_hash": "8051a342536b7b918e3cdea943833ed5",
-    "semantic_hash": "8051a342536b7b918e3cdea943833ed5"
+    "mtime": 1782479275.5848873,
+    "ast_hash": "fc67fd99b98221d1bfd4cebfd81d5a07",
+    "semantic_hash": ""
   },
   "app/frontend/src/chatbots/hyrox-assessment/components/Answer/index.ts": {
     "mtime": 1781180847.1494217,
@@ -7690,19 +7690,19 @@
     "semantic_hash": "b74d186974853187a60329fb0bd1b9fe"
   },
   "app/frontend/src/chatbots/hyrox-assessment/locales/de/translation.json": {
-    "mtime": 1781696011.182307,
-    "ast_hash": "3fcbf89a76aac2854b85b2f3206ac71e",
-    "semantic_hash": "3fcbf89a76aac2854b85b2f3206ac71e"
+    "mtime": 1782479227.021793,
+    "ast_hash": "b3d8ed3762db7157471e38c5919e5d9b",
+    "semantic_hash": ""
   },
   "app/frontend/src/chatbots/hyrox-assessment/locales/en/translation.json": {
-    "mtime": 1781696011.180305,
-    "ast_hash": "9036848e63690362a39ad359863d61e0",
-    "semantic_hash": "9036848e63690362a39ad359863d61e0"
+    "mtime": 1782479210.6536717,
+    "ast_hash": "f879599b247d55a3445a617aa3d846ad",
+    "semantic_hash": ""
   },
   "app/frontend/src/chatbots/hyrox-assessment/locales/nl/translation.json": {
-    "mtime": 1781696011.1843052,
-    "ast_hash": "36e17d68faec6844380e5e42170f47cd",
-    "semantic_hash": "36e17d68faec6844380e5e42170f47cd"
+    "mtime": 1782479240.32011,
+    "ast_hash": "e2ff7f946d6cc07756ba9df082bbd798",
+    "semantic_hash": ""
   },
   "app/frontend/src/chatbots/hyrox-assessment/loginContext.tsx": {
     "mtime": 1774361812.611523,
@@ -7715,8 +7715,8 @@
     "semantic_hash": "9b136fca6ee1532e4a73f0a9d0ad32b9"
   },
   "app/frontend/src/chatbots/hyrox-assessment/pages/chat/Chat.tsx": {
-    "mtime": 1781990206.3266232,
-    "ast_hash": "b4aead9a21ca3dab14efb12ad06cc0e5",
+    "mtime": 1782479357.1099038,
+    "ast_hash": "fde5d13c0d268c0b56b80966b67fbae5",
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/hyrox-assessment/pages/layout/Layout.tsx": {
@@ -8150,9 +8150,9 @@
     "semantic_hash": "7d418bc50f1bac80f7a65355563f1bb6"
   },
   "app/frontend/src/widget/widget.ts": {
-    "mtime": 1781631776.250445,
-    "ast_hash": "c1ab9a293766c5190039799350031ced",
-    "semantic_hash": "c1ab9a293766c5190039799350031ced"
+    "mtime": 1782475000.62091,
+    "ast_hash": "81f72a6ea85a023f6a1a4a716d64250c",
+    "semantic_hash": ""
   },
   "app/frontend/tsconfig.json": {
     "mtime": 1763808597.5559852,
@@ -8510,9 +8510,9 @@
     "semantic_hash": "96bd94c2836a564e1887238b48c43f36"
   },
   "tests/test_hyrox_assessment.py": {
-    "mtime": 1781694204.8679526,
-    "ast_hash": "979faf084071f8dc983a93c8143be000",
-    "semantic_hash": "979faf084071f8dc983a93c8143be000"
+    "mtime": 1782479573.3040214,
+    "ast_hash": "f471b602e49e4f1b374691ff1c24fcc0",
+    "semantic_hash": ""
   },
   "tests/test_hyrox_live.py": {
     "mtime": 1780620286.4117467,
@@ -8635,8 +8635,8 @@
     "semantic_hash": "b7d811e41ee8cb385db724f4491957fb"
   },
   "CHANGES.md": {
-    "mtime": 1782474253.0494318,
-    "ast_hash": "29de0ad4465db425ef43776cecda3094",
+    "mtime": 1782480264.9070313,
+    "ast_hash": "6843c7d9439efb9b4ea5f89df65d58b1",
     "semantic_hash": ""
   },
   "aci-openlit.example.yaml": {
@@ -8645,9 +8645,9 @@
     "semantic_hash": "adae50f83572dd4d9ed2e810407f4c2d"
   },
   "app/backend/embed_demo.html": {
-    "mtime": 1781636828.861159,
-    "ast_hash": "d3a5155fe8d7231631c6a9cd51ad03a5",
-    "semantic_hash": "d3a5155fe8d7231631c6a9cd51ad03a5"
+    "mtime": 1782475014.3198416,
+    "ast_hash": "fc5b947af2c80243ee2c3b15aeea3d00",
+    "semantic_hash": ""
   },
   "app/frontend/index.html": {
     "mtime": 1774361810.803336,
@@ -9107,6 +9107,16 @@
   "app/frontend/src/chatbots/snap/assets/robo1.png": {
     "mtime": 1782444876.0387542,
     "ast_hash": "23f3a56527ec023c64fa728fafde24b0",
+    "semantic_hash": ""
+  },
+  "app/backend/prep_hyrox_assessment_questions.py": {
+    "mtime": 1782479661.5226254,
+    "ast_hash": "70347b30868dcb23a66ba64c1838a696",
+    "semantic_hash": ""
+  },
+  "hyrox-files/files regarding new updates/instructions.txt": {
+    "mtime": 1782475814.660565,
+    "ast_hash": "aa5283fcb8e08bcad077f06bf5a49f9b",
     "semantic_hash": ""
   }
 }

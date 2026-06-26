@@ -8,7 +8,16 @@ import hyroxLogo from "../../assets/HYROX.svg";
 import styles from "./Chat.module.css";
 
 import { chatApi, configApi, RetrievalMode, ChatAppResponse, ChatAppResponseOrError, ChatAppRequest, ResponseMessage, SpeechConfig } from "../../api";
-import { Answer, AnswerError, AnswerLoading, splitAssessmentBubbles, parseProgressValue, hasAssessmentDoneMarker } from "../../components/Answer";
+import {
+    Answer,
+    AnswerError,
+    AnswerLoading,
+    splitAssessmentBubbles,
+    parseProgressValue,
+    hasAssessmentDoneMarker,
+    hasModulePassMarker,
+    hasModuleFailMarker
+} from "../../components/Answer";
 import { QuestionInput } from "../../components/QuestionInput";
 import { ExampleList } from "../../components/Example";
 import { UserChatMessage } from "../../components/UserChatMessage";
@@ -762,24 +771,28 @@ const Chat = () => {
         }
     };
 
-    // Once the assessment is finalised (pass OR fail) the run is terminal in this session — the
-    // learner never retakes it by sending another message here. The backend signals completion with
-    // a hidden [[DONE]] marker on the final message (present for both outcomes) which replays from
-    // history, so a restored completed session is detected too. We remove the question input entirely
-    // once it is present.
+    // The assessment is now module-by-module: a failed module is retaken in place, not by restarting
+    // the whole assessment, so completion (the hidden [[DONE]] marker) is emitted ONLY when the final
+    // module is passed — finishing always means passing everything. [[DONE]] replays from history, so a
+    // restored completed session is detected too. Once it is present we remove the question input
+    // entirely (the certificate flow takes over).
     const assessmentComplete = answers.some(([, response]) => hasAssessmentDoneMarker(response.message.content));
-    // Pass is signalled by the backend's hidden [[PROGRESS value=N]] marker (emitted only on a pass).
-    // A completed run without it is a fail; on a fail we offer an in-app restart button (clearChat)
-    // so the learner can begin a fresh run immediately, with no limit. On a pass there is no restart
-    // — the certificate flow takes over.
-    const assessmentPassed = answers.some(([, response]) => parseProgressValue(response.message.content) !== null);
-    const assessmentFailed = assessmentComplete && !assessmentPassed;
+    // Module-boundary states, derived from the LATEST message only (earlier modules also carry these
+    // markers in history). A passed (non-final) module shows a "Continue to next module" button; a
+    // failed module shows a "Retry module" button. While loading, the latest message is the previous
+    // turn, so the buttons are suppressed.
+    const latestAssistantContent = answers.length > 0 ? answers[answers.length - 1][1].message.content : "";
+    const awaitingModuleContinue = !assessmentComplete && !isLoading && hasModulePassMarker(latestAssistantContent);
+    const awaitingModuleRetry = !assessmentComplete && !isLoading && hasModuleFailMarker(latestAssistantContent);
     // The welcome state: only the synthetic welcome message is present, no real turn yet. Here we
     // show a "Start assessment" button instead of the text input — the learner taps it to begin
     // (the backend starts the run on the first message; the button just sends "Start"), so they
     // never have to know to type "Start". Once the run has begun (or a session is restored), the
     // text input takes over for answering questions.
     const assessmentNotStarted = stripLeadingSyntheticInitialPairs(answers).length === 0;
+    // Control messages the learner never types and whose user bubble is suppressed (the buttons send
+    // them on the learner's behalf).
+    const isControlMessage = (message: string) => message === "Start" || message === "Continue" || message === "Retry";
 
     return (
         <div className={styles.container}>
@@ -818,7 +831,9 @@ const Chat = () => {
                                 const bubbles = splitAssessmentBubbles(streamedAnswer[1].message.content);
                                 return (
                                     <div key={index}>
-                                        {!isSyntheticInitialPair(streamedAnswer) && streamedAnswer[0] !== "Start" && <UserChatMessage message={streamedAnswer[0]} />}
+                                        {!isSyntheticInitialPair(streamedAnswer) && !isControlMessage(streamedAnswer[0]) && (
+                                            <UserChatMessage message={streamedAnswer[0]} />
+                                        )}
                                         {bubbles.map((bubbleContent, bubbleIndex) => (
                                             <div className={styles.chatMessageGpt} key={`${index}-${bubbleIndex}`}>
                                                 <Answer
@@ -849,7 +864,7 @@ const Chat = () => {
                                 const bubbles = splitAssessmentBubbles(answer[1].message.content);
                                 return (
                                     <div key={index}>
-                                        {!isSyntheticInitialPair(answer) && answer[0] !== "Start" && <UserChatMessage message={answer[0]} />}
+                                        {!isSyntheticInitialPair(answer) && !isControlMessage(answer[0]) && <UserChatMessage message={answer[0]} />}
                                         {bubbles.map((bubbleContent, bubbleIndex) => (
                                             <div className={styles.chatMessageGpt} key={`${index}-${bubbleIndex}`}>
                                                 <Answer
@@ -888,7 +903,7 @@ const Chat = () => {
                         )}
                         {isLoading && (
                             <>
-                                {lastQuestionRef.current !== "Start" && <UserChatMessage message={lastQuestionRef.current} />}
+                                {!isControlMessage(lastQuestionRef.current) && <UserChatMessage message={lastQuestionRef.current} />}
                                 <div className={styles.chatMessageGptMinWidth}>
                                     <AnswerLoading />
                                 </div>
@@ -896,7 +911,7 @@ const Chat = () => {
                         )}
                         {error ? (
                             <>
-                                {lastQuestionRef.current !== "Start" && <UserChatMessage message={lastQuestionRef.current} />}
+                                {!isControlMessage(lastQuestionRef.current) && <UserChatMessage message={lastQuestionRef.current} />}
                                 <div className={styles.chatMessageGptMinWidth}>
                                     <AnswerError error={error.toString()} onRetry={() => makeApiRequest(lastQuestionRef.current)} />
                                 </div>
@@ -906,7 +921,9 @@ const Chat = () => {
                     </div>
                     {/* )} */}
 
-                    {!assessmentNotStarted && !assessmentComplete && (
+                    {/* The text input answers questions. It is hidden at a module boundary (where the only
+                        action is Continue or Retry) and after completion. */}
+                    {!assessmentNotStarted && !assessmentComplete && !awaitingModuleContinue && !awaitingModuleRetry && (
                         <div className={styles.chatInput}>
                             <ScrollToBottomButton containerRef={chatContainerRef} />
                             <QuestionInput
@@ -922,12 +939,20 @@ const Chat = () => {
                             />
                         </div>
                     )}
-                    {/* A failed run can be retaken with no limit: clearChat resets to a fresh session
-                        (welcome + Start button), exactly as a brand-new launch. No restart on a pass. */}
-                    {assessmentFailed && (
+                    {/* After passing a module (not the final one) the learner taps Continue to start the
+                        next one; after failing a module they tap Retry to retake it in full. Both send a
+                        control message (suppressed user bubble) that the backend acts on. */}
+                    {awaitingModuleContinue && (
                         <div className={styles.footerAction}>
-                            <button type="button" className={styles.footerActionButton} onClick={clearChat}>
-                                {t("restartAssessment")}
+                            <button type="button" className={styles.footerActionButton} onClick={() => makeApiRequest("Continue")}>
+                                {t("continueModule")}
+                            </button>
+                        </div>
+                    )}
+                    {awaitingModuleRetry && (
+                        <div className={styles.footerAction}>
+                            <button type="button" className={styles.footerActionButton} onClick={() => makeApiRequest("Retry")}>
+                                {t("retryModule")}
                             </button>
                         </div>
                     )}

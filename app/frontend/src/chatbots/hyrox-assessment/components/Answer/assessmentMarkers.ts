@@ -1,13 +1,22 @@
-// Hidden control markers in an assessment message ([[PLAN ...]], [[SCORE ...]],
-// [[RESULT ...]], the model's [[ASK]] placement token, the backend's [[ASKED q=K]]
-// record, the model's final-turn [[SUMMARY]] separator, the backend's [[BREAK]]
-// bubble split point, the backend's [[PROGRESS value=N]] pass signal, and the backend's
-// [[DONE]] completion signal). They must stay in the stored message so they replay into the
-// next request's history (the backend reconstructs the authoritative tally + which question
-// was already presented from them), but they must never be shown to the learner. This strips
-// them for display only — see ChatbotAnswer's `preprocessAnswerText`. ASKED is listed before
-// ASK so the `\b` boundary matches "[[ASKED ...]]" as a whole.
-const ASSESSMENT_MARKER_RE = /\[\[\s*(?:PLAN|SCORE|RESULT|ASKED|ASK|SUMMARY|BREAK|PROGRESS|DONE)\b[^\]]*\]\]/gi;
+// Hidden control markers in an assessment message ([[PLAN ...]] run anchor, [[MODULE m=.. attempt=..]]
+// module-attempt anchor, [[SCORE ...]], the model's [[ASK]] placement token, the backend's [[ASKED q=K]]
+// record, the backend's [[MODPASS m=..]] / [[MODFAIL m=..]] module-boundary signals, the model's
+// final-turn [[SUMMARY]] separator, the backend's [[BREAK]] bubble split point, the backend's
+// [[PROGRESS value=N]] final-pass signal, and the backend's [[DONE]] completion signal). They must stay
+// in the stored message so they replay into the next request's history (the backend reconstructs the
+// authoritative per-module tally + which question was already presented + which module boundary the
+// learner is at from them), but they must never be shown to the learner. This strips them for display
+// only — see ChatbotAnswer's `preprocessAnswerText`. ASKED is listed before ASK, and MODPASS/MODFAIL
+// before MODULE, so the `\b` boundary matches the longer name as a whole.
+const ASSESSMENT_MARKER_RE =
+    /\[\[\s*(?:PLAN|MODULE|SCORE|ASKED|ASK|MODPASS|MODFAIL|SUMMARY|BREAK|PROGRESS|DONE)\b[^\]]*\]\]/gi;
+
+// The backend emits these once at a module boundary (not the final module): MODPASS when the learner
+// passed the module (the frontend shows a "Continue to next module" button) and MODFAIL when they did
+// not reach 80% (the frontend shows a "Retry module" button). They replay from history, so a reopened
+// session at a boundary shows the right button.
+const MODULE_PASS_MARKER_RE = /\[\[\s*MODPASS\b[^\]]*\]\]/i;
+const MODULE_FAIL_MARKER_RE = /\[\[\s*MODFAIL\b[^\]]*\]\]/i;
 
 // The backend emits this once, only on a passed completion, to hand the result back to the
 // Lemon app (fired as lemon://save_progress?value=N — see lemonBridge.reportLemonProgress).
@@ -50,14 +59,32 @@ export function parseProgressValue(text: string): number | null {
     return Number.isNaN(value) ? null : value;
 }
 
-// True once the assessment has completed (pass OR fail), detected via the backend's hidden
-// [[DONE]] marker on the final message. Replays from history, so a reopened completed session is
-// also detected. Used to remove the question input, since a completed run is terminal in-session.
+// True once the assessment has completed, detected via the backend's hidden [[DONE]] marker on the
+// final message (emitted only when the final module is passed — completion always means a pass). Replays
+// from history, so a reopened completed session is also detected. Used to remove the question input.
 export function hasAssessmentDoneMarker(text: string): boolean {
     if (!text) {
         return false;
     }
     return DONE_MARKER_RE.test(text);
+}
+
+// True when this message is a passed-module boundary (not the final module): the learner should be shown
+// a "Continue to next module" button. Checked on the latest message only.
+export function hasModulePassMarker(text: string): boolean {
+    if (!text) {
+        return false;
+    }
+    return MODULE_PASS_MARKER_RE.test(text);
+}
+
+// True when this message is a failed-module boundary: the learner should be shown a "Retry module"
+// button. Checked on the latest message only.
+export function hasModuleFailMarker(text: string): boolean {
+    if (!text) {
+        return false;
+    }
+    return MODULE_FAIL_MARKER_RE.test(text);
 }
 
 // Split one stored assistant message into its display bubbles at the backend's [[BREAK]]

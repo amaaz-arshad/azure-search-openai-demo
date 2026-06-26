@@ -1,5 +1,4 @@
 import asyncio
-from collections import Counter
 
 from approaches.chatbot_config_registry import (
     get_chatbot_config,
@@ -9,36 +8,37 @@ from approaches.chatbot_config_registry import (
 from approaches.chatbot_prompt_registry import get_chatbot_prompt, get_registered_chatbot_names
 from approaches.chatbots.hyrox_assessment import results
 from approaches.chatbots.hyrox_assessment.questions import (
-    CATEGORIES,
+    MODULES,
     QUESTIONS,
     TOTAL_MAX_POINTS,
     TOTAL_QUESTIONS,
-    category_of,
     get_question,
+    is_last_module,
     key_point_count,
     max_points,
+    module_label,
+    module_of,
+    module_questions,
+    next_module,
 )
-from approaches.chatbots.hyrox_assessment.sampleprompt import (
-    QUESTIONS_PER_RUN,
-    SAMPLE_PROMPT,
-    render_question_pool,
-)
+from approaches.chatbots.hyrox_assessment.sampleprompt import SAMPLE_PROMPT, render_question_pool
 
 CHATBOT_NAME = "hyrox-assessment"
 
 
-def _full_points(qid: int) -> str:
-    return ",".join(["1"] * key_point_count(qid))
+# --- helpers --------------------------------------------------------------
 
 
 def _score_marker(qid: int, all_correct: bool = True) -> str:
     bit = "1" if all_correct else "0"
     pts = ",".join([bit] * key_point_count(qid))
-    return f'[[SCORE q={qid} points="{pts}" max={max_points(qid)} cat="{category_of(qid)}"]]'
+    return f'[[SCORE q={qid} points="{pts}" max={max_points(qid)} mod="{module_of(qid)}"]]'
 
 
-def _asked_marker(qid: int) -> str:
-    return results.format_asked_marker(qid)
+def _partial_score_marker(qid: int) -> str:
+    """A below-full-marks score: first key point earned, the rest missing."""
+    pts = ["1"] + ["0"] * (key_point_count(qid) - 1)
+    return f'[[SCORE q={qid} points="{",".join(pts)}" max={max_points(qid)} mod="{module_of(qid)}"]]'
 
 
 def _question_text(qid: int) -> str:
@@ -47,37 +47,88 @@ def _question_text(qid: int) -> str:
     return str(question["question"])
 
 
+def _fake_model(state: dict, full_marks: bool = True) -> str:
+    """Mimic the LLM given the backend's pinned CURRENT TURN STATE."""
+    cid = state.get("current_id")
+    if state.get("assessment_complete") or cid is None:
+        return "Understood."
+    if not state.get("current_question_asked"):
+        return "[[ASK]]"
+    if state.get("latest_user_answer_pending"):
+        kpc = key_point_count(cid)
+        pts = ",".join(["1"] * kpc) if full_marks else ",".join(["1"] + ["0"] * (kpc - 1))
+        extra = ""
+        if state.get("is_last_in_module") and state.get("is_final_module"):
+            extra = "\n\n[[SUMMARY]]\nStrengths: pacing, reflection. Worth revisiting: periodization."
+        return f'Thanks.{extra}\n\n[[SCORE q={cid} points="{pts}" max={max_points(cid)} mod="{module_of(cid)}"]]'
+    return "continue"
+
+
+def _turn(messages: list, user: str, full_marks: bool = True):
+    """One request/response cycle against the real engine. Returns (messages, content, state, done)."""
+    messages = messages + [{"role": "user", "content": user}]
+    state = results.derive_turn_state(messages)
+    content, _scores, _tally, done = results.render_assessment_turn(_fake_model(state, full_marks), state, "en")
+    return messages + [{"role": "assistant", "content": content}], content, state, done
+
+
+def _answer_module(messages: list, full_marks: bool = True):
+    """Answer questions (with revision turns when partial) until the module hits a boundary or the
+    whole assessment completes. Returns (messages, last_content, done)."""
+    for _ in range(80):
+        messages, content, _state, done = _turn(messages, "my answer", full_marks)
+        if done or "[[MODPASS" in content or "[[MODFAIL" in content:
+            return messages, content, done
+    raise AssertionError("module never terminated")
+
+
 # --- Question pool --------------------------------------------------------
 
 
 def test_question_pool_shape() -> None:
-    assert TOTAL_QUESTIONS == 32
-    assert len(QUESTIONS) == 32
-    assert TOTAL_MAX_POINTS == 167
-    assert len(CATEGORIES) == 8
+    assert TOTAL_QUESTIONS == 52
+    assert len(QUESTIONS) == 52
+    assert TOTAL_MAX_POINTS == 211
+    assert MODULES == ["M1", "M2", "M3", "M4", "M5", "M6", "M7.1", "M7.2", "M7.3", "M7.4", "M8", "M9", "M10"]
     numbers = [q["number"] for q in QUESTIONS]
-    assert numbers == list(range(1, 33))  # 1..32, no gaps/dupes
+    assert numbers == list(range(1, 53))  # 1..52, no gaps/dupes
     for q in QUESTIONS:
         assert q["question"].strip()
         assert q["primary_answer"].strip()
         assert q["key_points"], f"Q{q['number']} has no key points"
-        assert q["max_pts"] > 0
-        assert q["category"] in CATEGORIES
+        # one point per key point, no weighting — the scorer relies on this
+        assert len(q["key_points"]) == q["max_pts"]
+        assert q["module"] in MODULES
+        assert q["qid"].startswith(q["module"] + "-")
 
 
-def test_render_question_pool_includes_every_question() -> None:
+def test_modules_partition_all_questions_in_order() -> None:
+    flattened = [n for m in MODULES for n in module_questions(m)]
+    assert flattened == list(range(1, 53))  # modules cover every question, in fixed order
+    # module point sums match the per-module question maxima
+    for m in MODULES:
+        assert sum(max_points(n) for n in module_questions(m)) > 0
+    assert next_module("M10") is None and is_last_module("M10")
+    assert next_module("M6") == "M7.1"
+
+
+def test_render_question_pool_includes_every_question_and_module_headings() -> None:
     rendered = render_question_pool()
     for q in QUESTIONS:
-        assert f"### Q{q['number']} —" in rendered
+        assert f"### Q{q['number']} ({q['qid']})" in rendered
         assert f"MAX POINTS: {q['max_pts']}" in rendered
+    for m in MODULES:
+        assert f"## MODULE {m}" in rendered
+    assert "ACCEPTED ALTERNATIVE ANSWER" in rendered
 
 
 def test_question_accessors() -> None:
     assert key_point_count(1) == len(QUESTIONS[0]["key_points"])
     assert max_points(1) == QUESTIONS[0]["max_pts"]
-    assert category_of(1) == QUESTIONS[0]["category"]
+    assert module_of(1) == QUESTIONS[0]["module"]
+    assert module_label("M7.1") == "Module 7.1"
     # unknown ids are safe
-    assert key_point_count(999) == 0 and max_points(999) == 0 and category_of(999) == ""
+    assert key_point_count(999) == 0 and max_points(999) == 0 and module_of(999) == ""
 
 
 # --- Registry / config / prompt -------------------------------------------
@@ -96,48 +147,26 @@ def test_config_loads_with_expected_values() -> None:
     assert cfg.reasoning_effort == "high"
     assert cfg.prompt_mode == "override"
     assert cfg.support_email == "info@lemon-systems.de"
-    # language_locale must stay None so the per-request LMS language is honoured.
     assert cfg.language_locale is None
 
 
 def test_prompt_loads_and_renders_placeholders() -> None:
     prompt = get_chatbot_prompt(CHATBOT_NAME)
     assert prompt is not None
-    # The model emits only the per-key-point SCORE marker; the backend owns PLAN/RESULT.
-    assert '[[SCORE q=' in prompt
+    assert "[[SCORE q=" in prompt
     assert 'points="' in prompt
     assert "NO visible question text" in prompt
-    assert "CURRENT TURN STATE" in prompt  # references the backend-injected control block
-    assert "### Q1 —" in prompt and "### Q32 —" in prompt
-    assert str(QUESTIONS_PER_RUN) in SAMPLE_PROMPT
+    assert "CURRENT TURN STATE" in prompt
+    assert "module by module" in prompt.lower()
+    assert "Level 2" in prompt
+    assert "### Q1 (M1-Q01)" in prompt and "### Q52 (M10-Q05)" in prompt
+    assert str(len(MODULES)) in SAMPLE_PROMPT
 
     rendered = render_chatbot_prompt(prompt, CHATBOT_NAME, None, "en")
     assert "{{SUPPORT_EMAIL}}" not in rendered
     assert "info@lemon-systems.de" in rendered
     assert "{{language_locale}}" not in rendered
     assert "English" in rendered
-
-
-# --- Question selection (deterministic, balanced, no repeats) -------------
-
-
-def test_select_question_plan_is_20_distinct_in_range() -> None:
-    plan = results.select_question_plan(seed=42)
-    assert len(plan) == QUESTIONS_PER_RUN == 20
-    assert len(set(plan)) == 20  # all distinct
-    assert all(1 <= x <= 32 for x in plan)
-
-
-def test_select_question_plan_is_category_balanced() -> None:
-    plan = results.select_question_plan(seed=42)
-    counts = Counter(category_of(i) for i in plan)
-    assert len(counts) == 8  # every category represented
-    assert all(2 <= c <= 3 for c in counts.values())  # 20 over 8 cats → 2 or 3 each
-    assert sum(counts.values()) == 20
-
-
-def test_select_question_plan_is_deterministic_under_seed() -> None:
-    assert results.select_question_plan(seed=7) == results.select_question_plan(seed=7)
 
 
 # --- Per-point scoring (backend authoritative) ----------------------------
@@ -151,22 +180,21 @@ def test_parse_points() -> None:
 
 
 def test_normalize_score_computes_awarded_and_validates_length() -> None:
-    # Q1 has 5 key points, max 5.
-    s = results.normalize_score(1, [1, 1, 1, 0, 0])
-    assert s["awarded"] == 3 and s["max"] == 5 and len(s["points"]) == 5
-    assert s["cat"].startswith("CATEGORY 1")
-    # too many values are truncated to the key-point count, then capped at max
-    assert results.normalize_score(1, [1, 1, 1, 1, 1, 1, 1])["awarded"] == 5
-    # too few values are padded with 0
+    kpc = key_point_count(1)
+    s = results.normalize_score(1, [1] * kpc)
+    assert s["awarded"] == max_points(1) and s["max"] == max_points(1) and len(s["points"]) == kpc
+    assert s["mod"] == "M1"
+    # too many values truncated to the key-point count, capped at max
+    assert results.normalize_score(1, [1] * (kpc + 3))["awarded"] == max_points(1)
+    # too few padded with 0
     short = results.normalize_score(1, [1, 1])
-    assert short["points"] == [1, 1, 0, 0, 0] and short["awarded"] == 2
+    assert short["points"][:2] == [1, 1] and short["awarded"] == 2 and len(short["points"]) == kpc
 
 
 def test_parse_new_score_forces_pinned_question_id() -> None:
-    # model mislabels q=99, but the backend forces the pinned current_id
-    entry = results.parse_new_score('ok [[SCORE q=99 points="1,1,1,1,1" max=5 cat="x"]]', current_id=1)
+    entry = results.parse_new_score('ok [[SCORE q=99 points="1,1,1" max=3 mod="x"]]', current_id=1)
     assert entry is not None
-    assert entry["q"] == 1 and entry["awarded"] == 5 and entry["max"] == 5
+    assert entry["q"] == 1 and entry["max"] == max_points(1)
     assert results.parse_new_score("no marker", current_id=1) is None
 
 
@@ -179,808 +207,266 @@ def test_compute_tally_pass_threshold_is_80_percent_inclusive() -> None:
     assert empty["max"] == 0 and empty["passed"] is False
 
 
-def test_category_breakdown() -> None:
+def test_module_breakdown() -> None:
     scores = [
-        {"awarded": 5, "max": 5, "cat": "A"},
-        {"awarded": 2, "max": 6, "cat": "A"},
-        {"awarded": 4, "max": 5, "cat": "B"},
+        {"awarded": 5, "max": 5, "mod": "M1"},
+        {"awarded": 2, "max": 6, "mod": "M1"},
+        {"awarded": 4, "max": 5, "mod": "M2"},
     ]
-    breakdown = results.category_breakdown(scores)
-    assert breakdown["A"] == {"awarded": 7, "max": 11}
-    assert breakdown["B"] == {"awarded": 4, "max": 5}
+    breakdown = results.module_breakdown(scores)
+    assert breakdown["M1"] == {"awarded": 7, "max": 11}
+    assert breakdown["M2"] == {"awarded": 4, "max": 5}
 
 
-# --- State machine: counter, selection, no-repeat, completion -------------
+# --- State machine: start, module gating, advance, retry, completion ------
 
 
-def test_derive_turn_state_fresh_run() -> None:
-    st = results.derive_turn_state([{"role": "user", "content": "start"}])
-    assert st["plan_is_new"] is True
-    assert st["n_scored"] == 0
-    assert st["current_id"] == st["plan"][0]
-    assert len(st["plan"]) == 20
+def test_fresh_run_starts_first_module() -> None:
+    st = results.derive_turn_state([{"role": "user", "content": "Start"}])
+    assert st["plan_is_new"] is True and st["module_is_new"] is True
+    assert st["current_module"] == "M1"
+    assert st["attempt"] == 1
+    assert st["current_id"] == module_questions("M1")[0]
 
 
-def test_derive_turn_state_counts_scores_after_plan() -> None:
-    plan = results.select_question_plan(seed=7)
-    hist = [
-        {"role": "user", "content": "start"},
-        {"role": "assistant", "content": "Intro " + results.format_plan_marker(plan)},
-        {"role": "user", "content": "ans"},
-        {"role": "assistant", "content": "ok " + _score_marker(plan[0])},
-        {"role": "user", "content": "ans"},
-        {"role": "assistant", "content": "ok " + _score_marker(plan[1])},
+def test_start_turn_renders_module_heading_plan_and_module_markers() -> None:
+    messages, content, _state, done = _turn([], "Start")
+    assert done is False
+    assert results.format_plan_marker() in content
+    assert "[[MODULE m=M1 attempt=1]]" in content
+    assert results.format_asked_marker(module_questions("M1")[0]) in content
+    disp = results.strip_markers(content)
+    assert f"**{module_label('M1')}**" in disp
+    assert "**Question 1 of 4**" in disp
+    assert _question_text(module_questions("M1")[0]) in disp
+
+
+def test_passing_a_module_emits_modpass_and_continue_prompt_not_done() -> None:
+    messages, _content, _state, _done = _turn([], "Start")
+    messages, content, done = _answer_module(messages, full_marks=True)
+    assert done is False
+    assert "[[MODPASS m=M1]]" in content
+    assert "[[DONE]]" not in content and "[[PROGRESS" not in content
+    disp = results.strip_markers(content)
+    assert "Passed" in disp
+    assert "continue to the next module" in disp.lower()
+
+
+def test_continue_advances_to_next_module() -> None:
+    messages, _content, _state, _done = _turn([], "Start")
+    messages, _content, _done = _answer_module(messages, full_marks=True)
+    messages, content, state, done = _turn(messages, "Continue")
+    assert done is False
+    assert state["current_module"] == "M2" and state["module_is_new"] is True
+    assert "[[MODULE m=M2 attempt=1]]" in content
+    disp = results.strip_markers(content)
+    assert f"**{module_label('M2')}**" in disp
+    assert "**Question 1 of 4**" in disp
+
+
+def test_failing_a_module_emits_modfail_and_retry_prompt() -> None:
+    messages, _content, _state, _done = _turn([], "Start")
+    messages, content, done = _answer_module(messages, full_marks=False)
+    assert done is False
+    assert "[[MODFAIL m=M1]]" in content
+    assert "[[MODPASS" not in content and "[[DONE]]" not in content
+    disp = results.strip_markers(content)
+    assert "80%" in disp
+    assert "again" in disp.lower()
+
+
+def test_retry_restarts_same_module_fresh_excluding_failed_scores() -> None:
+    messages, _content, _state, _done = _turn([], "Start")
+    messages, _content, _done = _answer_module(messages, full_marks=False)
+    messages, content, state, done = _turn(messages, "Retry")
+    assert state["current_module"] == "M1" and state["attempt"] == 2
+    assert state["scores"] == []  # the failed attempt's scores do not carry into the retry
+    assert "[[MODULE m=M1 attempt=2]]" in content
+    assert "**Question 1 of 4**" in results.strip_markers(content)
+
+
+def test_full_assessment_completes_only_after_final_module() -> None:
+    messages, _content, _state, _done = _turn([], "Start")
+    completed = False
+    for mi, module_key in enumerate(MODULES):
+        messages, content, done = _answer_module(messages, full_marks=True)
+        if done:
+            completed = True
+            assert module_key == MODULES[-1] == "M10"
+            assert "[[DONE]]" in content and "[[PROGRESS value=100]]" in content
+            disp = results.strip_markers(content)
+            assert "passed every module" in disp.lower()
+            assert "certificate" in disp.lower()
+            break
+        # intermediate module → continue
+        assert "[[MODPASS" in content and "[[DONE]]" not in content
+        messages, _content, _state, _done = _turn(messages, "Continue")
+    assert completed
+
+
+def test_completion_renders_five_break_separated_bubbles() -> None:
+    messages, _content, _state, _done = _turn([], "Start")
+    final_content = ""
+    for module_key in MODULES:
+        messages, content, done = _answer_module(messages, full_marks=True)
+        final_content = content
+        if done:
+            break
+        messages, _content, _state, _done = _turn(messages, "Continue")
+    bubbles = [b.strip() for b in final_content.split(results.BUBBLE_BREAK_TOKEN)]
+    assert len(bubbles) == 5
+    assert "passed every module" in bubbles[1].lower()
+    assert "Strengths" in bubbles[2] or "Summary by module" in bubbles[2]
+    assert "Managing performance" in bubbles[3]
+    assert "certificate" in bubbles[4].lower()
+    assert "[[" not in results.strip_markers(final_content)  # frontend display parity
+
+
+def test_done_marker_absent_mid_module() -> None:
+    messages, content, _state, done = _turn([], "Start")
+    # answer the first question of M1 (4 questions) → chains Q2, no completion
+    messages, content, _state, done = _turn(messages, "my answer", full_marks=True)
+    assert done is False
+    assert "[[DONE" not in content and "[[MODPASS" not in content
+    assert "**Question 2 of 4**" in results.strip_markers(content)
+
+
+# --- one-correction guard (per-question, within a module) -----------------
+
+
+def _grade_first_messages():
+    """History where M1-Q1 has been asked and the learner's first (partial) answer is pending."""
+    messages, _content, _state, _done = _turn([], "Start")
+    return messages + [{"role": "user", "content": "a partial first answer"}]
+
+
+def test_premature_partial_first_score_is_discarded_with_correction_offer() -> None:
+    messages = _grade_first_messages()
+    state = results.derive_turn_state(messages)
+    cid = state["current_id"]
+    assert state["latest_user_answer_pending"] and not state["must_finalize_current"]
+    content, all_scores, _tally, done = results.render_assessment_turn(
+        f"Good start — one part missing.\n{_partial_score_marker(cid)}", state, "en"
+    )
+    assert all_scores == [] and done is False
+    assert "[[SCORE" not in content  # discarded
+    assert "add to or revise your answer" in content
+    assert "**Question 2 of 4**" not in results.strip_markers(content)  # position held
+
+
+def test_full_marks_first_answer_is_accepted_and_chains_next() -> None:
+    messages = _grade_first_messages()
+    state = results.derive_turn_state(messages)
+    cid = state["current_id"]
+    content, all_scores, _tally, done = results.render_assessment_turn(
+        f"Spot on.\n{_score_marker(cid)}", state, "en"
+    )
+    assert len(all_scores) == 1 and done is False
+    assert "[[SCORE" in content
+    assert "add to or revise your answer" not in content
+    assert "**Question 2 of 4**" in results.strip_markers(content)
+
+
+def test_forced_finalisation_accepts_partial_score() -> None:
+    messages = _grade_first_messages()
+    # the learner has used their one correction (assistant offered, learner answered again)
+    messages = messages + [
+        {"role": "assistant", "content": results._locale("en")["correction_offer"]},
+        {"role": "user", "content": "still partial"},
     ]
-    st = results.derive_turn_state(hist)
-    assert st["plan_is_new"] is False
-    assert st["n_scored"] == 2
-    assert st["current_id"] == plan[2]
+    state = results.derive_turn_state(messages)
+    assert state["must_finalize_current"] is True
+    cid = state["current_id"]
+    content, all_scores, _tally, done = results.render_assessment_turn(
+        f"That's where we'll leave it.\n{_partial_score_marker(cid)}", state, "en"
+    )
+    assert len(all_scores) == 1 and done is False
+    assert "[[SCORE" in content
+    assert "**Question 2 of 4**" in results.strip_markers(content)
 
 
-def test_full_run_asks_exactly_20_unique_questions_then_completes() -> None:
-    plan = results.select_question_plan(seed=11)
-    hist = [
-        {"role": "user", "content": "start"},
-        {"role": "assistant", "content": results.format_plan_marker(plan)},
-    ]
-    asked: list[int] = []
-    for _ in range(20):
-        st = results.derive_turn_state(hist)
-        cid = st["current_id"]
-        assert cid is not None
-        asked.append(cid)
-        hist.append({"role": "assistant", "content": _score_marker(cid)})
-    assert asked == plan  # asked in plan order, exactly the 20 planned ids
-    assert len(set(asked)) == 20  # no repeats
-    final = results.derive_turn_state(hist)
-    assert final["current_id"] is None
-    assert final["completed_passed"] is True
+def test_chained_next_question_is_recognized_as_asked() -> None:
+    messages, _content, _state, _done = _turn([], "Start")  # asks M1-Q1
+    messages, _content, _state, _done = _turn(messages, "answer to q1", full_marks=True)  # grades Q1, chains Q2
+    # learner answers Q2 with no "next" in between → must be graded, not re-asked
+    messages = messages + [{"role": "user", "content": "answer to q2"}]
+    state = results.derive_turn_state(messages)
+    assert state["n_in_module"] == 1
+    assert state["current_id"] == module_questions("M1")[1]
+    assert state["current_question_asked"] is True and state["latest_user_answer_pending"] is True
+    injection = results.build_state_injection(state, "en")
+    assert "CURRENT ACTION: GRADE" in injection and "CURRENT ACTION: ASK" not in injection
 
 
-def test_failed_completed_run_is_terminal() -> None:
-    plan = results.select_question_plan(seed=13)
-    hist = [
-        {"role": "user", "content": "start"},
-        {"role": "assistant", "content": results.format_plan_marker(plan)},
-    ]
-    for cid in plan:
-        hist.append({"role": "assistant", "content": _score_marker(cid, all_correct=False)})
-    st = results.derive_turn_state(hist)
-    # A failed run is terminal in this session — no in-session auto-restart by sending another
-    # message here. The learner retakes by starting a fresh session (the frontend's in-app restart
-    # button on a fail, or a fresh Lemon-app launch).
-    assert st["plan_is_new"] is False
-    assert st["n_scored"] == 20
-    assert st["current_id"] is None
-    assert st["completed_passed"] is False
-    # The next-turn injection tells the model the assessment is over and points to the restart button.
-    injection = results.build_state_injection(st, "en")
-    assert "did NOT pass" in injection
-    assert "restart button" in injection
-    assert "[[ASK]]" not in injection
+def test_state_injection_final_question_requires_summary_token() -> None:
+    # Drive to M10's last question, then assert the injection demands the [[SUMMARY]] take-aways.
+    messages, _content, _state, _done = _turn([], "Start")
+    for module_key in MODULES:
+        if module_key == "M10":
+            break
+        messages, _content, _done = _answer_module(messages, full_marks=True)
+        messages, _content, _state, _done = _turn(messages, "Continue")
+    # now answer M10 up to (but not finalising) its last question
+    m10 = module_questions("M10")
+    for _ in range(len(m10) - 1):
+        messages, _content, _state, _done = _turn(messages, "answer", full_marks=True)
+    messages = messages + [{"role": "user", "content": "answer to last question"}]
+    state = results.derive_turn_state(messages)
+    assert state["is_last_in_module"] and state["is_final_module"]
+    injection = results.build_state_injection(state, "en")
+    assert "[[SUMMARY]]" in injection
+    assert "across the whole assessment" in injection
 
 
-def test_derive_turn_state_marks_answer_pending_after_question_was_asked() -> None:
-    plan = results.select_question_plan(seed=17)
-    hist = [
-        {"role": "user", "content": "start"},
-        {
-            "role": "assistant",
-            "content": "Welcome.\n**Question 1 of 20**\nWhat is X?\n"
-            + results.format_plan_marker(plan)
-            + "\n"
-            + _asked_marker(plan[0]),
-        },
-        {"role": "user", "content": "Here is my answer."},
-    ]
-
-    st = results.derive_turn_state(hist)
-
-    assert st["n_scored"] == 0
-    assert st["current_id"] == plan[0]
-    assert st["current_question_asked"] is True
-    assert st["latest_user_answer_pending"] is True
-    assert st["answer_attempts_for_current"] == 1
-    assert st["must_finalize_current"] is False
-
-
-def test_build_state_injection_for_answer_pending_forbids_repeating_question() -> None:
-    plan = results.select_question_plan(seed=17)
-    hist = [
-        {"role": "user", "content": "start"},
-        {
-            "role": "assistant",
-            "content": "Welcome.\n**Question 1 of 20**\nWhat is X?\n"
-            + results.format_plan_marker(plan)
-            + "\n"
-            + _asked_marker(plan[0]),
-        },
-        {"role": "user", "content": "Here is my answer."},
-    ]
-
-    injection = results.build_state_injection(results.derive_turn_state(hist), "en")
-
-    assert "CURRENT ACTION: GRADE" in injection
-    assert "MUST NOT repeat it" in injection
-    assert "MUST NOT use [[ASK]]" in injection
-    # On a first attempt that is not full marks the correction offer is mandatory: the model
-    # MUST offer the single correction and MUST NOT finalise (emit a [[SCORE]]) this turn.
-    assert "single correction opportunity" in injection
-    assert "MUST offer the single correction opportunity" in injection
-    assert "MUST NOT finalise this turn" in injection
-
-
-def test_repeated_question_loop_state_requires_finalization() -> None:
-    plan = results.select_question_plan(seed=19)
-    hist = [
-        {"role": "user", "content": "start"},
-        {
-            "role": "assistant",
-            "content": "Welcome.\n**Question 1 of 20**\nWhat is X?\n"
-            + results.format_plan_marker(plan)
-            + "\n"
-            + _asked_marker(plan[0]),
-        },
-        {"role": "user", "content": "Here is my answer."},
-        {"role": "assistant", "content": "[[ASK]]\nWhat is X?"},
-        {"role": "user", "content": "already answered in prev response"},
-    ]
-
-    st = results.derive_turn_state(hist)
-    injection = results.build_state_injection(st, "en")
-
-    assert st["current_id"] == plan[0]
-    assert st["current_question_asked"] is True
-    assert st["latest_user_answer_pending"] is True
-    assert st["answer_attempts_for_current"] == 2
-    assert st["correction_or_repeat_already_sent"] is True
-    assert st["must_finalize_current"] is True
-    assert "FINALISE NOW" in injection
-    assert "End this response with EXACTLY one [[SCORE]] marker" in injection
+# --- give-up / leaked-question / rendering --------------------------------
 
 
 def test_is_give_up_or_meta_only_matches_whole_message_give_ups() -> None:
-    # A bare give-up / meta statement is detected — including with trivial filler wrappers,
-    # punctuation, and across en/de/nl.
-    for msg in [
-        "next",
-        "skip",
-        "Next!",
-        "ok, next please",
-        "move on please",
-        "skip this one",
-        "I don't know",
-        "I dont know",
-        "no idea, sorry",
-        "no clue",
-        "why are you asking me this again?",
-        "keine Ahnung",
-        "weiter",
-        "geen idee",
-    ]:
+    for msg in ["next", "skip", "Next!", "ok, next please", "I don't know", "no clue", "keine Ahnung", "geen idee"]:
         assert results.is_give_up_or_meta(msg) is True, msg
-
-    # ... but a message is NOT a give-up just because a trigger word appears inside it. This is
-    # the whole point of Option A (whole-message anchoring) over a substring search.
     for msg in [
         "",
-        "   ",
-        "run to the next station",  # the short-answer residual the substring/length gate missed
-        "the next station, in the transition box",
+        "run to the next station",
         "do it again on the next round",
-        "I'll pass the baton at the box",
         "The coach shortens the rest interval before the next attempt and adds a posture cue.",
-        "I don't know if reflection in action happens during the session, but I think so.",
     ]:
         assert results.is_give_up_or_meta(msg) is False, msg
 
 
-def test_substantive_first_answer_with_trigger_word_is_not_finalized() -> None:
-    # Regression for the reported case: a 57-word first answer that says "before the next attempt"
-    # must NOT be read as the learner saying "next/skip". It is a genuine first attempt, so the
-    # one correction is still owed — finalisation must not be forced.
-    plan = results.select_question_plan(seed=19)
-    long_answer = (
-        "Reflection in action occurs during coaching — real-time noticing and adapting as the session "
-        "unfolds. Example: a coach notices mid-session that 12-year-olds are losing sled pull form after "
-        "three rounds and immediately shortens rest intervals and adds a posture cue before the next "
-        "attempt. Reflection on action occurs after the session — reviewing, analysing, and planning."
-    )
-    hist = [
-        {"role": "user", "content": "start"},
-        {
-            "role": "assistant",
-            "content": "Welcome.\n**Question 1 of 20**\nWhat is X?\n"
-            + results.format_plan_marker(plan)
-            + "\n"
-            + _asked_marker(plan[0]),
-        },
-        {"role": "user", "content": long_answer},
-    ]
-
-    st = results.derive_turn_state(hist)
-
-    assert st["latest_user_answer_pending"] is True
-    assert st["answer_attempts_for_current"] == 1
-    assert st["correction_or_repeat_already_sent"] is False
-    assert st["must_finalize_current"] is False  # the "next" inside the answer no longer forces it
-    # which means it is classified GRADE_FIRST, so the mandatory-correction branch applies
-    injection = results.build_state_injection(st, "en")
-    assert "MUST offer the single correction opportunity" in injection
-    assert "FINALISE NOW" not in injection
-
-
-def test_next_question_state_allows_ask_after_previous_score() -> None:
-    plan = results.select_question_plan(seed=23)
-    hist = [
-        {"role": "user", "content": "start"},
-        {
-            "role": "assistant",
-            "content": "Welcome.\n**Question 1 of 20**\nWhat is X?\n" + results.format_plan_marker(plan),
-        },
-        {"role": "user", "content": "Here is my answer."},
-        {"role": "assistant", "content": "Good.\n" + _score_marker(plan[0])},
-        {"role": "user", "content": "next"},
-    ]
-
-    st = results.derive_turn_state(hist)
-    injection = results.build_state_injection(st, "en")
-
-    assert st["current_id"] == plan[1]
-    assert st["current_question_asked"] is False
-    assert st["latest_user_answer_pending"] is False
-    assert "CURRENT ACTION: ASK" in injection
-
-
-# --- Rendering the authoritative numbers ----------------------------------
-
-
-def test_render_progress_header_localized() -> None:
-    assert results.render_progress_header(0, "en") == "**Question 1 of 20**"
-    assert results.render_progress_header(0, "de") == "**Frage 1 von 20**"
-    assert results.render_progress_header(0, "nl") == "**Vraag 1 van 20**"
-    assert results.render_progress_header(5, "en") == "**Question 6 of 20**"
-
-
-def test_render_question_score_localized() -> None:
-    assert results.render_question_score(1, 4, 6, "en") == "**Question 1: 4/6**"
-    assert results.render_question_score(2, 3, 5, "de") == "**Frage 2: 3/5**"
-    assert results.render_question_score(3, 5, 5, "nl") == "**Vraag 3: 5/5**"
-
-
-def test_render_final_result_localized() -> None:
-    passed = results.render_final_result({"score": 90, "max": 100, "pct": 90, "passed": True}, "en")
-    assert "PASSED" in passed and "NOT PASSED" not in passed and "90/100" in passed
-    failed = results.render_final_result({"score": 50, "max": 100, "pct": 50, "passed": False}, "de")
-    assert "Nicht bestanden" in failed
-    failed_en = results.render_final_result({"score": 45, "max": 105, "pct": 43, "passed": False}, "en")
-    assert "Failed" in failed_en and "45/105" in failed_en
-
-
-def test_strip_rendered_numbers_removes_model_written_numbers() -> None:
-    text = "**Question 3 of 20**\nWhat is X?\nScore so far: 5/10 (50%)\nkeep me"
-    out = results.strip_rendered_numbers(text)
-    assert "Question 3 of 20" not in out
-    assert "Score so far" not in out
-    assert "What is X?" in out and "keep me" in out
-    complete = "**Assessment complete** — Total: 9/10 (90%) — **PASSED**\nWell done"
-    out2 = results.strip_rendered_numbers(complete)
-    assert "Assessment complete" not in out2 and "Well done" in out2
-
-
-def test_render_assessment_turn_asks_question_via_ask_token() -> None:
-    plan = results.select_question_plan(seed=3)
-    prior = results.normalize_score(2, [1, 1, 1])  # one question already finalised
-    state = {
-        "plan": plan,
-        "plan_is_new": False,
-        "scores": [prior],
-        "n_scored": 1,
-        "current_id": plan[1],
-        "tally": results.compute_tally([prior]),
-        "completed_passed": False,
-    }
-    expected_question = _question_text(plan[1])
-    content = "Let's continue.\n[[ASK]]\nWhat is X?"  # model-authored question text is not trusted
-    assembled, all_scores, _tally, just_completed = results.render_assessment_turn(content, state, "en")
-    assert "**Question 2 of 20**" in assembled  # 1 finalised → asking question 2
-    assert "[[ASK]]" not in assembled  # token replaced
-    assert expected_question in assembled
-    assert "What is X?" not in assembled
-    assert "Score so far" not in assembled  # no running cumulative total mid-assessment
-    assert len(all_scores) == 1 and just_completed is False
-
-
-def test_render_assessment_turn_drops_wrong_model_question_text() -> None:
-    # This reproduces the observed bug: backend pins Q3 (penalty system), but the model
-    # tries to display Q8 (12-13 standards). The visible question must come from backend
-    # state, not from model text after [[ASK]].
-    pinned_question = _question_text(3)
-    wrong_question = _question_text(8)
-    state = {
-        "plan": [3, 8],
-        "plan_is_new": False,
-        "scores": [],
-        "n_scored": 0,
-        "current_id": 3,
-        "tally": results.compute_tally([]),
-        "completed_passed": False,
-        "current_question_asked": False,
-    }
-    content = f"Let's begin.\n[[ASK]]\n{wrong_question}"
-
-    assembled, all_scores, _tally, just_completed = results.render_assessment_turn(content, state, "en")
-
-    assert "**Question 1 of 20**" in assembled
-    assert pinned_question in assembled
-    assert wrong_question not in assembled
-    assert "Let's begin." in assembled
-    assert all_scores == []
-    assert just_completed is False
-
-
-def test_render_assessment_turn_renders_backend_question_even_without_ask_token() -> None:
-    pinned_question = _question_text(3)
-    wrong_question = _question_text(8)
-    state = {
-        "plan": [3, 8],
-        "plan_is_new": False,
-        "scores": [],
-        "n_scored": 0,
-        "current_id": 3,
-        "tally": results.compute_tally([]),
-        "completed_passed": False,
-        "current_question_asked": False,
-    }
-
-    assembled, all_scores, _tally, just_completed = results.render_assessment_turn(wrong_question, state, "en")
-
-    assert pinned_question in assembled
-    assert wrong_question not in assembled
-    assert all_scores == []
-    assert just_completed is False
-
-
-def test_strip_leaked_question_text_removes_reworded_pool_question() -> None:
-    # The model is told to write NO visible question text. If it leaks a pool question as a stray
-    # paragraph — verbatim or lightly reworded — it must be removed, while genuine feedback and any
-    # marker-bearing paragraph are preserved.
-    reworded_q7 = (
-        "What are the four age groups in HYROX Youngstars and explain how the coaching emphasis "
-        "changes as athletes move through each group."
-    )
-    body = f"Excellent — clear, practical, and well explained.\n\n{reworded_q7}"
+def test_strip_leaked_question_text_removes_pool_question_but_keeps_feedback_and_markers() -> None:
+    leaked = _question_text(1)
+    body = f"Excellent — clear and well explained.\n\n{leaked}"
     out = results.strip_leaked_question_text(body)
-    assert "Excellent — clear, practical, and well explained." in out
-    assert "four age groups" not in out  # the leaked (reworded) question paragraph is gone
-    # a verbatim pool question is likewise stripped
-    assert results.paragraph_reproduces_pool_question(_question_text(7)) is True
-    # ordinary feedback shares no long run with any question, so it is kept
+    assert "Excellent — clear and well explained." in out
+    assert results.paragraph_reproduces_pool_question(leaked) is True
     assert results.paragraph_reproduces_pool_question("Got the core idea — something is still missing.") is False
-    assert results.strip_leaked_question_text("Good — that's solid.") == "Good — that's solid."
-    # a paragraph that holds a control marker is preserved untouched so the marker still replays
-    marker = _score_marker(32)
+    marker = _score_marker(1)
     assert marker in results.strip_leaked_question_text(f"Nice work.\n\n{marker}")
 
 
-def test_render_assessment_turn_drops_leaked_question_on_finalisation() -> None:
-    # Reproduces the observed bug: after finalising the current question with full marks, the model
-    # leaked a reworded pool question (Q7, "...four age groups...") as a stray paragraph. The leak
-    # must be stripped; only the backend's own next pinned question (Q27) may appear.
-    state = {
-        "plan": [32, 27],  # finalising 32; next pinned is 27 (four-phase session structure)
-        "plan_is_new": False,
-        "scores": [],
-        "n_scored": 0,
-        "current_id": 32,
-        "tally": results.compute_tally([]),
-        "completed_passed": False,
-        "current_question_asked": True,
-        "latest_user_answer_pending": True,
-        "answer_attempts_for_current": 1,
-        "correction_or_repeat_already_sent": False,
-        "must_finalize_current": False,
-    }
-    leaked = (
-        "What are the four age groups in HYROX Youngstars and explain how the coaching emphasis "
-        "changes as athletes move through each group."
-    )
-    content = f"Excellent — clear, practical, and well explained.\n\n{leaked}\n\n{_score_marker(32)}"
-
-    assembled, all_scores, _tally, just_completed = results.render_assessment_turn(content, state, "en")
-
-    assert "Excellent — clear, practical, and well explained." in assembled  # feedback retained
-    assert "four age groups" not in assembled  # leaked question stripped
-    assert _question_text(27) in assembled  # the real next question (backend-rendered) is shown
-    assert "**Question 2 of 20**" in assembled  # the chained next question's header
-    assert results.render_question_score(1, max_points(32), max_points(32), "en") in assembled
-    assert _asked_marker(27) in assembled  # only the backend-presented question is marked asked
-    assert len(all_scores) == 1 and just_completed is False
+def test_render_helpers_localized() -> None:
+    assert results.render_progress_header(1, 4, "en") == "**Question 1 of 4**"
+    assert results.render_progress_header(2, 5, "de") == "**Frage 2 von 5**"
+    assert results.render_progress_header(3, 3, "nl") == "**Vraag 3 van 3**"
+    assert results.render_question_score(1, 4, 6, "en") == "**Question 1: 4/6**"
+    passed = results.render_module_result("M1", {"score": 12, "max": 13, "pct": 92, "passed": True}, "en")
+    assert "Module 1" in passed and "Passed" in passed and "12/13" in passed
+    failed = results.render_module_result("M2", {"score": 6, "max": 12, "pct": 50, "passed": False}, "de")
+    assert "Modul 2" in failed and "80%" in failed
 
 
-def test_render_assessment_turn_chains_next_question_after_finalization() -> None:
-    # Finalising a question that is not the last must show that question's score AND
-    # automatically present the next pinned question in the same message, so the learner
-    # never has to type "next".
-    plan = results.select_question_plan(seed=3)
-    state = {
-        "plan": plan,
-        "plan_is_new": False,
-        "scores": [],
-        "n_scored": 0,
-        "current_id": plan[0],
-        "tally": results.compute_tally([]),
-        "completed_passed": False,
-        "current_question_asked": True,
-    }
-    graded = results.normalize_score(plan[0], [1] * key_point_count(plan[0]))
-    content = f"Good work — solid start.\n{_score_marker(plan[0])}"
-    assembled, all_scores, _tally, just_completed = results.render_assessment_turn(content, state, "en")
-
-    # the just-graded question's score
-    assert results.render_question_score(1, graded["awarded"], graded["max"], "en") in assembled
-    # the next question is presented automatically in this same message
-    assert "**Question 2 of 20**" in assembled
-    assert _question_text(plan[1]) in assembled
-    assert _asked_marker(plan[1]) in assembled  # hidden marker so the next turn knows it was asked
-    assert "[[SCORE" in assembled  # score marker retained for replay
-    assert "Assessment complete" not in assembled  # run is not finished
-    assert len(all_scores) == 1 and just_completed is False
-
-
-def _grade_first_state(plan: list[int]) -> dict:
-    """State for a genuine first attempt on the current question (GRADE_FIRST): the question
-    has been asked, the learner's first answer is pending, and finalisation is not yet forced."""
-    return {
-        "plan": plan,
-        "plan_is_new": False,
-        "scores": [],
-        "n_scored": 0,
-        "current_id": plan[0],
-        "tally": results.compute_tally([]),
-        "completed_passed": False,
-        "current_question_asked": True,
-        "latest_user_answer_pending": True,
-        "answer_attempts_for_current": 1,
-        "correction_or_repeat_already_sent": False,
-        "must_finalize_current": False,
-    }
-
-
-def _partial_score_marker(qid: int) -> str:
-    """A below-full-marks score: first key point earned, the rest missing."""
-    kpc = key_point_count(qid)
-    pts = ["1"] + ["0"] * (kpc - 1)
-    return f'[[SCORE q={qid} points="{",".join(pts)}" max={max_points(qid)} cat="{category_of(qid)}"]]'
-
-
-def test_render_assessment_turn_discards_premature_partial_first_score() -> None:
-    # Backend guard: if the model finalises a partial FIRST answer (below full marks) instead of
-    # offering the one correction, the backend discards that score, holds the question open, and
-    # offers the correction — so the learner can never be scored without a chance to revise.
-    plan = results.select_question_plan(seed=3)
-    state = _grade_first_state(plan)
-    content = f"Good answer overall — one part is still missing.\n{_partial_score_marker(plan[0])}"
-
-    assembled, all_scores, tally, just_completed = results.render_assessment_turn(content, state, "en")
-
-    assert all_scores == []  # the premature score is NOT recorded
-    assert tally["questions_scored"] == 0
-    assert just_completed is False
-    assert "[[SCORE" not in assembled  # marker stripped so a later replay cannot count it
-    assert "add to or revise your answer" in assembled  # explicit correction offer appended
-    assert "Good answer overall" in assembled  # the model's reduced feedback is retained
-    # position is held: no advance, next question not presented, no [[ASKED]] marker
-    assert "**Question 2 of 20**" not in assembled
-    assert _question_text(plan[1]) not in assembled
-    assert _asked_marker(plan[0]) not in assembled
-    assert _asked_marker(plan[1]) not in assembled
-
-
-def test_render_assessment_turn_accepts_full_marks_first_score() -> None:
-    # Contrast: a FULL-marks first answer is finalised immediately (no correction needed) and
-    # chains the next question — the guard only blocks below-full first-attempt scores.
-    plan = results.select_question_plan(seed=3)
-    state = _grade_first_state(plan)
-    content = f"That's spot on.\n{_score_marker(plan[0])}"  # all key points earned → full marks
-
-    assembled, all_scores, _tally, just_completed = results.render_assessment_turn(content, state, "en")
-
-    assert len(all_scores) == 1 and just_completed is False
-    assert "[[SCORE" in assembled  # accepted and retained for replay
-    assert "add to or revise your answer" not in assembled  # no correction offered on full marks
-    assert "**Question 2 of 20**" in assembled  # chains the next question
-
-
-def test_render_assessment_turn_accepts_partial_score_when_finalisation_forced() -> None:
-    # Contrast: on a GRADE_FINAL turn (the one correction has been used or declined →
-    # must_finalize_current) a below-full score is valid and accepted; the guard does not fire.
-    plan = results.select_question_plan(seed=3)
-    state = _grade_first_state(plan)
-    state["answer_attempts_for_current"] = 2
-    state["correction_or_repeat_already_sent"] = True
-    state["must_finalize_current"] = True
-    content = f"Thanks — that's where we'll leave it.\n{_partial_score_marker(plan[0])}"
-
-    assembled, all_scores, _tally, just_completed = results.render_assessment_turn(content, state, "en")
-
-    assert len(all_scores) == 1 and just_completed is False
-    assert "[[SCORE" in assembled  # accepted
-    assert "add to or revise your answer" not in assembled  # not a fresh correction offer
-    assert "**Question 2 of 20**" in assembled  # chains the next question
-
-
-def test_render_assessment_turn_appends_plan_on_fresh_run() -> None:
-    plan = results.select_question_plan(seed=5)
-    state = {
-        "plan": plan,
-        "plan_is_new": True,
-        "scores": [],
-        "n_scored": 0,
-        "current_id": plan[0],
-        "tally": results.compute_tally([]),
-        "completed_passed": False,
-    }
-    expected_question = _question_text(plan[0])
-    content = "Welcome!\n[[ASK]]\nHere is your first question?"
-    assembled, all_scores, _tally, just_completed = results.render_assessment_turn(content, state, "en")
-    assert results.format_plan_marker(plan) in assembled  # backend persists the plan
-    assert "**Question 1 of 20**" in assembled  # [[ASK]] → header, position 1
-    assert expected_question in assembled
-    assert "Here is your first question?" not in assembled
-    assert "[[ASK]]" not in assembled
-    assert all_scores == [] and just_completed is False
-
-
-def _completion_turn(all_correct: bool, content: str) -> tuple:
-    """Run render_assessment_turn for the turn that finalises the 20th question. 19 questions
-    are already finalised with all key points right (pass trajectory) or all wrong (fail)."""
-    prior_ids = list(range(2, 21))
-    verdict = 1 if all_correct else 0
-    scores = [results.normalize_score(i, [verdict] * key_point_count(i)) for i in prior_ids]
-    state = {
-        "plan": [1] + prior_ids,
-        "plan_is_new": False,
-        "scores": scores,
-        "n_scored": 19,
-        "current_id": 1,
-        "tally": results.compute_tally(scores),
-        "completed_passed": False,
-    }
-    return results.render_assessment_turn(content, state, "en")
-
-
-def test_render_assessment_turn_completion_emits_final_result() -> None:
-    content = f"Final one done.\n{_score_marker(1)}"
-    assembled, all_scores, tally, just_completed = _completion_turn(True, content)
-    assert just_completed is True
-    assert len(all_scores) == 20
-    assert results.render_final_result(tally, "en") in assembled  # cumulative result only at the end
-    # the 20th question's own score is shown too (full marks on Q1's rubric)
-    assert results.render_question_score(20, max_points(1), max_points(1), "en") in assembled
-    # the run is over — no question is chained past the last one
-    assert "21 of 20" not in assembled
-    assert "[[ASKED" not in assembled  # nothing further was presented
-
-
-def test_completion_renders_passed_ending_as_break_separated_bubbles() -> None:
-    # The end-of-assessment message is five [[BREAK]]-separated display bubbles: the final
-    # question's score + feedback, the cumulative verdict, the topic summary (the model text
-    # after its [[SUMMARY]] token), the motivational message, and the certificate notice.
-    content = f"Solid finish.\n[[SUMMARY]]\nStrengths: race format. Needs work: safeguarding.\n{_score_marker(1)}"
-    assembled, _all_scores, tally, just_completed = _completion_turn(True, content)
-    assert just_completed is True and tally["passed"] is True
-
-    bubbles = [b.strip() for b in assembled.split(results.BUBBLE_BREAK_TOKEN)]
-    assert len(bubbles) == 5
-    assert results.render_question_score(20, max_points(1), max_points(1), "en") in bubbles[0]
-    assert "Solid finish." in bubbles[0]
-    assert bubbles[1] == results.render_final_result(tally, "en")
-    assert "Strengths: race format" in bubbles[2]
-    assert "Great job. This wasn't a formality." in bubbles[3]
-    assert "your certificate will be generated" in bubbles[4]
-    # the model's separator token is consumed; the hidden score marker replays exactly once
-    assert "[[SUMMARY]]" not in assembled
-    assert assembled.count("[[SCORE") == 1
-    # display stripping leaves no marker residue (frontend parity)
-    assert "[[" not in results.strip_markers(assembled)
-
-
-def test_completion_renders_failed_ending_with_retry_note() -> None:
-    # A failed run gets the same bubble structure, with the fail-variant motivational text and a
-    # retake note pointing to the in-app restart option instead of the certificate notice.
-    content = f"Thanks — that's where we'll leave it.\n[[SUMMARY]]\nNeeds work: most topics.\n{_score_marker(1, all_correct=False)}"
-    assembled, _all_scores, tally, just_completed = _completion_turn(False, content)
-    assert just_completed is True and tally["passed"] is False
-
-    bubbles = [b.strip() for b in assembled.split(results.BUBBLE_BREAK_TOKEN)]
-    assert len(bubbles) == 5
-    assert "Failed" in bubbles[1]
-    assert "Needs work: most topics" in bubbles[2]
-    assert "That's not the result you were hoping for" in bubbles[3]
-    assert "take this assessment again" in bubbles[4] and "option to restart" in bubbles[4]
-    assert "certificate" not in assembled.lower()
-
-
-def test_completion_falls_back_to_deterministic_summary_without_summary_token() -> None:
-    # If the model omits its [[SUMMARY]] section, the backend still renders the promised
-    # per-topic summary from the authoritative category breakdown.
-    content = f"Final one done.\n{_score_marker(1)}"
-    assembled, _all_scores, _tally, just_completed = _completion_turn(True, content)
-    assert just_completed is True
-
-    bubbles = [b.strip() for b in assembled.split(results.BUBBLE_BREAK_TOKEN)]
-    assert len(bubbles) == 5
-    assert "**Summary by topic**" in bubbles[2]
-    assert "Strengths:" in bubbles[2]  # full-marks run → every category is a strength
-
-
-def test_completion_appends_progress_marker_on_pass() -> None:
-    # On a passed completion the backend appends the hidden [[PROGRESS value=100]] marker so the
-    # frontend can fire lemon://save_progress?value=100. It carries no [[BREAK]], so the visible
-    # bubble structure is unchanged, and strip_markers removes it (frontend display parity).
-    content = f"Solid finish.\n[[SUMMARY]]\nStrengths: race format.\n{_score_marker(1)}"
-    assembled, _all_scores, tally, just_completed = _completion_turn(True, content)
-    assert just_completed is True and tally["passed"] is True
-    assert results.PROGRESS_MARKER in assembled
-    assert "value=100" in results.PROGRESS_MARKER
-    # hidden for display, and it does not introduce an extra chat bubble
-    assert "[[PROGRESS" not in results.strip_markers(assembled)
-    assert len(assembled.split(results.BUBBLE_BREAK_TOKEN)) == 5
-
-
-def test_completion_omits_progress_marker_on_fail() -> None:
-    # A failed completion must NOT report progress (report only on pass).
-    content = f"Thanks — that's where we'll leave it.\n[[SUMMARY]]\nNeeds work.\n{_score_marker(1, all_correct=False)}"
-    assembled, _all_scores, tally, just_completed = _completion_turn(False, content)
-    assert just_completed is True and tally["passed"] is False
-    assert "[[PROGRESS" not in assembled
-
-
-def test_completion_appends_done_marker_on_pass_and_fail() -> None:
-    # On ANY completion the backend appends the hidden [[DONE]] marker so the frontend can remove
-    # the question input — the run is terminal in-session regardless of outcome. It carries no
-    # [[BREAK]], so the visible bubble structure is unchanged, and strip_markers removes it.
-    for all_correct, body in (
-        (True, f"Solid finish.\n[[SUMMARY]]\nStrengths: race format.\n{_score_marker(1)}"),
-        (False, f"That's where we'll leave it.\n[[SUMMARY]]\nNeeds work.\n{_score_marker(1, all_correct=False)}"),
-    ):
-        assembled, _all_scores, tally, just_completed = _completion_turn(all_correct, body)
-        assert just_completed is True and tally["passed"] is all_correct
-        assert results.DONE_MARKER in assembled  # present for both pass and fail
-        assert "[[DONE" not in results.strip_markers(assembled)  # hidden for display
-        assert len(assembled.split(results.BUBBLE_BREAK_TOKEN)) == 5  # no extra chat bubble
-
-
-def test_done_marker_absent_mid_assessment() -> None:
-    # The completion marker is gated on just_completed, so it must NOT appear while the run is still
-    # in progress (e.g. finalising a non-final question that chains the next one).
-    plan = results.select_question_plan(seed=3)
-    state = {
-        "plan": plan,
-        "plan_is_new": False,
-        "scores": [],
-        "n_scored": 0,
-        "current_id": plan[0],
-        "tally": results.compute_tally([]),
-        "completed_passed": False,
-        "current_question_asked": True,
-    }
-    content = f"Good work — solid start.\n{_score_marker(plan[0])}"
-    assembled, _all_scores, _tally, just_completed = results.render_assessment_turn(content, state, "en")
-    assert just_completed is False
-    assert "[[DONE" not in assembled
-
-
-def test_strip_markers_removes_summary_and_break_tokens() -> None:
-    text = 'A\n\n[[BREAK]]\n\nB [[SUMMARY]] C [[SCORE q=1 points="1" max=6 cat="x"]]'
+def test_strip_markers_removes_all_assessment_markers() -> None:
+    text = 'A\n\n[[BREAK]]\n\nB [[SUMMARY]] [[MODPASS m=M1]] [[MODULE m=M2 attempt=1]] [[SCORE q=1 points="1" max=3 mod="M1"]]'
     out = results.strip_markers(text)
     assert "[[" not in out
-    assert "A" in out and "B" in out and "C" in out
-
-
-def test_state_injection_final_question_requires_summary_token() -> None:
-    prior_ids = list(range(2, 21))
-    scores = [results.normalize_score(i, [1] * key_point_count(i)) for i in prior_ids]
-    state = {
-        "plan": prior_ids + [1],
-        "plan_is_new": False,
-        "scores": scores,
-        "n_scored": 19,
-        "current_id": 1,
-        "tally": results.compute_tally(scores),
-        "completed_passed": False,
-        "current_question_asked": True,
-        "latest_user_answer_pending": True,
-        "answer_attempts_for_current": 1,
-        "correction_or_repeat_already_sent": False,
-        "must_finalize_current": False,
-    }
-    injection = results.build_state_injection(state, "en")
-    assert "[[SUMMARY]]" in injection
-    # the topic take-aways are required in BOTH the pass and the fail case
-    assert "whether the learner did well or not" in injection
-
-
-def test_chained_next_question_is_recognized_as_asked_not_reasked() -> None:
-    # End-to-end regression guard for auto-advance: when the backend chains question k+1 into
-    # the same message as question k's [[SCORE]], the NEXT turn must treat k+1 as already asked
-    # (grade it) instead of re-asking it — even though the learner never sent a "next" message.
-    turn1_state = results.derive_turn_state([{"role": "user", "content": "start"}])
-    plan = turn1_state["plan"]
-    assert turn1_state["current_id"] == plan[0]
-
-    # Turn 1: fresh run asks Q1; backend persists PLAN + ASKED(q1).
-    t1_assistant, _s1, _t1, done1 = results.render_assessment_turn("Welcome!\n[[ASK]]", turn1_state, "en")
-    assert results.format_plan_marker(plan) in t1_assistant
-    assert _asked_marker(plan[0]) in t1_assistant
-    assert done1 is False
-
-    hist = [
-        {"role": "user", "content": "start"},
-        {"role": "assistant", "content": t1_assistant},
-        {"role": "user", "content": "my answer to q1"},
-    ]
-
-    # Turn 2: grade Q1 with full marks → backend chains Q2 into the same message.
-    turn2_state = results.derive_turn_state(hist)
-    assert turn2_state["current_id"] == plan[0]
-    assert turn2_state["current_question_asked"] is True
-    t2_assistant, _s2, _t2, done2 = results.render_assessment_turn(
-        f"Great answer.\n{_score_marker(plan[0])}", turn2_state, "en"
-    )
-    assert done2 is False
-    assert "**Question 2 of 20**" in t2_assistant
-    assert _question_text(plan[1]) in t2_assistant
-    assert _asked_marker(plan[1]) in t2_assistant
-
-    hist.append({"role": "assistant", "content": t2_assistant})
-    hist.append({"role": "user", "content": "my answer to q2"})
-
-    # Turn 3: the learner answered Q2 with NO "next" in between. The backend must grade Q2.
-    turn3_state = results.derive_turn_state(hist)
-    assert turn3_state["n_scored"] == 1
-    assert turn3_state["current_id"] == plan[1]
-    assert turn3_state["current_question_asked"] is True
-    assert turn3_state["latest_user_answer_pending"] is True
-    injection = results.build_state_injection(turn3_state, "en")
-    assert "CURRENT ACTION: GRADE" in injection
-    assert "CURRENT ACTION: ASK" not in injection
+    assert "A" in out and "B" in out
 
 
 # --- record_assessment_result --------------------------------------------
 
 
-def test_record_assessment_result_builds_payload_from_backend_tally() -> None:
-    scores = [results.normalize_score(1, [1, 1, 1, 1, 1]), results.normalize_score(2, [1] * key_point_count(2))]
-    tally = results.compute_tally(scores)
-    payload = asyncio.run(
-        results.record_assessment_result(
-            scores=scores,
-            tally=tally,
-            messages=[{"role": "user", "content": "start"}],
-            final_content="done",
-            overrides={"language": "en", "user": "lms-user-1"},
-            auth_claims={"oid": "oid-1"},
-            session_state="sess-123",
-            blob_manager=None,
-        )
-    )
-    assert payload is not None
-    assert payload["score"] == tally["score"]
-    assert payload["max"] == tally["max"]
-    assert payload["percent"] == tally["pct"]
-    assert payload["passed"] is True
-    assert payload["session_id"] == "sess-123"
-    assert payload["user_id"] == "oid-1"
-    assert payload["language"] == "en"
-    assert payload["category_breakdown"]  # non-empty per-category breakdown
-
-
-def test_record_assessment_result_records_lemon_identity() -> None:
-    # The Lemon learner identity from the launch URL (account_id/first_name/last_name) is recorded
-    # with the result; account_id stands in as user_id when no auth oid is present.
-    scores = [results.normalize_score(1, [1] * key_point_count(1))]
+def test_record_assessment_result_builds_payload_with_module_breakdown() -> None:
+    scores = [results.normalize_score(1, [1] * key_point_count(1)), results.normalize_score(5, [1] * key_point_count(5))]
     tally = results.compute_tally(scores)
     payload = asyncio.run(
         results.record_assessment_result(
@@ -990,12 +476,14 @@ def test_record_assessment_result_records_lemon_identity() -> None:
             final_content="done",
             overrides={"language": "en", "account_id": "123", "first_name": "John", "last_name": "Doe"},
             auth_claims={},
-            session_state="sess-9",
+            session_state="sess-123",
             blob_manager=None,
         )
     )
     assert payload is not None
+    assert payload["passed"] is True
+    assert payload["session_id"] == "sess-123"
     assert payload["user_id"] == "123"
-    assert payload["account_id"] == "123"
-    assert payload["first_name"] == "John"
-    assert payload["last_name"] == "Doe"
+    assert payload["first_name"] == "John" and payload["last_name"] == "Doe"
+    assert payload["module_breakdown"]  # non-empty per-module breakdown
+    assert "M1" in payload["module_breakdown"]

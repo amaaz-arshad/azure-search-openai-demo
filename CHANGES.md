@@ -17,6 +17,62 @@ Two categories per date:
 
 ## 2026-06-26
 
+### HYROX assessment → Level 2 "Managing Performance", module-by-module
+
+#### Decisions
+
+- **Replaced the entire question bank and reworked the assessment mechanics per the client's
+  `instructions.txt`.** The bot is no longer the Youngstars "20-of-32 flat run, one cumulative 80%
+  pass/fail". It is now the **HYROX Level 2 "Managing Performance"** assessment: 52 questions in 13
+  modules (`M1`–`M6`, `M7.1`–`M7.4`, `M8`–`M10`), asked **module by module** in fixed order, **every**
+  question of a module asked, each module scored separately at an **80% threshold**, a failed module
+  **retaken in full** until passed, and the cross-module strengths/weaknesses summary shown only at the
+  very end. Because a module is only left by passing it, finishing always means passing everything —
+  there is no whole-assessment "fail" end state (the old fail texts were retired; per-module fail gets
+  its own transition).
+- **LMS completion is now gated on the final module only.** `[[PROGRESS value=100]]`
+  (→ `lemon://save_progress`) + `[[DONE]]` fire once, when the last module is passed — never per module
+  (the client's explicit requirement). `record_assessment_result` fires on that turn with cross-module
+  totals and a per-module breakdown.
+- **Question source = the workbook's master `Module 1` tab (all 52 questions), per the user.** It is the
+  only tab with the per-module points column the client references; the 7 per-module tabs conflict on
+  selection/wording and are treated as superseded drafts (ignored).
+- **The L2 knowledge XML is a reference asset only (user decision).** Grading stays purely on each
+  question's in-prompt rubric (Primary answer + Alternative answer + Key Points — a complete
+  "must be mentioned" spec; `len(key_points)==max_pts` for every question, so 1 point per key point). The
+  2.2 MB XML can't go in-prompt and the bot deliberately uses no retrieval; wiring it in would add
+  latency/cost/risk for no grading benefit. Committed at `hyrox-files/HYROX_L2_Assessment_Knowledge.xml`.
+- **Marker engine extended, not replaced.** Kept the stateless replayed-marker design and the
+  one-revision rule; added `[[MODULE m=.. attempt=..]]`, `[[MODPASS]]`, `[[MODFAIL]]` and re-gated
+  `[[PROGRESS]]`/`[[DONE]]`. Integer question ids (1..52) preserve the existing `[[SCORE]]`/`[[ASKED]]`
+  machinery; the client `M7.1-Q03`-style ids are stored as display/audit metadata.
+- **Operating language stays English** (`Chat.tsx` hardcodes `HYROX_ASSESSMENT_LANGUAGE="en"`); de/nl
+  locale strings updated for parity but inactive.
+
+#### Changes
+
+- Added `app/backend/prep_hyrox_assessment_questions.py` (stdlib-only xlsx→`questions.py` generator;
+  asserts key-point/points and module-sum integrity) and regenerated
+  `app/backend/approaches/chatbots/hyrox_assessment/questions.py` (52 questions, new schema with
+  `module`/`qid`/`alternative_answer`, `MODULES` + module helpers).
+- Rewrote `results.py` (module-by-module state engine, new markers, per-module + completion rendering,
+  module-localized `_LOCALES` incl. the client's transition texts, `module_breakdown`) and
+  `sampleprompt.py` (rebranded L2, module-flow instructions, renders the alternative answer, grouped by
+  module). `config.py`/`chatreadretrieveread.py` integration unchanged.
+- Frontend: `components/Answer/assessmentMarkers.ts` (new markers hidden + `hasModulePassMarker`/
+  `hasModuleFailMarker`), `pages/chat/Chat.tsx` (Continue/Retry buttons, input hide at boundaries,
+  `isControlMessage` suppresses Start/Continue/Retry user bubbles, removed whole-assessment restart),
+  `locales/{en,de,nl}/translation.json` (new welcome text, `continueModule`/`retryModule`, Level 2 title).
+- Staged `hyrox-files/HYROX_L2_QuestionBank_Final.xlsx` + `…Knowledge.xml`; removed the obsolete
+  `hyrox-files/hyrox_assessment_final_v5.xlsx`.
+- Rewrote `tests/test_hyrox_assessment.py` for the module engine (31 tests pass). `tests/test_hyrox_live.py`
+  left as-is (opt-in, invariant-based, still compatible).
+- Docs: updated `CLAUDE.md` (new HYROX-assessment contract bullet + Adding Data generator entry).
+- Verification: `pytest tests/test_hyrox_assessment.py` (31 pass), `ty check` clean on the package +
+  generator, `npm run build` clean, frontend `tsc --noEmit` clean, and a route-mocked Playwright pass
+  driving the full UI flow (Start → question → module pass + Continue → next module → module fail + Retry
+  → completion/certificate; markers hidden, input show/hide correct).
+
 ### Embed widget: per-bot launcher icon color; hyrox black bubble + yellow icon
 
 #### Decisions

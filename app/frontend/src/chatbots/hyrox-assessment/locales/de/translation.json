@@ -1,9 +1,9 @@
 {
-    "pageTitle": "HYROX Assessment",
-    "headerTitle": "HYROX Assessment",
+    "pageTitle": "HYROX Level 2 Assessment",
+    "headerTitle": "HYROX Level 2 Assessment",
     "initialUserMsg": "Start",
     "greeting": "Hallo {{firstName}}!\n\n",
-    "initialAssistantMsg": "Willkommen zum HYROX Assessment „Managing Performance“! Du beantwortest 20 Fragen im Freitext und hast bei jeder Frage eine Möglichkeit, deine Antwort zu überarbeiten. Zum Bestehen brauchst du insgesamt 80 %. Am Ende erhältst du eine Auswertung nach Themengebieten.",
+    "initialAssistantMsg": "Willkommen zum HYROX Assessment „Managing Performance“! Dies ist der Abschlusstest für dein Level-2-Zertifikat.\n\nDas Assessment umfasst alle Module. Jedes Modul wird einzeln getestet und ausgewertet. Du beantwortest die Fragen im Freitext und hast bei jeder Frage eine Möglichkeit, deine Antwort zu überarbeiten. Zum Bestehen brauchst du in jedem Modul mindestens 80 %. Sobald du ein Modul bestanden hast, geht es weiter zum nächsten. Du kannst das Assessment jederzeit pausieren und später fortsetzen.\n\nAm Ende erhältst du eine Auswertung nach Themengebieten.\n\nStarte das Assessment, wenn du bereit bist.",
     "chat": "Chat",
     "qa": "Stellen Sie eine Frage",
     "login": "Anmelden",
@@ -11,6 +11,8 @@
     "clearChat": "Chat löschen",
     "startAssessment": "Assessment starten",
     "restartAssessment": "Assessment neu starten",
+    "continueModule": "Weiter zum nächsten Modul",
+    "retryModule": "Modul wiederholen",
     "noPage": {
         "title": "Diese Seite gibt es nicht",
         "info": "Du bist auf <strong>chat.nerilio.ai</strong> gelandet, aber ohne deine pers\u00f6nliche Chatbot-URL.<br/><br/>Bitte nutze die <strong>spezifische URL</strong>, die du von nerilio erhalten hast.",
