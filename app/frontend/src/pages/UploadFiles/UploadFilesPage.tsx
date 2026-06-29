@@ -19,7 +19,7 @@ import {
     listManagedUploadsApi,
     uploadManagedFilesApi
 } from "./uploadFilesApi";
-import { useInternalAdminAccess } from "./useInternalAdminAccess";
+import { useInternalAdminAccess } from "../shared/useInternalAdminAccess";
 import styles from "./UploadFilesPage.module.css";
 
 const acceptedFileTypes = ".txt,.md,.csv,.json,.pdf,.html,.xml";

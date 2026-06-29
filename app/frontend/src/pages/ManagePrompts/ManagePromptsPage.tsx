@@ -3,9 +3,9 @@ import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
 import { Icon } from "@fluentui/react";
 
-import { formatChatbotLabel, getChatbotRouteSegment } from "./chatbotDisplay";
+import { formatChatbotLabel, getChatbotRouteSegment } from "../shared/chatbotDisplay";
 import { PromptAdminEntry, listPromptAdminEntriesApi, resetPromptAdminEntryApi, savePromptAdminEntryApi } from "./promptAdminApi";
-import { useInternalAdminAccess } from "./useInternalAdminAccess";
+import { useInternalAdminAccess } from "../shared/useInternalAdminAccess";
 import styles from "./ManagePromptsPage.module.css";
 
 type StatusState =

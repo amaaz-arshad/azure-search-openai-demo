@@ -209,11 +209,6 @@
     "ast_hash": "0aab92d62bb45a772280e347cd000050",
     "semantic_hash": "0aab92d62bb45a772280e347cd000050"
   },
-  "app/backend/approaches/chatbots/lemon/sampleprompt-old.py": {
-    "mtime": 1777026627.4406824,
-    "ast_hash": "7ecf5df3b299008d607933d262545feb",
-    "semantic_hash": "7ecf5df3b299008d607933d262545feb"
-  },
   "app/backend/approaches/chatbots/lemon/sampleprompt.py": {
     "mtime": 1782062459.2412212,
     "ast_hash": "c153a45bd4b492997b52be157c39e247",
@@ -515,9 +510,9 @@
     "semantic_hash": "4a5dede40ba34943864a8891fc9d0df2"
   },
   "app/frontend/src/index.tsx": {
-    "mtime": 1781801630.8912358,
-    "ast_hash": "173369dba47cb0d08cbdced43ccc0dba",
-    "semantic_hash": "173369dba47cb0d08cbdced43ccc0dba"
+    "mtime": 1782742490.7342653,
+    "ast_hash": "afb6caab784da184e5023f8b6f0e897d",
+    "semantic_hash": ""
   },
   "app/frontend/src/loginContext.tsx": {
     "mtime": 1763808597.4399302,
@@ -5194,51 +5189,6 @@
     "ast_hash": "57c48409403f6167c00b37a9f33c02a0",
     "semantic_hash": "57c48409403f6167c00b37a9f33c02a0"
   },
-  "app/frontend/src/pages/ChatbotDirectory.tsx": {
-    "mtime": 1782002722.9465356,
-    "ast_hash": "eaa012061ab6f6656521c4c8e08a1320",
-    "semantic_hash": ""
-  },
-  "app/frontend/src/pages/chatbotDisplay.ts": {
-    "mtime": 1782002612.944433,
-    "ast_hash": "113fd44aec0f4ed5de027b3186319b3a",
-    "semantic_hash": ""
-  },
-  "app/frontend/src/pages/internalAdminApi.ts": {
-    "mtime": 1776940772.6548526,
-    "ast_hash": "d7d594561737b7062147f08b8492a9b2",
-    "semantic_hash": "d7d594561737b7062147f08b8492a9b2"
-  },
-  "app/frontend/src/pages/internalToolsAccess.ts": {
-    "mtime": 1776940772.65686,
-    "ast_hash": "4110efb65b5a7de0e96f5b68cc4eb513",
-    "semantic_hash": "4110efb65b5a7de0e96f5b68cc4eb513"
-  },
-  "app/frontend/src/pages/ManagePromptsPage.tsx": {
-    "mtime": 1777478244.2057123,
-    "ast_hash": "1ebbeaeedfa43cb9ac7c998f0caef037",
-    "semantic_hash": "1ebbeaeedfa43cb9ac7c998f0caef037"
-  },
-  "app/frontend/src/pages/promptAdminApi.ts": {
-    "mtime": 1776940772.65686,
-    "ast_hash": "738f98ee4123a66ef1eac60b4eb99c69",
-    "semantic_hash": "738f98ee4123a66ef1eac60b4eb99c69"
-  },
-  "app/frontend/src/pages/uploadFilesApi.ts": {
-    "mtime": 1774491452.2185304,
-    "ast_hash": "74c3360593bdbb70a179e07c624dd7af",
-    "semantic_hash": "74c3360593bdbb70a179e07c624dd7af"
-  },
-  "app/frontend/src/pages/UploadFilesPage.tsx": {
-    "mtime": 1777478232.3063893,
-    "ast_hash": "319a056685899ad82967f3e8f60ba783",
-    "semantic_hash": "319a056685899ad82967f3e8f60ba783"
-  },
-  "app/frontend/src/pages/useInternalAdminAccess.ts": {
-    "mtime": 1776940772.65686,
-    "ast_hash": "6534366059d4ce508fcce7a38aeb5463",
-    "semantic_hash": "6534366059d4ce508fcce7a38aeb5463"
-  },
   "app/functions/__init__.py": {
     "mtime": 1763808597.5713174,
     "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
@@ -8069,30 +8019,10 @@
     "ast_hash": "af5a041c18e33f6084af23ab476b5388",
     "semantic_hash": "af5a041c18e33f6084af23ab476b5388"
   },
-  "app/frontend/src/pages/EmbedSnippetModal.tsx": {
-    "mtime": 1781631987.983951,
-    "ast_hash": "fbd36b4ebef7c033ec2212dbe7f1a6b8",
-    "semantic_hash": "fbd36b4ebef7c033ec2212dbe7f1a6b8"
-  },
-  "app/frontend/src/pages/FreeUsersPage.tsx": {
-    "mtime": 1781801630.9693396,
-    "ast_hash": "71f19d552ba4fcb613de85a0520cea19",
-    "semantic_hash": "71f19d552ba4fcb613de85a0520cea19"
-  },
-  "app/frontend/src/pages/embedAdminApi.ts": {
-    "mtime": 1781631956.2330296,
-    "ast_hash": "881b15149ce05dd4c19dc900b7a51056",
-    "semantic_hash": "881b15149ce05dd4c19dc900b7a51056"
-  },
-  "app/frontend/src/pages/freeUsersApi.ts": {
-    "mtime": 1781801631.0368717,
-    "ast_hash": "0a86768c6fa88358169387b61e8b4736",
-    "semantic_hash": "0a86768c6fa88358169387b61e8b4736"
-  },
   "app/frontend/src/pages/verwaltung/VerwaltungLayout.tsx": {
-    "mtime": 1779798480.5486386,
-    "ast_hash": "f367a9d0fd68893ee5650570b99cfdc3",
-    "semantic_hash": "f367a9d0fd68893ee5650570b99cfdc3"
+    "mtime": 1782742488.9111621,
+    "ast_hash": "9ea1e8751b39dd13416556daf1aac8df",
+    "semantic_hash": ""
   },
   "app/frontend/src/pages/verwaltung/components/Sidebar.tsx": {
     "mtime": 1779798466.8124375,
@@ -9117,6 +9047,91 @@
   "hyrox-files/files regarding new updates/instructions.txt": {
     "mtime": 1782475814.660565,
     "ast_hash": "aa5283fcb8e08bcad077f06bf5a49f9b",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/pages/ChatbotDirectory/ChatbotDirectory.tsx": {
+    "mtime": 1782742480.4419982,
+    "ast_hash": "6db0848323d36c9bc8d385c02fec0ac3",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/pages/ChatbotDirectory/EmbedSnippetModal.tsx": {
+    "mtime": 1782742481.7847543,
+    "ast_hash": "d8f22624ea852e17a3e079b0b77287a4",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/pages/ChatbotDirectory/embedAdminApi.ts": {
+    "mtime": 1781631956.2330296,
+    "ast_hash": "881b15149ce05dd4c19dc900b7a51056",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/pages/ChatbotDirectory/index.ts": {
+    "mtime": 1782742395.9687595,
+    "ast_hash": "386c5ee9deca4525394398a8f16560bb",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/pages/FreeUsers/FreeUsersPage.tsx": {
+    "mtime": 1782742487.44652,
+    "ast_hash": "1c027dedfe90f4a5c63bc58b29e3f78c",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/pages/FreeUsers/freeUsersApi.ts": {
+    "mtime": 1781801631.0368717,
+    "ast_hash": "0a86768c6fa88358169387b61e8b4736",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/pages/FreeUsers/index.ts": {
+    "mtime": 1782742399.2721293,
+    "ast_hash": "a5db70d2cecb2c409acd8ff0a6455914",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/pages/ManagePrompts/ManagePromptsPage.tsx": {
+    "mtime": 1782742484.8853621,
+    "ast_hash": "e962e43c37123158a11f8e878575b67c",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/pages/ManagePrompts/index.ts": {
+    "mtime": 1782742397.06175,
+    "ast_hash": "34e3214811a7ca90596634b9c047c6e8",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/pages/ManagePrompts/promptAdminApi.ts": {
+    "mtime": 1776940772.65686,
+    "ast_hash": "738f98ee4123a66ef1eac60b4eb99c69",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/pages/UploadFiles/UploadFilesPage.tsx": {
+    "mtime": 1782742486.1970181,
+    "ast_hash": "efeaddd2015d95af7f5c372b4992ed98",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/pages/UploadFiles/index.ts": {
+    "mtime": 1782742398.1664762,
+    "ast_hash": "b4b04031c91b31eec1d14ef3526b5e9a",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/pages/UploadFiles/uploadFilesApi.ts": {
+    "mtime": 1774491452.2185304,
+    "ast_hash": "74c3360593bdbb70a179e07c624dd7af",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/pages/shared/chatbotDisplay.ts": {
+    "mtime": 1782002612.944433,
+    "ast_hash": "113fd44aec0f4ed5de027b3186319b3a",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/pages/shared/internalAdminApi.ts": {
+    "mtime": 1776940772.6548526,
+    "ast_hash": "d7d594561737b7062147f08b8492a9b2",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/pages/shared/internalToolsAccess.ts": {
+    "mtime": 1776940772.65686,
+    "ast_hash": "4110efb65b5a7de0e96f5b68cc4eb513",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/pages/shared/useInternalAdminAccess.ts": {
+    "mtime": 1776940772.65686,
+    "ast_hash": "6534366059d4ce508fcce7a38aeb5463",
     "semantic_hash": ""
   }
 }

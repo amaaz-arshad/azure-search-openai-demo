@@ -16,9 +16,9 @@ import { EmbedBridge } from "./chatbots/shared/embed/EmbedBridge";
 import { isEmbedMode } from "./chatbots/shared/embed/embedMode";
 import i18n from "./chatbots/nerilio/i18n/config";
 import ChatbotDirectory from "./pages/ChatbotDirectory";
-import ManagePromptsPage from "./pages/ManagePromptsPage";
-import FreeUsersPage from "./pages/FreeUsersPage";
-import UploadFilesPage from "./pages/UploadFilesPage";
+import ManagePromptsPage from "./pages/ManagePrompts";
+import FreeUsersPage from "./pages/FreeUsers";
+import UploadFilesPage from "./pages/UploadFiles";
 import {
     ConfigurePage,
     CustomersPage,

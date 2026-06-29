@@ -9,7 +9,7 @@ import {
     listFreeUsersApi,
     resetFreeUserPasswordApi
 } from "./freeUsersApi";
-import { useInternalAdminAccess } from "./useInternalAdminAccess";
+import { useInternalAdminAccess } from "../shared/useInternalAdminAccess";
 import styles from "./FreeUsersPage.module.css";
 
 const FREE_BOT_PASSWORD_MIN_LENGTH = 8;

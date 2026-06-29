@@ -15,6 +15,48 @@ Two categories per date:
 
 ---
 
+## 2026-06-29
+
+### App folder cleanup & `src/pages/` reorganization
+
+#### Decisions
+
+- **Scope was deliberately limited to zero-/compile-risk cleanup** (user
+  decision): delete dead/orphaned files and reorganize the flat
+  `app/frontend/src/pages/` folder. **Explicitly chose NOT to touch** the large
+  per-bot frontend duplication (~15 bots × ~95 near-duplicate files) or move the
+  backend one-off scripts — both are higher-risk and were left for a separate,
+  opt-in effort.
+- **`src/pages/` now follows one-folder-per-page**, mirroring the existing
+  well-organized `pages/verwaltung/` convention, with a `pages/shared/` layer for
+  the cross-page internal-admin building blocks. Per-folder `index.ts` barrels
+  keep the `index.tsx` route imports stable.
+
+#### Changes
+
+- **Deleted (dead/orphaned, referenced by nothing):**
+  - Empty untracked dirs `app/frontend/src/chatbots/helix/`,
+    `chatbots/test/`, and the nested copy-paste artifact `chatbots/fbn/chatbots/`.
+  - `app/backend/approaches/chatbots/test/` — orphaned `__pycache__/*.pyc` only
+    (source already gone; never in `KNOWN_CHATBOT_NAMES`).
+  - `git rm app/backend/approaches/chatbots/lemon/sampleprompt-old.py` — legacy
+    prompt backup superseded by `sampleprompt.py`, imported nowhere.
+- **Reorganized `app/frontend/src/pages/`** (via `git mv`):
+  - Page components + their `.module.css` + their API client grouped into
+    `ChatbotDirectory/` (incl. `EmbedSnippetModal.tsx` + `embedAdminApi.ts`),
+    `ManagePrompts/`, `UploadFiles/`, `FreeUsers/`.
+  - Cross-page helpers (`useInternalAdminAccess.ts`, `internalAdminApi.ts`,
+    `internalToolsAccess.ts`, `chatbotDisplay.ts`) moved into `pages/shared/`.
+  - Added one-line `index.ts` barrels per page folder. `pages/verwaltung/`
+    left unchanged.
+- **Updated imports:** 3 specifiers in `src/index.tsx`; `../shared/...` paths in
+  the 4 page components, `EmbedSnippetModal.tsx`, and
+  `verwaltung/VerwaltungLayout.tsx`; bumped `ChatbotDirectory.tsx`'s
+  `../chatbots/registry` → `../../chatbots/registry` (moved down one level).
+- **Verified:** `npx tsc --noEmit` (exit 0) and full `npm run build`
+  (vite + chained widget build, exit 0) both pass; `graphify update .` refreshed
+  (10227 nodes). No behavior change.
+
 ## 2026-06-26
 
 ### HYROX assessment → Level 2 "Managing Performance", module-by-module

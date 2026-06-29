@@ -3,9 +3,9 @@ import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
 import { Icon } from "@fluentui/react";
 
-import { chatbotDefinitions } from "../chatbots/registry";
-import { formatChatbotLabel } from "./chatbotDisplay";
-import { useInternalAdminAccess } from "./useInternalAdminAccess";
+import { chatbotDefinitions } from "../../chatbots/registry";
+import { formatChatbotLabel } from "../shared/chatbotDisplay";
+import { useInternalAdminAccess } from "../shared/useInternalAdminAccess";
 import EmbedSnippetModal from "./EmbedSnippetModal";
 import styles from "./ChatbotDirectory.module.css";
 

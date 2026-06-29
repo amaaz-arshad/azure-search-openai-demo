@@ -1,7 +1,7 @@
 import { Helmet } from "react-helmet-async";
 import { Outlet } from "react-router-dom";
 
-import { useInternalAdminAccess } from "../useInternalAdminAccess";
+import { useInternalAdminAccess } from "../shared/useInternalAdminAccess";
 import { Sidebar } from "./components/Sidebar";
 import { LoginPage } from "./pages/LoginPage";
 import "./verwaltung.css";

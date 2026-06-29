@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { formatChatbotLabel } from "./chatbotDisplay";
+import { formatChatbotLabel } from "../shared/chatbotDisplay";
 import { EmbedConfigEntry, getEmbedConfigApi, saveEmbedConfigApi } from "./embedAdminApi";
 import styles from "./EmbedSnippetModal.module.css";
 
