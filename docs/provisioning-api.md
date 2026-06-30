@@ -83,7 +83,7 @@ The bot is reachable at `https://chat.nerilio.ai/<botName>` once created (and ac
 
 | Status | Meaning |
 | --- | --- |
-| `400` | Body is not a JSON object. |
+| `400` | Body is not a JSON object, or not valid UTF-8. (Send UTF-8; `json_encode` does this — or use `\uXXXX` escapes.) |
 | `401` | Wrong/missing Bearer — **only once `PROVISIONING_API_KEY` is set** (open today). |
 | `404` | `update` / `start` / `stop` / `delete` on a bot that doesn't exist. |
 | `409` | `botName` is reserved (collides with a built-in bot/route) **or** `create` on an existing bot. |

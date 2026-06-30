@@ -216,9 +216,14 @@ async def handle_delete(payload: dict[str, Any], bot_name: str) -> tuple[dict[st
 async def provision_chatbot():
     if not request.is_json:
         return jsonify({"ok": False, "error": "Request must be JSON."}), 415
-    payload = await request.get_json(silent=True)
+    # silent=True suppresses JSON *parse* errors but NOT a UTF-8 *decode* error on the raw body
+    # (e.g. a Latin-1-encoded umlaut), which would otherwise escape as an unhandled 500.
+    try:
+        payload = await request.get_json(silent=True)
+    except (UnicodeDecodeError, ValueError):
+        payload = None
     if not isinstance(payload, dict):
-        return jsonify({"ok": False, "error": "Request body must be a JSON object."}), 400
+        return jsonify({"ok": False, "error": "Request body must be a valid UTF-8 JSON object."}), 400
 
     operation = payload.get("operation")
     if operation not in VALID_OPERATIONS:

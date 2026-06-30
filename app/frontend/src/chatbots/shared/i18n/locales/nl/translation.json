@@ -22,5 +22,27 @@
         "copied": "Gekopieerd!",
         "submitQuestion": "Vraag versturen",
         "stopStreaming": "Streamen stoppen"
+    },
+    "labels": {
+        "openMenu": "Menu openen",
+        "languagePicker": "Taal selecteren"
+    },
+    "defaultExamples": {
+        "1": "Waarmee kun je me helpen?",
+        "2": "Vat de belangrijkste onderwerpen samen.",
+        "3": "Geef me een kort overzicht."
+    },
+    "history": {
+        "chatHistory": "Chatgeschiedenis",
+        "openChatHistory": "Open chatgeschiedenis",
+        "noHistory": "Geen chatgeschiedenis",
+        "deleteModalTitle": "Chatgeschiedenis verwijderen",
+        "deleteModalDescription": "Deze actie kan niet ongedaan worden gemaakt. Deze chatgeschiedenis verwijderen?",
+        "deleteLabel": "Verwijderen",
+        "cancelLabel": "Annuleren",
+        "today": "Vandaag",
+        "yesterday": "Gisteren",
+        "last7days": "Laatste 7 dagen",
+        "last30days": "Laatste 30 dagen"
     }
 }

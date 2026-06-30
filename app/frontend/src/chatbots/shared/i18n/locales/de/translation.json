@@ -22,5 +22,27 @@
         "copied": "Kopiert!",
         "submitQuestion": "Frage einreichen",
         "stopStreaming": "Streaming stoppen"
+    },
+    "labels": {
+        "openMenu": "Menü öffnen",
+        "languagePicker": "Sprache auswählen"
+    },
+    "defaultExamples": {
+        "1": "Wobei kannst du mir helfen?",
+        "2": "Fasse die wichtigsten Themen zusammen.",
+        "3": "Gib mir einen kurzen Überblick."
+    },
+    "history": {
+        "chatHistory": "Chatverlauf",
+        "openChatHistory": "Chatverlauf öffnen",
+        "noHistory": "Kein Chatverlauf",
+        "deleteModalTitle": "Chatverlauf löschen",
+        "deleteModalDescription": "Diese Aktion kann nicht rückgängig gemacht werden. Diesen Chatverlauf löschen?",
+        "deleteLabel": "Löschen",
+        "cancelLabel": "Abbrechen",
+        "today": "Heute",
+        "yesterday": "Gestern",
+        "last7days": "Letzte 7 Tage",
+        "last30days": "Letzte 30 Tage"
     }
 }

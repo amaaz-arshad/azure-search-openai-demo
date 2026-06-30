@@ -15,6 +15,93 @@ Two categories per date:
 
 ---
 
+## 2026-07-01
+
+### Dynamic chatbot provisioning — browser chat history for the generic bot (IndexedDB), session-count alignment
+
+#### Decisions
+
+- **Dynamic bots now get the same browser chat history as built-in bots** (IndexedDB, scoped per bot via
+  `getChatHistoryScope()`), gated on `features.history !== false`. **No Cosmos** for dynamic bots yet — per
+  the user, Cosmos is deferred until the feature stabilizes; browser-only matches what the live bots use.
+- **Session counting needs no change — it already matches "one per new chat".** The backend increments the
+  per-bot quota counter only when `is_new_session = len(messages) <= 1`, i.e. the *first message of a fresh
+  chat*. Restoring a past conversation from history and continuing it (messages > 1) is **not** re-counted;
+  pressing **New chat** without sending anything is **not** counted (no quota wasted on empty chats). The
+  client history session id is purely an IndexedDB/active-pointer key and is unrelated to quota counting.
+- **History UI lives in the existing header "More" menu** as **Open chat history** (Fluent `History` icon),
+  next to **New chat** — rather than adding lemon's separate command-bar `HistoryButton`, to keep the slim
+  generic header. The panel itself is a **browser-only** fork of lemon's `HistoryPanel` (no MSAL / no id
+  token / no Cosmos provider).
+- **Active-session restore** (`shared/history/activeSession.ts`) makes the chat reappear after reload/
+  navigation, exactly like built-in bots; **New chat** clears the active pointer so the next load is blank.
+
+#### Changes
+
+- `app/frontend/src/chatbots/generic/components/HistoryProviders/` — new: `IProvider.ts` (None + IndexedDB
+  only), `IndexedDB.ts`, `None.ts`, `HistoryManager.ts` (`useHistoryManager`), `index.ts`. Import the shared
+  `api/models` and `chatHistoryScope`.
+- `app/frontend/src/chatbots/generic/components/HistoryItem/` — new: `HistoryItem.tsx` + `.module.css` +
+  `index.tsx` (copied from lemon; self-contained).
+- `app/frontend/src/chatbots/generic/components/HistoryPanel/` — new: `HistoryPanel.tsx` + `.module.css` +
+  `index.tsx` (browser-only; uses shared `useIsCompactViewport`).
+- `app/frontend/src/chatbots/generic/pages/chat/Chat.tsx` — wired history: provider from `features.history`,
+  `useHistoryManager`, client session id, save-on-success (`addItem` + `writeActiveSessionId`), restore-on-
+  load effect, `onChatSelected`, **Open chat history** menu item, and the `HistoryPanel` render.
+- `app/frontend/src/chatbots/shared/i18n/locales/{en,de,nl}/translation.json` — added the `history.*` block
+  (chatHistory, openChatHistory, noHistory, delete modal copy, today/yesterday/last7days/last30days).
+- Verified with `npm run build` (frontend compiles clean). Needs an `azd deploy` to reach chat.nerilio.ai.
+
+### Dynamic chatbot provisioning — generic bot UI parity with built-in bots (menu, locale-following, composer)
+
+#### Decisions
+
+- **The generic dynamic-bot frontend (Phase 3b) was too slim** vs built-in bots (lemon): no header menu,
+  a hand-rolled raw-textarea composer, and i18n **locked to the provisioned default language** (so an
+  English-locale user saw an all-German UI). Upgraded it to mirror the built-in chrome.
+- **UI chrome now follows the browser locale across the full en/de/nl set** (LanguageDetector,
+  `order:["navigator"]`), exactly like built-in bots, with the provisioned `defaultLanguage` as the
+  fallback. The provisioned greeting/disclaimer/title overlay per language where the panel provided them;
+  other languages fall back to the shared base bundle. (So a German-only-greeting bot shows English chrome
+  in an English locale, with a generic greeting unless German is provisioned for that locale.)
+- **Header now has the menu icon** (Fluent `IconButton` "More" → **New chat**), matching lemon. History/
+  Settings/Speech are intentionally NOT added — they need backend support a dynamic bot doesn't have yet,
+  and a non-functional menu item is worse than its absence.
+- **Empty state + composer match built-in bots**: clickable example prompts + a LanguagePicker in the
+  empty state, and a rounded composer with an icon send button (`Send28Filled`) instead of a text button.
+
+#### Changes
+
+- `app/frontend/src/chatbots/shared/i18n/locales/{en,de,nl}/translation.json` — added `labels.openMenu`,
+  `labels.languagePicker`, and `defaultExamples.{1,2,3}` (these bundles are generic-bot-only).
+- `app/frontend/src/chatbots/generic/i18n/createGenericI18n.ts` — rewritten: builds all en/de/nl chrome,
+  uses LanguageDetector (navigator), `fallbackLng` = provisioned default; exports `GENERIC_SUPPORTED_LANGUAGES`.
+- `app/frontend/src/chatbots/generic/i18n/LanguagePicker.tsx` — new (mirrors lemon's picker).
+- `app/frontend/src/chatbots/generic/pages/chat/Chat.tsx` — reworked: themed navbar with logo circle +
+  title + header "More" menu (New chat); empty state with examples + language picker; icon-button composer.
+- Verified with `npm run build` (frontend compiles clean). Needs an `azd deploy` to reach chat.nerilio.ai.
+
+### Dynamic chatbot provisioning — live-tested against chat.nerilio.ai; malformed-body 500→400 fix
+
+#### Decisions
+
+- **Live-verified the deployed endpoint.** create→update→stop→start all succeed against
+  `https://chat.nerilio.ai/provisioning/chatbots` (201/200/200/200); `/bot-config/bxa` and `/bxa` both
+  resolve (200). delete deferred to a manual run after browser testing.
+- **Found + fixed a real robustness bug.** A first CREATE returned a 500 (HTML, not the handler's JSON):
+  server logs showed `UnicodeDecodeError` from `request.get_json(silent=True)` — `silent=True` suppresses
+  JSON *parse* errors but not a UTF-8 *decode* error on the raw body. (Root trigger was the local Windows
+  shell sending the German "ü" as Latin-1 `0xfc`; Olaf's PHP `json_encode` always emits valid UTF-8, so
+  he wouldn't hit it — but the server shouldn't 500 either way.) Now wrapped to return a clean **400**.
+
+#### Changes
+
+- `app/backend/provisioning.py` — `provision_chatbot` catches `(UnicodeDecodeError, ValueError)` from
+  `get_json` and returns 400 "Request body must be a valid UTF-8 JSON object." (needs an `azd deploy` to
+  take effect on the live server).
+- `tests/test_provisioning.py` — added `test_non_utf8_body_returns_400_not_500`. Suite: 25 pass; ty clean.
+- `docs/provisioning-api.md` — clarified the 400 row (non-UTF-8 body).
+
 ## 2026-06-30
 
 ### Dynamic chatbot provisioning — add `docs/provisioning-api.md` integration contract

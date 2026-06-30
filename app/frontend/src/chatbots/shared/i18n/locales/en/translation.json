@@ -22,5 +22,27 @@
         "copied": "Copied!",
         "submitQuestion": "Submit question",
         "stopStreaming": "Stop streaming"
+    },
+    "labels": {
+        "openMenu": "Open menu",
+        "languagePicker": "Select language"
+    },
+    "defaultExamples": {
+        "1": "What can you help me with?",
+        "2": "Summarize the most important topics.",
+        "3": "Give me a quick overview."
+    },
+    "history": {
+        "chatHistory": "Chat history",
+        "openChatHistory": "Open chat history",
+        "noHistory": "No chat history",
+        "deleteModalTitle": "Delete chat history",
+        "deleteModalDescription": "This action cannot be undone. Delete this chat history?",
+        "deleteLabel": "Delete",
+        "cancelLabel": "Cancel",
+        "today": "Today",
+        "yesterday": "Yesterday",
+        "last7days": "Last 7 days",
+        "last30days": "Last 30 days"
     }
 }

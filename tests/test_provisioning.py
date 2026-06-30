@@ -177,6 +177,18 @@ async def test_non_json_returns_415():
     assert resp.status_code == 415
 
 
+@pytest.mark.asyncio
+async def test_non_utf8_body_returns_400_not_500():
+    # A body that isn't valid UTF-8 (e.g. a Latin-1 umlaut) must be a clean 400, not an unhandled 500.
+    app, _ = make_app(api_key=None)
+    resp = await app.test_client().post(
+        "/provisioning/chatbots",
+        data=b'{"botName": "bxa", "operation": "create", "x": "\xfc"}',
+        headers={"Content-Type": "application/json"},
+    )
+    assert resp.status_code == 400
+
+
 # --- isolation invariant ------------------------------------------------------------------
 
 
