@@ -6055,8 +6055,8 @@
     "semantic_hash": "77ec55ea90a84f95635bc9985e49b57a"
   },
   "CLAUDE.md": {
-    "mtime": 1782480231.3574705,
-    "ast_hash": "f531963ece145875f9b906f913218802",
+    "mtime": 1782817838.8058803,
+    "ast_hash": "0e021cc7e28b42d4cc66ccd3228e415d",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -6308,61 +6308,6 @@
     "mtime": 1763808603.2808335,
     "ast_hash": "199b534547489f6bb7fb8f7217655412",
     "semantic_hash": "199b534547489f6bb7fb8f7217655412"
-  },
-  "app/backend/static/assets/agindo-chatbot-u69s2LFr.png": {
-    "mtime": 1776419278.8297489,
-    "ast_hash": "",
-    "semantic_hash": ""
-  },
-  "app/backend/static/assets/fbn-B-iJ4SIr.png": {
-    "mtime": 1776419278.8307583,
-    "ast_hash": "",
-    "semantic_hash": ""
-  },
-  "app/backend/static/assets/grafik-B1ZvKaaM.png": {
-    "mtime": 1776419278.8297489,
-    "ast_hash": "",
-    "semantic_hash": ""
-  },
-  "app/backend/static/assets/knoll-BhsCQnZ0.png": {
-    "mtime": 1776419278.8297489,
-    "ast_hash": "",
-    "semantic_hash": ""
-  },
-  "app/backend/static/assets/lemon-chatbot-3b4rz0y_.png": {
-    "mtime": 1776419278.8297489,
-    "ast_hash": "",
-    "semantic_hash": ""
-  },
-  "app/backend/static/assets/moodle-epfT6jbC.png": {
-    "mtime": 1776419278.8297489,
-    "ast_hash": "",
-    "semantic_hash": ""
-  },
-  "app/backend/static/assets/nerilioRobot-B-8DcTbi.webp": {
-    "mtime": 1776419278.8297489,
-    "ast_hash": "",
-    "semantic_hash": ""
-  },
-  "app/backend/static/assets/publishone-chat-CANUaiW2.png": {
-    "mtime": 1776419278.8297489,
-    "ast_hash": "",
-    "semantic_hash": ""
-  },
-  "app/backend/static/assets/publishone-nav-Cm1ACoMo.svg": {
-    "mtime": 1776419278.8297489,
-    "ast_hash": "",
-    "semantic_hash": ""
-  },
-  "app/backend/static/assets/rak-round-BzV1688A.png": {
-    "mtime": 1776419278.8283474,
-    "ast_hash": "",
-    "semantic_hash": ""
-  },
-  "app/backend/static/assets/steuertipps-DZc0AgAU.jpeg": {
-    "mtime": 1776419278.8297489,
-    "ast_hash": "",
-    "semantic_hash": ""
   },
   "app/frontend/src/assets/agindo-chatbot.png": {
     "mtime": 1774361810.8168757,
@@ -6685,13 +6630,13 @@
     "semantic_hash": ""
   },
   "app/backend/approaches/chatbots/hyrox_assessment/results.py": {
-    "mtime": 1782479051.91845,
-    "ast_hash": "fabb218692f30527f6cbe49470513e0b",
+    "mtime": 1782817738.722136,
+    "ast_hash": "92098f91108559a2cdffe2f0237711a4",
     "semantic_hash": ""
   },
   "app/backend/approaches/chatbots/hyrox_assessment/sampleprompt.py": {
-    "mtime": 1782479122.954403,
-    "ast_hash": "7ee82239ae5d6624fb704f19c4d07634",
+    "mtime": 1782815003.295312,
+    "ast_hash": "132a1b8c6e771f89f6e753a2c6446636",
     "semantic_hash": ""
   },
   "app/backend/approaches/prompts/chat_query_rewrite_tools.json": {
@@ -8440,8 +8385,8 @@
     "semantic_hash": "96bd94c2836a564e1887238b48c43f36"
   },
   "tests/test_hyrox_assessment.py": {
-    "mtime": 1782479573.3040214,
-    "ast_hash": "f471b602e49e4f1b374691ff1c24fcc0",
+    "mtime": 1782817766.1430843,
+    "ast_hash": "bbc1f5c199b89fa1ae8fd8d9e6dca585",
     "semantic_hash": ""
   },
   "tests/test_hyrox_live.py": {
@@ -8565,8 +8510,8 @@
     "semantic_hash": "b7d811e41ee8cb385db724f4491957fb"
   },
   "CHANGES.md": {
-    "mtime": 1782811774.6913579,
-    "ast_hash": "365f229d8ac17442919a630893bf4069",
+    "mtime": 1782817826.5381715,
+    "ast_hash": "6de1b31d92c351a4c3124815d1af747d",
     "semantic_hash": ""
   },
   "aci-openlit.example.yaml": {
