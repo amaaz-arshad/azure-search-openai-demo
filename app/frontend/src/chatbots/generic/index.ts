@@ -1,0 +1,1 @@
+export { GenericChatbotRoute } from "./GenericChatbotRoute";

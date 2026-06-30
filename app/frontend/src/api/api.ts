@@ -1,6 +1,6 @@
 const BACKEND_URI = "";
 
-import { ChatAppResponse, ChatAppResponseOrError, ChatAppRequest, Config, SimpleAPIResponse, HistoryListApiResponse, HistoryApiResponse } from "./models";
+import { ChatAppResponse, ChatAppResponseOrError, ChatAppRequest, Config, BotConfig, SimpleAPIResponse, HistoryListApiResponse, HistoryApiResponse } from "./models";
 import { useLogin, getToken, isUsingAppServicesLogin } from "../authConfig";
 import { getCurrentChatbotName } from "../chatHistoryScope";
 
@@ -21,6 +21,18 @@ export async function configApi(): Promise<Config> {
     });
 
     return (await response.json()) as Config;
+}
+
+// Fetch the runtime config for a dynamically provisioned bot. Throws on 404 (built-in/inactive/unknown
+// name) so the caller can redirect home — identical UX to the static unknown-name fallback.
+export async function botConfigApi(botName: string): Promise<BotConfig> {
+    const response = await fetch(`${BACKEND_URI}/bot-config/${encodeURIComponent(botName)}`, {
+        method: "GET"
+    });
+    if (!response.ok) {
+        throw new Error(`bot-config request failed: ${response.status}`);
+    }
+    return (await response.json()) as BotConfig;
 }
 
 export async function chatApi(request: ChatAppRequest, shouldStream: boolean, idToken: string | undefined, signal: AbortSignal): Promise<Response> {

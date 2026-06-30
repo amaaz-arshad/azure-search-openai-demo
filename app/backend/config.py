@@ -11,6 +11,12 @@ CONFIG_INTERNAL_ADMIN_AUTH_SERVICE = "internal_admin_auth_service"
 CONFIG_SIMPLE_CHATBOT_AUTH_SERVICE = "simple_chatbot_auth_service"
 CONFIG_CHATBOT_PROMPT_STORE = "chatbot_prompt_store"
 CONFIG_CHATBOT_EMBED_CONFIG_STORE = "chatbot_embed_config_store"
+# Dynamic chatbot provisioning (external PHP control panel). These govern ONLY newly
+# created (dynamic) bots in the runtime registry — the built-in bots are never affected.
+CONFIG_CHATBOT_REGISTRY_STORE = "chatbot_registry_store"
+CONFIG_CHATBOT_SESSION_COUNTER_STORE = "chatbot_session_counter_store"
+CONFIG_RESERVED_BOT_NAMES = "reserved_bot_names"
+CONFIG_PROVISIONING_API_KEY = "provisioning_api_key"
 CONFIG_USER_UPLOAD_ENABLED = "user_upload_enabled"
 CONFIG_AUTH_CLIENT = "auth_client"
 CONFIG_SEMANTIC_RANKER_DEPLOYED = "semantic_ranker_deployed"

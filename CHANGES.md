@@ -17,6 +17,317 @@ Two categories per date:
 
 ## 2026-06-30
 
+### Dynamic chatbot provisioning — add `docs/provisioning-api.md` integration contract
+
+#### Decisions
+
+- **One canonical doc for the PHP↔backend contract.** Captures the single endpoint, the open-auth
+  status, the request envelope, all five operations, the full `defaults` field reference with an honest
+  per-field **Status** (applied / partial / stored-only / ignored), behavior rules (isolation, quota,
+  start/stop, content out-of-scope), responses + status codes, PHP/curl examples, and the open-items
+  roadmap. Verified field wiring against the generic frontend before documenting (e.g. `features.history`
+  not wired in v1; `login.required` delivered but not enforced; `modes.tutor` recorded but generic UI is
+  Q&A-only) so the two teams don't assume behavior that isn't there yet.
+
+#### Changes
+
+- Added `docs/provisioning-api.md`.
+- `CLAUDE.md` — added the doc to the Canonical artifacts table.
+
+### Dynamic chatbot provisioning — open the API (auth deferred to a final hardening pass)
+
+#### Decisions
+
+- **Provisioning API is intentionally unauthenticated for now.** Per the team decision, auth/security
+  is added at the end once the feature is complete and tested. The gate previously returned 503 when no
+  key was configured (blocking callers); it now **passes requests through when `PROVISIONING_API_KEY` is
+  unset**, so Olaf's PHP calls need no `Authorization` header. When the key IS set, Bearer auth is
+  enforced — so enabling auth later is just setting the env var (or replacing the gate with the final
+  scheme, e.g. HMAC). ⚠️ Note: `POST /provisioning/chatbots` is a public, mutating, destructive endpoint
+  on chat.nerilio.ai with no auth until then — known/accepted exposure for the build phase.
+
+#### Changes
+
+- `app/backend/provisioning.py` — `provisioning_api_key_required`: no key configured → proceed (open)
+  instead of 503; enforce Bearer only when a key is set.
+- `tests/test_provisioning.py` — replaced the 503 test with `test_open_when_api_key_not_configured`
+  (no key → 201 with no auth header) and `test_enforces_bearer_once_key_is_configured` (key set → 401).
+  Suite: 24 pass; ty clean.
+
+### Dynamic chatbot provisioning — wire `ansprache` (formal/informal) into the dynamic prompt
+
+#### Decisions
+
+- **Closed the last contract-driven config gap: `ansprache`.** It was stored on the registry record but
+  never applied. Checked the other deferred config items first and found them moot: the generic frontend
+  already sends `language: i18n.language` on every request, so `{{language_locale}}` resolves correctly
+  (no backend work); `citation_target` has **no** provisioning field driving it (only `features.sources`
+  show/hide, already done in 3c); `prompt_mode` is already the correct default ("override") for dynamic
+  bots. So `ansprache` is the only one worth wiring.
+- **Applied as an appended addressing directive, regardless of base prompt.** `ansprache` is structured
+  and independent of the prompt text, so a short directive (informal → du/dich/dir; formal → Sie/Ihnen)
+  is appended to the bot's effective system prompt — whether the panel sent a custom prompt or left it
+  empty (using `DEFAULT_DYNAMIC_PROMPT`). Accepts `informal`/`formal` (+ `du`/`sie` aliases),
+  case-insensitive; unknown/empty → no directive (prompt unchanged). Built-in bots are unaffected (this
+  runs only on the dynamic branch).
+
+#### Changes
+
+- `app/backend/core/dynamic_bot_config.py` — added `ansprache_directive()` + `build_dynamic_system_prompt()`
+  (and the INFORMAL/FORMAL directive constants).
+- `app/backend/app.py` — `apply_saved_chatbot_prompt_override` now builds the dynamic bot's
+  `__saved_prompt_template` via `build_dynamic_system_prompt(record, DEFAULT_DYNAMIC_PROMPT)`.
+- Added `tests/test_dynamic_prompt_config.py` — 14 tests (directive mapping incl. aliases/case/trim;
+  prompt build with custom/empty/whitespace prompt; integration through the injection path; and a guard
+  that empty-prompt + no-ansprache still yields exactly `DEFAULT_DYNAMIC_PROMPT`). Full provisioning
+  suite: 58 pass; ty clean.
+
+### Dynamic chatbot provisioning — Phase-2b: number_sessions quota enforcement (unblocked)
+
+#### Decisions
+
+- **Unblocked the quota by building a blob-backed ETag counter instead of waiting on Cosmos.** Phase-2a
+  deferred quota because the intended store (Cosmos) is disabled in the active deployment and the
+  registry blob does etag-less read-modify-write (loses concurrent counts). New
+  `ChatbotSessionCounterStore` uses Azure **Blob with ETag optimistic concurrency** — conditional PUT
+  (`If-Match`) + bounded retry, and create-if-absent via `overwrite=False` (`If-None-Match=*`). Counts
+  are never lost across Container Apps replicas, and it uses blob (available) not Cosmos (disabled).
+- **Session definition implemented = "new chat" only.** A session is counted when a request opens a new
+  chat (`len(messages) <= 1`); cumulative per bot; `-1` = unlimited; new sessions blocked at the cap.
+  Verified the generic frontend sends growing history (`[...history, {user}]`), so message count is a
+  reliable new-session signal (and `create_session_id` returns None when history stores are off, so
+  `session_state` is NOT reliable). **The 120-min-inactivity reactivation half of Olaf's definition is
+  NOT implemented** — it needs per-session last-activity storage (none exists). This only under-counts
+  (a chat resumed after 2h isn't re-counted), which favors the user and never over-charges.
+- **Enforcement lives in `enforce_dynamic_chatbot_gate`.** New session under cap → admit + atomic
+  increment; at/over cap → 403 `quota_exceeded` (not counted); a continuing session is never blocked
+  mid-conversation; unlimited (-1) and built-in bots short-circuit before any counter I/O (isolation).
+  The check→increment gap can let concurrent new sessions exceed the cap by a hair (benign; the
+  increment itself is atomic so counts are never lost).
+
+#### Changes
+
+- Added `app/backend/core/chatbotsessioncounterstore.py` — `ChatbotSessionCounterStore` (ETag-atomic
+  `increment`, `get_count`).
+- `app/backend/config.py` — new `CONFIG_CHATBOT_SESSION_COUNTER_STORE`.
+- `app/backend/app.py` — `get_chatbot_session_counter_store()` getter + startup wiring; extended
+  `enforce_dynamic_chatbot_gate(name, *, is_new_session=False)` with the quota branch; both `chat()` and
+  `chat_stream()` now pass `is_new_session = len(messages) <= 1`.
+- Added `tests/test_quota.py` — 8 tests (admit/count under cap, block + no-count at cap, continuing
+  session never blocked, unlimited/built-in never touch the counter, stopped-bot precedence, counter
+  parse/serialize). Full new-feature suite: 44 pass; ty clean (app.py's 2 diagnostics, now at
+  lines 2886/2950, are the same pre-existing shared_approach_kwargs/asgi_app ones, just shifted).
+
+### Dynamic chatbot provisioning — Phase-3c: generic bot honors features.sources
+
+#### Decisions
+
+- **Honor the per-bot `features.sources` flag** (Olaf's payloads set `sources:false`). The generic bot
+  now hides citations when sources is false — both the inline citation refs (stripped from the displayed
+  text via the existing `stripCitationLinks`) and the footer source list. Done with an **additive**
+  `showCitations` prop on the shared `ChatbotAnswer` (default = shown), so all 18 built-in bots are
+  unaffected.
+
+#### Changes
+
+- `app/frontend/src/chatbots/shared/answer/ChatbotAnswer.tsx` — added optional `showCitations` (default
+  true); when false, render the citation-stripped markdown and omit the footer source list.
+- `app/frontend/src/chatbots/shared/answer/createBotAnswer.tsx` — thread `showCitations` through the
+  factory's `AnswerProps`.
+- `app/frontend/src/chatbots/generic/pages/chat/Chat.tsx` — pass `showCitations={features.sources !== false}`.
+- **Verification:** `npm run build` green; `tsc` clean. Confirmed via a DOM-inspecting Playwright probe
+  against a `vite preview` build (stable, unlike cold `vite dev`): with `features.sources:false` the
+  answer renders with the inline `[doc1.pdf]` stripped, no `doc1.pdf` anywhere, and no "Citation" footer.
+  (The multi-step smoke is flaky in this Windows env — intermittent cold-server render timing — so
+  per-feature DOM probes are the reliable verification here.)
+
+### Dynamic chatbot provisioning — Phase-3b: generic runtime frontend (provisioned bots now render)
+
+#### Decisions
+
+- **Generic, runtime-driven bot instead of per-bot forks.** Built-in bots fork ~20 component files each
+  under `chatbots/<bot>/components/`; the design (workflow `phase3-frontend-understand`) called for a slim
+  generic bot reusing shared building blocks. v1 ships **Q&A only** (greeting + disclaimer + theme + i18n
+  + answer rendering with citations); tutor choice-markers, email login, history, and settings are
+  follow-ups.
+- **All shared/theme/i18n changes are additive — built-ins untouched.** Theme: extracted
+  `cssVariablesFromTheme(theme)` + added `getChatbotThemeCssVariablesFromSeed(seed)` and an optional
+  `seed` prop on `ChatbotThemeRoot`; the name-lookup path (and its output for all 18 bots) is unchanged.
+  i18n: a new **shared base bundle** (`chatbots/shared/i18n/locales/{de,en,nl}`) is imported only by the
+  generic factory; built-ins keep their own per-bot locale JSON. Routing: `/:botName` is appended after
+  the static routes — React Router v6 ranks static segments above the param, so every built-in/literal
+  route still wins and unknown names fall through.
+- **Runtime resolution.** `GET /:botName` → `GenericChatbotRoute` fetches `/bot-config/<name>`; 404
+  (built-in/inactive/unknown) → `<Navigate to="/">` (same UX as the old fallback); success → a runtime
+  i18next instance (shared base + per-bot greeting/disclaimer/displayName overlay) + a theme seeded from
+  `primaryColor`, wrapping a slim `GenericChat` that calls `/chat` with `include_category=<botName>`.
+
+#### Changes
+
+- Added `app/frontend/src/chatbots/generic/`: `GenericChatbotRoute.tsx` (fetch/loading/404 + theme +
+  i18n), `pages/chat/Chat.tsx` (slim Q&A, shared answer factory + disclaimer banner, inline composer),
+  `components/Answer.tsx` (createBotAnswer wrapper), `i18n/createGenericI18n.ts`, `index.ts`.
+- Added shared base i18n bundle `app/frontend/src/chatbots/shared/i18n/locales/{de,en,nl}/translation.json`.
+- `app/frontend/src/chatbots/shared/theme/chatbotThemes.ts` — `cssVariablesFromTheme` + `…FromSeed` +
+  exported `ChatbotThemeSeed` (built-in output byte-identical). `ChatbotThemeRoot.tsx` — optional `seed`.
+- `app/frontend/src/api/{models.ts,api.ts}` — `BotConfig` type + `botConfigApi()`.
+- `app/frontend/src/index.tsx` — `/:botName` and `/:botName/*` routes + import.
+- **Verification:** full `npm run build` green (tsc + vite + widget). Offline Playwright smoke
+  (vite dev + route-mocked `/bot-config` + `/chat`) confirmed render, displayName, greeting, disclaimer,
+  theme color (`#AC44C6`), user bubble, the mocked answer via the shared factory, and the unknown-bot
+  redirect to `/`. The smoke is flaky against the cold dev server in a backend-less env (on-demand
+  compile + unmocked-endpoint 500 spam); a stabilized `vite preview`-based e2e is a follow-up, so the
+  script lives in scratch rather than the committed suite for now.
+
+### Dynamic chatbot provisioning — Phase-3a: GET /bot-config/{name} bootstrap endpoint
+
+#### Decisions
+
+- **First slice of Phase 3 is the backend contract, not the UI.** Built the endpoint the future
+  generic frontend bootstraps from before the component itself, so the frontend targets a stable,
+  tested API. Backend-only, fully testable offline, no external deps.
+- **/bot-config is dynamic-only and public-ish.** It resolves via `resolve_active_dynamic_record`, so
+  built-in bots 404 (their config is baked into the frontend) and inactive/unknown bots 404. It is
+  unauthenticated like `/config` (the bot page must bootstrap before any login gate) and deliberately
+  **never returns the system prompt or internal fields** — only theme/greeting/disclaimer/mode/
+  languages/login/llm.
+- **Vocabulary normalization at the boundary.** Control-panel language LABELS ("Deutsch") → frontend
+  locale codes ("de"/"en"/"nl"); the `modes` flags → the frontend ChatbotMode ("tutor-qna" if tutor
+  else "qna"). `assessment` is ignored (always false per contract). `color_secondary` still ignored.
+
+#### Changes
+
+- Added `app/backend/core/dynamic_bot_config.py` — `language_label_to_code`, `map_language_list`,
+  `map_language_keyed`, `derive_chatbot_mode`, and `build_bot_config_payload(record)`.
+- `app/backend/app.py` — `GET /bot-config/<chatbot_name>` (404 for non-active-dynamic); added
+  `bot-config` to `NON_CHATBOT_FRONTEND_PREFIXES` so the catch-all route doesn't hijack it.
+- Added `tests/test_bot_config.py` — 24 tests (mappings, mode derivation, payload shape, no-prompt-leak
+  guard, language fallback, route 200/404 incl. built-in isolation). Suite: 60 pass; ty clean.
+
+### Dynamic chatbot provisioning — Phase-2a: stopped-bot chat gate (+ quota blocked on storage)
+
+#### Decisions
+
+- **Stopped-bot gate shipped; quota deferred pending a storage decision.** Split Phase 2: the
+  active-flag gate is self-contained and safe, so it's done now. The `number_sessions` quota is
+  **blocked on infrastructure** and intentionally not built yet (see below).
+- **Quota needs a durable, multi-replica-safe session counter — and none is available today.** A
+  focused investigation (workflow `phase2-quota-understand`) found: the backend is **stateless about
+  sessions** (client-driven `session_id`, no per-message timestamps, no session table); the blob
+  registry store does read-modify-write with no etag, so a counter field there loses updates across
+  Azure Container Apps replicas; and **Cosmos — the intended counter store — is disabled in the active
+  nerilio deployment** (`USE_CHAT_HISTORY_COSMOS="false"`, empty `AZURE_COSMOSDB_ACCOUNT`). Dynamic
+  bots also have no frontend/traffic yet (Phase 3). So server-side quota enforcement is a real open
+  decision (provision Cosmos / blob+etag counter / enforce on the PHP or future-frontend side / defer
+  to Phase 3), surfaced to the user rather than built against a store that can't run.
+  **Decision: defer quota to Phase 3** — enforcement stays on our side (per the earlier "store +
+  enforce" choice), but is built alongside the generic dynamic-bot frontend, with the storage chosen
+  against real needs then. The `number_sessions` value is still persisted on the registry record now.
+- **Session definition reaffirmed** (for whenever quota lands): a session = a new chat (`len(messages)
+  <= 1`) OR a message after 120 min of inactivity; cumulative per bot; -1 = unlimited.
+
+#### Changes
+
+- `app/backend/app.py` — added `enforce_dynamic_chatbot_gate(name)`: built-in bots short-circuit before
+  any registry load (isolation); a stopped (active=false) dynamic bot → `{"error":"chatbot_inactive"}`
+  403; unknown names pass through. Called in both `chat()` and `chat_stream()` right after
+  `context["auth_claims"] = auth_claims`, before any session creation or model call. This also fixes
+  the prior gap where a stopped dynamic bot silently fell back to the default prompt.
+- `tests/test_dynamic_resolution.py` — +4 gate tests (403 on stopped, allow active, allow unknown,
+  built-in never touches the registry). Suite: 36 pass; ty clean (app.py's 28 diagnostics are the
+  pre-existing 2805/2869 ones).
+
+### Dynamic chatbot provisioning — contract answers from Olaf (PHP side)
+
+#### Decisions
+
+- **Auth: deferred for now.** Keep the static-Bearer-key stub; do not wire the azd variable yet.
+- **Session definition (for `number_sessions`): a new session is counted when the user opens a new
+  chat, and additionally whenever a message arrives after 120 minutes of inactivity.** No explicit
+  reset period was given → treated as a cumulative cap per bot (Free 30 / Basic 5000 / Pro 10000 /
+  Enterprise -1 = unlimited); block new sessions when the cap is reached.
+- **Duplicate `create` on an existing `botName` → return an error** (already implemented as 409).
+- **`assessment` is always `false`** for these bots for now — no generic MC assessment engine needed.
+- **Confirmed as built:** `botName` slug format + reserved-name rejection; languages limited to
+  de/en/nl with the stated label→code mapping; `login.provider=email` → existing email login, and
+  `login.required=false` → fully open bot; content/knowledge is loaded separately (this API configures
+  the bot only).
+- **`flagged` and `design.color_secondary`: ignore for now** (not wired).
+
+### Dynamic chatbot provisioning — Phase-1b: dynamic resolution (provisioned bots now serve)
+
+#### Decisions
+
+- **Resolution stays static-first; dynamic is a fallback** keyed off the active registry record.
+  `resolve_active_dynamic_record(name)` returns the record only when the name is **not** a built-in
+  **and** an active record exists — so built-in bots short-circuit before the registry is ever
+  touched (no extra blob I/O, no behavior change, isolation preserved). Stopped/unknown names → None.
+- **Async request-path injection (not a sync/async refactor).** Rather than make the sync, lru-cached
+  `get_chatbot_prompt`/`get_chatbot_config` consult the async blob store, the dynamic bot's identity is
+  injected per-request via `context.overrides` — mirroring the existing `__saved_prompt_template`
+  pattern. Multi-replica safe (loads from blob per request). The sync resolvers stay built-in-only.
+- **Prompt + model wired; citation/language/prompt_mode deferred.** A dynamic bot's `prompt` →
+  `__saved_prompt_template` (empty → `DEFAULT_DYNAMIC_PROMPT`, a minimal neutral RAG prompt) and `llm`
+  → `chat_model` override (honored only if the model is a deployed one; `setdefault` keeps an explicit
+  client choice). `citation_target`/`language_locale`/`prompt_mode` injection is a later step (defaults
+  apply for now: override-mode, sourcepage, request language).
+- **Start/stop honored at the route.** `chatbot_entry` serves the SPA shell for active dynamic bots and
+  redirects home for stopped/unknown ones, so `stop` immediately makes a route unreachable. NOTE: the
+  browser UI still won't mount a dynamic bot until the generic frontend (Phase 3); and a hard
+  stopped/over-quota **chat** 403 gate is deferred to Phase 2 (today a stopped bot's `/chat` falls back
+  to the default prompt rather than being refused).
+
+#### Changes
+
+- `app/backend/app.py` — added `DEFAULT_DYNAMIC_PROMPT` + `resolve_active_dynamic_record`; dynamic
+  branch in `apply_saved_chatbot_prompt_override` (inject prompt + `chat_model`); `chatbot_entry` now
+  routes active dynamic bots instead of redirecting; widened the registry import to include the record.
+- Added `tests/test_dynamic_resolution.py` — 8 tests (resolution, prompt/model injection, empty-prompt
+  default, explicit-model precedence, built-in isolation, stopped-bot fallback). All pass; ty clean
+  (app.py's 2 remaining diagnostics at lines 2805/2869 are pre-existing and unrelated).
+
+### Dynamic chatbot provisioning REST API — Phase-1 additive scaffolding
+
+#### Decisions
+
+- **New external contract (from Olaf's PHP app).** A single JSON envelope `POST /provisioning/chatbots`
+  dispatched on `operation ∈ {create, update, start, stop, delete}`, keyed by an immutable `botName`
+  slug (`name` is the mutable display name). `sessionId` is a correlation/idempotency id, **not** auth.
+  Pricing plan rides along as `number_sessions` (Free 30 / Basic 5000 / Pro 10000 / Enterprise -1).
+- **Target architecture = config-driven generic bot** (chosen over code-gen + redeploy, which can't do
+  instant start/stop). A runtime registry is the source of truth for dynamic bots; resolution stays
+  static-first so built-in bots are unaffected. Quota decision: this app stores **and** enforces the
+  cap (later phase). Content/knowledge stays in the existing upload/`prepdocs` flow (out of scope here).
+- **HARD ISOLATION INVARIANT.** These APIs govern **only** newly created dynamic bots. The 18 built-in
+  bots are never created/updated/started/stopped/deleted/counted/purged by them. Enforced by
+  `assert_not_reserved`: any `botName` colliding with `KNOWN_CHATBOT_NAMES`, `CHATBOT_PROMPT_MODULES`,
+  `NON_CHATBOT_FRONTEND_PREFIXES`, the name aliases, or `DEFAULT_CHATBOT_NAME` is rejected (409).
+- **Scope of this commit = additive scaffolding only.** Store + ingest endpoint + operation dispatch +
+  reserved-name guard. Provisioned bots are **persisted but not yet served** — dynamic resolution
+  (prompt/config/routing fallback), quota enforcement, the delete cascade, and the generic frontend are
+  later phases. `botName` validation is strict (rejects non-canonical/uppercase input rather than
+  silently lowercasing the primary key).
+- **STUBS pending Olaf (plan Phase 0).** Auth is a static-Bearer-key stub (`PROVISIONING_API_KEY` env,
+  not yet an azd variable); final scheme (static key vs HMAC-of-body) TBD. Still open: session
+  definition + reset cadence, generic `assessment` scope, `flagged` meaning, `color_secondary` use,
+  allowed `llm`/`languages` sets, create-on-existing semantics.
+
+#### Changes
+
+- Added `app/backend/core/chatbotregistrystore.py` — `ChatbotRegistryStore` + `ChatbotRegistryRecord`,
+  blob-backed, mirroring `ChatbotPromptStore` (container `chatbot-registry`, prefix `bots`). Upsert
+  preserves `created_at`; `set_active`/`delete_record` for start/stop/delete.
+- Added `app/backend/provisioning.py` — `provisioning_bp` blueprint, `provisioning_api_key_required`
+  (stub), `validate_bot_name`, `assert_not_reserved`, `build_fields_from_payload`, and create/update/
+  start/stop/delete handlers.
+- `app/backend/config.py` — new keys `CONFIG_CHATBOT_REGISTRY_STORE`, `CONFIG_RESERVED_BOT_NAMES`,
+  `CONFIG_PROVISIONING_API_KEY`.
+- `app/backend/app.py` — import + register `provisioning_bp`; `get_chatbot_registry_store()`; startup
+  wiring of the registry store, the reserved-name set, and the API key from env; added `provisioning`
+  to `NON_CHATBOT_FRONTEND_PREFIXES`.
+- Added `tests/test_provisioning.py` — 24 tests (auth, dispatch, reserved-name guard, lifecycle,
+  payload mapping, store round-trip). All pass; `ty check` clean.
+
 ### HYROX assessment — fix stuck final-module ending; backend-rendered module-by-module summary
 
 #### Decisions

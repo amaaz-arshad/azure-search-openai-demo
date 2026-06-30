@@ -1,0 +1,26 @@
+{
+    "pageTitle": "Assistant",
+    "headerTitle": "Assistant",
+    "initialAssistantMsg": "Hello! How can I help you today?",
+    "clearChat": "Clear chat",
+    "newChat": "New chat",
+    "chatEmptyStateTitle": "Chat with your data",
+    "chatEmptyStateSubtitle": "Ask anything or type a message below",
+    "generatingAnswer": "Generating answer",
+    "citationWithColon": "Citation:",
+    "followupQuestions": "Follow-up questions:",
+    "composerPlaceholder": "Type your message",
+    "send": "Send",
+    "errorMessage": "Something went wrong. Please try again.",
+    "disclaimer": {
+        "label": "Important notice",
+        "message": "AI-supported assistant. Answers are generated automatically; official sources are binding.",
+        "dismiss": "Close disclaimer"
+    },
+    "tooltips": {
+        "copy": "Copy",
+        "copied": "Copied!",
+        "submitQuestion": "Submit question",
+        "stopStreaming": "Stop streaming"
+    }
+}

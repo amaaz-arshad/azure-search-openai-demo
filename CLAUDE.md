@@ -29,6 +29,7 @@ This repo is an Azure Search and OpenAI RAG demo with many chatbot-specific fork
 | `graphify-out/GRAPH_REPORT.md` | God nodes and community structure for architecture questions |
 | `graphify-out/wiki/index.md` | Navigable wiki view of the codebase, if present |
 | `PULL_REQUEST_TEMPLATE.md` | PR format to follow when sending pull requests |
+| `docs/provisioning-api.md` | Contract for the external PHP control panel's `POST /provisioning/chatbots` (dynamic-bot create/update/start/stop/delete) |
 
 ## Changes log maintenance
 

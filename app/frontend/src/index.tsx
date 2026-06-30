@@ -10,6 +10,7 @@ import { I18nextProvider } from "react-i18next";
 import "./index.css";
 
 import { chatbotDefinitions } from "./chatbots/registry";
+import { GenericChatbotRoute } from "./chatbots/generic";
 import { Component as SharedNoPage } from "./chatbots/shared/noPage/NoPage";
 import { ChatbotThemeRoot } from "./chatbots/shared/theme/ChatbotThemeRoot";
 import { EmbedBridge } from "./chatbots/shared/embed/EmbedBridge";
@@ -123,6 +124,17 @@ const router = createBrowserRouter([
         path: "/embed/:publicId",
         element: embedChatbot ? wrapChatbotElement(embedChatbot, <embedChatbot.LayoutWrapper />) : <Navigate to="/" replace />,
         children: embedChatbot ? [{ index: true, element: <embedChatbot.Chat /> }] : undefined
+    },
+    {
+        // Dynamic (provisioned) bots resolved at runtime from /bot-config. Built-in bots and all
+        // literal top-level routes rank higher, so only names not matched statically reach here; an
+        // unknown/inactive name 404s and redirects home (same UX as the "*" fallback below).
+        path: "/:botName",
+        element: <GenericChatbotRoute embedMode={embedMode} />
+    },
+    {
+        path: "/:botName/*",
+        element: <GenericChatbotRoute embedMode={embedMode} />
     },
     {
         path: "*",

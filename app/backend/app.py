@@ -110,6 +110,7 @@ from quart_cors import cors
 from approaches.approach import Approach, DataPoints
 from approaches.chatbot_config_registry import load_all_chatbot_configs
 from approaches.chatbot_prompt_registry import (
+    CHATBOT_NAME_ALIASES,
     DEFAULT_CHATBOT_NAME,
     get_chatbot_prompt,
     get_registered_chatbot_names,
@@ -132,6 +133,10 @@ from config import (
     CONFIG_CHAT_MODEL_DEPLOYMENTS,
     CONFIG_CHATBOT_PROMPT_STORE,
     CONFIG_CHATBOT_EMBED_CONFIG_STORE,
+    CONFIG_CHATBOT_REGISTRY_STORE,
+    CONFIG_CHATBOT_SESSION_COUNTER_STORE,
+    CONFIG_RESERVED_BOT_NAMES,
+    CONFIG_PROVISIONING_API_KEY,
     CONFIG_CHAT_HISTORY_BROWSER_ENABLED,
     CONFIG_CHAT_HISTORY_COSMOS_ENABLED,
     CONFIG_CREDENTIAL,
@@ -176,7 +181,11 @@ from config import (
 from core.authentication import AuthenticationHelper
 from core.chatbotembedconfigstore import ChatbotEmbedConfig, ChatbotEmbedConfigStore
 from core.chatbotpromptstore import ChatbotPromptOverride, ChatbotPromptStore
+from core.chatbotregistrystore import UNLIMITED_SESSIONS, ChatbotRegistryRecord, ChatbotRegistryStore
+from core.chatbotsessioncounterstore import ChatbotSessionCounterStore
+from core.dynamic_bot_config import build_bot_config_payload, build_dynamic_system_prompt
 from core.chatbotwikistore import ChatbotWikiStore
+from provisioning import provisioning_bp
 from core.internaladminauth import (
     INTERNAL_ADMIN_INVALID_PASSWORD_MESSAGE,
     INTERNAL_ADMIN_PASSWORD_MISSING_MESSAGE,
@@ -249,6 +258,8 @@ NON_CHATBOT_FRONTEND_PREFIXES = {
     "list_uploaded",
     "managed_uploads",
     "manage-prompts",
+    "bot-config",
+    "provisioning",
     "public-test-admin",
     "public-test-users",
     "redirect",
@@ -533,6 +544,88 @@ def get_chatbot_embed_config_store() -> ChatbotEmbedConfigStore:
     return cast(ChatbotEmbedConfigStore, embed_config_store)
 
 
+def get_chatbot_registry_store() -> ChatbotRegistryStore:
+    registry_store = current_app.config.get(CONFIG_CHATBOT_REGISTRY_STORE)
+    if registry_store is None:
+        raise RuntimeError("Chatbot registry store is not configured")
+    return cast(ChatbotRegistryStore, registry_store)
+
+
+def get_chatbot_session_counter_store() -> ChatbotSessionCounterStore:
+    counter_store = current_app.config.get(CONFIG_CHATBOT_SESSION_COUNTER_STORE)
+    if counter_store is None:
+        raise RuntimeError("Chatbot session counter store is not configured")
+    return cast(ChatbotSessionCounterStore, counter_store)
+
+
+# Minimal neutral system prompt for a dynamic bot whose control panel sent an empty `prompt`.
+# Real bots override this by sending their own prompt; the placeholders are substituted by
+# render_chatbot_prompt. Built-in bots never use this — they keep their source prompts.
+DEFAULT_DYNAMIC_PROMPT = (
+    "You are a helpful assistant. Answer the user's question using only the facts in the sources "
+    "below. If the sources do not contain the answer, say you don't know — do not invent anything. "
+    "Answer in {{language_locale}}. Cite each source you use in square brackets right after the fact "
+    "it supports, e.g. [info1.pdf]; never combine multiple sources in one bracket. "
+    "{{POSSIBLE_CITATIONS_PROMPT}}"
+)
+
+
+async def resolve_active_dynamic_record(chatbot_name: str | None) -> ChatbotRegistryRecord | None:
+    """Return the active provisioned (dynamic) record for a name, or None.
+
+    Built-in bots NEVER resolve here: a name already owned by a built-in is returned as None so its
+    source-defined identity always wins (hard isolation invariant). Inactive (stopped) and unknown
+    dynamic names also return None, so they are not servable.
+    """
+    normalized = normalize_chatbot_name(chatbot_name)
+    if normalized is None or normalized in KNOWN_CHATBOT_NAMES:
+        return None
+    record = await get_chatbot_registry_store().load_record(normalized)
+    if record is None or not record.active:
+        return None
+    return record
+
+
+async def enforce_dynamic_chatbot_gate(
+    requested_chatbot_name: str | None, *, is_new_session: bool = False
+) -> tuple[Any, int] | None:
+    """Pre-chat gate for DYNAMIC (provisioned) bots. Returns None to proceed, or an
+    (error response, status) tuple to reject before any model work or session creation.
+
+    Built-in bots short-circuit before any registry load, so they are never gated (hard isolation
+    invariant). Enforces two things for dynamic bots:
+
+      * active flag — a stopped (active=false) bot is refused with 403 `chatbot_inactive` (without
+        this, resolve_active_dynamic_record returns None for an inactive bot and the request would
+        silently fall back to the default prompt instead of being refused).
+      * number_sessions quota — when this request opens a NEW session (is_new_session) and the bot
+        has a finite cap, a new session is admitted only while the cumulative count is below the cap;
+        otherwise 403 `quota_exceeded`. Unlimited (-1) short-circuits before any counter I/O, so
+        built-in and unlimited bots never touch the session counter store.
+    """
+    normalized = normalize_chatbot_name(requested_chatbot_name)
+    if normalized is None or normalized in KNOWN_CHATBOT_NAMES:
+        return None
+    record = await get_chatbot_registry_store().load_record(normalized)
+    if record is None:
+        # Unknown dynamic name — routing already handles it; don't 403 a name we don't own.
+        return None
+    if not record.active:
+        return jsonify({"error": "chatbot_inactive", "chatbotName": normalized}), 403
+    if is_new_session and record.number_sessions != UNLIMITED_SESSIONS:
+        counter_store = get_chatbot_session_counter_store()
+        used = await counter_store.get_count(normalized)
+        if used >= record.number_sessions:
+            return (
+                jsonify({"error": "quota_exceeded", "chatbotName": normalized, "limit": record.number_sessions}),
+                403,
+            )
+        # Admit and count this new session. The check→increment gap can let concurrent new sessions
+        # exceed the cap by a hair (benign); the increment itself is atomic so counts are never lost.
+        await counter_store.increment(normalized)
+    return None
+
+
 async def get_authenticated_free_user() -> FreeSession | None:
     auth_service = get_free_auth_service()
     return await auth_service.load_session(request.cookies.get(auth_service.session_cookie_name))
@@ -653,6 +746,20 @@ async def apply_saved_chatbot_prompt_override(request_json: dict[str, Any]) -> s
     requested_chatbot_name = resolve_requested_chatbot_name(request_json, fallback_to_default=True)
     if requested_chatbot_name is None:
         return None
+
+    # Dynamic (provisioned) bots carry their identity in the registry, not in source modules.
+    # Built-in bots never enter this branch (resolve_active_dynamic_record returns None for them),
+    # so their prompt/model resolution is completely unchanged.
+    dynamic_record = await resolve_active_dynamic_record(requested_chatbot_name)
+    if dynamic_record is not None:
+        # Effective prompt = the bot's prompt (or the neutral default when empty) + its configured
+        # `ansprache` (formal/informal) addressing directive.
+        overrides["__saved_prompt_template"] = build_dynamic_system_prompt(dynamic_record, DEFAULT_DYNAMIC_PROMPT)
+        if dynamic_record.llm:
+            # Honor the provisioned model when it maps to a deployed one; resolve_chat_model_and_deployment
+            # falls back to the default model otherwise. setdefault keeps an explicit client choice.
+            overrides.setdefault("chat_model", dynamic_record.llm)
+        return requested_chatbot_name
 
     prompt_override = await get_chatbot_prompt_store().load_prompt(requested_chatbot_name)
     if prompt_override is not None:
@@ -906,7 +1013,9 @@ async def chatbot_entry(chatbot_name: str, subpath: str | None = None):
     if chatbot_name == "public-test":
         target = f"/{FREE_CHATBOT_ROUTE_NAME}{f'/{subpath}' if subpath else ''}"
         return quart_redirect(target)
-    if chatbot_name not in KNOWN_CHATBOT_NAMES:
+    # Built-in bots route as before; active provisioned (dynamic) bots are also routable. Stopped or
+    # unknown names redirect home (so `stop` immediately makes a dynamic bot's route unreachable).
+    if chatbot_name not in KNOWN_CHATBOT_NAMES and await resolve_active_dynamic_record(chatbot_name) is None:
         return quart_redirect("/")
     # Lock framing on the canonical route too (origins only), so a determined embedder cannot dodge
     # the whitelist by iframing /<name>?embed=1 directly instead of the anonymized /embed route.
@@ -1585,6 +1694,12 @@ async def chat(auth_claims: dict[str, Any]):
         overrides = context.setdefault("overrides", {})
         overrides["user"] = chatbot_user
     context["auth_claims"] = auth_claims
+    # Reject stopped (inactive) dynamic bots and enforce the number_sessions quota before any model
+    # work; built-in bots are never gated. A new session = the first turn of a chat (len(messages)<=1).
+    is_new_session = len(request_json.get("messages") or []) <= 1
+    gate = await enforce_dynamic_chatbot_gate(requested_chatbot_name, is_new_session=is_new_session)
+    if gate is not None:
+        return gate
     try:
         chatbot_approaches: dict[str, Approach] = current_app.config.get(CONFIG_CHATBOT_CHAT_APPROACHES, {})
         approach: Approach = (
@@ -1633,6 +1748,12 @@ async def chat_stream(auth_claims: dict[str, Any]):
         overrides = context.setdefault("overrides", {})
         overrides["user"] = chatbot_user
     context["auth_claims"] = auth_claims
+    # Reject stopped (inactive) dynamic bots and enforce the number_sessions quota before any model
+    # work; built-in bots are never gated. A new session = the first turn of a chat (len(messages)<=1).
+    is_new_session = len(request_json.get("messages") or []) <= 1
+    gate = await enforce_dynamic_chatbot_gate(requested_chatbot_name, is_new_session=is_new_session)
+    if gate is not None:
+        return gate
     try:
         chatbot_approaches: dict[str, Approach] = current_app.config.get(CONFIG_CHATBOT_CHAT_APPROACHES, {})
         approach: Approach = (
@@ -1719,6 +1840,20 @@ async def simple_chatbot_logout(chatbot_name: str):
     response = jsonify({"authenticated": False})
     auth_service.clear_session_cookie(response, normalized_chatbot_name, secure=should_set_secure_session_cookie())
     return response, 200
+
+
+@bp.route("/bot-config/<chatbot_name>", methods=["GET"])
+async def bot_config(chatbot_name: str):
+    """Public bootstrap config for an ACTIVE DYNAMIC bot (theme, greeting, disclaimer, mode, login).
+
+    Dynamic bots only — built-in bots resolve to None here (their config is baked into the frontend),
+    so this never exposes a built-in. The system prompt and other internals are intentionally not
+    returned. Unauthenticated, like /config, so the bot page can bootstrap before any login gate.
+    """
+    record = await resolve_active_dynamic_record(chatbot_name)
+    if record is None:
+        abort(404)
+    return jsonify(build_bot_config_payload(record))
 
 
 @bp.route("/config", methods=["GET"])
@@ -2441,6 +2576,29 @@ async def setup_clients():
     chatbot_prompt_store = ChatbotPromptStore(blob_manager=global_blob_manager)
     current_app.config[CONFIG_CHATBOT_PROMPT_STORE] = chatbot_prompt_store
     current_app.config[CONFIG_CHATBOT_EMBED_CONFIG_STORE] = ChatbotEmbedConfigStore(blob_manager=global_blob_manager)
+
+    # Dynamic chatbot provisioning (external PHP control panel). The registry store is the
+    # runtime source of truth for *dynamic* bots only; built-in bots are never written here.
+    current_app.config[CONFIG_CHATBOT_REGISTRY_STORE] = ChatbotRegistryStore(blob_manager=global_blob_manager)
+    # Multi-replica-safe (ETag) session counter for the number_sessions quota of dynamic bots.
+    current_app.config[CONFIG_CHATBOT_SESSION_COUNTER_STORE] = ChatbotSessionCounterStore(
+        blob_manager=global_blob_manager
+    )
+    # Single source of truth for the isolation invariant: any name a built-in bot or framework
+    # route already owns is off-limits to provisioning. Read by provisioning.assert_not_reserved.
+    current_app.config[CONFIG_RESERVED_BOT_NAMES] = {
+        normalize_chatbot_name(name) or name
+        for name in (
+            KNOWN_CHATBOT_NAMES
+            | NON_CHATBOT_FRONTEND_PREFIXES
+            | set(get_registered_chatbot_names())
+            | set(CHATBOT_NAME_ALIASES)
+            | {DEFAULT_CHATBOT_NAME}
+        )
+    }
+    # STUB auth (plan Phase 0): static Bearer key from env. Final scheme TBD with Olaf; when
+    # promoted to an azd variable, wire it through main.parameters.json/main.bicep/pipelines.
+    current_app.config[CONFIG_PROVISIONING_API_KEY] = os.getenv("PROVISIONING_API_KEY") or None
     # Blob-backed store for the LLM-Wiki retrieval mode (pilot: Internal bot, lemon corpus).
     chatbot_wiki_store = ChatbotWikiStore(blob_manager=global_blob_manager)
     current_app.config[CONFIG_CHATBOT_WIKI_STORE] = chatbot_wiki_store
@@ -2745,6 +2903,7 @@ def create_app():
     app = Quart(__name__)
     app.register_blueprint(bp)
     app.register_blueprint(chat_history_cosmosdb_bp)
+    app.register_blueprint(provisioning_bp)
 
     openlit_endpoint = os.getenv("OPENLIT_ENDPOINT")  # e.g. "http://localhost:4318"
 

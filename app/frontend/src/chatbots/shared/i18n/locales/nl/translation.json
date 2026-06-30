@@ -1,0 +1,26 @@
+{
+    "pageTitle": "Assistent",
+    "headerTitle": "Assistent",
+    "initialAssistantMsg": "Hallo! Hoe kan ik je helpen?",
+    "clearChat": "Chat wissen",
+    "newChat": "Nieuwe chat",
+    "chatEmptyStateTitle": "Chat met je gegevens",
+    "chatEmptyStateSubtitle": "Stel een vraag of typ hieronder een bericht",
+    "generatingAnswer": "Antwoord wordt gegenereerd",
+    "citationWithColon": "Bron:",
+    "followupQuestions": "Vervolgvragen:",
+    "composerPlaceholder": "Typ je bericht",
+    "send": "Versturen",
+    "errorMessage": "Er is iets misgegaan. Probeer het opnieuw.",
+    "disclaimer": {
+        "label": "Belangrijke mededeling",
+        "message": "AI-ondersteunde assistent. Antwoorden worden automatisch gegenereerd; officiële bronnen zijn bindend.",
+        "dismiss": "Mededeling sluiten"
+    },
+    "tooltips": {
+        "copy": "Kopiëren",
+        "copied": "Gekopieerd!",
+        "submitQuestion": "Vraag versturen",
+        "stopStreaming": "Streamen stoppen"
+    }
+}

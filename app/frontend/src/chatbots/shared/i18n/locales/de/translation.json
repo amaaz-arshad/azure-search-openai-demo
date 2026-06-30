@@ -1,0 +1,26 @@
+{
+    "pageTitle": "Assistent",
+    "headerTitle": "Assistent",
+    "initialAssistantMsg": "Hallo! Wie kann ich dir helfen?",
+    "clearChat": "Chat löschen",
+    "newChat": "Neuer Chat",
+    "chatEmptyStateTitle": "Chatte mit deinen Daten",
+    "chatEmptyStateSubtitle": "Stelle eine Frage oder gib unten eine Nachricht ein",
+    "generatingAnswer": "Antwort wird generiert",
+    "citationWithColon": "Quelle:",
+    "followupQuestions": "Folgefragen:",
+    "composerPlaceholder": "Gib deine Nachricht ein",
+    "send": "Senden",
+    "errorMessage": "Etwas ist schiefgelaufen. Bitte versuche es erneut.",
+    "disclaimer": {
+        "label": "Wichtiger Hinweis",
+        "message": "KI-gestützter Assistent. Antworten werden automatisch generiert; verbindlich sind offizielle Quellen.",
+        "dismiss": "Hinweis schließen"
+    },
+    "tooltips": {
+        "copy": "Kopieren",
+        "copied": "Kopiert!",
+        "submitQuestion": "Frage einreichen",
+        "stopStreaming": "Streaming stoppen"
+    }
+}

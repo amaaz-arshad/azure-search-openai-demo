@@ -146,6 +146,22 @@ export type SimpleAPIResponse = {
     message?: string;
 };
 
+// Runtime bootstrap config for a dynamically provisioned (non-built-in) bot, served by
+// GET /bot-config/<botName>. Mirrors the backend build_bot_config_payload shape.
+export type BotConfig = {
+    botName: string;
+    displayName: string;
+    mode: "qna" | "tutor-qna";
+    llm: string | null;
+    primaryColor: string | null;
+    languages: string[];
+    defaultLanguage: string;
+    greeting: Record<string, string>;
+    disclaimer: Record<string, string>;
+    features: { disclaimer?: boolean; history?: boolean; sources?: boolean };
+    login: { required?: boolean; provider?: string };
+};
+
 export interface SpeechConfig {
     speechUrls: (string | null)[];
     setSpeechUrls: (urls: (string | null)[]) => void;

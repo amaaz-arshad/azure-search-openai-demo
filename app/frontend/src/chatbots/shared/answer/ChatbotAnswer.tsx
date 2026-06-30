@@ -77,6 +77,9 @@ type Props = {
     onCitationClicked: (filePath: string) => void;
     onFollowupQuestionClicked?: (question: string) => void;
     showFollowupQuestions?: boolean;
+    // When false, hide citations entirely (inline refs are stripped from the displayed text and the
+    // footer source list is omitted). Defaults to shown, so built-in bots are unaffected.
+    showCitations?: boolean;
     showSpeechOutputBrowser?: boolean;
     showSpeechOutputAzure?: boolean;
     assistantLogoSrc: string;
@@ -277,6 +280,7 @@ export const ChatbotAnswer = ({
     onCitationClicked,
     onFollowupQuestionClicked,
     showFollowupQuestions,
+    showCitations,
     showSpeechOutputBrowser,
     showSpeechOutputAzure,
     assistantLogoSrc,
@@ -362,6 +366,8 @@ export const ChatbotAnswer = ({
 
     const copyableMarkdown = useMemo(() => stripCitationLinks(parsedAnswer.markdown), [parsedAnswer.markdown]);
     const answerForSpeech = useMemo(() => cleanSpeechText(copyableMarkdown), [copyableMarkdown]);
+    // Honor a "hide sources" preference: strip inline citation links from the displayed text.
+    const displayMarkdown = showCitations === false ? copyableMarkdown : parsedAnswer.markdown;
 
     const openNonWebCitation = (detail: CitationDetail) => {
         const customAction = getNonWebCitationAction?.(detail);
@@ -526,14 +532,14 @@ export const ChatbotAnswer = ({
                 <Stack.Item grow>
                     <div className={styles.answerMarkdown}>
                         <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm, remarkBreaks, supersub]}>
-                            {parsedAnswer.markdown}
+                            {displayMarkdown}
                         </ReactMarkdown>
                     </div>
                 </Stack.Item>
 
                 {extraBubbles.length === 0 && optionsNode && <Stack.Item>{optionsNode}</Stack.Item>}
 
-                {!!parsedAnswer.citations.length && (
+                {showCitations !== false && !!parsedAnswer.citations.length && (
                     <Stack.Item>
                         <Stack horizontal wrap tokens={{ childrenGap: 8 }} className={styles.footerList}>
                             <span className={styles.sectionLabel}>{citationLabel}</span>

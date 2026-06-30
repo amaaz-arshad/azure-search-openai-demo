@@ -17,6 +17,7 @@ interface AnswerProps {
     onSupportingContentClicked: () => void;
     onFollowupQuestionClicked?: (question: string) => void;
     showFollowupQuestions?: boolean;
+    showCitations?: boolean;
     showSpeechOutputBrowser?: boolean;
     showSpeechOutputAzure?: boolean;
     // Interactive option buttons (tutor-mode bots). optionTexts is supplied by the
@@ -64,6 +65,7 @@ export function createBotAnswer(
                 onCitationClicked={props.onCitationClicked}
                 onFollowupQuestionClicked={props.onFollowupQuestionClicked}
                 showFollowupQuestions={props.showFollowupQuestions}
+                showCitations={props.showCitations}
                 showSpeechOutputBrowser={props.showSpeechOutputBrowser}
                 showSpeechOutputAzure={props.showSpeechOutputAzure}
                 optionTexts={optionTexts}

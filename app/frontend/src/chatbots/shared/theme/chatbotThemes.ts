@@ -25,7 +25,7 @@ type DeepPartial<T> = {
     [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K];
 };
 
-type ChatbotThemeSeed = {
+export type ChatbotThemeSeed = {
     primary: string;
     loginButtonStyle?: "surface" | "solid";
     pageTone?: "auto" | "light" | "dark";
@@ -372,7 +372,16 @@ export function getChatbotTheme(chatbotName: string): ChatbotTheme {
 }
 
 export function getChatbotThemeCssVariables(chatbotName: string): CSSProperties {
-    const theme = getChatbotTheme(chatbotName);
+    return cssVariablesFromTheme(getChatbotTheme(chatbotName));
+}
+
+// Theme a dynamically provisioned bot from a runtime seed (e.g. just a primary color) instead of the
+// static chatbotThemes map. Built-in bots never reach this — they go through the name lookup above.
+export function getChatbotThemeCssVariablesFromSeed(seed: ChatbotThemeSeed): CSSProperties {
+    return cssVariablesFromTheme(resolveChatbotTheme(seed));
+}
+
+function cssVariablesFromTheme(theme: ChatbotTheme): CSSProperties {
     const loginPageButton = theme.loginPage.button;
     const loginPageBackground = theme.loginPage.background;
     const disclaimerBackground = lighten(theme.navbar.background, isDark(theme.navbar.background) ? 0.9 : 0.95);
