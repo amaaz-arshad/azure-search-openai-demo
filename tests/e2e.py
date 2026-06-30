@@ -279,6 +279,84 @@ def test_bensberg_option_prompt_disables_input_and_dedupes_topics(page: Page, li
         pending_route.abort()
 
 
+def drive_hyrox_completion_in_iframe(page: Page, live_server_url: str, query: str) -> list:
+    """Run the HYROX assessment inside an iframe, drive it to a (mocked) passed completion, and
+    return every message the bot posted to its parent window.
+
+    The bot must run in a real iframe: reportLemonProgress (the native-app channel) only posts
+    when window.parent !== window, so a top-level page could never exercise the app path nor make
+    the channel-exclusivity assertions meaningful. The host page below captures the posts.
+    """
+    completion = "You have completed the assessment!\n\n[[PROGRESS value=100]]\n[[DONE]]"
+
+    def handle_chat(route: Route):
+        route.fulfill(
+            body=json.dumps(
+                {
+                    "message": {"role": "assistant", "content": completion},
+                    "context": {
+                        "data_points": {"text": [], "images": [], "citations": [], "external_results_metadata": []},
+                        "thoughts": [],
+                        "followup_questions": None,
+                    },
+                    "session_state": None,
+                }
+            ),
+            status=200,
+            headers={"Content-Type": "application/json"},
+        )
+
+    def handle_spa(route: Route):
+        with open("app/backend/static/index.html", encoding="utf-8") as index_file:
+            route.fulfill(body=index_file.read(), status=200, headers={"Content-Type": "text/html"})
+
+    # `*` matches the query string (no `/`), so the launch URL's params are covered.
+    page.route("**/hyrox-assessment*", handle_spa)
+    page.route("*/**/chat", handle_chat)
+
+    # A neutral same-origin host page so the iframe's relative asset/API requests resolve against
+    # the live server, then inject the bot iframe and capture its postMessage calls.
+    page.goto(live_server_url)
+    page.evaluate(
+        """(src) => new Promise(resolve => {
+            window.__caps = [];
+            window.addEventListener("message", e => window.__caps.push(e.data));
+            const f = document.createElement("iframe");
+            f.id = "bot";
+            f.style = "width:1000px;height:800px;border:0";
+            f.onload = () => resolve();
+            f.src = src;
+            document.body.appendChild(f);
+        })""",
+        f"{live_server_url}hyrox-assessment{query}",
+    )
+
+    frame = page.frame_locator("#bot")
+    try:
+        frame.get_by_test_id("chatbot-disclaimer-close").click(timeout=2000)
+    except Exception:
+        pass
+    frame.get_by_role("button", name="Start assessment").click()
+    page.wait_for_function("() => (window.__caps || []).length > 0")
+    return page.evaluate("window.__caps")
+
+
+def test_hyrox_assessment_web_frontend_posts_completion_string(page: Page, live_server_url: str):
+    # Launched with web_frontend=true the bot must post the host's literal completion string to the
+    # parent window — and must NOT use the native lemon save_progress channel.
+    caps = drive_hyrox_completion_in_iframe(page, live_server_url, "?account_id=6&web_frontend=true")
+    assert "Content-Typ-13-finished" in caps
+    assert not any(isinstance(c, dict) and c.get("type") == "chatbot:save-progress" for c in caps)
+
+
+def test_hyrox_assessment_app_launch_posts_save_progress(page: Page, live_server_url: str):
+    # Launched without web_frontend (native app) the bot must use the lemon save_progress channel —
+    # and must NOT post the web-frontend string.
+    caps = drive_hyrox_completion_in_iframe(page, live_server_url, "?account_id=6")
+    assert any(isinstance(c, dict) and c.get("type") == "chatbot:save-progress" and c.get("value") == 100 for c in caps)
+    assert "Content-Typ-13-finished" not in caps
+
+
 def test_chat(sized_page: Page, live_server_url: str):
     page = sized_page
 

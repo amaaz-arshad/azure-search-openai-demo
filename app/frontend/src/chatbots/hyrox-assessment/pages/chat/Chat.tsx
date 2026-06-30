@@ -35,7 +35,7 @@ import { LoginContext } from "../../loginContext";
 import { Settings } from "../../components/Settings/Settings";
 import { setGlobalClearChat } from "../layout/Layout";
 import { applyChatbotSpeechFeatureFlags } from "../../../shared/speech/chatbotSpeechFeatureFlags";
-import { readLemonAccount, reportLemonProgress } from "../../lemonBridge";
+import { readLemonAccount, reportLemonProgress, reportWebFrontendCompletion } from "../../lemonBridge";
 import { readActiveSessionId, writeActiveSessionId, clearActiveSessionId } from "../../../shared/history/activeSession";
 
 const INITIAL_ASSISTANT_SENTINEL_USER_MESSAGE = "__initial_assistant__";
@@ -401,7 +401,9 @@ const Chat = () => {
     };
 
     // On a passed completion the backend appends a hidden [[PROGRESS value=N]] marker. Fire the
-    // Lemon save_progress hand-off once when it first appears on a freshly received response.
+    // completion hand-off once when it first appears on a freshly received response. The host
+    // context (set from the launch URL) picks the channel: web frontends listen for a literal
+    // postMessage string; the native app uses the lemon://save_progress scheme.
     const maybeReportLemonProgress = (content: string) => {
         if (progressReportedRef.current) {
             return;
@@ -409,7 +411,11 @@ const Chat = () => {
         const value = parseProgressValue(content);
         if (value !== null) {
             progressReportedRef.current = true;
-            reportLemonProgress(value);
+            if (lemonAccount.webFrontend) {
+                reportWebFrontendCompletion();
+            } else {
+                reportLemonProgress(value);
+            }
         }
     };
 

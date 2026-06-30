@@ -95,8 +95,8 @@
     "semantic_hash": ""
   },
   "app/backend/approaches/chatreadretrieveread.py": {
-    "mtime": 1782777069.40202,
-    "ast_hash": "aa035d5954023e36c15d4fc8c4841e0f",
+    "mtime": 1782778416.6580117,
+    "ast_hash": "aab12f45da665231a0d8d3533ce605da",
     "semantic_hash": ""
   },
   "app/backend/approaches/promptmanager.py": {
@@ -5855,8 +5855,8 @@
     "semantic_hash": "2837121d0b2421c51f0ad4859b129b5b"
   },
   "tests/e2e.py": {
-    "mtime": 1782006779.4489968,
-    "ast_hash": "bcac883a829a1451981022389fcbc11e",
+    "mtime": 1782811578.2900608,
+    "ast_hash": "250841a5d63da788fd18512c13032291",
     "semantic_hash": ""
   },
   "tests/mocks.py": {
@@ -7635,9 +7635,9 @@
     "semantic_hash": "836acc0c343585c77e71f8454049617b"
   },
   "app/frontend/src/chatbots/hyrox-assessment/lemonBridge.ts": {
-    "mtime": 1781275900.362767,
-    "ast_hash": "b74d186974853187a60329fb0bd1b9fe",
-    "semantic_hash": "b74d186974853187a60329fb0bd1b9fe"
+    "mtime": 1782810833.6005728,
+    "ast_hash": "5a2f9c69170cbf73fcf7a1dbd2171abd",
+    "semantic_hash": ""
   },
   "app/frontend/src/chatbots/hyrox-assessment/locales/de/translation.json": {
     "mtime": 1782479227.021793,
@@ -7665,8 +7665,8 @@
     "semantic_hash": "9b136fca6ee1532e4a73f0a9d0ad32b9"
   },
   "app/frontend/src/chatbots/hyrox-assessment/pages/chat/Chat.tsx": {
-    "mtime": 1782479357.1099038,
-    "ast_hash": "fde5d13c0d268c0b56b80966b67fbae5",
+    "mtime": 1782810847.0539632,
+    "ast_hash": "7c9209f77b1b2364cd99ec42112f5a3e",
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/hyrox-assessment/pages/layout/Layout.tsx": {
@@ -7710,9 +7710,9 @@
     "semantic_hash": "94a7403ca8d24c9cffd9c421e1158701"
   },
   "app/frontend/src/chatbots/internal/sourceBots.ts": {
-    "mtime": 1781789410.551952,
-    "ast_hash": "5baaafdbac0a0a9b04caa777e15e47cb",
-    "semantic_hash": "5baaafdbac0a0a9b04caa777e15e47cb"
+    "mtime": 1782781224.5445256,
+    "ast_hash": "589af417649c5df0be9a41bbf88ac61e",
+    "semantic_hash": ""
   },
   "app/frontend/src/chatbots/knoll/components/AnalysisPanel/TokenUsageGraph.tsx": {
     "mtime": 1774361812.111879,
@@ -8565,8 +8565,8 @@
     "semantic_hash": "b7d811e41ee8cb385db724f4491957fb"
   },
   "CHANGES.md": {
-    "mtime": 1782777373.731962,
-    "ast_hash": "0bd80d7ffe10d621f08657c12fb92bbe",
+    "mtime": 1782811774.6913579,
+    "ast_hash": "365f229d8ac17442919a630893bf4069",
     "semantic_hash": ""
   },
   "aci-openlit.example.yaml": {
@@ -9135,8 +9135,8 @@
     "semantic_hash": ""
   },
   "app/backend/build_wiki.py": {
-    "mtime": 1782777037.2213075,
-    "ast_hash": "e5eb77a27422b7e44587ff8a6c9783ab",
+    "mtime": 1782780125.9366286,
+    "ast_hash": "a3f3c23a2732906926b817dbc0d155cc",
     "semantic_hash": ""
   },
   "app/backend/core/chatbotwikistore.py": {

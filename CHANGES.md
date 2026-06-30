@@ -17,6 +17,49 @@ Two categories per date:
 
 ## 2026-06-30
 
+### HYROX assessment — web-frontend completion signal (`web_frontend=true`)
+
+#### Decisions
+
+- **The completion hand-off now branches on host context.** The client embeds the bot in
+  their web frontend (an iframe on their LMS page), which cannot act on the native
+  `lemon://save_progress` scheme nor on our structured `{ type: "chatbot:save-progress" }`
+  message. They added a launch flag `web_frontend=true` and listen on the parent page for the
+  exact literal string `window.parent.postMessage("Content-Typ-13-finished", "*")`. The
+  existing completion *plumbing* (`[[PROGRESS value=100]]` marker → `parseProgressValue` →
+  one-shot `progressReportedRef` fire) was reused unchanged; only the final emission is
+  switched per host.
+- **Literal string hardcoded as a documented constant** (`WEB_FRONTEND_DONE_MESSAGE`), not
+  URL-param-driven — matches the client's contract; `"Content-Typ-13"` is the host's LMS
+  content id. Revisit only if more content types appear.
+- **Frontend-only — no backend change.** The result is already recorded server-side by
+  `account_id` regardless of host, so the flag purely selects the client-side completion
+  channel. `email`/name still ignored (client said so); `language` stays hardcoded `"en"`.
+- **Bare-string payload (not a `{ type }` object)** and `'*'` target are intentional: the host
+  listener matches the literal string, and we don't control the host origin (payload carries no
+  secrets). In web mode the meaningless `lemon://` scheme is deliberately not fired.
+- **Operational caveat (not code):** for the host iframe to load, `hyrox-assessment` must have a
+  permissive/empty embed whitelist (⇒ `frame-ancestors *`) or the host origin must be
+  whitelisted; otherwise the `postMessage` never fires. No `X-Frame-Options` is set.
+
+#### Changes
+
+- `app/frontend/src/chatbots/hyrox-assessment/lemonBridge.ts`: added `webFrontend?: boolean` to
+  `LemonAccount`; `readLemonAccount()` reads `web_frontend=true` and includes it in the
+  persist/restore gate; added `WEB_FRONTEND_DONE_MESSAGE` constant and `reportWebFrontendCompletion()`.
+- `app/frontend/src/chatbots/hyrox-assessment/pages/chat/Chat.tsx`: imported
+  `reportWebFrontendCompletion`; `maybeReportLemonProgress` now branches on
+  `lemonAccount.webFrontend` (web → string `postMessage`; app → existing `lemon://` path). One-shot
+  guard and `clearChat` re-arm cover both paths unchanged.
+- `tests/e2e.py`: added `drive_hyrox_completion_in_iframe()` helper plus
+  `test_hyrox_assessment_web_frontend_posts_completion_string` and
+  `test_hyrox_assessment_app_launch_posts_save_progress`. They run the bot **inside an iframe**
+  (required — `reportLemonProgress` only posts when `window.parent !== window`, so a top-level page
+  can't exercise the app path) and assert the two completion channels are mutually exclusive:
+  `web_frontend=true` ⇒ the literal `Content-Typ-13-finished` string and no `chatbot:save-progress`;
+  no flag ⇒ the structured `{ type: "chatbot:save-progress", value: 100 }` and no literal string.
+  Verified locally (rebuilt frontend + live server) and via a vite-dev route-mock run.
+
 ### Internal bot — restore welcome Tutor/Q&A buttons for tutor source bots
 
 #### Decisions
