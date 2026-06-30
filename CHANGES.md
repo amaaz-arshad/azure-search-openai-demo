@@ -17,6 +17,59 @@ Two categories per date:
 
 ## 2026-06-30
 
+### HYROX assessment — fix stuck final-module ending; backend-rendered module-by-module summary
+
+#### Decisions
+
+- **Root cause of the tester's stuck final question.** `build_state_injection`'s `is_final_module`
+  branch was appended unconditionally, telling the model "after finalising, write `[[SUMMARY]]` +
+  cross-assessment take-aways" — even on the learner's *first* (partial) answer, which is the
+  offer-a-correction turn. The model emitted the whole ending early; the premature-score guard
+  discarded its `[[SCORE]]` but the take-aways text leaked; then on the "go ahead" correction turn the
+  model — seeing its own "finished"-looking take-aways in history — declared the assessment complete and
+  never emitted a score, so the completion path (module result, pass/fail, `[[PROGRESS]]`/`[[DONE]]`,
+  summary) never ran. One bug produced both reported symptoms (no revise / no pass-fail, and no
+  by-topic summary).
+- **Chosen fix: take the ending away from the model entirely.** The model now authors **no** summary;
+  the final question is handled exactly like any other last-question-of-a-module (brief feedback +
+  `[[SCORE]]`). This makes the premature-ending leak impossible by construction *and* satisfies the
+  user's request for an **explicit module-by-module** summary (chosen over the prior theme-based
+  take-aways) — the backend renders it deterministically from the per-module scores it already
+  reconstructs.
+- **Summary style = deterministic topic bullets (chosen over model-written narrative).** Per module the
+  backend names a band (≥90% strong / else worth revisiting) and lists the key-point *topics* the
+  learner earned (Strengths) vs missed (Worth revisiting), read straight from the per-key-point verdicts
+  via `module_topic_breakdown`. Naming missed key points is acceptable here — it is end-of-assessment
+  guidance, after every module has been passed. A model-narrated variant (extra LLM call with the data
+  injected) was offered and declined in favour of the zero-cost, always-accurate version.
+- **`[[SUMMARY]]` is now legacy.** No longer model-emitted or used for logic; retained in the Python
+  `ANY_MARKER_RE`/`SUMMARY_TOKEN_RE` and TS `ASSESSMENT_MARKER_RE` only to display-hide it from old
+  stored sessions and to *cut* any stray take-aways a misbehaving model still writes (defense in both
+  the completion path and the premature-correction path).
+- **No fabricated-score fallback.** The backend cannot grade free text itself; removing the take-aways
+  (the source of the model's confusion) eliminates the observed stall cause, so no synthetic score is
+  invented if a model ever refused to finalise.
+
+#### Changes
+
+- `app/backend/approaches/chatbots/hyrox_assessment/results.py`: rewrote the `is_final_module` branch of
+  `build_state_injection` (mirror the non-final last-question branch; no `[[SUMMARY]]`/take-aways);
+  replaced `render_summary_fallback` with `render_module_summary` (per-module ≥90%-or-revisit band);
+  rewrote `render_completion_bubbles` to use it and cut feedback at any stray `[[SUMMARY]]`; added a
+  `[[SUMMARY]]` cut to the premature-finalisation guard; swapped the `summary_strengths`/
+  `summary_weaknesses` locale keys for `summary_line`/`summary_band_strong`/`summary_band_revisit`
+  (en/de/nl).
+- `app/backend/approaches/chatbots/hyrox_assessment/sampleprompt.py`: removed the `[[SUMMARY]]` token
+  section; rewrote the Closing section and the two intro mentions (summary is system-rendered, by
+  module; model authors none); dropped "take-aways" from the P2 line.
+- `tests/test_hyrox_assessment.py`: simplified `_fake_model` (no premature take-aways); added
+  `_drive_to_final_question`; retargeted the final-question injection test (asserts no `[[SUMMARY]]`);
+  strengthened the completion-bubbles test (every module listed); added two regression tests —
+  partial-first-answer offers a correction with no leaked summary, and the post-correction turn
+  completes with the module-by-module summary + `[[DONE]]`/`[[PROGRESS value=100]]`.
+- `CLAUDE.md`: updated the `hyrox-assessment` contract bullet (backend-rendered by-module summary;
+  `[[SUMMARY]]` legacy; final question handled like any last question).
+
 ### HYROX assessment — web-frontend completion signal (`web_frontend=true`)
 
 #### Decisions

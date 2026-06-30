@@ -57,10 +57,9 @@ def _fake_model(state: dict, full_marks: bool = True) -> str:
     if state.get("latest_user_answer_pending"):
         kpc = key_point_count(cid)
         pts = ",".join(["1"] * kpc) if full_marks else ",".join(["1"] + ["0"] * (kpc - 1))
-        extra = ""
-        if state.get("is_last_in_module") and state.get("is_final_module"):
-            extra = "\n\n[[SUMMARY]]\nStrengths: pacing, reflection. Worth revisiting: periodization."
-        return f'Thanks.{extra}\n\n[[SCORE q={cid} points="{pts}" max={max_points(cid)} mod="{module_of(cid)}"]]'
+        # The model authors no ending — even the final question is just feedback + score. The backend
+        # renders the module-by-module summary, motivational, and closing/certificate messages itself.
+        return f'Thanks.\n\n[[SCORE q={cid} points="{pts}" max={max_points(cid)} mod="{module_of(cid)}"]]'
     return "continue"
 
 
@@ -316,10 +315,30 @@ def test_completion_renders_five_break_separated_bubbles() -> None:
     bubbles = [b.strip() for b in final_content.split(results.BUBBLE_BREAK_TOKEN)]
     assert len(bubbles) == 5
     assert "passed every module" in bubbles[1].lower()
-    assert "Strengths" in bubbles[2] or "Summary by module" in bubbles[2]
+    # Bubble 3 is the deterministic module-by-module summary — every module listed, in order.
+    summary_display = results.strip_markers(bubbles[2])
+    assert "Summary by module" in summary_display
+    assert "Strengths:" in summary_display  # full marks → every module lists earned topics
+    for module_key in MODULES:
+        assert results._module_display(module_key, "en") in summary_display
     assert "Managing performance" in bubbles[3]
     assert "certificate" in bubbles[4].lower()
     assert "[[" not in results.strip_markers(final_content)  # frontend display parity
+
+
+def test_render_module_summary_lists_earned_and_missed_topics() -> None:
+    # Verdict-driven topic breakdown: earned key points become Strengths, missed ones Worth revisiting.
+    q1 = get_question(module_questions("M1")[0])
+    assert q1 is not None
+    kps = q1["key_points"]
+    assert len(kps) >= 3
+    score = results.normalize_score(q1["number"], [1, 1, 0])  # earn first two, miss the third
+    display = results.strip_markers(results.render_module_summary([("M1", [score])], "en"))
+    assert "Summary by module" in display
+    assert results._module_display("M1", "en") in display
+    assert "worth revisiting" in display.lower()  # band: 2/3 < 90%
+    assert f"Strengths: {kps[0]}; {kps[1]}" in display
+    assert f"Worth revisiting: {kps[2]}" in display
 
 
 def test_done_marker_absent_mid_module() -> None:
@@ -398,24 +417,83 @@ def test_chained_next_question_is_recognized_as_asked() -> None:
     assert "CURRENT ACTION: GRADE" in injection and "CURRENT ACTION: ASK" not in injection
 
 
-def test_state_injection_final_question_requires_summary_token() -> None:
-    # Drive to M10's last question, then assert the injection demands the [[SUMMARY]] take-aways.
+def _drive_to_final_question(full_marks: bool = True):
+    """History positioned at M10's last question — already asked, with the learner's first answer pending."""
     messages, _content, _state, _done = _turn([], "Start")
     for module_key in MODULES:
         if module_key == "M10":
             break
         messages, _content, _done = _answer_module(messages, full_marks=True)
         messages, _content, _state, _done = _turn(messages, "Continue")
-    # now answer M10 up to (but not finalising) its last question
     m10 = module_questions("M10")
     for _ in range(len(m10) - 1):
-        messages, _content, _state, _done = _turn(messages, "answer", full_marks=True)
-    messages = messages + [{"role": "user", "content": "answer to last question"}]
+        messages, _content, _state, _done = _turn(messages, "answer", full_marks=full_marks)
+    return messages + [{"role": "user", "content": "a first answer to the last question"}]
+
+
+def test_state_injection_final_question_has_no_summary_and_finalises_like_any_last_question() -> None:
+    # The model no longer authors the ending: the final question is handled like any last question
+    # (brief feedback + [[SCORE]]); the backend renders the summary. So the injection must NOT ask for
+    # [[SUMMARY]]/take-aways.
+    messages = _drive_to_final_question()
     state = results.derive_turn_state(messages)
     assert state["is_last_in_module"] and state["is_final_module"]
     injection = results.build_state_injection(state, "en")
-    assert "[[SUMMARY]]" in injection
-    assert "across the whole assessment" in injection
+    assert "[[SUMMARY]]" not in injection
+    assert "LAST question of the FINAL module" in injection
+    assert "do NOT write any summary" in injection
+
+
+def test_final_question_partial_first_answer_offers_correction_without_summary() -> None:
+    # The exact screenshot scenario: a partial first answer to the very last question. The learner must
+    # get a correction offer (position held) — and NO premature summary/take-aways may leak, even from a
+    # model that misbehaves and tries to author the whole ending.
+    messages = _drive_to_final_question()
+    state = results.derive_turn_state(messages)
+    assert state["is_last_in_module"] and state["is_final_module"]
+    assert state["latest_user_answer_pending"] and not state["must_finalize_current"]
+    cid = state["current_id"]
+    misbehaving = (
+        "Good start, but something is still missing.\n\n"
+        "[[SUMMARY]]\nStrengths: pacing. Worth revisiting: periodization.\n\n"
+        f"{_partial_score_marker(cid)}"
+    )
+    content, all_scores, _tally, done = results.render_assessment_turn(misbehaving, state, "en")
+    assert done is False
+    assert "[[SCORE" not in content and "[[DONE" not in content and "[[PROGRESS" not in content
+    assert "add to or revise your answer" in content  # correction offered, position held
+    # The final question is NOT scored yet (only the earlier M10 questions are).
+    assert len(all_scores) == len(module_questions("M10")) - 1
+    display = results.strip_markers(content)
+    assert "periodization" not in display and "Worth revisiting" not in display  # take-aways cut
+    assert "Summary by module" not in display  # no premature summary
+
+
+def test_final_question_completes_after_correction_with_module_summary() -> None:
+    # After the one correction is used, finalising the last question completes the whole assessment:
+    # module result + the deterministic module-by-module summary + completion markers, in one turn.
+    messages = _drive_to_final_question()
+    messages = messages + [
+        {"role": "assistant", "content": results._locale("en")["correction_offer"]},
+        {"role": "user", "content": "my improved final answer"},
+    ]
+    state = results.derive_turn_state(messages)
+    assert state["must_finalize_current"] is True
+    cid = state["current_id"]
+    content, all_scores, tally, done = results.render_assessment_turn(
+        f"Much better — that covers it.\n{_score_marker(cid)}", state, "en"
+    )
+    assert done is True and tally["passed"]
+    assert "[[DONE]]" in content and "[[PROGRESS value=100]]" in content
+    bubbles = [b.strip() for b in content.split(results.BUBBLE_BREAK_TOKEN)]
+    assert len(bubbles) == 5
+    assert "passed every module" in bubbles[1].lower()
+    summary_display = results.strip_markers(bubbles[2])
+    assert "Summary by module" in summary_display
+    for module_key in MODULES:
+        assert results._module_display(module_key, "en") in summary_display
+    assert "certificate" in bubbles[4].lower()
+    assert len(all_scores) == TOTAL_QUESTIONS  # cross-module totals built from every question
 
 
 # --- give-up / leaked-question / rendering --------------------------------
