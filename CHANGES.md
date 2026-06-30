@@ -15,6 +15,122 @@ Two categories per date:
 
 ---
 
+## 2026-06-30
+
+### Internal bot — restore welcome Tutor/Q&A buttons for tutor source bots
+
+#### Decisions
+
+- **The internal shell's welcome message must carry the same `[[CHOICES kind=mode]]`
+  marker that standalone tutor bots append in their own `Chat.tsx`.** Standalone tutor
+  bots (lemon, demo, fbn, knoll, moodle, publishone, steuertipps, bensberg) append
+  `\n\n[[CHOICES kind=mode]][[/CHOICES]]` to `initialAssistantMsg`; the internal shell
+  built its welcome via `getSourceBotWelcome()` without it, so selecting a tutor source
+  bot showed the welcome text with no Tutor/Q&A buttons.
+- **Tutor vs Q&A source bots are distinguished by the presence of `options.mode.*` i18n
+  keys** (rather than importing the registry, which would create a circular import with
+  `internal/index.ts`). Only dual-mode tutor bots ship `options.mode.checkKnowledge`;
+  Q&A-only bots (agindo, fhg, nerilio, sartorius, vjoonk4) do not and must not get the
+  welcome mode buttons. The empty marker body is intentional — the internal shell supplies
+  the localized button labels from its own `options.mode.*` i18n.
+
+#### Changes
+
+- `app/frontend/src/chatbots/internal/sourceBots.ts`: `getSourceBotWelcome()` now appends
+  the `MODE_CHOICE_MARKER` to `initialAssistantMsg` when `isTutorModeSourceBot()` is true.
+
+### LLM Wiki — a 3rd retrieval mode (Karpathy-style), piloted on the Internal bot
+
+#### Decisions
+
+- **Added a third retrieval mode "LLM Wiki" alongside the existing standard-search
+  and agentic-retrieval modes.** Instead of vector search, the model navigates a
+  curated set of LLM-authored markdown pages (a master `index.md` + topic pages with
+  YAML frontmatter and `[[wikilinks]]`). Goal: better answer quality on complex /
+  multi-hop queries, in both Q&A and Tutor modes.
+- **It hooks in at the single retrieval branch in `run_until_final_call`** as a new
+  `elif overrides.get("use_llm_wiki")` above agentic, returning the same `ExtraInfo`
+  shape (sources only, `answer=None`). Everything downstream — the per-bot prompt
+  (`render_chatbot_prompt` / blob overrides / `/manage-prompts`), tutor flow, counters,
+  lemon-style sanitization — is **unchanged and shared across all three modes**. So the
+  prompt is set exactly like the other modes; no separate answer-prompt system.
+- **Navigation = bounded agentic loop** (chosen over single-shot for quality): round 1
+  selects pages from the index; up to 2 follow-up rounds may pull pages discovered via
+  `[[wikilinks]]`, hard-capped at ~8 pages total. Simple queries terminate after round 1.
+  The loop runs as cheap internal LLM calls (lowest reasoning effort, like `rewrite_query`).
+- **Storage = Azure Blob**, mirroring `ChatbotPromptStore` (new container `chatbot-wikis`,
+  `wiki/<category>/index.md` + `pages/<slug>.md`), runtime-regenerable without redeploy.
+  Original source files are untouched — the wiki is an additive layer; page frontmatter
+  `sources:` carries the original citation handle so citations resolve as usual.
+- **Isolation (hard requirement): only the Internal bot gets the mode.** The branch fires
+  only when `use_llm_wiki` is truthy (no other bot's frontend sets it), degrades to standard
+  search when no wiki exists for the category, and `showLlmWikiOption` is consumed only by
+  the Internal UI. All backend edits are additive; no existing retrieval path or shared
+  component was modified. Verified there was **no** pre-existing `content/llm_wiki` to seed
+  from (an earlier reference to one was a subagent confabulation) — the wiki is built fresh.
+- **Pilot corpus = `lemon`** (HYROX Academy Level 1, `content/lemon/HYROX_Level_1.json`,
+  84 records), surfaced through the Internal bot via `source_chatbot=lemon`. `USE_LLM_WIKI`
+  defaults on in code for the pilot; the azd env var is deferred.
+- **Authoring = LLM build script** (`app/backend/build_wiki.py`), reusing the in-repo Azure
+  OpenAI client (no new infra). One topic page per source record + a synthesized index.
+  Building the wiki + A/B quality testing in the Internal bot is the remaining manual,
+  azd-gated step. The Karpathy "lint"/auto-maintenance op and rollout to other bots are
+  out of scope for the pilot.
+
+#### Changes
+
+- **New:** `app/backend/core/chatbotwikistore.py` — blob-backed wiki store (mirror of
+  `chatbotpromptstore.py`; markdown not JSON), with `normalize_category`/`normalize_slug`
+  (path-traversal-safe) and `load_index`/`load_page`/`has_wiki`/`list_page_slugs` +
+  `save_*` for the build script.
+- **New:** `app/backend/approaches/prompts/wiki_navigate.system.jinja2` — fixed internal
+  page-selection/navigation template (NOT the per-bot answer prompt).
+- **New:** `app/backend/build_wiki.py` — `python app/backend/build_wiki.py --category lemon
+  [--dry-run]`; loads source records, LLM-synthesizes index + pages, uploads via the store.
+- **New tests:** `tests/test_chatbotwikistore.py`, `tests/test_wiki_navigation.py` (store
+  round-trips + slug safety + the 4 navigation helpers) — 15 tests, all green.
+- **Modified `app/backend/approaches/chatreadretrieveread.py`:** added the `use_llm_wiki`
+  branch, `run_wiki_approach()`, and module-level helpers (`split_wiki_frontmatter`,
+  `wiki_page_citation`, `extract_wiki_links`, `parse_wiki_page_selection`); new optional
+  `wiki_store` constructor kwarg.
+- **Modified `app/backend/app.py` + `config.py`:** construct/inject `ChatbotWikiStore`,
+  `USE_LLM_WIKI` env (default on), `CONFIG_LLM_WIKI_ENABLED`, and `showLlmWikiOption` in
+  `/config`. (lemon was already an allowed Internal source bot.)
+- **Modified frontend (additive):** `app/frontend/src/api/models.ts` (`use_llm_wiki?`,
+  `showLlmWikiOption?`); Internal bot only — `chatbots/internal/components/Settings/Settings.tsx`
+  (LLM-Wiki checkbox + `usesManagedRetrieval` gating), `pages/chat/Chat.tsx` (state, config
+  read, override, mutual exclusivity with agentic), and `en`/`de`/`nl` locale strings.
+- **Checks:** `ty check` clean on all changed backend files; frontend `tsc --noEmit` and
+  `npm run build` succeed; backend wiki/registry/prompt-store tests green.
+
+#### Follow-up (same day)
+
+- **Built + uploaded the lemon wiki** (84 pages + index) to `chatbot-wikis/wiki/lemon/` on the
+  `agentic-retrieval-nerilio` env (storage `stbfmtryd6z3arm` — the live backend's account), via
+  `build_wiki.py --category lemon --reasoning-effort low`. Verified through `ChatbotWikiStore`:
+  `has_wiki("lemon")` True, 84 pages. No backend restart needed (store reads blob live).
+- **`build_wiki.py` improvements:** added `--limit N` (cheap smoke testing) and `--reasoning-effort`;
+  raised `MAX_SOURCE_CHARS` to 24000 (long HYROX lessons were being cut mid-article) and
+  `PAGE_RESPONSE_TOKENS` to 8000 (reasoning-model output headroom).
+- **Made the wiki fallback visible:** when LLM-Wiki mode is requested but no wiki exists for the
+  category, `run_wiki_approach` now inserts a `ThoughtStep` ("LLM Wiki requested but unavailable —
+  fell back to standard search") so the thought panel shows what happened instead of looking like
+  plain search.
+- **Rebuilt the lemon wiki at `medium` effort** after the `low` build was found to lose content on
+  5/84 pages: 2 lost real text (input cap 24k < the 95k/36k-char longest lessons) and 3 fell back to
+  raw transcript on JSON parse failures. Hardened `build_wiki.py` — input cap 24k→120k chars, output
+  8k→16k tokens, and `response_format={"type":"json_object"}` to guarantee valid JSON. The medium
+  rebuild overwrote the low build in place (same deterministic slugs): 84/84 pages cleanly
+  synthesized, **0 fallbacks**; the worst case ("Essence of Athletic Performance") now built from the
+  full source. A/B on a complex multi-hop coaching question had the wiki answer beat agentic (tighter
+  diagnosis→prescription synthesis, more faithful specifics, correct source-limit honesty/contact
+  fallback vs agentic offering a week-by-week the materials don't contain).
+- **Decision — kept pages-only retrieval (Karpathy default), did not add hybrid/raw-at-answer-time.**
+  For the messy-transcript lemon corpus, feeding raw chunks back alongside the synthesized pages
+  would reinject the noise the wiki removes (and ~2× tokens). The quality lever is build-time
+  synthesis effort, not answer-time raw. Raw source stays preserved in `content/lemon/` and linked
+  via each page's `sources:` frontmatter. Revisit hybrid only if A/B testing shows synthesis is lossy.
+
 ## 2026-06-29
 
 ### App folder cleanup & `src/pages/` reorganization

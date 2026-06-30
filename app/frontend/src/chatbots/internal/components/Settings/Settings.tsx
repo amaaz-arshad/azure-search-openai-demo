@@ -48,6 +48,8 @@ export interface SettingsProps {
     promptTemplateSuffix?: string;
     showAgenticRetrievalOption?: boolean;
     useAgenticKnowledgeBase?: boolean;
+    showLlmWikiOption?: boolean;
+    useLlmWiki?: boolean;
     hideMinimalRetrievalReasoningOption?: boolean;
     useWebSource?: boolean;
     showWebSourceOption?: boolean;
@@ -94,6 +96,8 @@ export const Settings = ({
     promptTemplateSuffix,
     showAgenticRetrievalOption,
     useAgenticKnowledgeBase = false,
+    showLlmWikiOption,
+    useLlmWiki = false,
     hideMinimalRetrievalReasoningOption = false,
     useWebSource = false,
     showWebSourceOption = false,
@@ -113,6 +117,8 @@ export const Settings = ({
     const seedFieldId = useId("seedField");
     const agenticRetrievalId = useId("agenticRetrieval");
     const agenticRetrievalFieldId = useId("agenticRetrievalField");
+    const llmWikiId = useId("llmWiki");
+    const llmWikiFieldId = useId("llmWikiField");
     const webSourceId = useId("webSource");
     const webSourceFieldId = useId("webSourceField");
     const sharePointSourceId = useId("sharePointSource");
@@ -139,6 +145,9 @@ export const Settings = ({
     const suggestFollowupQuestionsFieldId = useId("suggestFollowupQuestionsField");
 
     const webSourceDisablesStreamingAndFollowup = !!useWebSource;
+    // Agentic retrieval and LLM Wiki are both "managed" modes that replace the standard
+    // Azure Search controls; hide those controls when either is active.
+    const usesManagedRetrieval = useAgenticKnowledgeBase || useLlmWiki;
 
     const retrievalReasoningOptions: IDropdownOption[] = [
         { key: "minimal", text: t("labels.agenticReasoningEffortOptions.minimal") },
@@ -198,6 +207,18 @@ export const Settings = ({
                 />
             )}
 
+            {showLlmWikiOption && (
+                <Checkbox
+                    id={llmWikiFieldId}
+                    className={styles.settingsSeparator}
+                    checked={useLlmWiki}
+                    label={t("labels.useLlmWiki")}
+                    onChange={(_ev, checked) => onChange("useLlmWiki", !!checked)}
+                    aria-labelledby={llmWikiId}
+                    onRenderLabel={props => renderLabel(props, llmWikiId, llmWikiFieldId, t("helpTexts.useLlmWiki"))}
+                />
+            )}
+
             <Dropdown
                 id={sourceBotFieldId}
                 className={styles.settingsSeparator}
@@ -250,7 +271,7 @@ export const Settings = ({
                         }
                     }}
                     aria-labelledby={webSourceId}
-                    disabled={!useAgenticKnowledgeBase || agenticReasoningEffort === "minimal"}
+                    disabled={!usesManagedRetrieval || agenticReasoningEffort === "minimal"}
                     onRenderLabel={props => renderLabel(props, webSourceId, webSourceFieldId, t("helpTexts.useWebSource"))}
                 />
             )}
@@ -262,11 +283,11 @@ export const Settings = ({
                     label={t("labels.useSharePointSource")}
                     onChange={(_ev, checked) => onChange("useSharePointSource", !!checked)}
                     aria-labelledby={sharePointSourceId}
-                    disabled={!useAgenticKnowledgeBase}
+                    disabled={!usesManagedRetrieval}
                     onRenderLabel={props => renderLabel(props, sharePointSourceId, sharePointSourceFieldId, t("helpTexts.useSharePointSource"))}
                 />
             )}
-            {!useAgenticKnowledgeBase && (
+            {!usesManagedRetrieval && (
                 <TextField
                     id={searchScoreFieldId}
                     className={styles.settingsSeparator}
@@ -297,7 +318,7 @@ export const Settings = ({
                 />
             )}
 
-            {!useAgenticKnowledgeBase && (
+            {!usesManagedRetrieval && (
                 <>
                     <TextField
                         id={retrieveCountFieldId}
@@ -313,7 +334,7 @@ export const Settings = ({
                     />
                 </>
             )}
-            {showSemanticRankerOption && !useAgenticKnowledgeBase && (
+            {showSemanticRankerOption && !usesManagedRetrieval && (
                 <>
                     <Checkbox
                         id={semanticRankerFieldId}
@@ -337,7 +358,7 @@ export const Settings = ({
                     />
                 </>
             )}
-            {showQueryRewritingOption && !useAgenticKnowledgeBase && (
+            {showQueryRewritingOption && !usesManagedRetrieval && (
                 <>
                     <Checkbox
                         id={queryRewritingFieldId}
@@ -378,7 +399,7 @@ export const Settings = ({
                     onRenderLabel={props => renderLabel(props, queryRewritingFieldId, queryRewritingFieldId, t("helpTexts.reasoningEffort"))}
                 />
             )}
-            {showVectorOption && !useAgenticKnowledgeBase && (
+            {showVectorOption && !usesManagedRetrieval && (
                 <>
                     <VectorSettings
                         defaultRetrievalMode={retrievalMode as any}
@@ -430,7 +451,7 @@ export const Settings = ({
                         onRenderLabel={props => renderLabel(props, seedId, seedFieldId, t("helpTexts.seed"))}
                     />
 
-                    {showMultimodalOptions && !useAgenticKnowledgeBase && (
+                    {showMultimodalOptions && !usesManagedRetrieval && (
                         <fieldset className={styles.fieldset + " " + styles.settingsSeparator}>
                             <legend className={styles.legend}>{t("labels.llmInputs")}</legend>
                             <Stack tokens={{ childrenGap: 8 }}>

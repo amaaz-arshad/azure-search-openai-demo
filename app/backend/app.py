@@ -126,6 +126,8 @@ from config import (
     CONFIG_CHATBOT_UPLOAD_MANAGERS,
     CONFIG_CHAT_APPROACH,
     CONFIG_CHATBOT_CHAT_APPROACHES,
+    CONFIG_CHATBOT_WIKI_STORE,
+    CONFIG_LLM_WIKI_ENABLED,
     CONFIG_CHAT_MODEL_REASONING_EFFORTS,
     CONFIG_CHAT_MODEL_DEPLOYMENTS,
     CONFIG_CHATBOT_PROMPT_STORE,
@@ -174,6 +176,7 @@ from config import (
 from core.authentication import AuthenticationHelper
 from core.chatbotembedconfigstore import ChatbotEmbedConfig, ChatbotEmbedConfigStore
 from core.chatbotpromptstore import ChatbotPromptOverride, ChatbotPromptStore
+from core.chatbotwikistore import ChatbotWikiStore
 from core.internaladminauth import (
     INTERNAL_ADMIN_INVALID_PASSWORD_MESSAGE,
     INTERNAL_ADMIN_PASSWORD_MISSING_MESSAGE,
@@ -1742,6 +1745,7 @@ def config():
             "showChatHistoryBrowser": current_app.config[CONFIG_CHAT_HISTORY_BROWSER_ENABLED],
             "showChatHistoryCosmos": current_app.config[CONFIG_CHAT_HISTORY_COSMOS_ENABLED],
             "showAgenticRetrievalOption": current_app.config[CONFIG_AGENTIC_KNOWLEDGEBASE_ENABLED],
+            "showLlmWikiOption": current_app.config[CONFIG_LLM_WIKI_ENABLED],
             "ragSearchTextEmbeddings": current_app.config[CONFIG_RAG_SEARCH_TEXT_EMBEDDINGS],
             "ragSearchImageEmbeddings": current_app.config[CONFIG_RAG_SEARCH_IMAGE_EMBEDDINGS],
             "ragSendTextSources": current_app.config[CONFIG_RAG_SEND_TEXT_SOURCES],
@@ -2265,6 +2269,9 @@ async def setup_clients():
     USE_CHAT_HISTORY_BROWSER = os.getenv("USE_CHAT_HISTORY_BROWSER", "").lower() == "true"
     USE_CHAT_HISTORY_COSMOS = os.getenv("USE_CHAT_HISTORY_COSMOS", "").lower() == "true"
     USE_AGENTIC_KNOWLEDGEBASE = os.getenv("USE_AGENTIC_KNOWLEDGEBASE", "").lower() == "true"
+    # LLM-Wiki retrieval mode. Defaults on for the Internal-bot pilot; the option only surfaces
+    # in the Internal bot's UI and only retrieves when a wiki exists for the selected source bot.
+    USE_LLM_WIKI = os.getenv("USE_LLM_WIKI", "true").lower() == "true"
     USE_WEB_SOURCE = os.getenv("USE_WEB_SOURCE", "").lower() == "true"
     USE_SHAREPOINT_SOURCE = os.getenv("USE_SHAREPOINT_SOURCE", "").lower() == "true"
     AGENTIC_KNOWLEDGEBASE_REASONING_EFFORT = os.getenv("AGENTIC_KNOWLEDGEBASE_REASONING_EFFORT", "low")
@@ -2434,6 +2441,9 @@ async def setup_clients():
     chatbot_prompt_store = ChatbotPromptStore(blob_manager=global_blob_manager)
     current_app.config[CONFIG_CHATBOT_PROMPT_STORE] = chatbot_prompt_store
     current_app.config[CONFIG_CHATBOT_EMBED_CONFIG_STORE] = ChatbotEmbedConfigStore(blob_manager=global_blob_manager)
+    # Blob-backed store for the LLM-Wiki retrieval mode (pilot: Internal bot, lemon corpus).
+    chatbot_wiki_store = ChatbotWikiStore(blob_manager=global_blob_manager)
+    current_app.config[CONFIG_CHATBOT_WIKI_STORE] = chatbot_wiki_store
 
     internal_admin_auth_service = InternalAdminAuthStore(
         blob_manager=global_blob_manager,
@@ -2623,6 +2633,7 @@ async def setup_clients():
     current_app.config[CONFIG_CHAT_HISTORY_BROWSER_ENABLED] = USE_CHAT_HISTORY_BROWSER
     current_app.config[CONFIG_CHAT_HISTORY_COSMOS_ENABLED] = USE_CHAT_HISTORY_COSMOS
     current_app.config[CONFIG_AGENTIC_KNOWLEDGEBASE_ENABLED] = USE_AGENTIC_KNOWLEDGEBASE
+    current_app.config[CONFIG_LLM_WIKI_ENABLED] = USE_LLM_WIKI
     current_app.config[CONFIG_MULTIMODAL_ENABLED] = USE_MULTIMODAL
     current_app.config[CONFIG_RAG_SEARCH_TEXT_EMBEDDINGS] = RAG_SEARCH_TEXT_EMBEDDINGS
     current_app.config[CONFIG_RAG_SEARCH_IMAGE_EMBEDDINGS] = RAG_SEARCH_IMAGE_EMBEDDINGS
@@ -2666,6 +2677,7 @@ async def setup_clients():
         use_sharepoint_source=current_app.config[CONFIG_SHAREPOINT_SOURCE_ENABLED],
         retrieval_reasoning_effort=AGENTIC_KNOWLEDGEBASE_REASONING_EFFORT,
         chat_model_deployments=chat_model_deployments,
+        wiki_store=chatbot_wiki_store,
     )
 
     # Per-chatbot approach overrides — auto-discovered from each chatbot's config.py.
@@ -2697,6 +2709,7 @@ async def setup_clients():
         use_sharepoint_source=current_app.config[CONFIG_SHAREPOINT_SOURCE_ENABLED],
         retrieval_reasoning_effort=AGENTIC_KNOWLEDGEBASE_REASONING_EFFORT,
         chat_model_deployments=chat_model_deployments,
+        wiki_store=chatbot_wiki_store,
     )
     chatbot_approaches: dict[str, ChatReadRetrieveReadApproach] = {}
     for bot_name, bot_cfg in load_all_chatbot_configs().items():

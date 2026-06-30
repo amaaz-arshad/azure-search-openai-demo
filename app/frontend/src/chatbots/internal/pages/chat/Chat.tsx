@@ -181,6 +181,8 @@ const Chat = () => {
     const [sharePointSourceSupported, setSharePointSourceSupported] = useState<boolean>(false);
     const [sharePointSourceEnabled, setSharePointSourceEnabled] = useState<boolean>(false);
     const [useAgenticKnowledgeBase, setUseAgenticRetrieval] = useState<boolean>(false);
+    const [showLlmWikiOption, setShowLlmWikiOption] = useState<boolean>(false);
+    const [useLlmWiki, setUseLlmWiki] = useState<boolean>(false);
     const [hideMinimalRetrievalReasoningOption, setHideMinimalRetrievalReasoningOption] = useState<boolean>(false);
     const streamingDisabledByOverrides = useAgenticKnowledgeBase && webSourceEnabled;
     const supportedReasoningEfforts = chatModelReasoningEfforts[chatModel] ?? getLegacyReasoningEffortOptions(chatModel, reasoningCapableChatModels);
@@ -250,6 +252,8 @@ const Chat = () => {
             setShowChatHistoryCosmos(config.showChatHistoryCosmos);
             setShowAgenticRetrievalOption(config.showAgenticRetrievalOption);
             setUseAgenticRetrieval(false);
+            setShowLlmWikiOption(!!config.showLlmWikiOption);
+            setUseLlmWiki(false);
             setWebSourceSupported(config.webSourceEnabled);
             setWebSourceEnabled(config.webSourceEnabled);
             setSharePointSourceSupported(config.sharepointSourceEnabled);
@@ -540,6 +544,7 @@ const Chat = () => {
                         send_image_sources: sendImageSources,
                         language: i18n.language,
                         use_agentic_knowledgebase: useAgenticKnowledgeBase,
+                        use_llm_wiki: useLlmWiki,
                         use_web_source: webSourceSupported ? webSourceEnabled : false,
                         use_sharepoint_source: sharePointSourceSupported ? sharePointSourceEnabled : false,
                         ...(seed !== null ? { seed: seed } : {})
@@ -754,8 +759,24 @@ const Chat = () => {
             case "retrievalMode":
                 setRetrievalMode(value);
                 break;
+            case "useLlmWiki": {
+                // Mutually exclusive with agentic retrieval; LLM Wiki has no web/sharepoint sources.
+                setUseLlmWiki(value);
+                if (value) {
+                    setUseAgenticRetrieval(false);
+                    if (webSourceEnabled) {
+                        setWebSourceEnabled(false);
+                        setHideMinimalRetrievalReasoningOption(false);
+                    }
+                    updateStreamingPreference(streamingEnabled, false);
+                }
+                break;
+            }
             case "useAgenticKnowledgeBase": {
                 setUseAgenticRetrieval(value);
+                if (value) {
+                    setUseLlmWiki(false);
+                }
                 setRetrieveCount(value ? 10 : 5);
                 let effectiveWebSource = webSourceEnabled;
                 if (!value && webSourceEnabled) {
@@ -1040,6 +1061,8 @@ const Chat = () => {
                         useSuggestFollowupQuestions={useSuggestFollowupQuestions}
                         showAgenticRetrievalOption={showAgenticRetrievalOption}
                         useAgenticKnowledgeBase={useAgenticKnowledgeBase}
+                        showLlmWikiOption={showLlmWikiOption}
+                        useLlmWiki={useLlmWiki}
                         useWebSource={webSourceEnabled}
                         showWebSourceOption={webSourceSupported}
                         useSharePointSource={sharePointSourceEnabled}

@@ -189,6 +189,7 @@
         },
         "useSuggestFollowupQuestions": "Suggest follow-up questions",
         "useAgenticKnowledgeBase": "Use agentic retrieval",
+        "useLlmWiki": "Use LLM Wiki",
         "useWebSource": "Include web source",
         "useSharePointSource": "Include Sharepoint source",
         "llmInputs": "LLM input sources",
@@ -240,6 +241,7 @@
         "useOidSecurityFilter": "Filter search results based on the authenticated user's OID.",
         "useGroupsSecurityFilter": "Filter search results based on the authenticated user's groups.",
         "useAgenticKnowledgeBase": "Use agentic retrieval from Azure AI Search for multi-query planning. Always uses semantic ranker.",
+        "useLlmWiki": "Answer from a curated LLM Wiki (markdown knowledge pages) instead of vector search. The model reads the wiki index, navigates the relevant pages, and synthesizes the answer. Requires a wiki built for the selected source bot; otherwise it falls back to standard search.",
         "useWebSource": "Augment retrieval with web search results alongside your indexed data set.",
         "useSharePointSource": "Augment retrieval with SharePoint content alongside your indexed data set."
     },

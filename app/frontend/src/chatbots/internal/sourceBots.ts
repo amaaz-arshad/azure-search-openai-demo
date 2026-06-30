@@ -48,14 +48,25 @@ const resolveTranslation = (botI18n: I18nInstance, key: string, language: string
     return botI18n.t(key) || fallback;
 };
 
+// Appended to a tutor-mode source bot's welcome so it opens with Tutor/Q&A buttons, exactly like
+// that bot's standalone Chat.tsx does. The marker has an EMPTY body — the internal shell supplies the
+// localized labels from its own options.mode.* i18n; it is display-stripped and never sent to backend.
+const MODE_CHOICE_MARKER = "\n\n[[CHOICES kind=mode]][[/CHOICES]]";
+
+// A source bot is dual-mode (tutor + Q&A) iff it ships the options.mode.* button labels; Q&A-only bots
+// (agindo, fhg, nerilio, sartorius, vjoonk4, …) do not and must NOT get the welcome mode buttons.
+const isTutorModeSourceBot = (botI18n: I18nInstance): boolean => botI18n.exists("options.mode.checkKnowledge", { lng: "en" });
+
 export const getSourceBotWelcome = (sourceBot: string, language: string): SourceBotWelcome | null => {
     const botI18n = INTERNAL_SOURCE_BOT_I18N[sourceBot];
     if (!botI18n) {
         return null;
     }
 
+    const initialAssistantMsg = resolveTranslation(botI18n, "initialAssistantMsg", language, "");
+
     return {
-        initialAssistantMsg: resolveTranslation(botI18n, "initialAssistantMsg", language, ""),
+        initialAssistantMsg: isTutorModeSourceBot(botI18n) ? initialAssistantMsg + MODE_CHOICE_MARKER : initialAssistantMsg,
         initialUserMsg: resolveTranslation(botI18n, "initialUserMsg", language, "")
     };
 };

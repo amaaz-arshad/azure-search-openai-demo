@@ -30,6 +30,7 @@ export type ChatAppRequestOverrides = {
     search_image_embeddings: boolean;
     language: string;
     use_agentic_knowledgebase: boolean;
+    use_llm_wiki?: boolean;
     use_web_source?: boolean;
     use_sharepoint_source?: boolean;
 };
@@ -132,6 +133,7 @@ export type Config = {
     showChatHistoryBrowser: boolean;
     showChatHistoryCosmos: boolean;
     showAgenticRetrievalOption: boolean;
+    showLlmWikiOption?: boolean;
     ragSearchTextEmbeddings: boolean;
     ragSearchImageEmbeddings: boolean;
     ragSendTextSources: boolean;

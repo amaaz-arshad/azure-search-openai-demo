@@ -1,3 +1,4 @@
+import json
 import re
 from collections.abc import AsyncGenerator, Awaitable
 from dataclasses import asdict
@@ -90,6 +91,7 @@ from openai.types.chat import (
     ChatCompletion,
     ChatCompletionChunk,
     ChatCompletionMessageParam,
+    ChatCompletionReasoningEffort,
 )
 from openai.types.chat.chat_completion import Choice
 from openai.types.chat.chat_completion_message import ChatCompletionMessage
@@ -102,8 +104,78 @@ from approaches.approach import (
 )
 from approaches.chatbot_config_registry import get_chatbot_citation_target
 from approaches.promptmanager import PromptManager
+from core.chatbotwikistore import ChatbotWikiStore, normalize_slug
 from prepdocslib.blobmanager import AdlsBlobManager, BlobManager
 from prepdocslib.embeddings import ImageEmbeddings
+
+
+# --- LLM-Wiki retrieval helpers -------------------------------------------
+# The wiki mode navigates a curated set of markdown pages (a master index + topic pages)
+# instead of running vector search. These pure helpers parse the page format produced by
+# scripts/build_wiki.py (YAML frontmatter + markdown body with [[wikilinks]]).
+WIKI_LINK_RE = re.compile(r"\[\[\s*([^\]|]+?)\s*(?:\|[^\]]*)?\]\]")
+
+
+def split_wiki_frontmatter(markdown: str) -> tuple[str, str]:
+    """Return (frontmatter_block, body). Frontmatter is the leading '---' fenced block if
+    present; otherwise ('', markdown)."""
+    if markdown.startswith("---"):
+        match = re.match(r"^---\s*\n(.*?)\n---\s*\n?(.*)$", markdown, re.DOTALL)
+        if match:
+            return match.group(1), match.group(2)
+    return "", markdown
+
+
+def wiki_page_citation(frontmatter: str, slug: str) -> str:
+    """Citation handle for a wiki page, preferring the original source recorded in the page's
+    frontmatter ``sources:`` so citations resolve to the same target as normal retrieval."""
+    sources_match = re.search(r"^sources:\s*(.+)$", frontmatter, re.MULTILINE)
+    if sources_match:
+        raw = sources_match.group(1).strip()
+        quoted = re.findall(r'"([^"]+)"|\'([^\']+)\'', raw)
+        if quoted:
+            value = next((group for group in quoted[0] if group), "").strip()
+            if value:
+                return value
+        scalar = raw.strip().strip("[]").strip().strip("\"'")
+        if scalar:
+            return scalar
+    title_match = re.search(r"^title:\s*(.+)$", frontmatter, re.MULTILINE)
+    if title_match:
+        return title_match.group(1).strip().strip("\"'")
+    return slug
+
+
+def extract_wiki_links(body: str) -> list[str]:
+    links: list[str] = []
+    for raw in WIKI_LINK_RE.findall(body):
+        slug = normalize_slug(raw)
+        if slug and slug not in links:
+            links.append(slug)
+    return links
+
+
+def parse_wiki_page_selection(completion: ChatCompletion) -> tuple[list[str], bool]:
+    """Parse the navigation model's JSON ({"pages": [...], "done": bool}); defensive against
+    code fences and malformed output."""
+    content = (completion.choices[0].message.content or "").strip()
+    if not content:
+        return [], True
+    if content.startswith("```"):
+        content = re.sub(r"^```[a-zA-Z0-9]*\n?", "", content)
+        content = re.sub(r"\n?```$", "", content).strip()
+    try:
+        payload = json.loads(content)
+        if isinstance(payload, dict):
+            raw_pages = payload.get("pages", [])
+            pages = [p for p in raw_pages if isinstance(p, str)] if isinstance(raw_pages, list) else []
+            return pages, bool(payload.get("done", False))
+    except json.JSONDecodeError:
+        pass
+    # Fallback: pull bare quoted slugs out of whatever the model returned.
+    fallback = re.findall(r'"([a-z0-9][a-z0-9-]*)"', content)
+    return fallback, not fallback
+# ---------------------------------------------------------------------------
 
 
 class ChatReadRetrieveReadApproach(Approach):
@@ -147,6 +219,7 @@ class ChatReadRetrieveReadApproach(Approach):
         use_sharepoint_source: bool = False,
         retrieval_reasoning_effort: Optional[str] = None,
         chat_model_deployments: Optional[dict[str, Optional[str]]] = None,
+        wiki_store: Optional[ChatbotWikiStore] = None,
     ):
         self.search_client = search_client
         self.search_index_name = search_index_name
@@ -180,6 +253,8 @@ class ChatReadRetrieveReadApproach(Approach):
         self.use_sharepoint_source = use_sharepoint_source
         self.retrieval_reasoning_effort = retrieval_reasoning_effort
         self.chat_model_deployments = chat_model_deployments or {}
+        # Optional LLM-Wiki retrieval mode store; None disables the mode (it then never branches).
+        self.wiki_store = wiki_store
 
     def extract_followup_questions(self, content: Optional[str]):
         if content is None:
@@ -418,6 +493,12 @@ class ChatReadRetrieveReadApproach(Approach):
 
             extra_info = ExtraInfo(DataPoints(text=[]))
             extra_info.assessment_state = derive_turn_state(cast(list[dict[str, Any]], messages))
+        elif overrides.get("use_llm_wiki") and self.wiki_store is not None:
+            # LLM-Wiki retrieval. Only the Internal bot's frontend sets this flag, and it
+            # degrades to standard search when no wiki exists for the category, so no other
+            # bot's behavior changes. Produces sources only (answer=None) so the per-bot
+            # answer prompt below still runs — Q&A and Tutor flows are untouched.
+            extra_info = await self.run_wiki_approach(messages, overrides, auth_claims)
         elif use_agentic_knowledgebase:
             if should_stream and overrides.get("use_web_source"):
                 raise Exception(
@@ -695,6 +776,141 @@ class ChatReadRetrieveReadApproach(Approach):
             thoughts=agentic_results.thoughts,
             answer=agentic_results.answer,
         )
+
+    async def run_wiki_approach(
+        self,
+        messages: list[ChatCompletionMessageParam],
+        overrides: dict[str, Any],
+        auth_claims: dict[str, Any],
+    ):
+        """LLM-Wiki retrieval (Karpathy-style): instead of vector search, an index-guided,
+        bounded navigation loop reads the wiki's master index, selects the relevant topic
+        pages (following [[wikilinks]] across up to a few rounds for complex/multi-hop
+        questions), and returns those full pages as sources. It sets ``answer=None``, so the
+        per-bot answer prompt downstream does the final synthesis — Q&A, Tutor, lemon-style
+        sanitization, and per-bot prompt editing all behave exactly as in the other modes."""
+        category = overrides.get("include_category")
+        original_user_query = messages[-1]["content"]
+        if not isinstance(original_user_query, str):
+            raise ValueError("The most recent message content must be a string.")
+
+        # Degrade safely to standard search when the wiki store is missing or there is no wiki
+        # for this category, so the request never errors and other bots stay unaffected.
+        wiki_store = self.wiki_store
+        wiki_index = await wiki_store.load_index(category) if (wiki_store is not None and isinstance(category, str)) else None
+        if wiki_store is None or not isinstance(category, str) or not wiki_index:
+            # Surface the fallback in the thought panel so it's obvious LLM-Wiki mode ran but had
+            # no wiki to use (e.g. build_wiki.py has not been run for this category yet).
+            fallback = await self.run_search_approach(messages, overrides, auth_claims)
+            fallback.thoughts.insert(
+                0,
+                ThoughtStep(
+                    "LLM Wiki requested but unavailable — fell back to standard search",
+                    f"No wiki found for category '{category}'. Build one with "
+                    f"`python app/backend/build_wiki.py --category {category}` to enable LLM-Wiki retrieval.",
+                    {"category": category if isinstance(category, str) else None},
+                ),
+            )
+            return fallback
+
+        effective_chatgpt_model, effective_chatgpt_deployment = self.resolve_chat_model_and_deployment(
+            overrides, self.chatgpt_model, self.chatgpt_deployment
+        )
+        nav_reasoning_effort = cast(
+            Optional[ChatCompletionReasoningEffort], self.get_lowest_reasoning_effort(effective_chatgpt_model)
+        )
+        max_rounds = max(1, int(overrides.get("wiki_max_rounds", 3)))  # round 1 + up to 2 follow-ups
+        max_pages = max(1, int(overrides.get("wiki_max_pages", 8)))
+        send_text_sources = overrides.get("send_text_sources", True)
+
+        selected_slugs: list[str] = []
+        loaded_pages: list[tuple[str, str]] = []  # (slug, raw page markdown)
+        discovered_links: list[str] = []
+        thoughts: list[ThoughtStep] = [ThoughtStep("Read wiki index", wiki_index, {"category": category})]
+
+        for round_number in range(1, max_rounds + 1):
+            if len(loaded_pages) >= max_pages:
+                break
+            nav_messages: list[ChatCompletionMessageParam] = [
+                self.prompt_manager.build_system_prompt(
+                    "wiki_navigate.system.jinja2",
+                    {
+                        "wiki_index": wiki_index,
+                        "user_query": original_user_query,
+                        "past_messages": messages[:-1],
+                        "selected_slugs": selected_slugs,
+                        "discovered_links": [s for s in discovered_links if s not in selected_slugs],
+                    },
+                )
+            ]
+            selection_completion = cast(
+                ChatCompletion,
+                await self.create_chat_completion(
+                    effective_chatgpt_deployment,
+                    effective_chatgpt_model,
+                    messages=nav_messages,
+                    overrides=overrides,
+                    response_token_limit=self.get_response_token_limit(effective_chatgpt_model, 300),
+                    temperature=0.0,
+                    reasoning_effort=nav_reasoning_effort,
+                ),
+            )
+            requested_slugs, navigation_done = parse_wiki_page_selection(selection_completion)
+            thoughts.append(
+                self.format_thought_step_for_chatcompletion(
+                    title=f"Select wiki pages (round {round_number})",
+                    messages=nav_messages,
+                    overrides=overrides,
+                    model=effective_chatgpt_model,
+                    deployment=effective_chatgpt_deployment,
+                    usage=selection_completion.usage,
+                    reasoning_effort=nav_reasoning_effort,
+                )
+            )
+
+            newly_loaded = 0
+            for slug in requested_slugs:
+                if len(loaded_pages) >= max_pages:
+                    break
+                normalized = normalize_slug(slug)
+                if normalized is None or normalized in selected_slugs:
+                    continue
+                page_markdown = await wiki_store.load_page(category, normalized)
+                if page_markdown is None:
+                    continue
+                selected_slugs.append(normalized)
+                loaded_pages.append((normalized, page_markdown))
+                newly_loaded += 1
+                _, body = split_wiki_frontmatter(page_markdown)
+                for link in extract_wiki_links(body):
+                    if link not in discovered_links:
+                        discovered_links.append(link)
+
+            if navigation_done or newly_loaded == 0:
+                break
+
+        text_sources: list[str] = []
+        citations: list[str] = []
+        for slug, page_markdown in loaded_pages:
+            frontmatter, body = split_wiki_frontmatter(page_markdown)
+            citation = wiki_page_citation(frontmatter, slug)
+            if citation not in citations:
+                citations.append(citation)
+            if send_text_sources:
+                # Keep markdown structure intact (unlike noisy search chunks) so the answer
+                # model reads clean, well-formed context. The "citation: " prefix matches the
+                # f"{citation}: {content}" shape the user templates expect.
+                text_sources.append(f"{citation}: {body.strip()}")
+
+        data_points = DataPoints(text=text_sources, images=[], citations=citations)
+        thoughts.append(
+            ThoughtStep(
+                "Wiki pages loaded",
+                [slug for slug, _ in loaded_pages],
+                {"page_count": len(loaded_pages), "citations": citations},
+            )
+        )
+        return ExtraInfo(data_points, thoughts=thoughts, answer=None)
 
     def _select_knowledgebase_client(
         self,
