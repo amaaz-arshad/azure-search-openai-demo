@@ -165,7 +165,7 @@ function provisionChatbot(array $payload): array
 // CREATE (201)
 $create = provisionChatbot([
     'sessionId' => '9cb46df0-d3e2-464a-a11c-86576f474bcd',
-    'name'      => 'ABX', 'botName' => 'bxa', 'operation' => 'create',
+    'name'      => 'My Bot', 'botName' => 'my-bot', 'operation' => 'create',
     'defaults'  => [
         'ansprache' => 'informal', 'llm' => 'gpt-5', 'reasoning_effort' => 'high', 'prompt' => '',
         'modes'     => ['qa' => true, 'tutor' => true, 'assessment' => false],
@@ -185,9 +185,9 @@ $create = provisionChatbot([
 
 // UPDATE (200) — same defaults shape, operation=update, no oldBotName
 // START / STOP / DELETE (200) — envelope only:
-$start  = provisionChatbot(['sessionId' => '…', 'name' => 'ABX2', 'botName' => 'bxa', 'operation' => 'start']);
-$stop   = provisionChatbot(['sessionId' => '…', 'name' => 'ABX2', 'botName' => 'bxa', 'operation' => 'stop']);
-$delete = provisionChatbot(['sessionId' => '…', 'name' => 'ABX2', 'botName' => 'bxa', 'operation' => 'delete']);
+$start  = provisionChatbot(['sessionId' => '…', 'name' => 'My Bot', 'botName' => 'my-bot', 'operation' => 'start']);
+$stop   = provisionChatbot(['sessionId' => '…', 'name' => 'My Bot', 'botName' => 'my-bot', 'operation' => 'stop']);
+$delete = provisionChatbot(['sessionId' => '…', 'name' => 'My Bot', 'botName' => 'my-bot', 'operation' => 'delete']);
 
 if ($create['status'] === 201 && ($create['body']['ok'] ?? false)) {
     // success — $create['body'] has botName, active, numberSessions, updatedAt, sessionId
@@ -196,12 +196,50 @@ if ($create['status'] === 201 && ($create['body']['ok'] ?? false)) {
 }
 ```
 
-### curl (smoke test)
+### curl
+
+#### Create (201)
+
+> **Note:** Keep the `-d` value on a single line in bash — multi-line heredoc inside single quotes breaks UTF-8 detection. Postman's raw JSON body handles multi-line fine.
 
 ```bash
 curl -sS -X POST "https://chat.nerilio.ai/provisioning/chatbots" \
   -H "Content-Type: application/json" \
-  -d '{"sessionId":"d283d909-89d7-4620-b96c-9f883e60717f","name":"ABX2","botName":"bxa","operation":"start"}'
+  -d '{"sessionId":"9cb46df0-d3e2-464a-a11c-86576f474bcd","name":"My Bot","botName":"my-bot","operation":"create","defaults":{"ansprache":"informal","llm":"gpt-5","reasoning_effort":"high","prompt":"","modes":{"qa":true,"tutor":true,"assessment":false},"design":{"color_primary":"#AC44C6","color_secondary":"#00cc96"},"languages":["Deutsch"],"greeting":{"Deutsch":"Willkommen! Wie kann ich helfen?"},"disclaimer":{"Deutsch":"KI-gestuetzter Assistent."},"flagged":{"Deutsch":""},"features":{"disclaimer":true,"history":true,"sources":false,"speech_input":false,"speech_output_browser":false,"speech_output_azure":false},"login":{"required":false,"provider":"email"},"qa":{"confidence":"medium","fallback":"apologize","follow_up":true,"related":true},"tutor":{"level":"intermediate","pace":"medium","method":"explanation","examples":true,"summary":true,"progress":false},"assessment":{"type":"mc","count":"10","difficulty":"medium","feedback":"immediate","score":true,"retry":false},"number_sessions":10000}}'
+```
+
+#### Update (200)
+
+Same `defaults` shape, `operation=update`; omit `oldBotName` unless renaming.
+
+```bash
+curl -sS -X POST "https://chat.nerilio.ai/provisioning/chatbots" \
+  -H "Content-Type: application/json" \
+  -d '{"sessionId":"9cb46df0-d3e2-464a-a11c-86576f474bcd","name":"My Bot","botName":"my-bot","operation":"update","defaults":{"llm":"gpt-4.1","reasoning_effort":"high","prompt":"","modes":{"qa":true,"tutor":false,"assessment":false},"languages":["Deutsch","English"],"number_sessions":5000}}'
+```
+
+#### Start (200)
+
+```bash
+curl -sS -X POST "https://chat.nerilio.ai/provisioning/chatbots" \
+  -H "Content-Type: application/json" \
+  -d '{"sessionId":"d283d909-89d7-4620-b96c-9f883e60717f","name":"My Bot","botName":"my-bot","operation":"start"}'
+```
+
+#### Stop (200)
+
+```bash
+curl -sS -X POST "https://chat.nerilio.ai/provisioning/chatbots" \
+  -H "Content-Type: application/json" \
+  -d '{"sessionId":"d283d909-89d7-4620-b96c-9f883e60717f","name":"My Bot","botName":"my-bot","operation":"stop"}'
+```
+
+#### Delete (200)
+
+```bash
+curl -sS -X POST "https://chat.nerilio.ai/provisioning/chatbots" \
+  -H "Content-Type: application/json" \
+  -d '{"sessionId":"d283d909-89d7-4620-b96c-9f883e60717f","name":"My Bot","botName":"my-bot","operation":"delete"}'
 ```
 
 ## 8. Open items / roadmap
