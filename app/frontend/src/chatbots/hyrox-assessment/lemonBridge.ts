@@ -79,6 +79,18 @@ export function readLemonAccount(): LemonAccount {
 }
 
 /**
+ * Per-learner storage scope so two accounts on the same browser never share chat history or the
+ * active-session pointer. Uses the stable numeric `account_id` from the launch URL; falls back to
+ * a shared `"anonymous"` scope when the launch carried no id (mirrors the free/rak bots). This is
+ * the single source of truth for the scope, so the IndexedDB database name and the active-session
+ * key always agree.
+ */
+export function getLemonUserScope(account: LemonAccount): string {
+    const id = (account.accountId || "").trim();
+    return id ? encodeURIComponent(id) : "anonymous";
+}
+
+/**
  * Hand the progress value back to Lemon by triggering `lemon://save_progress?value=N`.
  *
  * Robust to both load contexts:
@@ -118,19 +130,50 @@ export function reportLemonProgress(value: number): void {
 export const WEB_FRONTEND_DONE_MESSAGE = "Content-Typ-13-finished";
 
 /**
- * Hand completion back to the web-frontend host by posting the literal completion string to the
- * parent window. Used instead of `reportLemonProgress` when the bot was launched with
- * `web_frontend=true` (iframe context, where the `lemon://` scheme is a no-op). The host listens
- * for the bare string, so the payload is the string itself — not a `{ type }` object.
+ * Hand completion back to the web-frontend host by posting the literal completion string. Used
+ * instead of `reportLemonProgress` when the bot was launched with `web_frontend=true` (iframe
+ * context, where the `lemon://` scheme is a no-op). The host listens for the bare string, so the
+ * payload is the string itself — not a `{ type }` object.
+ *
+ * The bot may be a NESTED iframe (the host's LMS shell opens our iframe), so a listener can live on
+ * the immediate parent OR the top window. We post to both and dedupe when they are the same window;
+ * each target is guarded independently so a cross-origin rejection on one still lets the other fire.
+ * A one-line diagnostic is logged so the integrator can confirm our side fired ("I don't see a
+ * postMessage") — the remaining unknown is then purely whether the host page listens for the string.
  */
 export function reportWebFrontendCompletion(): void {
     if (typeof window === "undefined") {
         return;
     }
 
+    const targets: Window[] = [];
     try {
-        window.parent.postMessage(WEB_FRONTEND_DONE_MESSAGE, "*");
+        if (window.parent && window.parent !== window) {
+            targets.push(window.parent);
+        }
     } catch {
-        // Parent without postMessage access — nothing more we can do client-side.
+        // Cross-origin parent that rejects access — skip it.
     }
+    try {
+        if (window.top && window.top !== window && !targets.includes(window.top)) {
+            targets.push(window.top);
+        }
+    } catch {
+        // Cross-origin top that rejects access — skip it.
+    }
+
+    let posted = 0;
+    for (const target of targets) {
+        try {
+            target.postMessage(WEB_FRONTEND_DONE_MESSAGE, "*");
+            posted += 1;
+        } catch {
+            // This target rejected postMessage — try the next one.
+        }
+    }
+
+    console.info("[hyrox-assessment] web completion signalled:", WEB_FRONTEND_DONE_MESSAGE, {
+        targets: targets.length,
+        posted
+    });
 }

@@ -17,30 +17,34 @@
  */
 import { getChatHistoryScope } from "../../../chatHistoryScope";
 
-const keyFor = (scope: string) => `chatbot-active-session:${scope}`;
+// The optional `userScope` further namespaces the pointer per user (e.g. the launch account_id for
+// the hyrox-assessment bot) so two learners on the same browser don't resume each other's session.
+// Omitting it preserves the original per-chatbot key, so every other bot importing this helper is
+// unaffected.
+const keyFor = (scope: string, userScope?: string) => `chatbot-active-session:${scope}${userScope ? `:${userScope}` : ""}`;
 
-export function readActiveSessionId(): string | null {
+export function readActiveSessionId(userScope?: string): string | null {
     try {
-        return window.localStorage.getItem(keyFor(getChatHistoryScope())) || null;
+        return window.localStorage.getItem(keyFor(getChatHistoryScope(), userScope)) || null;
     } catch {
         return null;
     }
 }
 
-export function writeActiveSessionId(id: string): void {
+export function writeActiveSessionId(id: string, userScope?: string): void {
     if (!id) {
         return;
     }
     try {
-        window.localStorage.setItem(keyFor(getChatHistoryScope()), id);
+        window.localStorage.setItem(keyFor(getChatHistoryScope(), userScope), id);
     } catch {
         /* storage blocked — the active session simply won't persist */
     }
 }
 
-export function clearActiveSessionId(): void {
+export function clearActiveSessionId(userScope?: string): void {
     try {
-        window.localStorage.removeItem(keyFor(getChatHistoryScope()));
+        window.localStorage.removeItem(keyFor(getChatHistoryScope(), userScope));
     } catch {
         /* storage blocked — nothing to clear */
     }

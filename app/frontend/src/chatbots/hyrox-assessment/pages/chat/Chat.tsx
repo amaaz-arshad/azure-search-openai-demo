@@ -35,7 +35,7 @@ import { LoginContext } from "../../loginContext";
 import { Settings } from "../../components/Settings/Settings";
 import { setGlobalClearChat } from "../layout/Layout";
 import { applyChatbotSpeechFeatureFlags } from "../../../shared/speech/chatbotSpeechFeatureFlags";
-import { readLemonAccount, reportLemonProgress, reportWebFrontendCompletion } from "../../lemonBridge";
+import { getLemonUserScope, readLemonAccount, reportLemonProgress, reportWebFrontendCompletion } from "../../lemonBridge";
 import { readActiveSessionId, writeActiveSessionId, clearActiveSessionId } from "../../../shared/history/activeSession";
 
 const INITIAL_ASSISTANT_SENTINEL_USER_MESSAGE = "__initial_assistant__";
@@ -57,6 +57,10 @@ const Chat = () => {
     // component's lifetime so it is sent with every request and used to personalize the greeting.
     const lemonAccountRef = useRef(readLemonAccount());
     const lemonAccount = lemonAccountRef.current;
+    // Per-learner storage scope (account_id from the launch URL) so two users on a shared computer
+    // never resume each other's assessment. Missing id → "anonymous" (shared), matching the DB-name
+    // scope in useHistoryManager so the active-session pointer and the IndexedDB store agree.
+    const userStorageScope = getLemonUserScope(lemonAccount);
     // Fire the lemon://save_progress hand-off exactly once per session, on the freshly
     // received passed-completion response (not on history replay).
     const progressReportedRef = useRef<boolean>(false);
@@ -347,7 +351,7 @@ const Chat = () => {
             typeof restoredSessionState === "string" && restoredSessionState !== "" ? restoredSessionState : fallbackSessionId;
         localHistorySessionIdRef.current = resolvedSessionId;
         if (resolvedSessionId) {
-            writeActiveSessionId(resolvedSessionId);
+            writeActiveSessionId(resolvedSessionId, userStorageScope);
         }
     };
 
@@ -499,7 +503,7 @@ const Chat = () => {
                     if (typeof sessionState === "string" && sessionState !== "") {
                         const token = client ? await getToken(client) : undefined;
                         historyManager.addItem(sessionState, [...conversationAnswers, [question, normalizedResponse]], token);
-                        writeActiveSessionId(sessionState);
+                        writeActiveSessionId(sessionState, userStorageScope);
                     }
                 } else {
                     // Stopped before any content arrived - restore question to input
@@ -523,7 +527,7 @@ const Chat = () => {
                 if (typeof sessionState === "string" && sessionState !== "") {
                     const token = client ? await getToken(client) : undefined;
                     historyManager.addItem(sessionState, [...conversationAnswers, [question, normalizedResponse]], token);
-                    writeActiveSessionId(sessionState);
+                    writeActiveSessionId(sessionState, userStorageScope);
                 }
             }
             setSpeechUrls([...speechUrls, null]);
@@ -543,7 +547,7 @@ const Chat = () => {
 
     const clearChat = () => {
         localHistorySessionIdRef.current = null;
-        clearActiveSessionId();
+        clearActiveSessionId(userStorageScope);
         // A fresh session may pass, so re-arm the one-shot Lemon save_progress hand-off. (After a
         // pass there is no restart, so this only matters for restart-after-fail.)
         progressReportedRef.current = false;
@@ -592,7 +596,7 @@ const Chat = () => {
         if (historyProvider !== HistoryProviderOptions.IndexedDB) {
             return;
         }
-        const activeSessionId = readActiveSessionId();
+        const activeSessionId = readActiveSessionId(userStorageScope);
         if (!activeSessionId) {
             hasRestoredSessionRef.current = true;
             return;
@@ -605,6 +609,16 @@ const Chat = () => {
                 return;
             }
             restoreConversation(storedAnswers, activeSessionId);
+            // If the restored run was already passed, the original completion hand-off may have been
+            // missed (e.g. the host's message listener attached after we posted). Re-fire it once on
+            // restore so a reload retries the LMS-completion signal. maybeReportLemonProgress is
+            // one-shot via progressReportedRef, so at most one target message is sent per load.
+            for (const [, response] of storedAnswers) {
+                if (progressReportedRef.current) {
+                    break;
+                }
+                maybeReportLemonProgress(response?.message?.content ?? "");
+            }
         })();
         return () => {
             cancelled = true;

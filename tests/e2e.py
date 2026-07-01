@@ -69,7 +69,7 @@ def free_port() -> int:
         return s.getsockname()[1]
 
 
-def run_server(port: int):
+def run_server(port: int, extra_env: dict | None = None):
     with mock.patch.dict(
         os.environ,
         {
@@ -91,6 +91,7 @@ def run_server(port: int):
             "AZURE_OPENAI_EMB_DEPLOYMENT": "test-ada",
             "AZURE_OPENAI_EMB_MODEL_NAME": "text-embedding-3-large",
             "AZURE_OPENAI_EMB_DIMENSIONS": "3072",
+            **(extra_env or {}),
         },
         clear=True,
     ):
@@ -101,6 +102,19 @@ def run_server(port: int):
 def live_server_url(mock_env, mock_acs_search, free_port: int) -> Generator[str, None, None]:
     with mock.patch.dict(os.environ, WINDOWS_PROCESS_ENV, clear=False):
         proc = Process(target=run_server, args=(free_port,), daemon=True)
+        proc.start()
+        url = f"http://localhost:{free_port}/"
+        wait_for_server_ready(url, timeout=10.0, check_interval=0.5)
+        yield url
+        proc.kill()
+
+
+@pytest.fixture()
+def live_server_url_history(mock_env, mock_acs_search, free_port: int) -> Generator[str, None, None]:
+    """Live server with browser (IndexedDB) chat history enabled — required to exercise the
+    per-account history scoping, which is a no-op when history is off (the default fixture)."""
+    with mock.patch.dict(os.environ, WINDOWS_PROCESS_ENV, clear=False):
+        proc = Process(target=run_server, args=(free_port, {"USE_CHAT_HISTORY_BROWSER": "true"}), daemon=True)
         proc.start()
         url = f"http://localhost:{free_port}/"
         wait_for_server_ready(url, timeout=10.0, check_interval=0.5)
@@ -279,13 +293,18 @@ def test_bensberg_option_prompt_disables_input_and_dedupes_topics(page: Page, li
         pending_route.abort()
 
 
-def drive_hyrox_completion_in_iframe(page: Page, live_server_url: str, query: str) -> list:
+def drive_hyrox_completion_in_iframe(page: Page, live_server_url: str, query: str, nested: bool = False) -> list:
     """Run the HYROX assessment inside an iframe, drive it to a (mocked) passed completion, and
-    return every message the bot posted to its parent window.
+    return every message the bot posted to the TOP (host) window.
 
     The bot must run in a real iframe: reportLemonProgress (the native-app channel) only posts
     when window.parent !== window, so a top-level page could never exercise the app path nor make
     the channel-exclusivity assertions meaningful. The host page below captures the posts.
+
+    When ``nested`` is True the bot iframe is placed inside an intermediate same-origin iframe, so
+    the bot's window.parent is the intermediate frame while window.top is this host page. That
+    exercises the parent+top broadcast used by real LMS embeddings (host shell → content iframe →
+    bot): a listener on the TOP window must still receive the completion.
     """
     completion = "You have completed the assessment!\n\n[[PROGRESS value=100]]\n[[DONE]]"
 
@@ -315,23 +334,47 @@ def drive_hyrox_completion_in_iframe(page: Page, live_server_url: str, query: st
     page.route("*/**/chat", handle_chat)
 
     # A neutral same-origin host page so the iframe's relative asset/API requests resolve against
-    # the live server, then inject the bot iframe and capture its postMessage calls.
+    # the live server, then inject the bot iframe and capture its postMessage calls on the top window.
     page.goto(live_server_url)
-    page.evaluate(
-        """(src) => new Promise(resolve => {
-            window.__caps = [];
-            window.addEventListener("message", e => window.__caps.push(e.data));
-            const f = document.createElement("iframe");
-            f.id = "bot";
-            f.style = "width:1000px;height:800px;border:0";
-            f.onload = () => resolve();
-            f.src = src;
-            document.body.appendChild(f);
-        })""",
-        f"{live_server_url}hyrox-assessment{query}",
-    )
+    src = f"{live_server_url}hyrox-assessment{query}"
+    if nested:
+        page.evaluate(
+            """(src) => new Promise(resolve => {
+                window.__caps = [];
+                window.addEventListener("message", e => window.__caps.push(e.data));
+                const mid = document.createElement("iframe");
+                mid.id = "mid";
+                mid.onload = () => {
+                    const doc = mid.contentDocument;
+                    const bot = doc.createElement("iframe");
+                    bot.id = "bot";
+                    bot.style = "width:1000px;height:800px;border:0";
+                    bot.onload = () => resolve();
+                    bot.src = src;
+                    doc.body.appendChild(bot);
+                };
+                mid.srcdoc = "<!doctype html><html><body></body></html>";
+                document.body.appendChild(mid);
+            })""",
+            src,
+        )
+        frame = page.frame_locator("#mid").frame_locator("#bot")
+    else:
+        page.evaluate(
+            """(src) => new Promise(resolve => {
+                window.__caps = [];
+                window.addEventListener("message", e => window.__caps.push(e.data));
+                const f = document.createElement("iframe");
+                f.id = "bot";
+                f.style = "width:1000px;height:800px;border:0";
+                f.onload = () => resolve();
+                f.src = src;
+                document.body.appendChild(f);
+            })""",
+            src,
+        )
+        frame = page.frame_locator("#bot")
 
-    frame = page.frame_locator("#bot")
     try:
         frame.get_by_test_id("chatbot-disclaimer-close").click(timeout=2000)
     except Exception:
@@ -355,6 +398,38 @@ def test_hyrox_assessment_app_launch_posts_save_progress(page: Page, live_server
     caps = drive_hyrox_completion_in_iframe(page, live_server_url, "?account_id=6")
     assert any(isinstance(c, dict) and c.get("type") == "chatbot:save-progress" and c.get("value") == 100 for c in caps)
     assert "Content-Typ-13-finished" not in caps
+
+
+def test_hyrox_assessment_web_frontend_completion_reaches_top_window(page: Page, live_server_url: str):
+    # Nested embedding (bot iframe inside an intermediate frame, as in the host LMS): the completion
+    # must still reach a listener on the TOP window via the parent+top broadcast.
+    caps = drive_hyrox_completion_in_iframe(page, live_server_url, "?account_id=6&web_frontend=true", nested=True)
+    assert "Content-Typ-13-finished" in caps
+
+
+def test_hyrox_assessment_web_completion_logs_diagnostic(page: Page, live_server_url: str):
+    # A one-line diagnostic must be logged when the web completion fires, so an integrator can
+    # confirm our side posted (answers the "I don't see a postMessage" report).
+    logs: list[str] = []
+    page.on("console", lambda msg: logs.append(msg.text))
+    drive_hyrox_completion_in_iframe(page, live_server_url, "?account_id=6&web_frontend=true")
+    assert any("web completion signalled" in text for text in logs)
+
+
+def test_hyrox_assessment_scopes_active_session_by_account(page: Page, live_server_url_history: str):
+    # With browser history ON, the active-session pointer MUST be namespaced by account_id so two
+    # learners on the same browser never resume each other's run. Uses the history-enabled server so
+    # the assertion is non-vacuous (the pointer is only written when the IndexedDB provider is active).
+    caps = drive_hyrox_completion_in_iframe(page, live_server_url_history, "?account_id=6&web_frontend=true")
+    assert "Content-Typ-13-finished" in caps  # sanity: the run reached completion, so a pointer was written
+    bot_frame = next(f for f in page.frames if "hyrox-assessment" in f.url)
+    keys = bot_frame.evaluate("Object.keys(window.localStorage)")
+    # Non-vacuous: account 6's scoped pointer was actually written...
+    assert "chatbot-active-session:hyrox-assessment:6" in keys
+    # ...the legacy unscoped key is never written (the old collision source)...
+    assert "chatbot-active-session:hyrox-assessment" not in keys
+    # ...and a different account resolves a separate (empty) pointer, so it cannot restore 6's run.
+    assert bot_frame.evaluate("window.localStorage.getItem('chatbot-active-session:hyrox-assessment:7')") is None
 
 
 def test_chat(sized_page: Page, live_server_url: str):

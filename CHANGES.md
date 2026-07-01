@@ -17,6 +17,71 @@ Two categories per date:
 
 ## 2026-07-01
 
+### HYROX assessment — fix web completion delivery + scope browser state per user (client review)
+
+#### Decisions
+
+- **Client review, two web-only bugs** (both fine in the native app): (1) passing the assessment on the web
+  never marks the LMS unit complete; (2) a second learner on the same computer resumes the previous learner's
+  question. Investigated with parallel Explore agents + a live-bundle fetch.
+- **Bug 1 root cause is NOT our code and NOT a missing deploy.** Yesterday's commit `07e47490` already added
+  the web path (`reportWebFrontendCompletion` → `window.parent.postMessage("Content-Typ-13-finished","*")`,
+  gated on `web_frontend=true`), and fetching the LIVE bundle `chat.nerilio.ai/assets/index-CDcMiddJ.js`
+  confirmed the intact minified logic + the `[[PROGRESS value=…]]` parser are deployed. The backend
+  deterministically appends `[[DONE]]`+`[[PROGRESS value=100]]` on the final-module pass
+  (`results.py:1152-1160`), so the marker reliably reaches the frontend (the app uses the same marker and
+  works). The failure is at the boundary with nerilio's host page. The `.auth/me` 404s in the client's console
+  are a red herring — `authConfig.ts` swallows them (`isUsingAppServicesLogin=false`); they don't block render
+  or postMessage (just Azure App Service EasyAuth not being enabled).
+- **Bug 1 fix = harden delivery, keep the agreed string** (user decision). Do NOT change the message shape
+  (`"Content-Typ-13-finished"` is nerilio's contract). Instead: post to **both `window.parent` and
+  `window.top`** (deduped) because the bot is likely a NESTED iframe inside nerilio's Vue LMS shell
+  (screenshot shows `inhalt.vue` doing `openiframe`) and a top-window listener never sees a parent-only post;
+  add a one-line `console.info` diagnostic so the integrator can confirm our side fired (answers "I don't see
+  a postMessage"); and **re-fire the completion once on restore of an already-passed run** so a handshake
+  missed because nerilio's listener attached late gets retried on reload. Remaining work is nerilio-side:
+  confirm their `addEventListener("message", …)` matches the string and accepts the origin.
+- **Bug 2 root cause: browser history keyed by bot name only.** IndexedDB `chat-database-hyrox-assessment`
+  and the active-session pointer `chatbot-active-session:hyrox-assessment` used `getChatHistoryScope()` (bot
+  name), with no user identity — so a second learner restored the first's session. The learner's `account_id`
+  from the launch URL was read (`readLemonAccount`) and sent to the backend but never used as a storage key.
+- **Bug 2 fix = scope client history by `account_id`** (user decision; stable numeric id already sent to the
+  backend). Mirrors the free/rak per-user DB-suffix pattern; missing id → shared `"anonymous"` scope
+  (preserves today's behavior for un-identified launches). No backend change — state is reconstructed from the
+  client-sent history, so sending the correct user's history is sufficient. Existing data in the old unscoped
+  DB is simply orphaned (acceptable; it was the polluted store). Bug 2 was also masking Bug 1 in testing (a
+  resumed, already-passed session never re-runs the completion turn) — Fix 2 + re-fire-on-restore remove that.
+- **Verification:** `npm run build` green (tsc + vite, 6201 modules + widget). e2e: the 5 hyrox
+  completion/scoping tests pass on both clients (10/10). The scoping test runs against a NEW
+  history-enabled live-server fixture (`live_server_url_history`, `USE_CHAT_HISTORY_BROWSER=true`) so its
+  assertion is **non-vacuous** — the default e2e server leaves browser history OFF, which makes the fix a
+  no-op (None provider, no active-session write), so an earlier run passed only vacuously. The 3 pre-existing
+  assessment-flow tests fail on a server-side azd auth error (`AZURE_SUBSCRIPTION_ID` — the local azd
+  credential expired since 2026-06-30), an environmental baseline unrelated to these frontend-only changes.
+
+#### Changes
+
+- `app/frontend/src/chatbots/hyrox-assessment/lemonBridge.ts` — new exported `getLemonUserScope(account)`
+  (single source of truth for the per-learner scope: `encodeURIComponent(accountId)` or `"anonymous"`);
+  hardened `reportWebFrontendCompletion` to broadcast to `window.parent` + `window.top` (deduped, each guarded)
+  and log a `console.info` diagnostic.
+- `app/frontend/src/chatbots/hyrox-assessment/components/HistoryProviders/HistoryManager.ts` — IndexedDB DB
+  name now `chat-database-${scope}-${getLemonUserScope(readLemonAccount())}`; scope added to `useMemo` deps.
+  (Both the chat page and History panel call this hook, so they stay on the same DB.)
+- `app/frontend/src/chatbots/shared/history/activeSession.ts` — added an OPTIONAL `userScope?` param to
+  `readActiveSessionId`/`writeActiveSessionId`/`clearActiveSessionId` (key becomes
+  `chatbot-active-session:${scope}:${userScope}` when present). Backward compatible — the other 16 bots that
+  omit the arg keep the original key.
+- `app/frontend/src/chatbots/hyrox-assessment/pages/chat/Chat.tsx` — compute `userStorageScope` once from
+  `lemonAccount`; pass it to all 5 active-session call sites; re-fire the completion hand-off once when a
+  restored session already contains the pass markers (one-shot via `progressReportedRef`).
+- `tests/e2e.py` — `drive_hyrox_completion_in_iframe` gained a `nested` mode (bot inside an intermediate
+  iframe, top-window capture); `run_server` takes optional `extra_env`; added a `live_server_url_history`
+  fixture (`USE_CHAT_HISTORY_BROWSER=true`); added `test_hyrox_assessment_web_frontend_completion_reaches_top_window`,
+  `test_hyrox_assessment_web_completion_logs_diagnostic`, and `test_hyrox_assessment_scopes_active_session_by_account`
+  (non-vacuous, runs against the history-enabled fixture).
+- `graphify-out/` — refreshed via `graphify update .` (AST-only).
+
 ### Generic bot: fix lemon-logo leak in assistant avatar + begin decoupling from lemon (shared/chat-ui)
 
 #### Decisions
