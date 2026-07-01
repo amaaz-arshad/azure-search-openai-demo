@@ -17,6 +17,55 @@ Two categories per date:
 
 ## 2026-07-01
 
+### Dynamic chatbot provisioning — generic bot now REUSES lemon's UI verbatim (pixel parity), replacing the slim hand-rolled UI
+
+#### Decisions
+
+- **Hard pivot after user feedback.** The earlier slim/hand-rolled generic Chat UI (custom header, plain
+  bubbles, custom composer, custom history) never matched the built-in bots and looked "pathetic" per the
+  user. Requirement restated bluntly: **new bots must look EXACTLY like lemon.** So the generic bot now
+  renders lemon's ACTUAL component tree — no approximation.
+- **Reuse, don't duplicate.** Instead of copying lemon's ~80 files (which would drift), the generic bot
+  **imports lemon's components read-only** (`Answer`, `QuestionInput`, `UserChatMessage`, `HistoryPanel`,
+  `HistoryProviders`, `Settings`, `api`, `authConfig`, `loginContext`, `LanguagePicker`, and lemon's
+  `Chat.module.css` / `Layout.module.css`) and forks only **Layout** + **Chat**, parameterized by a runtime
+  `BotConfig`. This is allowed by the isolation invariant ("shared chat/render utilities reused read-only;
+  behavior for existing bots must not change") and guarantees the two stay visually identical over time.
+  Lemon is unchanged (zero edits to any lemon file).
+- **Identity is the only fork.** The forked Chat differs from lemon's in exactly: `chatbotCategory =
+  botConfig.botName` (was `"lemon"`), welcome = the provisioned greeting **without** the tutor `[[CHOICES
+  kind=mode]]` marker (dynamic bots are Q&A; their generic prompt has no tutor state machine), browser
+  history gated by `features.history` (Cosmos always off), disclaimer gated by `features.disclaimer`, and
+  the speech-flag lookup keyed by `botName`. The forked Layout shows the provisioned `displayName` (centered
+  title) + the generic app logo + a home link to `/<botName>`, and renders children directly (no router
+  Outlet), opening the history panel via a module-global setter mirroring `setGlobalClearChat`.
+- **i18n = lemon's bundles + overlays.** `createGenericI18n` now builds from lemon's en/de/nl translation
+  JSON (so every key lemon's components reference exists), follows the browser locale (LanguageDetector),
+  and overlays only `pageTitle`/`headerTitle` (→ displayName), `initialAssistantMsg` (→ greeting), and
+  `disclaimer.message` (→ disclaimer) per language. Theme comes from `ChatbotThemeRoot seed={{primary}}` —
+  the seed builder derives the full navbar/bubble/card/dropdown var set from the one provisioned color
+  (verified: ABCD's `#000000` themes the whole lemon UI black).
+- Session counting is unchanged and still correct (first-message-of-a-new-chat increments quota; restore +
+  continue does not) — see the prior 2026-07-01 entry.
+
+#### Changes
+
+- `app/frontend/src/chatbots/generic/botConfigContext.ts` — **new**: `BotConfigContext` + `useBotConfig()`.
+- `app/frontend/src/chatbots/generic/createGenericI18n.ts` — **new** (replaces `generic/i18n/…`): lemon
+  bundles + per-language overlays, LanguageDetector, fallback = provisioned default.
+- `app/frontend/src/chatbots/generic/pages/layout/Layout.tsx` — **new**: fork of lemon Layout; reuses
+  lemon `Layout.module.css` + `LoginButton`; displayName/logo/home-link from config; children not Outlet;
+  `setGlobalClearChat` + `setGlobalOpenRecentChats`.
+- `app/frontend/src/chatbots/generic/pages/chat/Chat.tsx` — **rewritten** as a fork of lemon's Chat
+  (byte-identical body; imports repointed to `../../../lemon/*`; the identity edits listed above).
+- `app/frontend/src/chatbots/generic/GenericChatbotRoute.tsx` — composes `ChatbotThemeRoot(seed)` →
+  `I18nextProvider` → `BotConfigContext.Provider` → `Layout` → `Chat`.
+- **Deleted** the slim implementation: `generic/i18n/`, `generic/components/` (slim Answer + History*), and
+  the now-unused `chatbots/shared/i18n/` locale bundles.
+- Verified: `npm run build` clean (tsc + vite, all bots compile); Playwright against the production build
+  confirmed the welcome card, themed user pill + answer card, and the history drawer render exactly like
+  lemon (black-themed for ABCD). Needs `azd deploy` to reach chat.nerilio.ai.
+
 ### Dynamic chatbot provisioning — browser chat history for the generic bot (IndexedDB), session-count alignment
 
 #### Decisions
@@ -85,9 +134,10 @@ Two categories per date:
 
 #### Decisions
 
-- **Live-verified the deployed endpoint.** create→update→stop→start all succeed against
-  `https://chat.nerilio.ai/provisioning/chatbots` (201/200/200/200); `/bot-config/bxa` and `/bxa` both
-  resolve (200). delete deferred to a manual run after browser testing.
+- **Live-verified the deployed endpoint — full lifecycle.** create→update→stop→start→**delete** all
+  succeed against `https://chat.nerilio.ai/provisioning/chatbots` (201/200/200/200/200); `/bot-config/bxa`
+  and `/bxa` resolved (200) while active, and after `delete` `/bot-config/bxa` returns **404** (cascade
+  confirmed the bot is gone). delete was run last, after the browser/UI verification, per the test plan.
 - **Found + fixed a real robustness bug.** A first CREATE returned a 500 (HTML, not the handler's JSON):
   server logs showed `UnicodeDecodeError` from `request.get_json(silent=True)` — `silent=True` suppresses
   JSON *parse* errors but not a UTF-8 *decode* error on the raw body. (Root trigger was the local Windows

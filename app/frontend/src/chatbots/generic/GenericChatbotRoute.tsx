@@ -5,18 +5,21 @@ import { I18nextProvider } from "react-i18next";
 import { botConfigApi } from "../../api";
 import type { BotConfig } from "../../api/models";
 import { ChatbotThemeRoot } from "../shared/theme/ChatbotThemeRoot";
-import { createGenericI18n } from "./i18n/createGenericI18n";
-import { GenericChat } from "./pages/chat/Chat";
+import { createGenericI18n } from "./createGenericI18n";
+import { BotConfigContext } from "./botConfigContext";
+import Layout from "./pages/layout/Layout";
+import Chat from "./pages/chat/Chat";
 
 const DEFAULT_PRIMARY = "#4b5563";
 
 type Status = "loading" | "ready" | "notfound";
 
 /**
- * Route element for `/:botName`. Resolves a dynamic (provisioned) bot at runtime from /bot-config:
- * built-in / inactive / unknown names 404 and redirect home (same UX as the old unknown-name fallback);
- * an active dynamic bot mounts a runtime-themed, runtime-i18n generic chat. Built-in bots never reach
- * here — their static routes rank higher.
+ * Route element for `/:botName`. Resolves a dynamic (provisioned) bot at runtime from /bot-config and
+ * renders the built-in lemon bot's UI verbatim, parameterized by the runtime config: theme from the
+ * provisioned color, i18n from lemon's bundles overlaid with the provisioned greeting/disclaimer/title,
+ * and identity (category, welcome, history) via BotConfigContext. Built-in / inactive / unknown names
+ * 404 and redirect home. Built-in bots never reach here — their static routes rank higher.
  */
 export function GenericChatbotRoute({ embedMode }: { embedMode?: boolean }) {
     const { botName } = useParams();
@@ -64,7 +67,11 @@ export function GenericChatbotRoute({ embedMode }: { embedMode?: boolean }) {
     return (
         <ChatbotThemeRoot chatbotName={config.botName} seed={{ primary: config.primaryColor ?? DEFAULT_PRIMARY }} embed={embedMode}>
             <I18nextProvider i18n={i18nInstance}>
-                <GenericChat config={config} />
+                <BotConfigContext.Provider value={config}>
+                    <Layout>
+                        <Chat />
+                    </Layout>
+                </BotConfigContext.Provider>
             </I18nextProvider>
         </ChatbotThemeRoot>
     );
