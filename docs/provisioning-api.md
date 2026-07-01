@@ -1,6 +1,6 @@
 # Chatbot Provisioning API
 
-Integration contract between **Olaf's PHP control panel** and the **agentic-retrieval backend**
+Integration contract between the **nerilio backend PHP control panel** and the **agentic-retrieval backend**
 (`chat.nerilio.ai`). The PHP side calls one endpoint to create / update / start / stop / delete
 *dynamic* chatbots; this backend stores them and serves them at runtime with no redeploy.
 
@@ -99,17 +99,21 @@ actually does with it today.
 | `defaults.*` | Meaning | Status |
 | --- | --- | --- |
 | `number_sessions` | Session cap: Free 30 / Basic 5000 / Pro 10000 / Enterprise **-1 = unlimited**. | **Enforced** — see §6. |
-| `prompt` | System prompt. Empty → a neutral default RAG prompt is used. | **Applied.** |
+| `prompt` | System prompt. Empty → a **mode-aware** default: the generic tutor prompt for tutor bots, else a neutral Q&A RAG prompt. | **Applied.** |
 | `ansprache` | `informal` \| `formal` (aliases `du`/`sie`). German addressing. | **Applied** — appended as a directive to the system prompt. |
-| `llm` | Model id (e.g. `gpt-5`). | **Applied** when the model is deployed here; otherwise the platform default is used. |
+| `llm` | Model id (e.g. `gpt-5`). | **Applied** when the model is deployed here; otherwise a **mode-aware default** is used: `gpt-5.4` for tutor bots, `gpt-4.1` for Q&A bots (empty/unknown/undeployed all fall back this way). |
+| `reasoning_effort` | Reasoning effort for reasoning-capable models (`minimal`/`low`/`medium`/`high`/`xhigh`, model-dependent). | **Applied** — validated against the effective model. Missing or unsupported → defaults to `high`; ignored on non-reasoning models (e.g. `gpt-4.1`). |
 | `design.color_primary` | Hex theme color. | **Applied** (frontend theme). |
 | `languages` | List of language labels (`["Deutsch"]`). Only **de / en / nl** supported; `Deutsch→de`, `English→en`, `Nederlands→nl`. | **Applied** (frontend locales; first = default). |
 | `greeting` | `{ "<Language>": "text" }` welcome message per language. | **Applied** (frontend welcome bubble). |
 | `disclaimer` | `{ "<Language>": "text" }` disclaimer per language. | **Applied** (frontend disclaimer banner text). |
 | `features.disclaimer` | Show/hide the disclaimer banner. | **Applied.** |
 | `features.sources` | Show/hide citations in answers. | **Applied.** |
-| `features.history` | Chat history UI. | **Not wired** — the generic bot v1 has no history UI. |
-| `modes` | `{ qa, tutor, assessment }`. | **Partial** — `tutor:true` is recorded as a dual-mode bot, but the generic frontend v1 renders **Q&A only**. `assessment` is ignored (always treated false — no generic MC engine). |
+| `features.history` | Chat history UI (browser/IndexedDB). | **Applied** — shown unless `false`. |
+| `features.speech_input` | Microphone / speech-to-text UI. | **Applied** — default **OFF**; shown only if `true` **and** the deployment enables speech input. |
+| `features.speech_output_browser` | Free browser text-to-speech UI. | **Applied** — default **OFF**; shown only if `true` **and** the deployment enables browser TTS. |
+| `features.speech_output_azure` | Azure text-to-speech (incurs cost). | **Applied** — default **OFF**; shown only if `true` **and** the deployment enables Azure TTS. |
+| `modes` | `{ qa, tutor, assessment }`. | **Applied** — `tutor:true` makes a dual-mode bot: the welcome shows the Tutor/Q&A option buttons and (when `prompt` is empty) the generic tutor prompt + tutor model default drive a full tutor flow. `assessment` is ignored (always treated false — no generic MC engine). |
 | `login` | `{ required, provider }`. `provider:"email"`. | **Delivered, not yet enforced** — the generic bot v1 is open regardless of `login.required`. |
 | `qa.*` / `tutor.*` | Sub-knobs (`confidence`, `fallback`, `level`, `pace`, …). | **Stored only** — not individually applied yet. |
 | `design.color_secondary` | — | **Ignored.** |
@@ -163,14 +167,14 @@ $create = provisionChatbot([
     'sessionId' => '9cb46df0-d3e2-464a-a11c-86576f474bcd',
     'name'      => 'ABX', 'botName' => 'bxa', 'operation' => 'create',
     'defaults'  => [
-        'ansprache' => 'informal', 'llm' => 'gpt-5', 'prompt' => '',
+        'ansprache' => 'informal', 'llm' => 'gpt-5', 'reasoning_effort' => 'high', 'prompt' => '',
         'modes'     => ['qa' => true, 'tutor' => true, 'assessment' => false],
         'design'    => ['color_primary' => '#AC44C6', 'color_secondary' => '#00cc96'],
         'languages' => ['Deutsch'],
         'greeting'  => ['Deutsch' => 'Willkommen! Wie kann ich Ihnen helfen?'],
         'disclaimer'=> ['Deutsch' => 'KI-gestützter Assistent. Antworten werden automatisiert generiert, verbindlich sind offizielle Quellen.'],
         'flagged'   => ['Deutsch' => ''],
-        'features'  => ['disclaimer' => true, 'history' => true, 'sources' => false],
+        'features'  => ['disclaimer' => true, 'history' => true, 'sources' => false, 'speech_input' => false, 'speech_output_browser' => false, 'speech_output_azure' => false],
         'login'     => ['required' => false, 'provider' => 'email'],
         'qa'        => ['confidence' => 'medium', 'fallback' => 'apologize', 'follow_up' => true, 'related' => true],
         'tutor'     => ['level' => 'intermediate', 'pace' => 'medium', 'method' => 'explanation', 'examples' => true, 'summary' => true, 'progress' => false],
@@ -205,8 +209,14 @@ curl -sS -X POST "https://chat.nerilio.ai/provisioning/chatbots" \
 - **Auth** — add the agreed scheme (static Bearer via `PROVISIONING_API_KEY`, or HMAC of the body) and
   wire it as an azd variable. Gate currently open.
 - **`login.required` enforcement** — generic frontend v1 does not gate; bots are open.
-- **Tutor / assessment UI** in the generic frontend (v1 is Q&A-only).
-- **`features.history`** UI for dynamic bots.
+- **Assessment UI** in the generic frontend (no generic MC engine yet; `assessment` is ignored). Tutor mode
+  and browser history are now wired.
+- **Fine-grained `qa.*` / `tutor.*` knobs** (confidence, fallback, pace, examples, summary, …) — stored but
+  not yet mapped to prompt behavior.
+- **Model deployment note:** the `llm` fallbacks `gpt-5.4` (tutor) / `gpt-4.1` (Q&A) must have real Azure
+  OpenAI deployments (or an `AZURE_OPENAI_CHAT_MODEL_DEPLOYMENTS` mapping); otherwise the call fails at
+  runtime. Both are deployed in the current nerilio resource (`gpt-4.1` also backs several built-in Q&A bots),
+  so no action is needed there — this only matters if the backing resource changes.
 - **Quota: 120-min-inactivity** session re-counting (needs per-session last-activity storage).
 - **`qa.*` / `tutor.*`** behavior knobs → prompt parameters.
 - **`flagged`, `design.color_secondary`** — wire if/when needed.

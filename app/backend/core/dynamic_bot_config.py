@@ -12,9 +12,17 @@ is intentionally ignored (always false per the agreed contract — no generic MC
 from typing import Any, Optional
 
 from core.chatbotregistrystore import ChatbotRegistryRecord
+from core.dynamic_tutor_prompt import DEFAULT_DYNAMIC_TUTOR_PROMPT
 
 # Supported frontend locales (must match the en/de/nl standard). Order is the default-preference order.
 SUPPORTED_LANGUAGE_CODES: tuple[str, ...] = ("de", "en", "nl")
+
+# Mode-aware default chat models for dynamic bots whose provisioned `llm` is empty, unknown, or not
+# deployed here. Tutor bots need a reasoning-capable model (run at high effort); Q&A bots use a
+# cheaper general model. These are model IDs from `DEVELOPER_CHAT_MODELS`; the matching Azure
+# deployments must exist (or `AZURE_OPENAI_CHAT_MODEL_DEPLOYMENTS` must map them) for them to serve.
+DEFAULT_DYNAMIC_TUTOR_MODEL = "gpt-5.4"
+DEFAULT_DYNAMIC_QNA_MODEL = "gpt-4.1"
 
 # Control-panel language labels (and a few aliases) -> frontend locale code.
 LANGUAGE_LABEL_TO_CODE: dict[str, str] = {
@@ -35,8 +43,8 @@ DEFAULT_LANGUAGE_CODE = "de"
 
 # `ansprache` (German formal/informal addressing) is a structured field the control panel sets
 # independently of the prompt text. Built-in bots hardcode informal "du"; dynamic bots honor the
-# configured value by appending a directive to their system prompt. Olaf sends "informal"/"formal";
-# "du"/"sie" are accepted as aliases.
+# configured value by appending a directive to their system prompt. The nerilio backend sends
+# "informal"/"formal"; "du"/"sie" are accepted as aliases.
 INFORMAL_ANSPRACHE_DIRECTIVE = (
     "Always address the user informally. In German, use the informal du/dich/dir/dein "
     "and never the formal Sie/Ihnen/Ihr."
@@ -61,9 +69,16 @@ def ansprache_directive(ansprache: Any) -> Optional[str]:
 
 
 def build_dynamic_system_prompt(record: ChatbotRegistryRecord, default_prompt: str) -> str:
-    """Build a dynamic bot's effective system prompt: its prompt (or the neutral default when empty),
+    """Build a dynamic bot's effective system prompt: its custom prompt when provided, otherwise a
+    mode-aware default (the generic tutor prompt for tutor bots, else the neutral Q&A ``default_prompt``),
     with the configured `ansprache` addressing directive appended when set."""
-    base = (record.prompt or "").strip() or default_prompt
+    custom_prompt = (record.prompt or "").strip()
+    if custom_prompt:
+        base = custom_prompt
+    elif derive_chatbot_mode(record.modes) == "tutor-qna":
+        base = DEFAULT_DYNAMIC_TUTOR_PROMPT
+    else:
+        base = default_prompt
     directive = ansprache_directive(record.ansprache)
     return f"{base}\n\n{directive}" if directive else base
 

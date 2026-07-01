@@ -17,6 +17,125 @@ Two categories per date:
 
 ## 2026-07-01
 
+### Generic bot: fix lemon-logo leak in assistant avatar + begin decoupling from lemon (shared/chat-ui)
+
+#### Decisions
+
+- **Root cause of the reported bug (generic "nexus" bot showed lemon's logo in the assistant avatar):**
+  the generic bot imported lemon's *pre-baked* `Answer` (`import { Answer } from "../../../lemon/components/Answer"`),
+  and lemon's `Answer.tsx` is `createBotAnswer(lemonChatbotLogo, …)` — the lemon PNG is frozen into the
+  factory closure and `AnswerProps` exposes no logo prop, so every dynamic bot inherited `lemon-chatbot.png`
+  with no override seam. The "default applogo.svg" that CLAUDE.md/CHANGES.md referenced only ever applied to
+  the page **header** mark (generic's Layout does that correctly), NOT the answer-bubble avatar. Verified the
+  avatar was the ONE true live user-visible leak: the category/header-logo/`/lemon`-link/speech-flag leaks the
+  audit surfaced all live in *lemon* files that generic does not consume (generic already forked Chat/Layout
+  and overrides category + uses the shared applogo header), and `createGenericI18n` already overrides the
+  page/header titles — so those never reach a dynamic bot at runtime.
+- **Architecture direction (user asked whether generic should stop depending on any existing bot).** Evaluated
+  three options — keep-reuse+patch (A), full independent fork (B), extract a neutral shared library (C). Chose
+  **C, reached via a safe hybrid**: full fork (B) was rejected (≈94 files / 3,500+ LOC of duplication, *fake*
+  isolation since copies still import `shared/`, and it breaks the tutor-marker lockstep contract on the first
+  lemon change). C is the clean/extensible/maintainable endpoint and the codebase is already half-way there
+  (the answer render core `createBotAnswer`/`ChatbotAnswer`, themes, speech flags, disclaimer, optionMarkers
+  all already live in `shared/`). This session ships the avatar fix + i18n hardening (generic-only, zero
+  built-in-bot risk) and *begins* C by extracting the cleanest reused leaf chrome into `shared/chat-ui/`.
+- **Avatar = neutral `applogo.svg` (per user).** Generic now owns its `Answer` binding
+  (`createBotAnswer(applogo.svg, …)`), mirroring the pattern bensberg/internal already use (they own their own
+  `Answer`). A per-bot *provisioned* logo (BotConfig logo URL) is a deliberate follow-up, not done here.
+- **First `shared/chat-ui/` migration slice (per user: "also begin the shared migration").** Moved only the
+  genuinely bot-agnostic leaf components (no lemon-specific deps — just fluentui + i18n + own CSS). Deferred the
+  lemon-coupled ones: `QuestionInput` (imports lemon `loginContext`/`authConfig`), `LanguagePicker` /
+  `SpeechOutputBrowser` (import lemon `i18n/config`), and the heavier `Settings`/`HistoryPanel`/`HistoryProviders`
+  (tutor-marker + session-persistence lockstep risk — needs full tutor e2e). The 15 non-lemon built-in bots keep
+  their own private copies of these leaf components (pre-existing per-bot duplication) — untouched, out of scope.
+- **Verification:** `npm run build` green (tsc + vite: 6201 modules + widget). tsc catches every mis-pointed
+  import for a pure relocation, and the moved components are byte-identical, so behavior is preserved. No backend
+  files touched (no pytest impact). Full Playwright e2e for the moved shared UI should still run in CI per the
+  CLAUDE.md shared-UI test rule (not reliably runnable in this Windows env).
+
+#### Changes
+
+- `app/frontend/src/chatbots/generic/components/Answer/Answer.tsx` — **new**: generic-owned
+  `createBotAnswer(applogo.svg, SpeechOutputBrowser, SpeechOutputAzure)` binding (speech wrappers still reused
+  from lemon for now — behaviorally bot-agnostic).
+- `app/frontend/src/chatbots/generic/components/Answer/index.ts` — **new**: re-exports `Answer` (local) +
+  `AnswerLoading`/`AnswerError` (from lemon, bot-agnostic).
+- `app/frontend/src/chatbots/generic/pages/chat/Chat.tsx` — `Answer` import repointed to the generic-owned
+  binding; button/`UserChatMessage` imports repointed to `shared/chat-ui`.
+- `app/frontend/src/chatbots/generic/createGenericI18n.ts` — `pageTitle`/`headerTitle` fall back to `config.botName`
+  (never lemon's base "Lemon®AID") when `displayName` is empty.
+- `app/frontend/src/chatbots/shared/chat-ui/{HistoryButton,SettingsButton,ClearChatButton,UserChatMessage}/` —
+  **moved** here (via `git mv`, history preserved) from `app/frontend/src/chatbots/lemon/components/`.
+- `app/frontend/src/chatbots/lemon/pages/chat/Chat.tsx`, `.../bensberg/pages/chat/Chat.tsx`,
+  `.../internal/pages/chat/Chat.tsx` — repointed the moved-component imports to `shared/chat-ui` (lemon: all 4;
+  bensberg: all 4; internal: `UserChatMessage` only). Behavior unchanged (identical components, new location).
+- `CLAUDE.md` — updated the dynamic-bots contract bullet: neutral-avatar invariant, the "generic imports chrome
+  only from `shared/`, never a sibling bot" convention, and the `shared/chat-ui/` migration state.
+
+### Dynamic chatbot provisioning — mode-aware tutor default, granular speech toggles, model/effort self-healing; drop "Olaf" name
+
+#### Decisions
+
+- **Terminology:** removed the person-name "Olaf" everywhere (docs/code/CHANGES history) in favor of
+  "nerilio backend" / "nerilio backend PHP". No behavior change. (Generated `graphify-out/` artifacts refresh
+  on the next `graphify update`.)
+- **Generic bot stays a single config-driven template** (`chatbots/generic/`, reuses lemon read-only) — we
+  extended it, not forked a new one. Confirmed it's the maintainable choice.
+- **Working tutor default (mode drives everything).** A `modes.tutor=true` bot now renders the tutor welcome
+  (the `[[CHOICES kind=mode]]` marker → Tutor/Q&A buttons, using lemon's `options.*` i18n) AND, when `prompt`
+  is empty, runs a real tutor flow via a new **topic-agnostic** `DEFAULT_DYNAMIC_TUTOR_PROMPT`
+  (`app/backend/core/dynamic_tutor_prompt.py`) — a genericized sibling of lemon's tutor prompt preserving the
+  Start-Gate, the de/en/nl running counter, the terminal stop, the level-difficulty rubric, and the
+  `[[CHOICES]]`/`[[SPLIT]]` marker grammar, but with **no `{{SUPPORT_EMAIL}}`** (dynamic bots have no config
+  to render it — `render_chatbot_prompt` would leak the literal). Q&A bots keep the neutral
+  `DEFAULT_DYNAMIC_PROMPT` and a plain greeting. `build_dynamic_system_prompt` now picks the default by mode;
+  a custom provisioned `prompt` still overrides either.
+- **Model/effort self-healing (per user).** A wrong / undeployed / empty `llm` now falls back to a
+  **mode-aware** default — `gpt-5.4` for tutor, `gpt-4.1` for Q&A (constants in `dynamic_bot_config.py`) —
+  validated against `CONFIG_CHAT_MODEL_DEPLOYMENTS` rather than the single global default. A new optional
+  provisioning scalar `reasoning_effort` (stored on the record) is validated against the effective model's
+  `GPT_REASONING_MODELS` support: missing/invalid → **`high`** on reasoning models, ignored on non-reasoning
+  (`gpt-4.1`). Fully backend-driven (authoritative over the frontend's empty default); an explicit non-empty
+  client `chat_model`/valid effort is still respected. Confirmed against the live resource
+  (`cog-bfmtryd6z3arm`): both `gpt-5.4` (v2026-03-05) and `gpt-4.1` are deployed (`gpt-4.1` already backs the
+  built-in Q&A bots agindo/fhg/rak/free/sartorius/vjoonk4), so the fallbacks serve as-is — no operational
+  action needed unless the backing resource changes; the two constants are trivially retargetable.
+- **Granular speech toggles, default OFF (cost-safe).** Three per-bot flags inside the existing
+  `defaults.features` (`speech_input`, `speech_output_browser`, `speech_output_azure`) — no store schema
+  change (features stored verbatim). Effective visibility = per-bot flag **AND** the deployment's global
+  `/config` speech capability, so Azure TTS is opt-in. Replaced the generic bot's name-keyed
+  `applyChatbotSpeechFeatureFlags` no-op (which inherited global speech) with an explicit AND.
+- **Deferred (unchanged):** per-bot logo (still the shared `applogo.svg`); fine-grained `qa.*`/`tutor.*`
+  knobs (stored-only). e2e for the generic welcome/speech is a scratch/manual route-mock check per the
+  existing convention (committed generic smoke is flaky in this Windows env; Playwright isn't installed here).
+
+#### Changes
+
+- `app/backend/core/dynamic_tutor_prompt.py` — **new**: `DEFAULT_DYNAMIC_TUTOR_PROMPT` (generic tutor prompt).
+- `app/backend/core/dynamic_bot_config.py` — import the tutor prompt; add `DEFAULT_DYNAMIC_TUTOR_MODEL="gpt-5.4"`
+  / `DEFAULT_DYNAMIC_QNA_MODEL="gpt-4.1"`; `build_dynamic_system_prompt` now mode-aware (tutor default when
+  empty + tutor mode).
+- `app/backend/core/chatbotregistrystore.py` — new `reasoning_effort` field on `ChatbotRegistryRecord` +
+  serialize (`reasoningEffort`) / deserialize / `save_record`.
+- `app/backend/provisioning.py` — `reasoning_effort` added to the scalar passthrough; nerilio rename in
+  docstring + TODOs.
+- `app/backend/app.py` — dynamic branch of `apply_saved_chatbot_prompt_override` rewritten: mode-aware model
+  fallback (validated against deployments) + reasoning-effort resolution (default `high` on reasoning models);
+  extended the `core.dynamic_bot_config` import; nerilio rename in the auth-stub comment.
+- `app/frontend/src/api/models.ts` — `BotConfig.features` extended with the three `speech_*` optional booleans.
+- `app/frontend/src/chatbots/generic/pages/chat/Chat.tsx` — mode-driven welcome (`[[CHOICES kind=mode]]` for
+  tutor-qna); granular per-bot speech AND against `botConfig.features`; dropped the unused
+  `applyChatbotSpeechFeatureFlags` import.
+- `docs/provisioning-api.md` — §5 rows for `reasoning_effort`, `features.speech_*`, mode-aware `llm` fallback,
+  and `modes`; §7 example updated; §8 roadmap updated; nerilio rename.
+- `CLAUDE.md` — new dynamic-provisioning contract bullet (generic tutor default, model/effort self-healing,
+  granular speech, deployment prerequisite).
+- Tests: `tests/test_dynamic_prompt_config.py` (mode-aware default selection), `tests/test_bot_config.py`
+  (speech features passthrough), `tests/test_dynamic_resolution.py` (model + reasoning-effort fallback matrix;
+  updated the old "no model" assumptions), `tests/test_provisioning.py` (`reasoning_effort` mapping +
+  round-trip). Backend suite: 85 pass for the four dynamic files (+8 quota); `ty check` clean; `npm run build`
+  green (tsc + vite + widget).
+
 ### Dynamic chatbot provisioning — generic bot now REUSES lemon's UI verbatim (pixel parity), replacing the slim hand-rolled UI
 
 #### Decisions
@@ -141,8 +260,8 @@ Two categories per date:
 - **Found + fixed a real robustness bug.** A first CREATE returned a 500 (HTML, not the handler's JSON):
   server logs showed `UnicodeDecodeError` from `request.get_json(silent=True)` — `silent=True` suppresses
   JSON *parse* errors but not a UTF-8 *decode* error on the raw body. (Root trigger was the local Windows
-  shell sending the German "ü" as Latin-1 `0xfc`; Olaf's PHP `json_encode` always emits valid UTF-8, so
-  he wouldn't hit it — but the server shouldn't 500 either way.) Now wrapped to return a clean **400**.
+  shell sending the German "ü" as Latin-1 `0xfc`; the nerilio backend PHP `json_encode` always emits valid
+  UTF-8, so it wouldn't hit it — but the server shouldn't 500 either way.) Now wrapped to return a clean **400**.
 
 #### Changes
 
@@ -178,7 +297,7 @@ Two categories per date:
 - **Provisioning API is intentionally unauthenticated for now.** Per the team decision, auth/security
   is added at the end once the feature is complete and tested. The gate previously returned 503 when no
   key was configured (blocking callers); it now **passes requests through when `PROVISIONING_API_KEY` is
-  unset**, so Olaf's PHP calls need no `Authorization` header. When the key IS set, Bearer auth is
+  unset**, so the nerilio backend PHP calls need no `Authorization` header. When the key IS set, Bearer auth is
   enforced — so enabling auth later is just setting the env var (or replacing the gate with the final
   scheme, e.g. HMAC). ⚠️ Note: `POST /provisioning/chatbots` is a public, mutating, destructive endpoint
   on chat.nerilio.ai with no auth until then — known/accepted exposure for the build phase.
@@ -233,7 +352,7 @@ Two categories per date:
   chat (`len(messages) <= 1`); cumulative per bot; `-1` = unlimited; new sessions blocked at the cap.
   Verified the generic frontend sends growing history (`[...history, {user}]`), so message count is a
   reliable new-session signal (and `create_session_id` returns None when history stores are off, so
-  `session_state` is NOT reliable). **The 120-min-inactivity reactivation half of Olaf's definition is
+  `session_state` is NOT reliable). **The 120-min-inactivity reactivation half of the nerilio backend's definition is
   NOT implemented** — it needs per-session last-activity storage (none exists). This only under-counts
   (a chat resumed after 2h isn't re-counted), which favors the user and never over-charges.
 - **Enforcement lives in `enforce_dynamic_chatbot_gate`.** New session under cap → admit + atomic
@@ -259,7 +378,7 @@ Two categories per date:
 
 #### Decisions
 
-- **Honor the per-bot `features.sources` flag** (Olaf's payloads set `sources:false`). The generic bot
+- **Honor the per-bot `features.sources` flag** (the nerilio backend's payloads set `sources:false`). The generic bot
   now hides citations when sources is false — both the inline citation refs (stripped from the displayed
   text via the existing `stripCitationLinks`) and the footer source list. Done with an **additive**
   `showCitations` prop on the shared `ChatbotAnswer` (default = shown), so all 18 built-in bots are
@@ -374,7 +493,7 @@ Two categories per date:
   built-in never touches the registry). Suite: 36 pass; ty clean (app.py's 28 diagnostics are the
   pre-existing 2805/2869 ones).
 
-### Dynamic chatbot provisioning — contract answers from Olaf (PHP side)
+### Dynamic chatbot provisioning — contract answers from nerilio backend (PHP side)
 
 #### Decisions
 
@@ -427,7 +546,7 @@ Two categories per date:
 
 #### Decisions
 
-- **New external contract (from Olaf's PHP app).** A single JSON envelope `POST /provisioning/chatbots`
+- **New external contract (from the nerilio backend PHP app).** A single JSON envelope `POST /provisioning/chatbots`
   dispatched on `operation ∈ {create, update, start, stop, delete}`, keyed by an immutable `botName`
   slug (`name` is the mutable display name). `sessionId` is a correlation/idempotency id, **not** auth.
   Pricing plan rides along as `number_sessions` (Free 30 / Basic 5000 / Pro 10000 / Enterprise -1).
@@ -444,7 +563,7 @@ Two categories per date:
   (prompt/config/routing fallback), quota enforcement, the delete cascade, and the generic frontend are
   later phases. `botName` validation is strict (rejects non-canonical/uppercase input rather than
   silently lowercasing the primary key).
-- **STUBS pending Olaf (plan Phase 0).** Auth is a static-Bearer-key stub (`PROVISIONING_API_KEY` env,
+- **STUBS pending the nerilio backend (plan Phase 0).** Auth is a static-Bearer-key stub (`PROVISIONING_API_KEY` env,
   not yet an azd variable); final scheme (static key vs HMAC-of-body) TBD. Still open: session
   definition + reset cadence, generic `assessment` scope, `flagged` meaning, `color_secondary` use,
   allowed `llm`/`languages` sets, create-on-existing semantics.

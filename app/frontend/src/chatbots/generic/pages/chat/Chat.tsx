@@ -9,16 +9,16 @@ import appLogo from "../../../../assets/applogo.svg";
 import styles from "../../../lemon/pages/chat/Chat.module.css";
 
 import { chatApi, configApi, RetrievalMode, ChatAppResponse, ChatAppResponseOrError, ChatAppRequest, ResponseMessage, SpeechConfig } from "../../../lemon/api";
-import { Answer, AnswerError, AnswerLoading } from "../../../lemon/components/Answer";
+import { Answer, AnswerError, AnswerLoading } from "../../components/Answer";
 import { QuestionInput } from "../../../lemon/components/QuestionInput";
 import { ExampleList } from "../../../lemon/components/Example";
-import { UserChatMessage } from "../../../lemon/components/UserChatMessage";
+import { UserChatMessage } from "../../../shared/chat-ui/UserChatMessage";
 import { AnalysisPanel, AnalysisPanelTabs } from "../../../lemon/components/AnalysisPanel";
 import { HistoryPanel } from "../../../lemon/components/HistoryPanel";
 import { HistoryProviderOptions, useHistoryManager } from "../../../lemon/components/HistoryProviders";
-import { HistoryButton } from "../../../lemon/components/HistoryButton";
-import { SettingsButton } from "../../../lemon/components/SettingsButton";
-import { ClearChatButton } from "../../../lemon/components/ClearChatButton";
+import { HistoryButton } from "../../../shared/chat-ui/HistoryButton";
+import { SettingsButton } from "../../../shared/chat-ui/SettingsButton";
+import { ClearChatButton } from "../../../shared/chat-ui/ClearChatButton";
 import { UploadFile } from "../../../lemon/components/UploadFile";
 import { useLogin, getToken, requireAccessControl } from "../../../lemon/authConfig";
 import { useMsal } from "@azure/msal-react";
@@ -28,7 +28,6 @@ import { LanguagePicker } from "../../../lemon/i18n/LanguagePicker";
 import { Settings } from "../../../lemon/components/Settings/Settings";
 import { setGlobalClearChat, setGlobalOpenRecentChats } from "../layout/Layout";
 import { buildOptionTexts, isOptionSelectionTurn, matchesChoiceValue, parseChoiceMarker } from "../../../shared/answer";
-import { applyChatbotSpeechFeatureFlags } from "../../../shared/speech/chatbotSpeechFeatureFlags";
 import { ChatbotDisclaimerBanner } from "../../../shared/disclaimer/ChatbotDisclaimerBanner";
 import { ScrollToBottomButton } from "../../../shared/scroll/ScrollToBottomButton";
 import { readActiveSessionId, writeActiveSessionId, clearActiveSessionId } from "../../../shared/history/activeSession";
@@ -52,10 +51,12 @@ const Chat = () => {
     // also used to detect when a turn was an option click so its user bubble is suppressed.
     const optionTexts = useMemo(() => buildOptionTexts(t), [t]);
     const legacyInitialUserMessage: string = t("initialUserMsg");
-    // Dynamic bots are Q&A by default and their generic prompt does not implement the tutor state
-    // machine, so the welcome is just the provisioned greeting (no interactive mode marker). The synthetic
-    // welcome pair is still never sent to the backend.
-    const initialAssistantMessageContent: string = t("initialAssistantMsg");
+    // Welcome message follows the provisioned mode. Tutor bots (tutor-qna) append the hidden
+    // [[CHOICES kind=mode]] marker so the greeting shows the Tutor/Q&A option buttons exactly like the
+    // built-in tutor bots (their default tutor prompt implements the state machine); Q&A-only bots show a
+    // plain greeting. The synthetic welcome pair is still never sent to the backend.
+    const initialAssistantMessageContent: string =
+        botConfig.mode === "tutor-qna" ? t("initialAssistantMsg") + "\n\n[[CHOICES kind=mode]][[/CHOICES]]" : t("initialAssistantMsg");
     const initialAssistantResponse: ChatAppResponse = {
         message: {
             content: initialAssistantMessageContent,
@@ -167,7 +168,6 @@ const Chat = () => {
 
     const getConfig = async () => {
         configApi().then(config => {
-            const effectiveConfig = applyChatbotSpeechFeatureFlags(botConfig.botName, config);
             setShowMultimodalOptions(config.showMultimodalOptions);
             if (config.showMultimodalOptions) {
                 // Initialize from server config so defaults match deployment settings
@@ -191,9 +191,13 @@ const Chat = () => {
             }
             setShowUserUpload(config.showUserUpload);
             setshowLanguagePicker(config.showLanguagePicker);
-            setShowSpeechInput(effectiveConfig.showSpeechInput);
-            setShowSpeechOutputBrowser(effectiveConfig.showSpeechOutputBrowser);
-            setShowSpeechOutputAzure(effectiveConfig.showSpeechOutputAzure);
+            // Granular per-bot speech toggles (default OFF): each channel shows only if the provisioned
+            // flag is true AND the deployment's global /config capability allows it. Azure TTS incurs
+            // cost, so nothing is enabled unless the provisioning call explicitly turned it on.
+            const speechFeatures = botConfig.features ?? {};
+            setShowSpeechInput(config.showSpeechInput && speechFeatures.speech_input === true);
+            setShowSpeechOutputBrowser(config.showSpeechOutputBrowser && speechFeatures.speech_output_browser === true);
+            setShowSpeechOutputAzure(config.showSpeechOutputAzure && speechFeatures.speech_output_azure === true);
             // Dynamic bots use browser (IndexedDB) history only, gated by the provisioned feature —
             // never Cosmos. See the provisioning contract; Cosmos is deferred until it stabilizes.
             setShowChatHistoryBrowser(botConfig.features?.history !== false);

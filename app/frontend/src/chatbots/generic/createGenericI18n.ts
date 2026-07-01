@@ -34,8 +34,11 @@ export function createGenericI18n(config: BotConfig): I18nInstance {
         resources[code] = {
             translation: {
                 ...base,
-                pageTitle: config.displayName || base.pageTitle,
-                headerTitle: config.displayName || base.headerTitle,
+                // Never fall back to lemon's base title ("Lemon®AID"): a provisioned bot must not surface
+                // another bot's brand. displayName is the provisioned title; botName (the route slug) is the
+                // always-present neutral fallback if displayName is somehow empty.
+                pageTitle: config.displayName || config.botName,
+                headerTitle: config.displayName || config.botName,
                 ...(greeting ? { initialAssistantMsg: greeting } : {}),
                 disclaimer: {
                     ...(base.disclaimer ?? {}),

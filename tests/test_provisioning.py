@@ -305,6 +305,12 @@ def test_build_fields_from_payload_number_sessions_variants():
     assert "number_sessions" not in build_fields_from_payload({"defaults": {"number_sessions": True}})
 
 
+def test_build_fields_from_payload_maps_reasoning_effort():
+    assert build_fields_from_payload({"defaults": {"reasoning_effort": "high"}})["reasoning_effort"] == "high"
+    # non-string values are ignored (only scalar strings pass through)
+    assert "reasoning_effort" not in build_fields_from_payload({"defaults": {"reasoning_effort": 3}})
+
+
 def test_registry_store_serialize_deserialize_round_trip():
     store = ChatbotRegistryStore(blob_manager=mock.Mock())
     record = ChatbotRegistryRecord(
@@ -317,6 +323,7 @@ def test_registry_store_serialize_deserialize_round_trip():
         number_sessions=10000,
         ansprache="informal",
         llm="gpt-5",
+        reasoning_effort="high",
         prompt="hello",
         modes={"qa": True},
         languages=["Deutsch"],

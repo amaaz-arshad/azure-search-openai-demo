@@ -158,7 +158,15 @@ export type BotConfig = {
     defaultLanguage: string;
     greeting: Record<string, string>;
     disclaimer: Record<string, string>;
-    features: { disclaimer?: boolean; history?: boolean; sources?: boolean };
+    features: {
+        disclaimer?: boolean;
+        history?: boolean;
+        sources?: boolean;
+        // Granular speech toggles, all default OFF (each ANDed with the global /config capability).
+        speech_input?: boolean;
+        speech_output_browser?: boolean;
+        speech_output_azure?: boolean;
+    };
     login: { required?: boolean; provider?: string };
 };
 

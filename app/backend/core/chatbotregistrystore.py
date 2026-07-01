@@ -52,6 +52,7 @@ class ChatbotRegistryRecord:
     number_sessions: int = UNLIMITED_SESSIONS
     ansprache: Optional[str] = None
     llm: Optional[str] = None
+    reasoning_effort: Optional[str] = None
     prompt: str = ""
     modes: dict[str, Any] = field(default_factory=dict)
     design: dict[str, Any] = field(default_factory=dict)
@@ -136,6 +137,7 @@ class ChatbotRegistryStore:
             "numberSessions": record.number_sessions,
             "ansprache": record.ansprache,
             "llm": record.llm,
+            "reasoningEffort": record.reasoning_effort,
             "prompt": record.prompt,
             "modes": record.modes,
             "design": record.design,
@@ -186,6 +188,7 @@ class ChatbotRegistryStore:
         plan = payload.get("plan")
         ansprache = payload.get("ansprache")
         llm = payload.get("llm")
+        reasoning_effort = payload.get("reasoningEffort")
         prompt = payload.get("prompt")
         last_session_id = payload.get("lastSessionId")
         return ChatbotRegistryRecord(
@@ -198,6 +201,7 @@ class ChatbotRegistryStore:
             number_sessions=number_sessions,
             ansprache=ansprache if isinstance(ansprache, str) else None,
             llm=llm if isinstance(llm, str) else None,
+            reasoning_effort=reasoning_effort if isinstance(reasoning_effort, str) else None,
             prompt=prompt if isinstance(prompt, str) else "",
             modes=as_dict(payload.get("modes")),
             design=as_dict(payload.get("design")),
@@ -257,6 +261,7 @@ class ChatbotRegistryStore:
             ),
             ansprache=fields.get("ansprache", existing.ansprache if existing else None),
             llm=fields.get("llm", existing.llm if existing else None),
+            reasoning_effort=fields.get("reasoning_effort", existing.reasoning_effort if existing else None),
             prompt=fields.get("prompt", existing.prompt if existing else ""),
             modes=fields.get("modes", existing.modes if existing else {}),
             design=fields.get("design", existing.design if existing else {}),

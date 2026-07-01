@@ -1,8 +1,8 @@
 """External chatbot provisioning API.
 
 A single ingest endpoint (`POST /provisioning/chatbots`) lets an external control panel
-(Olaf's PHP app) create / update / start / stop / delete *dynamic* chatbots. The request is
-a JSON envelope dispatched on its ``operation`` field.
+(the nerilio backend PHP app) create / update / start / stop / delete *dynamic* chatbots. The
+request is a JSON envelope dispatched on its ``operation`` field.
 
 ISOLATION INVARIANT (must hold): this API governs ONLY newly created dynamic bots in the
 runtime :class:`ChatbotRegistryStore`. It can never create/update/start/stop/delete a
@@ -10,8 +10,8 @@ built-in bot — any ``botName`` colliding with a reserved name is rejected. The
 bots keep their hardcoded definitions and behavior untouched.
 
 SCAFFOLDING STATUS: this is the additive Phase-1 skeleton (store wiring + operation dispatch
-+ reserved-name guard). Two pieces are intentionally stubbed pending the contract with Olaf
-(plan Phase 0):
++ reserved-name guard). Two pieces are intentionally stubbed pending the contract with the
+nerilio backend (plan Phase 0):
 
   * AUTH — `provisioning_api_key_required` is a static-Bearer-key stub. The final scheme
     (static key vs HMAC-SHA256 of the raw body) is TBD. ``sessionId`` in the payload is a
@@ -143,7 +143,12 @@ def build_fields_from_payload(payload: dict[str, Any]) -> dict[str, Any]:
         fields["number_sessions"] = int(number_sessions)
 
     # Scalar passthroughs.
-    for src, dst in (("ansprache", "ansprache"), ("llm", "llm"), ("prompt", "prompt")):
+    for src, dst in (
+        ("ansprache", "ansprache"),
+        ("llm", "llm"),
+        ("reasoning_effort", "reasoning_effort"),
+        ("prompt", "prompt"),
+    ):
         if src in defaults and isinstance(defaults[src], str):
             fields[dst] = defaults[src]
 
@@ -171,11 +176,11 @@ def record_summary(record: ChatbotRegistryRecord) -> dict[str, Any]:
 async def handle_create(payload: dict[str, Any], bot_name: str) -> tuple[dict[str, Any], int]:
     store = get_chatbot_registry_store()
     if await store.load_record(bot_name) is not None:
-        # TODO(Olaf contract): confirm whether a repeated create should be a no-op/upsert.
+        # TODO(nerilio contract): confirm whether a repeated create should be a no-op/upsert.
         raise ProvisioningError(f"botName '{bot_name}' already exists.", 409)
     fields = build_fields_from_payload(payload)
     # A freshly created bot is live; the panel uses start/stop to toggle thereafter.
-    # TODO(Olaf contract): confirm whether create should start active or wait for `start`.
+    # TODO(nerilio contract): confirm whether create should start active or wait for `start`.
     fields["active"] = True
     fields.setdefault("number_sessions", UNLIMITED_SESSIONS)
     fields["last_session_id"] = payload.get("sessionId")

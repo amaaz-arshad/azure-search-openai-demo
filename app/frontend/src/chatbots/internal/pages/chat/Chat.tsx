@@ -20,7 +20,7 @@ import {
 } from "../../api";
 import { Answer, AnswerError, AnswerLoading } from "../../components/Answer";
 import { QuestionInput } from "../../../lemon/components/QuestionInput";
-import { UserChatMessage } from "../../../lemon/components/UserChatMessage";
+import { UserChatMessage } from "../../../shared/chat-ui/UserChatMessage";
 import { AnalysisPanel, AnalysisPanelTabs } from "../../../lemon/components/AnalysisPanel";
 import { HistoryPanel } from "../../../lemon/components/HistoryPanel";
 import { HistoryProviderOptions, useHistoryManager } from "../../../lemon/components/HistoryProviders";

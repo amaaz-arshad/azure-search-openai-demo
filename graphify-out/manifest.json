@@ -10,8 +10,8 @@
     "semantic_hash": "c8206d7e25a79e5a4ed79f965d38d672"
   },
   "app/backend/app.py": {
-    "mtime": 1782850934.3335588,
-    "ast_hash": "8f10d3dcf3322475ddb48094b8b91502",
+    "mtime": 1782870929.201638,
+    "ast_hash": "2ab2f4303b4a8d2a9e38bb011f8fa598",
     "semantic_hash": ""
   },
   "app/backend/config.py": {
@@ -535,8 +535,8 @@
     "semantic_hash": "ad8a695c5394bc5bbcaec54acabd3215"
   },
   "app/frontend/src/api/models.ts": {
-    "mtime": 1782831752.4089851,
-    "ast_hash": "dbf34147598ce61469bd48a4c63fd521",
+    "mtime": 1782870938.783457,
+    "ast_hash": "6a874fcfde25133c41fa8b13f7eea8ab",
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/registry.ts": {
@@ -2005,8 +2005,8 @@
     "semantic_hash": "875cc347d6da0d51a7c188f81f8dfc22"
   },
   "app/frontend/src/chatbots/internal/pages/chat/Chat.tsx": {
-    "mtime": 1782776525.4791443,
-    "ast_hash": "c0a9070f4680828bf22a12dee37ea3f1",
+    "mtime": 1782874769.2508318,
+    "ast_hash": "c87d04a7561f4050f3b12313c5b1b9ac",
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/internal/pages/layout/Layout.tsx": {
@@ -2479,16 +2479,6 @@
     "ast_hash": "9900f59ac4025f32f0244dae4598b650",
     "semantic_hash": ""
   },
-  "app/frontend/src/chatbots/lemon/components/ClearChatButton/ClearChatButton.tsx": {
-    "mtime": 1774361812.4439614,
-    "ast_hash": "c575786d4b056eb38be8a1b6873233dd",
-    "semantic_hash": "c575786d4b056eb38be8a1b6873233dd"
-  },
-  "app/frontend/src/chatbots/lemon/components/ClearChatButton/index.tsx": {
-    "mtime": 1774361812.4449584,
-    "ast_hash": "ece28c07bed9b625dcbc15f1a4c550b4",
-    "semantic_hash": "ece28c07bed9b625dcbc15f1a4c550b4"
-  },
   "app/frontend/src/chatbots/lemon/components/Example/Example.tsx": {
     "mtime": 1776940772.521604,
     "ast_hash": "b80172c192c5f5c8c4ced9b017526e2c",
@@ -2513,16 +2503,6 @@
     "mtime": 1774361812.4555156,
     "ast_hash": "9fe8b80f4af1cfdecb7dda9686311863",
     "semantic_hash": "9fe8b80f4af1cfdecb7dda9686311863"
-  },
-  "app/frontend/src/chatbots/lemon/components/HistoryButton/HistoryButton.tsx": {
-    "mtime": 1774361812.4570308,
-    "ast_hash": "45ae6a6d5f037fa2ef2e60a38f213f8d",
-    "semantic_hash": "45ae6a6d5f037fa2ef2e60a38f213f8d"
-  },
-  "app/frontend/src/chatbots/lemon/components/HistoryButton/index.tsx": {
-    "mtime": 1774361812.4570308,
-    "ast_hash": "f122bcba32faf6bd3fd9d639f53fac95",
-    "semantic_hash": "f122bcba32faf6bd3fd9d639f53fac95"
   },
   "app/frontend/src/chatbots/lemon/components/HistoryItem/HistoryItem.tsx": {
     "mtime": 1774361812.4601102,
@@ -2614,16 +2594,6 @@
     "ast_hash": "61514f434a7b64262d9942e4b372bdb1",
     "semantic_hash": "61514f434a7b64262d9942e4b372bdb1"
   },
-  "app/frontend/src/chatbots/lemon/components/SettingsButton/index.tsx": {
-    "mtime": 1774361812.5128767,
-    "ast_hash": "378859068cf84c9416148ba86b62044f",
-    "semantic_hash": "378859068cf84c9416148ba86b62044f"
-  },
-  "app/frontend/src/chatbots/lemon/components/SettingsButton/SettingsButton.tsx": {
-    "mtime": 1774361812.5118785,
-    "ast_hash": "b581948a30e37313ee0957ef7cc9fc09",
-    "semantic_hash": "b581948a30e37313ee0957ef7cc9fc09"
-  },
   "app/frontend/src/chatbots/lemon/components/SupportingContent/index.ts": {
     "mtime": 1774361812.5199609,
     "ast_hash": "9338d1254b20735de9130a08c531150a",
@@ -2648,16 +2618,6 @@
     "mtime": 1774361812.5249777,
     "ast_hash": "57951fa3e9ec76a00ac7d603f1df7efb",
     "semantic_hash": "57951fa3e9ec76a00ac7d603f1df7efb"
-  },
-  "app/frontend/src/chatbots/lemon/components/UserChatMessage/index.ts": {
-    "mtime": 1774361812.5284953,
-    "ast_hash": "34355884efef016fb5386bc11638ab37",
-    "semantic_hash": "34355884efef016fb5386bc11638ab37"
-  },
-  "app/frontend/src/chatbots/lemon/components/UserChatMessage/UserChatMessage.tsx": {
-    "mtime": 1774361812.5269768,
-    "ast_hash": "d06c616666b96234227e6c090d146cd2",
-    "semantic_hash": "d06c616666b96234227e6c090d146cd2"
   },
   "app/frontend/src/chatbots/lemon/components/VectorSettings/index.ts": {
     "mtime": 1774361812.5315287,
@@ -2690,8 +2650,8 @@
     "semantic_hash": "9b136fca6ee1532e4a73f0a9d0ad32b9"
   },
   "app/frontend/src/chatbots/lemon/pages/chat/Chat.tsx": {
-    "mtime": 1782018998.8851385,
-    "ast_hash": "e218e6a62f17d1865f7712712e5ecee0",
+    "mtime": 1782874751.0425093,
+    "ast_hash": "a28f7c4684652b8ca1dae179e4fc79e2",
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/lemon/pages/layout/Layout.tsx": {
@@ -6055,8 +6015,8 @@
     "semantic_hash": "77ec55ea90a84f95635bc9985e49b57a"
   },
   "CLAUDE.md": {
-    "mtime": 1782855815.3853383,
-    "ast_hash": "cc425157f38284ed83f061e50bceb570",
+    "mtime": 1782874907.6894388,
+    "ast_hash": "50e16874d2bbeb5d41abd080f1fd87b6",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -6765,8 +6725,8 @@
     "semantic_hash": "9b136fca6ee1532e4a73f0a9d0ad32b9"
   },
   "app/frontend/src/chatbots/bensberg/pages/chat/Chat.tsx": {
-    "mtime": 1782137924.667271,
-    "ast_hash": "d48ea07c0d4ea62183c4b2a0ce159e58",
+    "mtime": 1782874766.9819117,
+    "ast_hash": "a17213f6725c44487eae8b2bd0e84241",
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/bensberg/pages/layout/Layout.tsx": {
@@ -8510,8 +8470,8 @@
     "semantic_hash": "b7d811e41ee8cb385db724f4491957fb"
   },
   "CHANGES.md": {
-    "mtime": 1782865332.636805,
-    "ast_hash": "eb6f0526722e4d3b34327380ba91766f",
+    "mtime": 1782874940.803666,
+    "ast_hash": "7f13024702165fe2070d3b1e75d51877",
     "semantic_hash": ""
   },
   "aci-openlit.example.yaml": {
@@ -9100,33 +9060,33 @@
     "semantic_hash": ""
   },
   "app/backend/core/chatbotregistrystore.py": {
-    "mtime": 1782822622.8648262,
-    "ast_hash": "346f3b10c50ff3206adbcc16f7860f6f",
+    "mtime": 1782870855.9234023,
+    "ast_hash": "9b5b443e089f1b1c6feba35382353629",
     "semantic_hash": ""
   },
   "app/backend/provisioning.py": {
-    "mtime": 1782859876.568865,
-    "ast_hash": "b567748d793ab849cb1d4763318ad5d5",
+    "mtime": 1782870863.1091602,
+    "ast_hash": "2dfcdcb07e146aeaa72f4a82c6121f40",
     "semantic_hash": ""
   },
   "tests/test_provisioning.py": {
-    "mtime": 1782859888.7602465,
-    "ast_hash": "0578fa18598acdc465f0c30926f37cc5",
+    "mtime": 1782871307.6733415,
+    "ast_hash": "b952bffe842b8b99cc1b996fc3852aa2",
     "semantic_hash": ""
   },
   "tests/test_dynamic_resolution.py": {
-    "mtime": 1782829592.7412882,
-    "ast_hash": "a0e43743cc3c5a89d93637eed9bc14e6",
+    "mtime": 1782871243.062357,
+    "ast_hash": "a9ba61b2364e76b0b125d3a333771c9c",
     "semantic_hash": ""
   },
   "app/backend/core/dynamic_bot_config.py": {
-    "mtime": 1782850923.3021145,
-    "ast_hash": "e16686de297ab33fe80400ac1293c788",
+    "mtime": 1782870820.7669551,
+    "ast_hash": "e5445d00dd601ccf63d77c938756bd9d",
     "semantic_hash": ""
   },
   "tests/test_bot_config.py": {
-    "mtime": 1782830659.524133,
-    "ast_hash": "0b26539006c6e8d64ecfdcc287fd6dea",
+    "mtime": 1782871269.9033906,
+    "ast_hash": "92af2a75f103042250dcffb44bc60606",
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/generic/GenericChatbotRoute.tsx": {
@@ -9140,8 +9100,8 @@
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/generic/pages/chat/Chat.tsx": {
-    "mtime": 1782865049.7168496,
-    "ast_hash": "f6690c5ea6531b27d581792fefe58c08",
+    "mtime": 1782874775.2838778,
+    "ast_hash": "48d67f63a45ae03fc1a5c710cda35bc8",
     "semantic_hash": ""
   },
   "app/backend/core/chatbotsessioncounterstore.py": {
@@ -9155,13 +9115,13 @@
     "semantic_hash": ""
   },
   "tests/test_dynamic_prompt_config.py": {
-    "mtime": 1782850961.7245772,
-    "ast_hash": "713f0c8438ffe9b116d40a4dad635156",
+    "mtime": 1782871194.5948524,
+    "ast_hash": "ff216a96fe453312f97f7a53c8c2503d",
     "semantic_hash": ""
   },
   "docs/provisioning-api.md": {
-    "mtime": 1782859932.2342663,
-    "ast_hash": "a1073152b2d787e43f1df987c6668dcb",
+    "mtime": 1782872117.2772226,
+    "ast_hash": "6ec0576792effc0e31930a43ac70dfa6",
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/generic/botConfigContext.ts": {
@@ -9170,13 +9130,68 @@
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/generic/createGenericI18n.ts": {
-    "mtime": 1782864892.5807376,
-    "ast_hash": "bfe39f4e1c0eba5beca115d182b4c900",
+    "mtime": 1782874642.0703886,
+    "ast_hash": "1322653ecb541100e797c9575a0b0010",
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/generic/pages/layout/Layout.tsx": {
     "mtime": 1782864909.4114373,
     "ast_hash": "5c0462a8dcaa55fb1fd52a64abf1c156",
+    "semantic_hash": ""
+  },
+  "app/backend/core/dynamic_tutor_prompt.py": {
+    "mtime": 1782870671.3898997,
+    "ast_hash": "76f72056053191ea9c4e29cb6f874184",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/generic/components/Answer/Answer.tsx": {
+    "mtime": 1782874625.4973178,
+    "ast_hash": "11e582534fbcd693777e98c716d1f5ce",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/generic/components/Answer/index.ts": {
+    "mtime": 1782874627.0115418,
+    "ast_hash": "c9b7d39e618f5a7fe96714658c01f91f",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/shared/chat-ui/ClearChatButton/ClearChatButton.tsx": {
+    "mtime": 1774361812.4439614,
+    "ast_hash": "c575786d4b056eb38be8a1b6873233dd",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/shared/chat-ui/ClearChatButton/index.tsx": {
+    "mtime": 1774361812.4449584,
+    "ast_hash": "ece28c07bed9b625dcbc15f1a4c550b4",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/shared/chat-ui/HistoryButton/HistoryButton.tsx": {
+    "mtime": 1774361812.4570308,
+    "ast_hash": "45ae6a6d5f037fa2ef2e60a38f213f8d",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/shared/chat-ui/HistoryButton/index.tsx": {
+    "mtime": 1774361812.4570308,
+    "ast_hash": "f122bcba32faf6bd3fd9d639f53fac95",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/shared/chat-ui/SettingsButton/SettingsButton.tsx": {
+    "mtime": 1774361812.5118785,
+    "ast_hash": "b581948a30e37313ee0957ef7cc9fc09",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/shared/chat-ui/SettingsButton/index.tsx": {
+    "mtime": 1774361812.5128767,
+    "ast_hash": "378859068cf84c9416148ba86b62044f",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/shared/chat-ui/UserChatMessage/UserChatMessage.tsx": {
+    "mtime": 1774361812.5269768,
+    "ast_hash": "d06c616666b96234227e6c090d146cd2",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/chatbots/shared/chat-ui/UserChatMessage/index.ts": {
+    "mtime": 1774361812.5284953,
+    "ast_hash": "34355884efef016fb5386bc11638ab37",
     "semantic_hash": ""
   }
 }

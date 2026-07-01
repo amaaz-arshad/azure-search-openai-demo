@@ -17,9 +17,10 @@ from core.dynamic_bot_config import (
     ansprache_directive,
     build_dynamic_system_prompt,
 )
+from core.dynamic_tutor_prompt import DEFAULT_DYNAMIC_TUTOR_PROMPT
 
 
-def make_record(name="bxa", *, prompt="", ansprache=None, active=True):
+def make_record(name="bxa", *, prompt="", ansprache=None, active=True, modes=None):
     return ChatbotRegistryRecord(
         bot_name=name,
         display_name=name,
@@ -28,6 +29,7 @@ def make_record(name="bxa", *, prompt="", ansprache=None, active=True):
         updated_at="2026-06-30T00:00:00+00:00",
         prompt=prompt,
         ansprache=ansprache,
+        modes=modes if modes is not None else {},
     )
 
 
@@ -67,6 +69,35 @@ def test_build_leaves_prompt_unchanged_when_ansprache_unset():
 
 def test_build_whitespace_prompt_falls_back_to_default():
     assert build_dynamic_system_prompt(make_record(prompt="   ", ansprache=None), "DEFAULT") == "DEFAULT"
+
+
+# --- mode-aware default selection ---------------------------------------------------------
+
+
+def test_build_tutor_mode_empty_prompt_uses_tutor_default():
+    # A tutor bot with no custom prompt gets the generic tutor prompt, not the neutral Q&A default.
+    record = make_record(prompt="", modes={"qa": True, "tutor": True})
+    prompt = build_dynamic_system_prompt(record, "QNA_DEFAULT")
+    assert prompt == DEFAULT_DYNAMIC_TUTOR_PROMPT
+    # Sanity: the tutor default really is the working tutor prompt (Start-Gate + counter mechanics).
+    assert "TUTOR START GATE" in prompt and "Frage {{N}} von {{Total}}" in prompt
+
+
+def test_build_qna_mode_empty_prompt_uses_passed_default():
+    record = make_record(prompt="", modes={"qa": True, "tutor": False})
+    assert build_dynamic_system_prompt(record, "QNA_DEFAULT") == "QNA_DEFAULT"
+
+
+def test_build_custom_prompt_overrides_tutor_default():
+    # An explicit custom prompt always wins, even for a tutor bot.
+    record = make_record(prompt="MY CUSTOM", modes={"tutor": True})
+    assert build_dynamic_system_prompt(record, "QNA_DEFAULT") == "MY CUSTOM"
+
+
+def test_build_tutor_default_appends_ansprache():
+    record = make_record(prompt="", ansprache="formal", modes={"tutor": True})
+    prompt = build_dynamic_system_prompt(record, "QNA_DEFAULT")
+    assert prompt == f"{DEFAULT_DYNAMIC_TUTOR_PROMPT}\n\n{FORMAL_ANSPRACHE_DIRECTIVE}"
 
 
 # --- integration through the injection path -----------------------------------------------

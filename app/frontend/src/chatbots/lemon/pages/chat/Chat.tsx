@@ -10,13 +10,13 @@ import { chatApi, configApi, RetrievalMode, ChatAppResponse, ChatAppResponseOrEr
 import { Answer, AnswerError, AnswerLoading } from "../../components/Answer";
 import { QuestionInput } from "../../components/QuestionInput";
 import { ExampleList } from "../../components/Example";
-import { UserChatMessage } from "../../components/UserChatMessage";
+import { UserChatMessage } from "../../../shared/chat-ui/UserChatMessage";
 import { AnalysisPanel, AnalysisPanelTabs } from "../../components/AnalysisPanel";
 import { HistoryPanel } from "../../components/HistoryPanel";
 import { HistoryProviderOptions, useHistoryManager } from "../../components/HistoryProviders";
-import { HistoryButton } from "../../components/HistoryButton";
-import { SettingsButton } from "../../components/SettingsButton";
-import { ClearChatButton } from "../../components/ClearChatButton";
+import { HistoryButton } from "../../../shared/chat-ui/HistoryButton";
+import { SettingsButton } from "../../../shared/chat-ui/SettingsButton";
+import { ClearChatButton } from "../../../shared/chat-ui/ClearChatButton";
 import { UploadFile } from "../../components/UploadFile";
 import { useLogin, getToken, requireAccessControl } from "../../authConfig";
 import { useMsal } from "@azure/msal-react";

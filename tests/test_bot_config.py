@@ -98,6 +98,19 @@ def test_build_bot_config_payload_shape():
     }
 
 
+def test_build_bot_config_payload_passes_speech_features_verbatim():
+    # The granular speech toggles ride along inside `features` and must reach the frontend unchanged.
+    features = {
+        "disclaimer": True,
+        "sources": False,
+        "speech_input": True,
+        "speech_output_browser": False,
+        "speech_output_azure": True,
+    }
+    payload = build_bot_config_payload(make_record(features=features))
+    assert payload["features"] == features
+
+
 def test_build_bot_config_payload_never_leaks_prompt_or_internals():
     payload = build_bot_config_payload(make_record())
     assert "prompt" not in payload

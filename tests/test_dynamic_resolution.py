@@ -13,8 +13,13 @@ from quart import Quart
 
 import app as app_module
 from approaches.chatbot_prompt_registry import normalize_chatbot_name
-from config import CONFIG_CHATBOT_PROMPT_STORE, CONFIG_CHATBOT_REGISTRY_STORE
+from config import CONFIG_CHAT_MODEL_DEPLOYMENTS, CONFIG_CHATBOT_PROMPT_STORE, CONFIG_CHATBOT_REGISTRY_STORE
 from core.chatbotregistrystore import ChatbotRegistryRecord
+from core.dynamic_bot_config import DEFAULT_DYNAMIC_QNA_MODEL, DEFAULT_DYNAMIC_TUTOR_MODEL
+from core.dynamic_tutor_prompt import DEFAULT_DYNAMIC_TUTOR_PROMPT
+
+# Deployed chat models available in the test app (mirrors what build_chat_model_deployments produces).
+DEPLOYED_MODELS = {"gpt-5": "gpt-5", "gpt-5.4": "gpt-5.4", "gpt-5.4-mini": "gpt-5.4-mini", "gpt-4.1": "gpt-4.1"}
 
 
 class FakeRegistry:
@@ -36,7 +41,7 @@ class FakePromptStore:
         return None
 
 
-def make_record(name, *, prompt="", llm=None, active=True):
+def make_record(name, *, prompt="", llm=None, active=True, modes=None, reasoning_effort=None):
     return ChatbotRegistryRecord(
         bot_name=name,
         display_name=name,
@@ -45,6 +50,8 @@ def make_record(name, *, prompt="", llm=None, active=True):
         updated_at="2026-06-30T00:00:00+00:00",
         prompt=prompt,
         llm=llm,
+        reasoning_effort=reasoning_effort,
+        modes=modes if modes is not None else {},
     )
 
 
@@ -52,6 +59,7 @@ def make_ctx(registry, prompt_store=None):
     quart_app = Quart(__name__)
     quart_app.config[CONFIG_CHATBOT_REGISTRY_STORE] = registry
     quart_app.config[CONFIG_CHATBOT_PROMPT_STORE] = prompt_store or FakePromptStore()
+    quart_app.config[CONFIG_CHAT_MODEL_DEPLOYMENTS] = dict(DEPLOYED_MODELS)
     return quart_app
 
 
@@ -95,7 +103,7 @@ async def test_resolve_short_circuits_builtin_without_touching_registry():
 
 
 @pytest.mark.asyncio
-async def test_dynamic_bot_injects_prompt_and_model():
+async def test_dynamic_bot_injects_prompt_and_honors_deployed_model():
     registry = FakeRegistry({"bxa": make_record("bxa", prompt="CUSTOM PROMPT", llm="gpt-5", active=True)})
     quart_app = make_ctx(registry)
     async with quart_app.app_context():
@@ -104,11 +112,11 @@ async def test_dynamic_bot_injects_prompt_and_model():
     overrides = request_json["context"]["overrides"]
     assert name == "bxa"
     assert overrides["__saved_prompt_template"] == "CUSTOM PROMPT"
-    assert overrides["chat_model"] == "gpt-5"
+    assert overrides["chat_model"] == "gpt-5"  # deployed provisioned model is honored
 
 
 @pytest.mark.asyncio
-async def test_dynamic_bot_empty_prompt_uses_default_and_no_model():
+async def test_dynamic_qna_empty_llm_falls_back_to_qna_model():
     registry = FakeRegistry({"bxa": make_record("bxa", prompt="", llm=None, active=True)})
     quart_app = make_ctx(registry)
     async with quart_app.app_context():
@@ -116,7 +124,60 @@ async def test_dynamic_bot_empty_prompt_uses_default_and_no_model():
         await app_module.apply_saved_chatbot_prompt_override(request_json)
     overrides = request_json["context"]["overrides"]
     assert overrides["__saved_prompt_template"] == app_module.DEFAULT_DYNAMIC_PROMPT
-    assert "chat_model" not in overrides
+    assert overrides["chat_model"] == DEFAULT_DYNAMIC_QNA_MODEL  # empty llm -> qna default
+    assert "reasoning_effort" not in overrides  # gpt-4.1 is non-reasoning; effort untouched
+
+
+@pytest.mark.asyncio
+async def test_dynamic_tutor_empty_llm_uses_tutor_prompt_model_and_high_effort():
+    registry = FakeRegistry(
+        {"bxa": make_record("bxa", prompt="", llm=None, active=True, modes={"tutor": True})}
+    )
+    quart_app = make_ctx(registry)
+    async with quart_app.app_context():
+        request_json = req("bxa", reasoning_effort="")  # frontend sends empty by default
+        await app_module.apply_saved_chatbot_prompt_override(request_json)
+    overrides = request_json["context"]["overrides"]
+    assert overrides["__saved_prompt_template"] == DEFAULT_DYNAMIC_TUTOR_PROMPT
+    assert overrides["chat_model"] == DEFAULT_DYNAMIC_TUTOR_MODEL  # gpt-5.4
+    assert overrides["reasoning_effort"] == "high"  # empty/invalid -> high on a reasoning model
+
+
+@pytest.mark.asyncio
+async def test_dynamic_wrong_llm_falls_back_to_mode_default():
+    registry = FakeRegistry({"bxa": make_record("bxa", prompt="P", llm="gpt-does-not-exist", active=True)})
+    quart_app = make_ctx(registry)
+    async with quart_app.app_context():
+        request_json = req("bxa")
+        await app_module.apply_saved_chatbot_prompt_override(request_json)
+    # Undeployed model -> qna default (this bot is Q&A: no tutor mode).
+    assert request_json["context"]["overrides"]["chat_model"] == DEFAULT_DYNAMIC_QNA_MODEL
+
+
+@pytest.mark.asyncio
+async def test_dynamic_tutor_valid_provisioned_effort_is_kept():
+    registry = FakeRegistry(
+        {"bxa": make_record("bxa", llm="gpt-5.4", active=True, modes={"tutor": True}, reasoning_effort="low")}
+    )
+    quart_app = make_ctx(registry)
+    async with quart_app.app_context():
+        request_json = req("bxa", reasoning_effort="")
+        await app_module.apply_saved_chatbot_prompt_override(request_json)
+    overrides = request_json["context"]["overrides"]
+    assert overrides["chat_model"] == "gpt-5.4"  # valid deployed provisioned model honored
+    assert overrides["reasoning_effort"] == "low"  # valid provisioned effort kept
+
+
+@pytest.mark.asyncio
+async def test_dynamic_tutor_invalid_provisioned_effort_defaults_high():
+    registry = FakeRegistry(
+        {"bxa": make_record("bxa", llm="gpt-5.4", active=True, modes={"tutor": True}, reasoning_effort="bogus")}
+    )
+    quart_app = make_ctx(registry)
+    async with quart_app.app_context():
+        request_json = req("bxa", reasoning_effort="")
+        await app_module.apply_saved_chatbot_prompt_override(request_json)
+    assert request_json["context"]["overrides"]["reasoning_effort"] == "high"
 
 
 @pytest.mark.asyncio
@@ -124,10 +185,10 @@ async def test_dynamic_bot_respects_explicit_client_model():
     registry = FakeRegistry({"bxa": make_record("bxa", prompt="P", llm="gpt-5", active=True)})
     quart_app = make_ctx(registry)
     async with quart_app.app_context():
-        request_json = req("bxa", chat_model="gpt-4.1")
+        request_json = req("bxa", chat_model="gpt-5.4")
         await app_module.apply_saved_chatbot_prompt_override(request_json)
-    # setdefault keeps the explicit developer-selected model.
-    assert request_json["context"]["overrides"]["chat_model"] == "gpt-4.1"
+    # An explicit non-empty client-selected model is respected over the provisioned/default one.
+    assert request_json["context"]["overrides"]["chat_model"] == "gpt-5.4"
 
 
 @pytest.mark.asyncio

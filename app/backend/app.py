@@ -183,7 +183,13 @@ from core.chatbotembedconfigstore import ChatbotEmbedConfig, ChatbotEmbedConfigS
 from core.chatbotpromptstore import ChatbotPromptOverride, ChatbotPromptStore
 from core.chatbotregistrystore import UNLIMITED_SESSIONS, ChatbotRegistryRecord, ChatbotRegistryStore
 from core.chatbotsessioncounterstore import ChatbotSessionCounterStore
-from core.dynamic_bot_config import build_bot_config_payload, build_dynamic_system_prompt
+from core.dynamic_bot_config import (
+    DEFAULT_DYNAMIC_QNA_MODEL,
+    DEFAULT_DYNAMIC_TUTOR_MODEL,
+    build_bot_config_payload,
+    build_dynamic_system_prompt,
+    derive_chatbot_mode,
+)
 from core.chatbotwikistore import ChatbotWikiStore
 from provisioning import provisioning_bp
 from core.internaladminauth import (
@@ -752,13 +758,39 @@ async def apply_saved_chatbot_prompt_override(request_json: dict[str, Any]) -> s
     # so their prompt/model resolution is completely unchanged.
     dynamic_record = await resolve_active_dynamic_record(requested_chatbot_name)
     if dynamic_record is not None:
-        # Effective prompt = the bot's prompt (or the neutral default when empty) + its configured
-        # `ansprache` (formal/informal) addressing directive.
+        is_tutor = derive_chatbot_mode(dynamic_record.modes) == "tutor-qna"
+        # Effective prompt = the bot's custom prompt, or the mode-aware default (tutor vs neutral Q&A)
+        # when empty, + its configured `ansprache` (formal/informal) addressing directive.
         overrides["__saved_prompt_template"] = build_dynamic_system_prompt(dynamic_record, DEFAULT_DYNAMIC_PROMPT)
-        if dynamic_record.llm:
-            # Honor the provisioned model when it maps to a deployed one; resolve_chat_model_and_deployment
-            # falls back to the default model otherwise. setdefault keeps an explicit client choice.
-            overrides.setdefault("chat_model", dynamic_record.llm)
+
+        # Model fallback: honor a provisioned `llm` only if it maps to a deployed model; otherwise use
+        # the mode-aware default (tutor -> reasoning model, Q&A -> general model). A wrong/undeployed/empty
+        # `llm` self-heals to the default instead of the single global default. An explicit non-empty
+        # client `chat_model` (if the frontend ever sends one) is respected.
+        deployed_models = current_app.config.get(CONFIG_CHAT_MODEL_DEPLOYMENTS) or {}
+        default_model = DEFAULT_DYNAMIC_TUTOR_MODEL if is_tutor else DEFAULT_DYNAMIC_QNA_MODEL
+        provisioned_llm = dynamic_record.llm.strip() if isinstance(dynamic_record.llm, str) else ""
+        chosen_model = provisioned_llm if provisioned_llm in deployed_models else default_model
+        incoming_model = overrides.get("chat_model")
+        if not (isinstance(incoming_model, str) and incoming_model.strip()):
+            overrides["chat_model"] = chosen_model
+
+        # Reasoning-effort fallback: if the chosen model supports reasoning, use a valid incoming effort
+        # (e.g. from Settings); otherwise use the provisioned `reasoning_effort` if valid, else default to
+        # "high". A non-reasoning model (e.g. gpt-4.1) is left untouched (normalize drops effort for it).
+        effective_model = overrides.get("chat_model")
+        reasoning_support = (
+            Approach.GPT_REASONING_MODELS.get(effective_model) if isinstance(effective_model, str) else None
+        )
+        if reasoning_support is not None:
+            supported_efforts = reasoning_support.supported_efforts
+            incoming_effort = str(overrides.get("reasoning_effort") or "").strip().lower()
+            if incoming_effort not in supported_efforts:
+                provisioned_effort = (dynamic_record.reasoning_effort or "").strip().lower()
+                fallback_effort = "high" if "high" in supported_efforts else supported_efforts[-1]
+                overrides["reasoning_effort"] = (
+                    provisioned_effort if provisioned_effort in supported_efforts else fallback_effort
+                )
         return requested_chatbot_name
 
     prompt_override = await get_chatbot_prompt_store().load_prompt(requested_chatbot_name)
@@ -2596,7 +2628,7 @@ async def setup_clients():
             | {DEFAULT_CHATBOT_NAME}
         )
     }
-    # STUB auth (plan Phase 0): static Bearer key from env. Final scheme TBD with Olaf; when
+    # STUB auth (plan Phase 0): static Bearer key from env. Final scheme TBD with the nerilio backend; when
     # promoted to an azd variable, wire it through main.parameters.json/main.bicep/pipelines.
     current_app.config[CONFIG_PROVISIONING_API_KEY] = os.getenv("PROVISIONING_API_KEY") or None
     # Blob-backed store for the LLM-Wiki retrieval mode (pilot: Internal bot, lemon corpus).
