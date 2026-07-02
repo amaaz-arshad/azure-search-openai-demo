@@ -280,6 +280,7 @@ NON_CHATBOT_FRONTEND_PREFIXES = {
 KNOWN_CHATBOT_NAMES = {
     "agindo",
     "bensberg",
+    "cbtx",
     "nerilio",
     "snap",
     "free",

@@ -57,6 +57,10 @@ export const chatbotThemes: Record<string, ChatbotThemeSeed> = {
             }
         }
     },
+    cbtx: {
+        primary: "#910F3F",
+        pageTone: "light"
+    },
     demo: {
         primary: "#313335",
         pageTone: "light"

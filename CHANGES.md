@@ -17,6 +17,70 @@ Two categories per date:
 
 ## 2026-07-02
 
+### New built-in client bot: CABLETEX (route `/cbtx`)
+
+#### Decisions
+
+- **New built-in (not dynamic/provisioned) Q&A bot for CABLETEX**, a German USB-C cable retailer, per the user's
+  request that it "work the same way as our existing bots" (not the generic dynamic path).
+- **UI base switched snap → lemon (user feedback).** First cloned the `snap` bot, but the user asked for
+  **lemon's UI instead**. Re-cloned the frontend from `lemon` (its richer chat chrome + `shared/chat-ui` leaf
+  components). Kept it **Q&A-only**: removed lemon's welcome `[[CHOICES kind=mode]]` Tutor/Q&A marker (plain
+  greeting) and changed the agentic-retrieval auto-enable to `setUseAgenticRetrieval(false)` so `agenticRetrievalDefault`
+  stays `false`. Backend (config/prompt/registrations) was unaffected by the UI swap. The `#910F3F` theme drives
+  lemon's theme-variable chrome (navbar/header/user-bubble); lemon's fixed blue answer-card citation pills are kept
+  as-is (faithful to lemon's UI). Kept a **CABLETEX-branded `NoPage.tsx`** instead of lemon's shared nerilio-branded
+  404 re-export.
+- **Internal name = `cbtx` (route `/cbtx`), display name = "CABLETEX".** The user gave botname "cabletex" but
+  route "/cbtx"; since this repo ties the URL, backend folder, search category, history scope, and embed ID all
+  to one internal name, the user chose `cbtx` as that single name. User-facing branding stays "CABLETEX"
+  everywhere via the i18n `pageTitle`/`headerTitle` and a `chatbotDisplay.ts` override.
+- **Model `gpt-4.1`, `prompt_mode="override"`, `citation_target="sourcepage"`, mode `qna`, `agenticRetrievalDefault=false`.**
+  No login gate. **Speech UI on** (`chatbotSpeechFeatureFlags.cbtx` = all three `true`, matching lemon) — enabled at the
+  user's request; still ANDed with the deployment's global `/config` speech capability, so Azure TTS only shows if the
+  deployment enables it.
+- **System prompt = user's text augmented with the standard RAG scaffolding** (user-chosen). Kept the supplied
+  Business Context / Role / Constraints verbatim, then appended the same Language / Source-&-Knowledge /
+  Fallback / Answer-Style / Source-Citations (`{{POSSIBLE_CITATIONS_PROMPT}}`) / Non-Disclosure / Inappropriate /
+  Final-Reminder sections every other bot uses, adapted to CABLETEX/USB-C. **Fallback is generic** (no
+  `{{SUPPORT_EMAIL}}`, since no CABLETEX support email was provided — points users at CABLETEX's own support
+  channels). `language_locale` left unset so responses follow the UI language, **defaulting to German** (user-chosen).
+- **Category `cbtx` is structure-only for now** — no data ingested yet; the bot returns its fallback until sources
+  are added via `prepdocs --category cbtx`.
+- **Real logo now in place.** The inline chat image couldn't be exported to disk, so the bot initially shipped with a
+  placeholder; the user then dropped the real CABLETEX speech-bubble logo at `assets/cabletex-logo.png`
+  (1254×1254 PNG). Placeholder `cabletex-logo.README.txt` removed and the frontend rebuilt (asset re-bundled). Note the
+  PNG is RGB with no alpha channel, so its (white) background shows in the round avatar/header — swap for a transparent
+  PNG if a cut-out is wanted. NoPage `HOME_URL`/`CONTACT_EMAIL`/`IMPRESSUM_URL`/`PRIVACY_URL` are still `cabletex.de`
+  placeholders flagged with a `TODO(cabletex)`.
+
+#### Changes
+
+- **New frontend bot** `app/frontend/src/chatbots/cbtx/` (**cloned from `lemon`** after the UI-base switch;
+  the initial snap-based clone was deleted): renamed export `cbtxChatbot`/`name:"cbtx"` in `index.ts`; logo asset
+  renamed `lemon-chatbot.png` → `cabletex-logo.png` (+ README placeholder note) and rebound in `Answer.tsx`,
+  `Layout.tsx`; `Layout` header link → `/cbtx`; `Chat.tsx` `chatbotCategory="cbtx"`,
+  `applyChatbotSpeechFeatureFlags("cbtx", …)`, welcome `[[CHOICES kind=mode]]` marker removed (plain Q&A greeting),
+  agentic auto-enable → `setUseAgenticRetrieval(false)`; `NoPage.tsx` replaced with the CABLETEX-branded fork
+  (kept from the snap clone; lemon only re-exports the shared nerilio 404); `locales/{en,de,nl}/translation.json`
+  rebranded Lemon®AID/nerilio → CABLETEX (titles, plain greeting, 404 copy, contact email, USB-C examples;
+  `rootLanding.pageTitle` added; lemon's unused tutor `options.*` keys left in place, harmless without the marker).
+- **New backend package** `app/backend/approaches/chatbots/cbtx/`: `config.py` (`gpt-4.1`, override, sourcepage),
+  `sampleprompt.py` (augmented CABLETEX prompt), `__init__.py` comment.
+- **Registrations:** `registry.ts` (import + `{ llm:"gpt-4.1", mode:"qna", agenticRetrievalDefault:false }`),
+  `shared/theme/chatbotThemes.ts` (`cbtx: { primary:"#910F3F", pageTone:"light" }`),
+  `pages/shared/chatbotDisplay.ts` (`cbtx: "CABLETEX"`),
+  `shared/speech/chatbotSpeechFeatureFlags.ts` (`cbtx`, all off);
+  backend `app.py` `KNOWN_CHATBOT_NAMES`, `chatbot_prompt_registry.py` `CHATBOT_PROMPT_MODULES`,
+  `embed_public_ids.py` (`"cbtx": "xtiz6o38j6"`, required so `test_embed_public_ids` set-equality holds).
+- **Verified:** frontend `tsc --noEmit` clean (re-run after the lemon re-clone); all three locale JSONs parse;
+  no leftover `lemon`/`nerilio`/`snap`/`HYROX` brand strings (only benign explanatory comments + the shared
+  `nerilioRobot.webp` 404 asset, shown as `alt="CABLETEX"`); lemon `Layout.module.css` uses 12 theme vars so the
+  `#910F3F` seed drives the chrome. Backend was unchanged by the UI swap; earlier this session its prompt/config
+  registry render (German + citations, no stray placeholders), `ty check`, `test_embed_public_ids.py` +
+  `test_chatbot_config_registry.py` (11), and the nerilio-override startup test all passed. **Full frontend
+  `npm run build` (tsc + vite + widget) passes** (cbtx logo bundled as `cabletex-logo-*.png`); e2e not run.
+
 ### HYROX assessment — course rename ("Mastering Performance") + welcome pause note + post-pass copy
 
 #### Decisions

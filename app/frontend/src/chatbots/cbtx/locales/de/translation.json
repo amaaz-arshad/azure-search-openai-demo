@@ -1,0 +1,204 @@
+{
+    "pageTitle": "CABLETEX",
+    "headerTitle": "CABLETEX",
+    "initialUserMsg": "Hallo",
+    "initialAssistantMsg": "Hallo, ich bin der CABLETEX-Assistent. Wie kann ich dir rund um unsere USB-C-Kabel und unser Zubehör helfen?",
+    "chat": "Chat",
+    "qa": "Stellen Sie eine Frage",
+    "login": "Anmelden",
+    "logout": "Abmelden",
+    "clearChat": "Chat löschen",
+    "rootLanding": {
+        "pageTitle": "Seite nicht gefunden | CABLETEX"
+    },
+    "noPage": {
+        "title": "Diese Seite gibt es nicht",
+        "info": "Du bist beim <strong>CABLETEX-Chatbot</strong> gelandet, aber ohne deine pers\u00f6nliche Chatbot-URL.<br/><br/>Bitte nutze die <strong>spezifische URL</strong>, die du von CABLETEX erhalten hast.",
+        "primaryAction": "Zur CABLETEX Website",
+        "secondaryAction": "Kontakt aufnehmen",
+        "divider": "Fragen?",
+        "contactLine": "Schreib uns einfach an <email>info@cabletex.de</email> und wir helfen dir weiter.",
+        "impressum": "Impressum",
+        "privacy": "Datenschutz"
+    },
+    "history": {
+        "chatHistory": "Chatverlauf",
+        "openChatHistory": "Chatverlauf öffnen",
+        "noHistory": "Kein Chatverlauf",
+        "deleteModalTitle": "Chatverlauf löschen",
+        "deleteModalDescription": "Diese Aktion kann nicht rückgängig gemacht werden. Diesen Chatverlauf löschen?",
+        "deleteLabel": "Löschen",
+        "cancelLabel": "Abbrechen",
+        "today": "Heute",
+        "yesterday": "Gestern",
+        "last7days": "Letzte 7 Tage",
+        "last30days": "Letzte 30 Tage",
+        "viewRecentChats": "Letzte Chats anzeigen"
+    },
+    "upload": {
+        "fileLabel": "Datei hochladen:",
+        "uploadedFilesLabel": "Bereits hochgeladene Dateien:",
+        "noFilesUploaded": "Noch keine Dateien hochgeladen",
+        "loading": "Laden...",
+        "manageFileUploads": "Datei-Uploads verwalten",
+        "uploadingFiles": "Dateien werden hochgeladen...",
+        "uploadedFileError": "Fehler beim Hochladen der Datei – bitte erneut versuchen oder Administrator kontaktieren.",
+        "deleteFile": "Datei löschen",
+        "deletingFile": "Datei wird gelöscht...",
+        "errorDeleting": "Fehler beim Löschen.",
+        "fileDeleted": "Datei gelöscht"
+    },
+    "developerSettings": "Entwicklereinstellungen",
+    "disclaimer": {
+        "label": "Wichtiger Hinweis",
+        "message": "KI-gestützter Assistent. Antworten werden automatisiert aus den bereitgestellten Inhalten generiert, verbindlich sind offizielle Quellen.",
+        "dismiss": "Hinweis schließen"
+    },
+    "chatEmptyStateTitle": "Chatten Sie mit Ihren Daten",
+    "chatEmptyStateSubtitle": "Stellen Sie eine Frage oder probieren Sie ein Beispiel",
+    "options": {
+        "other": "Andere Option",
+        "mode": {
+            "checkKnowledge": "Wissen überprüfen",
+            "askQuestions": "Ich habe eine Frage"
+        },
+        "count": {
+            "3": "3 Fragen",
+            "5": "5 Fragen",
+            "10": "10 Fragen"
+        },
+        "level": {
+            "1": { "label": "Level 1 – Anfänger", "description": "Ich kenne das Thema kaum" },
+            "2": { "label": "Level 2 – Grundkenntnisse", "description": "Ich habe Grundkenntnisse, fühle mich aber unsicher" },
+            "3": { "label": "Level 3 – Fortgeschritten", "description": "Ich kann es in typischen Situationen anwenden" },
+            "4": { "label": "Level 4 – Sehr gut", "description": "Ich kann es sicher erklären, auch in komplexen Fällen" },
+            "5": { "label": "Level 5 – Experte", "description": "Ich kann andere dazu beraten oder anleiten" }
+        }
+    },
+    "defaultExamples": {
+        "1": "Welches USB-C-Kabel unterstützt Schnellladen?",
+        "2": "Können eure Kabel 4K-Video an einen Monitor übertragen?",
+        "3": "Wie finde ich das richtige Kabel für meine Dockingstation?",
+        "placeholder": "Geben Sie Ihre Nachricht ein"
+    },
+    "askTitle": "Fragen Sie Ihre Daten",
+    "multimodalExamples": {
+        "1": "Vergleichen Sie die Auswirkungen von Zinssätzen und BIP auf die Finanzmärkte.",
+        "2": "Wie wird sich der S&P 500 Index in den nächsten fünf Jahren voraussichtlich entwickeln? Vergleichen Sie dies mit der bisherigen S&P 500-Performance.",
+        "3": "Können Sie eine Korrelation zwischen Ölpreisen und Börsentrends erkennen?",
+        "placeholder": "Geben Sie Ihre Nachricht ein"
+    },
+    "generatingAnswer": "Antwort wird generiert",
+    "citationWithColon": "Quelle:",
+    "followupQuestions": "Folgefragen:",
+    "tooltips": {
+        "submitQuestion": "Frage einreichen",
+        "askWithVoice": "Frage per Stimme stellen",
+        "stopRecording": "Aufnahme stoppen",
+        "showThoughtProcess": "Denkprozess anzeigen",
+        "showSupportingContent": "Unterstützende Inhalte anzeigen",
+        "speakAnswer": "Antwort sprechen",
+        "info": "Info",
+        "save": "Speichern",
+        "copy": "Kopieren",
+        "copied": "Kopiert!"
+    },
+    "headerTexts": {
+        "thoughtProcess": "Denkprozess",
+        "supportingContent": "Unterstützende Inhalte",
+        "citation": "Quelle"
+    },
+    "labels": {
+        "toggleMenu": "Menü umschalten",
+        "languagePicker": "Sprache auswählen",
+        "headerText": "Antwortgenerierung konfigurieren",
+        "closeButton": "Schließen",
+        "promptTemplate": "Prompt-Vorlage überschreiben",
+        "temperature": "Temperatur",
+        "seed": "Seed",
+        "minimumSearchScore": "Minimale Suchpunktzahl",
+        "minimumRerankerScore": "Minimale Neuranker-Punktzahl",
+        "retrieveCount": "Anzahl der abzurufenden Suchergebnisse:",
+        "agenticReasoningEffort": "Rückfrage-Ressourceneinsatz",
+        "agenticReasoningEffortOptions": {
+            "minimal": "Minimal",
+            "low": "Gering",
+            "medium": "Mittel"
+        },
+        "includeCategory": "Kategorie einschließen",
+        "includeCategoryOptions": {
+            "all": "Alle"
+        },
+        "excludeCategory": "Kategorie ausschließen",
+        "useSemanticRanker": "Semantischen Ranker verwenden",
+        "useSemanticCaptions": "Semantische Beschriftungen verwenden",
+        "useQueryRewriting": "Abfrageumschreibung verwenden",
+        "reasoningEffort": "Begründungsaufwand",
+        "reasoningEffortOptions": {
+            "minimal": "Minimal (nur GPT-5)",
+            "low": "Gering",
+            "medium": "Mittel",
+            "high": "Hoch"
+        },
+        "useSuggestFollowupQuestions": "Folgefragen vorschlagen",
+        "useAgenticKnowledgeBase": "Agentische Suche verwenden",
+        "useWebSource": "Webquelle einbeziehen",
+        "useSharePointSource": "SharePoint-Quelle einbeziehen",
+        "llmInputs": "LLM-Eingaben",
+        "llmInputsOptions": {
+            "texts": "Texte",
+            "images": "Bilder",
+            "textAndImages": "Texte und Bilder"
+        },
+        "retrievalMode": {
+            "label": "Suchmodus",
+            "options": {
+                "hybrid": "Vektoren + Text (Hybrid)",
+                "vectors": "Vektoren",
+                "texts": "Text"
+            }
+        },
+        "vector": {
+            "label": "Eingeschlossene Vektorfelder",
+            "options": {
+                "embedding": "Texteinbettungen",
+                "imageEmbedding": "Bildeinbettungen"
+            }
+        },
+        "useOidSecurityFilter": "OID-Sicherheitsfilter verwenden",
+        "useGroupsSecurityFilter": "Gruppen-Sicherheitsfilter verwenden",
+        "shouldStream": "Chat-Antworten in Echtzeit streamen"
+    },
+    "helpTexts": {
+        "promptTemplate": "Überschreibt das Prompt, das zur Antwortgenerierung basierend auf Frage und Suchergebnissen verwendet wird. Um das bestehende Prompt zu erweitern, anstatt es zu ersetzen, beginnen Sie das Prompt mit '>>>'.",
+        "temperature": "Legt die Temperatur der LLM-Anfrage fest. Höhere Werte führen zu kreativeren Antworten, aber sie können weniger genau sein.",
+        "seed": "Legt eine Seed-Nummer für reproduzierbare Antworten fest. Beliebige ganze Zahl möglich.",
+        "searchScore": "Legt die minimale Punktzahl für Suchergebnisse aus Azure AI Search fest. Der Bereich hängt vom gewählten Modus ab (Hybrid, Vektoren, Text).",
+        "rerankerScore": "Legt die minimale Punktzahl des semantischen Rankers fest. Werte zwischen 0-4, höher = relevanter.",
+        "retrieveNumber": "Anzahl der Suchergebnisse, die von Azure AI Search abgerufen werden. Mehr Ergebnisse erhöhen Chancen auf korrekte Antwort, können aber Ablenkung verursachen.",
+        "agenticReasoningEffort": "Steuert, wie viel Agent reasoning bei Multi-Query-Plänen verwendet. Höherer Aufwand = bessere Recall, aber mehr Token und Latenz.",
+        "includeCategory": "Kategorie für Suchergebnisse einschließen. Standard-Dataset hat keine Kategorien.",
+        "excludeCategory": "Kategorie von Suchergebnissen ausschließen. Standard-Dataset hat keine Kategorien.",
+        "useSemanticReranker": "Aktiviert semantisches Ranking der Suchergebnisse basierend auf Ähnlichkeit zur Nutzeranfrage.",
+        "useSemanticCaptions": "Semantische Beschriftungen anstelle kompletter Ergebnisse an LLM senden.",
+        "useQueryRewriting": "Abfrageumschreibung aktivieren, um Suchergebnisse zu verbessern. Semantischer Ranker erforderlich.",
+        "reasoningEffort": "Legt den Begründungsaufwand des LLM fest. Höhere Werte = mehr reasoning, dauert länger.",
+        "suggestFollowupQuestions": "Lässt das LLM Folgefragen vorschlagen.",
+        "textEmbeddings": "Verwendet Text-Embeddings für Suchergebnisse.",
+        "imageEmbeddings": "Verwendet Bild-Embeddings für Suchergebnisse.",
+        "llmTextInputs": "Textinhalte aus Suchergebnissen werden an LLM geschickt.",
+        "llmImageInputs": "Bildinhalte aus Suchergebnissen werden an LLM geschickt.",
+        "llmInputs": "'Text und Bilder', 'Text', oder 'Bilder' an LLM senden.",
+        "retrievalMode": "Suchmodus für Azure AI Search: Hybrid (Vektoren + Text) optimal.",
+        "streamChat": "Antworten während der Generierung in Chat streamen.",
+        "useOidSecurityFilter": "Suchergebnisse nach OID des angemeldeten Nutzers filtern.",
+        "useGroupsSecurityFilter": "Suchergebnisse nach Gruppen des angemeldeten Nutzers filtern.",
+        "useAgenticKnowledgeBase": "Agentische Suche für Multi-Query-Planung nutzen, immer mit semantischem Ranker.",
+        "useWebSource": "Web-Suche zur Ergänzung der indexierten Daten verwenden.",
+        "useSharePointSource": "SharePoint-Inhalte zur Ergänzung der indexierten Daten verwenden."
+    },
+    "overallSettings": "Allgemeine Einstellungen",
+    "searchSettings": "Such-Einstellungen",
+    "llmSettings": "LLM-Einstellungen",
+    "newChat": "Neuer Chat"
+}

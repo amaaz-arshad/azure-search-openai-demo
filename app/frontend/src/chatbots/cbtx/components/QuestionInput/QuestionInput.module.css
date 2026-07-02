@@ -1,0 +1,50 @@
+.questionInputContainer {
+    border-radius: 1.5rem;
+    box-shadow:
+        0px 0.5rem 1rem rgba(0, 0, 0, 0.14),
+        0px 0px 0.125rem rgba(0, 0, 0, 0.12);
+    width: 100%;
+    padding: 0.8rem;
+    background: white;
+}
+
+.questionInputTextArea {
+    width: 100%;
+    line-height: 2.5rem;
+    /* max-height: 18rem;
+    overflow-y: auto; */
+}
+
+.questionInputButtonsContainer {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+}
+
+@media (min-width: 992px) {
+    .questionInputContainer {
+        /* Allow the container to grow; text area will scroll instead */
+    }
+}
+
+
+/* cleaner-ui-refresh */
+/* Match the flat answer/user cards: drop the floating shadow for a hairline
+   border so the composer reads as part of the same surface. */
+.questionInputContainer {
+    box-shadow: none;
+    border: 1px solid #e6e6e6;
+}
+
+.questionInputContainerDisabled {
+    background: #f3f3f3;
+    border-color: #dedede;
+}
+
+.questionInputContainerDisabled .questionInputButtonsContainer {
+    opacity: 0.45;
+}
+
+.questionInputContainerDisabled :global(button) {
+    background: transparent;
+}

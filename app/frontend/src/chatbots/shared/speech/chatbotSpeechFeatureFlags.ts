@@ -19,6 +19,11 @@ export const chatbotSpeechFeatureFlags: Record<string, ChatbotSpeechVisibility> 
         showSpeechOutputBrowser: true,
         showSpeechOutputAzure: true
     },
+    cbtx: {
+        showSpeechInput: true,
+        showSpeechOutputBrowser: true,
+        showSpeechOutputAzure: true
+    },
     demo: {
         showSpeechInput: true,
         showSpeechOutputBrowser: true,

@@ -38,6 +38,7 @@ EMBED_PUBLIC_IDS: dict[str, str] = {
     "fhg": "b8krfl2e9a",
     "vjoonk4": "kwulio1p0i",
     "snap": "r54q95959d",
+    "cbtx": "xtiz6o38j6",
 }
 
 PUBLIC_ID_LENGTH = 10
