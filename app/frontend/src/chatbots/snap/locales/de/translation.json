@@ -53,6 +53,7 @@
         "fileDeleted": "Datei gelöscht"
     },
     "developerSettings": "Entwicklereinstellungen",
+    "inputDisclaimer": "nerilio generiert Antworten automatisiert aus den bereitgestellten Inhalten, verbindlich sind offizielle Quellen.",
     "disclaimer": {
         "label": "Wichtiger Hinweis",
         "message": "KI-gestützter Assistent. Antworten werden automatisiert aus den bereitgestellten Inhalten generiert, verbindlich sind offizielle Quellen.",

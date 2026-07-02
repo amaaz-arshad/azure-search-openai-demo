@@ -17,6 +17,38 @@ Two categories per date:
 
 ## 2026-07-02
 
+### snap bot UI: SNAP wordmark in navbar + disclaimer moved under the composer
+
+#### Decisions
+
+- **Navbar now shows the green SNAP wordmark instead of the round robot avatar + "SNAP" title text**, per the
+  user's request and screenshot. Used the existing committed brand asset `app/frontend/src/assets/Snap.svg`
+  (two-tone `#90FBBA`/`#00CD96`, viewBox 2048×525) rather than adding a per-bot asset — it is SNAP's own wordmark
+  and already lives in shared `assets/`. The in-chat assistant avatar (`robo1.png`) is intentionally unchanged;
+  only the top bar was in scope.
+- **Removed the top "Wichtiger Hinweis" disclaimer banner from the snap bot only** by unmounting the shared
+  `ChatbotDisclaimerBanner` in snap's `Chat.tsx`. The shared component and the now-unused snap `disclaimer.*`
+  i18n keys are left untouched, so every other bot keeps its banner.
+- **Replaced it with a small muted line under the composer**, localized via a new top-level `inputDisclaimer`
+  key (de verbatim from the request: "nerilio generiert Antworten automatisiert aus den bereitgestellten
+  Inhalten, verbindlich sind offizielle Quellen."; en/nl translated to match the existing disclaimer style).
+
+#### Changes
+
+- `app/frontend/src/chatbots/snap/pages/layout/Layout.tsx`: import `../../../../assets/Snap.svg` (dropped the
+  `robo1.png` import); render `<img className={styles.brandLogo} alt="SNAP">` inside the `/snap` `Link` and
+  removed the `logoCircle` avatar + `navbarTitle` text; added `aria-label={t("headerTitle")}` on the link.
+- `app/frontend/src/chatbots/snap/pages/layout/Layout.module.css`: added `.brandLogo` (height 28px; 24px under
+  the 768px breakpoint). Left the now-unused `.logoCircle`/`.navbarTitle` rules in place (harmless, low churn).
+- `app/frontend/src/chatbots/snap/pages/chat/Chat.tsx`: removed the `ChatbotDisclaimerBanner` import + usage;
+  added `<p className={styles.inputDisclaimer}>{t("inputDisclaimer")}</p>` beneath `QuestionInput`.
+- `app/frontend/src/chatbots/snap/pages/chat/Chat.module.css`: added `.inputDisclaimer` (0.75rem, centered,
+  `#6b6b6b`).
+- `app/frontend/src/chatbots/snap/locales/{de,en,nl}/translation.json`: added `inputDisclaimer`.
+- **Verified:** frontend `tsc --noEmit` clean; Playwright render of `/snap` (config mocked, de locale) confirms
+  the SVG wordmark renders at 28×109 with no robot avatar/title, the top banner is absent, and the footer line
+  is present.
+
 ### New built-in client bot: CABLETEX (route `/cbtx`)
 
 #### Decisions

@@ -27,7 +27,6 @@ import { LanguagePicker } from "../../i18n/LanguagePicker";
 import { Settings } from "../../components/Settings/Settings";
 import { setGlobalClearChat } from "../layout/Layout";
 import { applyChatbotSpeechFeatureFlags } from "../../../shared/speech/chatbotSpeechFeatureFlags";
-import { ChatbotDisclaimerBanner } from "../../../shared/disclaimer/ChatbotDisclaimerBanner";
 import { readActiveSessionId, writeActiveSessionId, clearActiveSessionId } from "../../../shared/history/activeSession";
 
 const INITIAL_ASSISTANT_SENTINEL_USER_MESSAGE = "__initial_assistant__";
@@ -754,7 +753,6 @@ const Chat = () => {
             </div> */}
             <div className={`${styles.chatRoot} ${isHistoryPanelOpen ? styles.chatRootHistoryOpen : ""}`}>
                 <div className={styles.chatContainer} ref={chatContainerRef}>
-                    <ChatbotDisclaimerBanner isLoggedIn={loggedIn} />
                     {/* {!lastQuestionRef.current && answers.length === 1 && answers[0][0] === "" ? (
                         <div className={styles.chatEmptyState}>
                             <img src={appLogo} alt="App logo" width="120" height="120" />
@@ -844,6 +842,7 @@ const Chat = () => {
                             onStop={onStopClick}
                             initQuestion={restoredQuestion}
                         />
+                        <p className={styles.inputDisclaimer}>{t("inputDisclaimer")}</p>
                     </div>
                 </div>
 

@@ -53,6 +53,7 @@
         "fileDeleted": "Bestand verwijderd"
     },
     "developerSettings": "Ontwikkelaarinstellingen",
+    "inputDisclaimer": "nerilio genereert antwoorden automatisch op basis van de aangeleverde inhoud; officiële bronnen zijn bindend.",
     "disclaimer": {
         "label": "Belangrijke melding",
         "message": "AI-ondersteunde assistent. Antwoorden worden automatisch gegenereerd op basis van de aangeleverde inhoud; officiële bronnen zijn bindend.",

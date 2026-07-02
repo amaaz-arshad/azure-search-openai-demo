@@ -215,3 +215,12 @@
     padding-top: 0;
     background: linear-gradient(to bottom, transparent 0 var(--composer-overlap), #f2f2f2 var(--composer-overlap));
 }
+
+/* Small disclaimer line beneath the composer (replaces the old top banner). */
+.inputDisclaimer {
+    margin: 0.5rem 0 0;
+    text-align: center;
+    font-size: 0.75rem;
+    line-height: 1.3;
+    color: #6b6b6b;
+}

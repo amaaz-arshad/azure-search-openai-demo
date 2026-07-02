@@ -6,7 +6,7 @@ import { ChatAdd24Regular, History24Regular } from "@fluentui/react-icons";
 
 import { useLogin } from "../../authConfig";
 import { LoginButton } from "../../components/LoginButton";
-import chatbotLogo from "../../assets/robo1.png";
+import snapLogo from "../../../../assets/Snap.svg";
 import styles from "./Layout.module.css";
 
 let globalClearChat: () => void = () => {};
@@ -51,13 +51,9 @@ const Layout = () => {
             <header className={styles.header} role="banner">
                 <div className={styles.headerContainer}>
                     <div className={styles.leftSection}>
-                        <Link className={styles.logoContainer} to="/snap">
-                            <div className={styles.logoCircle}>
-                                <img alt="Logo" src={chatbotLogo} />
-                            </div>
+                        <Link className={styles.logoContainer} to="/snap" aria-label={t("headerTitle")}>
+                            <img className={styles.brandLogo} alt="SNAP" src={snapLogo} />
                         </Link>
-
-                        <div className={styles.navbarTitle}>{t("headerTitle")}</div>
                     </div>
 
                     <div className={styles.rightSection}>

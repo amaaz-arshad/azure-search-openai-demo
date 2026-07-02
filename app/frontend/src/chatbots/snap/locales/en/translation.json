@@ -53,6 +53,7 @@
         "fileDeleted": "File deleted"
     },
     "developerSettings": "Developer settings",
+    "inputDisclaimer": "nerilio generates answers automatically from the provided content; official sources are binding.",
     "disclaimer": {
         "label": "Important notice",
         "message": "AI-supported assistant. Answers are automatically generated from the content provided; official sources are binding.",

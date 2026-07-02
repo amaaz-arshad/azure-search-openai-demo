@@ -61,6 +61,13 @@
     display: block;
 }
 
+/* SNAP wordmark logo in the navbar (replaces the round avatar + title text). */
+.brandLogo {
+    height: 28px;
+    width: auto;
+    display: block;
+}
+
 /* Title sits on the left, beside the logo */
 .navbarTitle {
     color: var(--chatbot-navbar-text);
@@ -150,6 +157,10 @@
 
     .navbarTitle {
         font-size: 1.32rem;
+    }
+
+    .brandLogo {
+        height: 24px;
     }
 }
 

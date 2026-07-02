@@ -8470,8 +8470,8 @@
     "semantic_hash": "b7d811e41ee8cb385db724f4491957fb"
   },
   "CHANGES.md": {
-    "mtime": 1783021540.807806,
-    "ast_hash": "886ae968cdbd640a942eb29b8226b666",
+    "mtime": 1783023441.1024003,
+    "ast_hash": "ae862606fc7202ed104da52c39a7ac89",
     "semantic_hash": ""
   },
   "aci-openlit.example.yaml": {
@@ -8895,18 +8895,18 @@
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/snap/locales/de/translation.json": {
-    "mtime": 1782444876.1130629,
-    "ast_hash": "3d87f08a9c0490cd79601f4aa0ea7886",
+    "mtime": 1783023014.6506667,
+    "ast_hash": "7e55aed77ef09beaec2298e0391c4c8e",
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/snap/locales/en/translation.json": {
-    "mtime": 1782444876.1130629,
-    "ast_hash": "9e1e5565a047699313eb8e996010543e",
+    "mtime": 1783023016.6328106,
+    "ast_hash": "3ca872b29729f031f9788fad8134c210",
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/snap/locales/nl/translation.json": {
-    "mtime": 1782444876.1150742,
-    "ast_hash": "46ced94ba684e4965c57afce0c601b6b",
+    "mtime": 1783023037.2075646,
+    "ast_hash": "84275929b9dd834efbf2974d047304c3",
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/snap/loginContext.tsx": {
@@ -8920,13 +8920,13 @@
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/snap/pages/chat/Chat.tsx": {
-    "mtime": 1782444876.1228552,
-    "ast_hash": "23cdf237cfbb60c215c3420d6db4fd22",
+    "mtime": 1783023002.1248548,
+    "ast_hash": "2e314d28061d7260f7b19c96d567a268",
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/snap/pages/layout/Layout.tsx": {
-    "mtime": 1782444876.1267133,
-    "ast_hash": "3b68def90200c2b1b243ab3da5068cd7",
+    "mtime": 1783023091.8144343,
+    "ast_hash": "c2c8b1db8921ff423616b486292b3b58",
     "semantic_hash": ""
   },
   "scripts/scrape_snap.py": {
@@ -9509,14 +9509,9 @@
     "ast_hash": "4a2088ab515c219530f34b1e481d3538",
     "semantic_hash": ""
   },
-  "app/frontend/src/chatbots/cbtx/assets/cabletex-logo.README.txt": {
-    "mtime": 1783019787.7994385,
-    "ast_hash": "ec3a3ac1d95c2028608503f5636b6bf8",
-    "semantic_hash": ""
-  },
   "app/frontend/src/chatbots/cbtx/assets/cabletex-logo.png": {
-    "mtime": 1783019787.5983355,
-    "ast_hash": "82b1e421ed0d8fa9a972c45bcfe7e0ba",
+    "mtime": 1783022108.4379663,
+    "ast_hash": "109cc9ef246660231db663be6fe0ca68",
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/cbtx/api/api.ts": {
