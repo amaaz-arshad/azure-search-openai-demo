@@ -72,10 +72,13 @@ PROGRESS_MARKER = f"[[PROGRESS value={PROGRESS_PASS_VALUE}]]"
 # Backend-authored, hidden: emitted once on final completion (the last module passed). The frontend hides
 # it at render and uses it to remove the question input, since the run is then terminal in this session.
 DONE_MARKER = "[[DONE]]"
-# Legacy: the model no longer writes [[SUMMARY]] — the backend renders the module-by-module summary
-# itself (render_module_summary). Kept only as defense, to cut any stray take-aways a misbehaving model
-# still emits (in render_completion_bubbles and the premature-finalisation guard), and to display-hide it
-# from old stored sessions via ANY_MARKER_RE.
+# The model writes [[SUMMARY]] once, on the finalising turn of the FINAL question, between its feedback on
+# that answer and its general end-of-assessment take-aways (a few strengths + a few worth revisiting,
+# across all modules). render_completion_bubbles splits there so the model's take-aways become the summary
+# bubble, falling back to the deterministic render_topic_summary when the model omits it. The
+# premature-finalisation guard also cuts it if the model emits it on a partial first answer (before the one
+# correction is used), so it can never leak early or stall the correction loop; ANY_MARKER_RE additionally
+# display-hides the token from stored sessions.
 SUMMARY_TOKEN_RE = re.compile(r"\[\[\s*SUMMARY\s*\]\]", re.IGNORECASE)
 DONE_MARKER_RE = re.compile(r"\[\[\s*DONE\s*\]\]", re.IGNORECASE)
 # Backend-authored display split point: the frontend renders one chat bubble per [[BREAK]]-separated
@@ -100,6 +103,55 @@ _COMPLETE_LINE_RE = re.compile(
     r"^\s*\*{0,2}\s*(?:Assessment complete|Module complete|Modul abgeschlossen|Bewertung abgeschlossen|Module voltooid|Beoordeling voltooid)\b[^\n]*$",
     re.IGNORECASE | re.MULTILINE,
 )
+
+def ending_cut_index(text: Optional[str]) -> Optional[int]:
+    """Index of the ``[[SUMMARY]]`` token in ``text`` — the model's contract marker that introduces
+    end-of-assessment take-aways — or None if it is absent. Both premature-ending guards use it to cut a
+    summary the model volunteered on a turn that is not the true final-module completion.
+
+    Detection keys ONLY on ``[[SUMMARY]]``: it is the one signal that never appears in ordinary per-question
+    feedback, so cutting on it has ZERO false positives. An earlier iteration also tried to catch a
+    *token-less* ending by Strengths/Worth-revisiting labels and completion phrases, but adversarial review
+    proved that shape is indistinguishable from legitimate feedback (e.g. "Strengths: … / one point worth
+    improving …", or "your understanding of assessment is complete") and erased real learner feedback —
+    a worse failure than the rare leak it prevented, since no keyword rule can separate a summary from
+    feedback that merely uses the same words. A contract-violating token-less prose summary is the documented
+    residual the prompt covers: the model is told to precede ANY take-aways with ``[[SUMMARY]]`` and to write
+    none at all except when finalising the final module's last question."""
+    if not text:
+        return None
+    token = SUMMARY_TOKEN_RE.search(text)
+    return token.start() if token else None
+
+
+def cut_premature_ending(body: Optional[str]) -> str:
+    """Remove an end-of-assessment take-aways/summary section the model volunteered on a turn that is NOT
+    the genuine final-module completion, while preserving a trailing ``[[SCORE]]`` marker so a legitimately
+    finalised score still replays into history.
+
+    The end-of-assessment take-aways may appear ONLY on the finalising turn of the FINAL module's last
+    question, where ``render_completion_bubbles`` consumes them. On every other turn — including a
+    full-marks or post-correction finalisation of a *non-final* question — a summary the model writes is
+    premature and must be cut, or it leaks into the visible per-question feedback (the reported Module-10
+    bug, where a full-marks answer on a non-final question dragged the whole ending into its feedback). This
+    complements the below-full premature-finalisation guard, which additionally *discards* the score; here
+    the score is kept because the answer legitimately finalised — only the ending is early.
+
+    Detection reuses ``ending_cut_index`` — the ``[[SUMMARY]]`` token only — so ordinary per-question
+    feedback (which never contains that token) is never truncated.
+    """
+    if not body:
+        return body or ""
+    cut = ending_cut_index(body)
+    if cut is None:
+        return body
+    score_marker = SCORE_MARKER_RE.search(body)
+    trimmed = body[:cut]
+    # The model writes the [[SCORE]] marker last, after any ending; if it sits past the cut point, re-append
+    # it so the finalised score is not lost together with the stripped take-aways.
+    if score_marker and score_marker.start() >= cut:
+        trimmed = f"{trimmed}\n\n{score_marker.group(0)}"
+    return re.sub(r"\n[ \t]*\n[ \t]*\n+", "\n\n", trimmed).strip()
 
 # Give-up / meta detection. A give-up or meta turn ("next", "skip", "I don't know", "why are you
 # asking?") is one whose WHOLE message is that statement. A substantive answer can incidentally contain
@@ -172,19 +224,16 @@ _LOCALES: dict[str, dict[str, Any]] = {
         ),
         "retry_prompt": "When you're ready, retake the module.",
         "complete_result": "**Assessment complete — you've passed every module ({s}/{m}, {p}%).**",
-        "summary_heading": "**Summary by module**",
-        "summary_module_heading": "**{module} — {band}**",
-        "summary_band_strong": "strong",
-        "summary_band_revisit": "worth revisiting",
-        "summary_strengths": "- Strengths: {items}",
-        "summary_revisit": "- Worth revisiting: {items}",
+        "summary_heading": "**Summary**",
+        "summary_strengths": "**Strengths:**",
+        "summary_revisit": "**Worth revisiting:**",
         "correction_offer": "You have one opportunity to add to or revise your answer — go ahead if you'd like.",
         "motivational_passed": (
             "Great job. This wasn't a formality. You worked through the material module by module, you "
             "answered the questions, and you passed every one.\n\n"
-            "Managing performance is one of the most demanding skills a HYROX coach can develop. Completing "
+            "Mastering performance is one of the most demanding skills a HYROX coach can develop. Completing "
             "this Level 2 assessment means you're building the kind of foundation that makes a real "
-            "difference — to your athletes, and to your coaching.\n\n"
+            "difference — to your athletes and to your coaching.\n\n"
             "This is a meaningful step. Keep going — your athletes will feel the difference."
         ),
         "closing_passed": (
@@ -214,17 +263,14 @@ _LOCALES: dict[str, dict[str, Any]] = {
         ),
         "retry_prompt": "Wenn du bereit bist, wiederhole das Modul.",
         "complete_result": "**Assessment abgeschlossen — du hast jedes Modul bestanden ({s}/{m}, {p}%).**",
-        "summary_heading": "**Auswertung nach Modulen**",
-        "summary_module_heading": "**{module} — {band}**",
-        "summary_band_strong": "stark",
-        "summary_band_revisit": "lohnt sich zu wiederholen",
-        "summary_strengths": "- Stärken: {items}",
-        "summary_revisit": "- Lohnt sich zu wiederholen: {items}",
+        "summary_heading": "**Auswertung**",
+        "summary_strengths": "**Stärken:**",
+        "summary_revisit": "**Lohnt sich zu wiederholen:**",
         "correction_offer": "Du hast jetzt die Möglichkeit, deine Antwort zu ergänzen oder zu überarbeiten.",
         "motivational_passed": (
             "Stark gemacht. Das war keine Formalität: Du hast das Material Modul für Modul durchgearbeitet, "
             "die Fragen beantwortet und jedes Modul bestanden.\n\n"
-            "Managing Performance gehört zu den anspruchsvollsten Fähigkeiten, die ein HYROX-Coach entwickeln "
+            "Mastering Performance gehört zu den anspruchsvollsten Fähigkeiten, die ein HYROX-Coach entwickeln "
             "kann. Dass du dieses Level-2-Assessment abgeschlossen hast, zeigt, dass du dir ein Fundament "
             "aufbaust, das einen echten Unterschied macht — für deine Athletinnen und Athleten und für deine "
             "Coaching-Praxis.\n\n"
@@ -258,17 +304,14 @@ _LOCALES: dict[str, dict[str, Any]] = {
         ),
         "retry_prompt": "Wanneer je er klaar voor bent, maak je de module opnieuw.",
         "complete_result": "**Beoordeling voltooid — je bent voor elke module geslaagd ({s}/{m}, {p}%).**",
-        "summary_heading": "**Overzicht per module**",
-        "summary_module_heading": "**{module} — {band}**",
-        "summary_band_strong": "sterk",
-        "summary_band_revisit": "de moeite waard om te herhalen",
-        "summary_strengths": "- Sterke punten: {items}",
-        "summary_revisit": "- De moeite waard om te herhalen: {items}",
+        "summary_heading": "**Overzicht**",
+        "summary_strengths": "**Sterke punten:**",
+        "summary_revisit": "**De moeite waard om te herhalen:**",
         "correction_offer": "Je hebt nu de mogelijkheid om je antwoord aan te vullen of te herzien.",
         "motivational_passed": (
             "Goed gedaan. Dit was geen formaliteit: je hebt de stof module voor module doorgewerkt, de "
             "vragen beantwoord en bent voor elke module geslaagd.\n\n"
-            "Managing performance is een van de meest veeleisende vaardigheden die een HYROX-coach kan "
+            "Mastering performance is een van de meest veeleisende vaardigheden die een HYROX-coach kan "
             "ontwikkelen. Dat je dit Level 2-assessment hebt afgerond, betekent dat je bouwt aan een "
             "fundament dat echt verschil maakt — voor je atleten en voor je praktijk.\n\n"
             "Dit is een betekenisvolle stap. Ga zo door — je atleten zullen het verschil voelen."
@@ -778,6 +821,12 @@ def build_state_injection(state: dict[str, Any], language: Optional[str] = None)
             "[[PROGRESS]], or [[DONE]]; the system owns those.",
         ]
     )
+    if not (is_last_in_module and is_final_module):
+        lines.append(
+            "- This turn is NOT the end of the assessment. Do NOT write any end-of-assessment summary, "
+            "strengths/worth-revisiting take-aways, closing remarks, or the [[SUMMARY]] token — those belong "
+            "ONLY to the finalising turn of the FINAL module's LAST question."
+        )
     if not is_last_in_module:
         lines.append(
             "- AUTO-NEXT: after you finalise (emit the [[SCORE]] marker), the system AUTOMATICALLY presents the "
@@ -786,12 +835,18 @@ def build_state_injection(state: dict[str, Any], language: Optional[str] = None)
         )
     elif is_final_module:
         lines.append(
-            "- This is the LAST question of the FINAL module. Handle it exactly like any last question: after "
-            "finalising it, write only your brief feedback on this answer and the [[SCORE]] marker — do NOT use "
-            "[[ASK]], do NOT write a next question, and do NOT write any summary, take-aways, closing, or "
-            "certificate text. The system evaluates the module against the 80% threshold and, when it passes, "
-            "renders the module result, the by-module summary, the motivational message, and the "
-            "closing/certificate messages itself."
+            "- This is the LAST question of the FINAL module; finalising it (emitting [[SCORE]]) completes the "
+            "whole assessment. Follow the DECISION/FINALISE rule above: only finalise on a full-marks first "
+            "answer or after the single correction. If you are only offering the correction this turn, do NOT "
+            "emit [[SCORE]] and do NOT write any summary or take-aways. WHEN you finalise, write in this order: "
+            "(1) your brief feedback on this final answer; (2) a line containing exactly [[SUMMARY]]; (3) general "
+            "end-of-assessment take-aways spanning ALL modules — in plain language, name 2-4 topics that were "
+            "clear strengths and 2-4 worth revisiting, specific to what the learner showed, framed as guidance, "
+            "WITHOUT revealing model answers and WITHOUT any numbers, scores, or percentages. Do NOT write a "
+            "heading, the score, the module result, pass/fail, motivational, or closing/certificate text, and do "
+            "NOT use [[ASK]]. The system renders the module result, the summary heading, the final result, the "
+            "motivational message, and the closing/certificate messages, and supplies the take-aways itself if "
+            "you omit [[SUMMARY]]."
         )
     else:
         lines.append(
@@ -955,9 +1010,10 @@ def _dedupe_preserve_order(items: list[str]) -> list[str]:
 
 
 def module_topic_breakdown(scores: list[dict[str, Any]]) -> tuple[list[str], list[str]]:
-    """The key-point topics the learner earned (strengths) vs missed (worth revisiting) across a module's
-    questions, read straight from the per-key-point 0/1 verdicts. Topics come from ``questions.py`` (the
-    authoritative rubric), de-duplicated and in question/key-point order."""
+    """The key-point topics the learner earned (strengths) vs missed (worth revisiting) over the given
+    ``scores``, read straight from the per-key-point 0/1 verdicts. Topics come from ``questions.py`` (the
+    authoritative rubric), de-duplicated and in question/key-point order. Fed one module's scores for a
+    per-module view, or every module's scores for the cross-module ``render_topic_summary``."""
     earned: list[str] = []
     missed: list[str] = []
     for s in scores:
@@ -976,30 +1032,27 @@ def module_topic_breakdown(scores: list[dict[str, Any]]) -> tuple[list[str], lis
     return _dedupe_preserve_order(earned), _dedupe_preserve_order(missed)
 
 
-def render_module_summary(
+def render_topic_summary(
     module_results: list[tuple[str, list[dict[str, Any]]]], language: Optional[str] = None
 ) -> str:
-    """Deterministic module-by-module breakdown shown at completion. For every module in fixed order it
-    states a qualitative band (>=90% strong, otherwise worth revisiting — all modules are passes here, so
-    the lower band flags the weaker-but-passing ones) and lists the key-point topics the learner earned
-    (strengths) vs missed (worth revisiting). It is built entirely from the per-key-point verdicts the
-    backend already reconstructed, so it never depends on the model and never mis-states a result.
-    Naming missed key points is allowed at this point: it is end-of-assessment guidance, after every
-    module has been passed."""
+    """Deterministic topic-wise take-aways shown at completion, aggregated **across all modules** (not
+    per module): one Strengths list of the key-point topics the learner earned and one Worth-revisiting
+    list of the topics they missed. It is built entirely from the per-key-point 0/1 verdicts the backend
+    already reconstructed, mapped to the ``questions.py`` rubric topics, so it never depends on the model
+    and never mis-states a result. A topic the learner missed anywhere is listed only as worth revisiting
+    even if earned elsewhere, so the two lists stay disjoint and the guidance stays honest. Naming missed
+    key points is allowed at this point: it is end-of-assessment guidance, after every module has been
+    passed."""
     L = _locale(language)
+    all_scores = [s for _, scores in module_results for s in scores]
+    earned, missed = module_topic_breakdown(all_scores)
+    missed_keys = {t.lower() for t in missed}
+    earned = [t for t in earned if t.lower() not in missed_keys]
     blocks = [L["summary_heading"]]
-    for module_key, scores in module_results:
-        tally = compute_tally(scores)
-        if not tally["max"]:
-            continue
-        band = L["summary_band_strong"] if tally["pct"] >= 90 else L["summary_band_revisit"]
-        earned, missed = module_topic_breakdown(scores)
-        lines = [L["summary_module_heading"].format(module=_module_display(module_key, language), band=band)]
-        if earned:
-            lines.append(L["summary_strengths"].format(items="; ".join(earned)))
-        if missed:
-            lines.append(L["summary_revisit"].format(items="; ".join(missed)))
-        blocks.append("\n".join(lines))
+    if earned:
+        blocks.append(L["summary_strengths"] + "\n" + "\n".join(f"- {t}" for t in earned))
+    if missed:
+        blocks.append(L["summary_revisit"] + "\n" + "\n".join(f"- {t}" for t in missed))
     return "\n\n".join(blocks)
 
 
@@ -1014,13 +1067,14 @@ def render_completion_bubbles(
 
     1. the final question's score + the model's feedback on that answer,
     2. the cumulative result across all modules (always a pass — a module is only left by passing it),
-    3. the deterministic module-by-module summary (backend-owned; never depends on the model),
+    3. the general take-aways summary across all modules — the model's text after its [[SUMMARY]] token
+       (strengths / worth revisiting), or the deterministic topic-wise fallback when that token is missing,
     4. the motivational message,
     5. the closing message (certificate notice).
 
-    The model's hidden [[SCORE]] marker is re-appended at the very end so it still replays. The model is
-    told to author no summary; as defense any stray [[SUMMARY]] take-aways it still emits are cut from
-    the feedback so they never reach the learner.
+    The model's hidden [[SCORE]] marker is re-appended at the very end so it still replays. The model writes
+    the take-aways after [[SUMMARY]]; the backend owns the heading and every number, and if the model omits
+    [[SUMMARY]] the learner still gets the deterministic topic-wise summary.
     """
     L = _locale(language)
 
@@ -1028,8 +1082,14 @@ def render_completion_bubbles(
     score_marker_text = score_marker.group(0) if score_marker else ""
     cleaned = re.sub(r"\n[ \t]*\n[ \t]*\n+", "\n\n", SCORE_MARKER_RE.sub("", body)).strip()
 
-    feedback = SUMMARY_TOKEN_RE.split(cleaned, maxsplit=1)[0].strip()
-    summary = render_module_summary(module_results, language)
+    feedback, *summary_rest = SUMMARY_TOKEN_RE.split(cleaned, maxsplit=1)
+    feedback = feedback.strip()
+    model_takeaways = SUMMARY_TOKEN_RE.sub("", summary_rest[0]).strip() if summary_rest else ""
+    # Backend owns the heading; the model authors only the strengths/worth-revisiting body. When the model
+    # omits [[SUMMARY]], fall back to the deterministic topic-wise summary so a summary always appears.
+    summary = f"{L['summary_heading']}\n\n{model_takeaways}" if model_takeaways else render_topic_summary(
+        module_results, language
+    )
 
     complete_line = L["complete_result"].format(s=overall_tally["score"], m=overall_tally["max"], p=overall_tally["pct"])
     bubbles = [
@@ -1108,9 +1168,13 @@ def render_assessment_turn(
         and int(new_score.get("awarded", 0) or 0) < int(new_score.get("max", 0) or 0)
     ):
         new_score = None
-        # The model is told to author no ending; if it still wrote a [[SUMMARY]] + take-aways while only
-        # a correction is due (e.g. on the final module's first answer), cut them so nothing leaks.
-        body = SUMMARY_TOKEN_RE.split(body, maxsplit=1)[0]
+        # Only a correction is due, so the model must NOT write the ending yet (it may author take-aways
+        # only on the finalising turn). If it bracketed one anyway on this below-full first answer with the
+        # [[SUMMARY]] token, cut from there so nothing leaks beside the correction offer; the score is
+        # discarded regardless.
+        cut = ending_cut_index(body)
+        if cut is not None:
+            body = body[:cut]
         body = re.sub(r"\n[ \t]*\n[ \t]*\n+", "\n\n", SCORE_MARKER_RE.sub("", body)).strip()
         score_discarded_premature = True
 
@@ -1129,6 +1193,20 @@ def render_assessment_turn(
 
     just_completed = False
     module_tally = compute_tally(module_scores)
+
+    # Premature-ending guard (finalisation path). The below-full guard above cut any ending on a discarded
+    # first answer; this also cuts a summary/take-aways the model volunteered when it *legitimately*
+    # finalised a question that is NOT the final-module completion (e.g. a full-marks answer on a non-final
+    # question — the reported Module-10 leak). Only the true completion turn keeps the ending, so
+    # render_completion_bubbles can consume it.
+    is_completion_turn = (
+        new_score is not None
+        and n_after >= module_total
+        and module_tally["passed"]
+        and bool(state.get("is_final_module"))
+    )
+    if not is_completion_turn:
+        body = cut_premature_ending(body)
 
     if should_backend_render_question:
         asked_question_id = state["current_id"]

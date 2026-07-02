@@ -15,7 +15,157 @@ Two categories per date:
 
 ---
 
+## 2026-07-02
+
+### HYROX assessment — course rename ("Mastering Performance") + welcome pause note + post-pass copy
+
+#### Decisions
+
+- **Course renamed "Managing Performance" → "Mastering Performance."** Applied to the two user-facing
+  surfaces: the welcome message (`initialAssistantMsg`, all three locales) and the second-to-last post-pass
+  bubble (`motivational_passed` in `results.py`, all three locales, for parity even though the bot runs
+  English-only). After the user confirmed, ALSO applied to the internal/model-facing references so the whole
+  bot is consistent: `sampleprompt.py` INSTRUCTIONS header + intro (the system prompt the model reads),
+  `questions.py` docstring, and its generator `prep_hyrox_assessment_questions.py` HEADER (kept in lockstep
+  so a regenerate reproduces the new name).
+- **Welcome pause note "move & enhance" (user-chosen).** The welcome already carried a pause sentence inside
+  paragraph 2 ("…return to continue later."). Rather than leaving a near-duplicate, removed that sentence and
+  added the enhanced "…return to continue later **on this device**." as its own second-to-last sentence
+  (between the "summary organised by topic" line and the "Start the assessment" line), per the user's pick
+  in a clarifying question. de/nl mirror it ("…auf diesem Gerät fortsetzen." / "…op dit apparaat verdergaan.").
+- **Post-pass "title" sentence copy tweak.** Per the user's supplied text, the `motivational_passed` middle
+  sentence now reads "Mastering performance is one of the most demanding skills…makes a real difference — to
+  your athletes and to your coaching." (dropped the comma after "athletes"; kept the file's spaced em-dash
+  convention rather than the user's tight em-dash for in-block consistency). German/Dutch only take the
+  course-name change.
+
+#### Changes
+
+- `app/frontend/src/chatbots/hyrox-assessment/locales/{en,de,nl}/translation.json` — `initialAssistantMsg`:
+  course name → "Mastering Performance"; removed the paragraph-2 pause sentence; added the "on this device"
+  pause sentence as the second-to-last sentence.
+- `app/backend/approaches/chatbots/hyrox_assessment/results.py` — `motivational_passed` (en/de/nl): course
+  name → "Mastering"; en comma removed after "athletes".
+- `app/backend/approaches/chatbots/hyrox_assessment/sampleprompt.py` — module docstring, INSTRUCTIONS `#`
+  heading, and the intro sentence: "Managing" → "Mastering".
+- `app/backend/approaches/chatbots/hyrox_assessment/questions.py` and its generator
+  `app/backend/prep_hyrox_assessment_questions.py` (HEADER) — docstring "Managing" → "Mastering".
+- `tests/test_hyrox_assessment.py` — updated bubble[3] assertion "Managing performance" → "Mastering
+  performance". Full file passes (42 tests).
+
 ## 2026-07-01
+
+### HYROX assessment — fix premature end-of-assessment summary leaking into non-final feedback
+
+#### Decisions
+
+- **User-reported bug (Module 10).** On a FULL-marks answer to a NON-final question (M10 Q3, 4/4), the
+  assistant's per-question feedback bubble contained the whole end-of-assessment summary ("Strongest areas
+  … / Worth revisiting … / Overall …") even though Q4–Q5 were unanswered; the run then continued normally
+  and produced a second, correct summary at the very end. Root cause: the premature-finalisation guard that
+  cuts a volunteered ending only ran on **below-full** first answers (`awarded < max`); a full-marks
+  finalisation skipped it entirely, and the mid-module render path emits the model's feedback verbatim, so
+  the volunteered summary sailed through.
+- **Fix = cut a volunteered ending on every non-completion turn, keep it only at true completion.** Added
+  `cut_premature_ending` (cuts the ending but preserves the trailing `[[SCORE]]` marker so state still
+  reconstructs from replayed history) and an `is_completion_turn` gate in `render_assessment_turn`; the
+  ending survives only when the turn actually finalises the FINAL module's last question (the
+  `render_completion_bubbles` path). Also reinforced per-turn `build_state_injection` to explicitly forbid
+  any summary/take-aways on non-final turns (reduces the model-side trigger).
+- **Two rounds of adversarial review drove the detector to `[[SUMMARY]]`-token-only.** Round 1 (3-lens
+  workflow) confirmed the structural fix was sound but the detector — a bare `"strongest"` label reusing the
+  in-flight single-signal `ending_cut_index` — erased real feedback. Tightened it to a **co-occurring**
+  Strengths+Worth-revisiting pair; Round 2 (probe agent, run against the real engine) proved even that still
+  false-positives: legitimate feedback like "Strengths: … / one point worth improving …" or "your
+  understanding of assessment is complete" matches the same shape and got truncated, while reworded
+  summaries still slipped through. **Conclusion: no keyword/prose matcher can separate a real summary from
+  feedback that reuses the same words.** Landed on token-only detection: `ending_cut_index` returns the
+  `[[SUMMARY]]` token index or None, nothing else (all `_ENDING_*` label/phrase tuples + regexes removed).
+  Zero false positives (the token never appears in feedback); the reported leak is caught **iff** the model
+  emits the token — which the prompt now mandates. A token-less prose summary is the accepted, documented
+  residual; it is benign (no false completion, `[[SCORE]]` still recorded).
+- **Prompt hardened so the token is reliable.** `sampleprompt.py` Closing section now states `[[SUMMARY]]`
+  is the ONLY way to introduce take-aways, none may be written except on the final module's last question,
+  and any take-aways written at all (even mistakenly) MUST be preceded by `[[SUMMARY]]` — so a misfiring
+  model still brackets the ending and the backend cut catches it. Shrinks the residual to a double
+  instruction-violation.
+
+#### Changes
+
+- `app/backend/approaches/chatbots/hyrox_assessment/results.py`: added `cut_premature_ending` (cuts a
+  volunteered ending at the `[[SUMMARY]]` token, preserving the trailing `[[SCORE]]`) + the
+  `is_completion_turn` gate in `render_assessment_turn` (cut runs on every finalising turn except the true
+  final-module completion); reduced `ending_cut_index` to token-only and **removed** the `_ENDING_*`
+  label/phrase tuples and regexes; `build_state_injection` now forbids summary/take-aways on non-final turns.
+- `app/backend/approaches/chatbots/hyrox_assessment/sampleprompt.py`: hardened the Closing section —
+  `[[SUMMARY]]` is the only way to introduce take-aways, none on earlier questions, and any take-aways must
+  be preceded by the token even if written by mistake.
+- `tests/test_hyrox_assessment.py`: added the full-marks non-final leak cut (with `[[SUMMARY]]`), the
+  token-less benign-residual test (no false completion, score kept), the injection prohibition, and two
+  false-positive guards (a "Strongest …" affirmation and "needs work / worth revisiting" post-correction
+  feedback are kept intact); repurposed the in-flight `…_without_summary_token_still_cuts_takeaways` test to
+  assert the structural safeguards hold token-less. **42 tests pass.** `ty check` clean.
+- `CLAUDE.md`: updated the HYROX summary contract from two to three safeguards (`cut_premature_ending` /
+  `is_completion_turn`) and documented token-only detection + why a keyword/prose matcher was rejected.
+
+### HYROX assessment — end summary back to a general, model-authored, across-all-modules take-away
+
+#### Decisions
+
+- **Requested revert.** The end-of-assessment summary had been changed (commit `6289cb9f`, on top of the
+  module-by-module refactor `eadf610e`) to a **per-module** breakdown (each module: a ≥90%-or-revisit band
+  with its own strengths/worth-revisiting). The user asked to go back to how it was **before**: strengths and
+  weaknesses **in general, across all modules**. Confirmed this matches the spec
+  (`hyrox-files/files regarding new updates/instructions.txt`): *"you'll receive a summary organized by
+  topic"* + *"strengths and weaknesses … apply across all modules"* — the per-module version had drifted.
+- **Two-step within the session.** First pass kept it backend-deterministic but flattened across modules
+  (one Strengths + one Worth-revisiting list of *key-point topics*). The user rejected that: it lists every
+  rubric key point (~40+ on a passing run), which isn't "general." Git archaeology of the pre-refactor
+  state (`3bc0de4d`) showed the original summary was **`**Summary by topic**` model-authored take-aways**:
+  *"name 2-4 topics that felt like strengths and 2-4 that need work, plain language, framed as guidance,
+  no numbers."* The current `questions.py` has **no topic/category field** (only `module` + per-question
+  `key_points`), so a genuinely *general* summary can only come from the **model** — a deterministic one
+  can only dump key points or group by module (both rejected). User chose **model-authored, general**.
+- **Reinstated model authoring safely** (this is what `6289cb9f` had removed to stop the model emitting the
+  ending early). Two independent safeguards prevent the early-leak/stall regression: (1) the prompt tells
+  the model to write `[[SUMMARY]]` **only when it actually finalises** the final question (full-marks first
+  answer, or after the single correction); (2) the existing premature-finalisation guard in
+  `render_assessment_turn` independently discards any `[[SCORE]]`/`[[SUMMARY]]`/take-aways on a below-full
+  first answer and offers the correction instead — so a misbehaving model can't leak the ending.
+- **Deterministic `render_topic_summary` kept as the fallback**, not the primary path: if the model omits
+  `[[SUMMARY]]`, the learner still gets a summary. `[[SUMMARY]]` is a **live** marker again (no longer
+  "legacy"). Backend still owns every number + the summary heading; the model writes only the take-away body.
+- **Adversarial review (4-dimension workflow) found + fixed a token-less re-leak.** The guard cut the
+  ending only by splitting at `[[SUMMARY]]`; a misbehaving model that wrote take-aways as prose WITHOUT the
+  token on a below-full first answer to the final question would leak that prose beside the correction
+  offer (partial re-leak; structural safeguards still held). Added `ending_cut_index` (cuts at the earliest
+  of the `[[SUMMARY]]` token, a localized Strengths/Worth-revisiting label at line-start, or a completion
+  phrase) and wired it into the guard. Pure label-less, phrase-less prose can't be detected
+  deterministically — documented; the prompt + `[[SUMMARY]]` discipline cover that residual.
+
+#### Changes
+
+- `app/backend/approaches/chatbots/hyrox_assessment/results.py`: (from step 1) renamed
+  `render_module_summary` → `render_topic_summary` (now the deterministic fallback), flattening all modules
+  into one Strengths + one Worth-revisiting topic list via `module_topic_breakdown` (missed-anywhere →
+  worth-revisiting); removed per-module locale keys (`summary_module_heading`, `summary_band_*`); reworked
+  `summary_heading`/`summary_strengths`/`summary_revisit` for en/de/nl. (from step 2) `render_completion_bubbles`
+  now splits at `[[SUMMARY]]` and uses the model's take-aways under the backend heading, falling back to
+  `render_topic_summary`; `build_state_injection`'s final-question branch asks for `[[SUMMARY]]` + 2-4
+  strengths/worth-revisiting take-aways only on finalisation; updated the `[[SUMMARY]]` header comment.
+  Post-review: added `ending_cut_index` + `_ENDING_SECTION_RE` and wired them into the premature guard so
+  a token-less ending on a below-full first answer is cut too (not just the `[[SUMMARY]]` token).
+- `app/backend/approaches/chatbots/hyrox_assessment/sampleprompt.py`: module docstring, INSTRUCTIONS intro,
+  and the Closing section now tell the model to author the general take-aways after `[[SUMMARY]]` at the very
+  end (and to suppress them when only offering the correction).
+- `tests/test_hyrox_assessment.py`: renamed the deterministic-summary tests; rewrote
+  `test_state_injection_final_question_…` to assert the injection now requests `[[SUMMARY]]`; added
+  `test_completion_uses_model_authored_summary_when_present` (model take-aways win over the fallback);
+  after the review, added `test_premature_final_answer_without_summary_token_still_cuts_takeaways` (the
+  token-less re-leak fix) and `test_completion_full_marks_first_answer_uses_model_summary` (the guard's
+  full-marks-first-answer bypass). **37 tests pass.**
+- `CLAUDE.md`: rewrote the HYROX summary contract (model-authored general summary + deterministic fallback +
+  the two safeguards; `[[SUMMARY]]` is live again; do-not-reintroduce-per-module note retained).
 
 ### HYROX assessment — fix web completion delivery + scope browser state per user (client review)
 
