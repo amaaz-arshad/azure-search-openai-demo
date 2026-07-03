@@ -15,6 +15,68 @@ Two categories per date:
 
 ---
 
+## 2026-07-04
+
+### Lemon bot corpus: custom parser + CLI to ingest `lemon_demo_knowledge.xml` (replacing HYROX)
+
+#### Decisions
+
+- **New custom XML parser, not a conversion or the generic fallback.** The lemon corpus is being
+  swapped from `content/lemon/HYROX_Level_1.json` (HYROX fitness) to `data/lemon_demo_knowledge.xml`
+  (*Lebenslanges Lernen* demo, `<knowledge>`→`<units>`→`<chunks>`, 6 modules / 24 chunks). The two
+  shapes are incompatible. Chosen: a dedicated `lemonxml.py` parser mirroring the existing per-format
+  parsers. Rejected: (a) converting the XML into the HYROX JSON shape — would force the misleading
+  `"HYROX Academy Level 1"` category onto every doc (it's validation-required and gets appended to
+  `tags`); (b) the generic `XmlParser` — no per-record `title`/`url`/`tags` and one shared
+  `sourcepage`, weak citations/retrieval.
+- **Field mapping (one search doc per `<chunk>`):** `title` = "unit `<title>` — `<section_title>`",
+  `content` = `## {section_title}` + the markdown `<content>` body, `sourcepage` = chunk id (`c0001`),
+  `sourcefile` = `lemon_demo_knowledge.xml`, `category` = `lemon`, `tags` = chunk `tags` + module +
+  course, id = `lemon-demo-knowledge-{unit id}-{chunk id}-{NNN}`. Dropped: `meta`, `unit_summary`,
+  `key_facts`, `content_id`, `source_ref`, fact ids.
+- **Citation `url` omitted while placeholder.** Every `unit_url` in the export is the literal
+  `PLACEHOLDER`; `resolve_citation_url` sets `url` to `None` for any value containing `PLACEHOLDER`,
+  so citations carry no broken link now and **auto-populate** once a real `unit_url` ships — no code
+  change. Verified: all 24 real-file docs have `url is None`.
+- **Reused `hyroxjson` helpers** (`split_content_exact`, `sanitize_identifier`,
+  `dedupe_preserve_order`) for byte-exact token chunking consistent with the sibling lemon parser,
+  instead of `process_text` + `SentenceTextSplitter` — simpler tests, no `file_processors` dependency.
+  Category `lemon` now has two parsers (HYROX JSON, lemon XML) kept disjoint by the `.json`/`.xml`
+  extension gate.
+- **Full replace is a two-step manual workflow** (mirrors `refresh_snap.py`):
+  `python app/backend/delete_category_data.py lemon` (purge HYROX search docs + `content/lemon/`
+  blob) → `python app/backend/prep_lemon_xml.py data/lemon_demo_knowledge.xml`. The CLI itself only
+  does a filename-scoped pre-purge (idempotent re-runs). Ingestion against Azure is left for the user
+  to run (azd-logged-in); code path validated offline.
+- **Out of scope (flagged):** the lemon bot's frontend example questions / greeting and
+  `approaches/chatbots/lemon/sampleprompt.py` still reference HYROX topics and will read stale after
+  the corpus swap.
+
+#### Changes
+
+- Added `app/backend/prepdocslib/lemonxml.py` — `is_lemon_knowledge_xml` sniff,
+  `prepare_lemon_xml_dataset`/`prepare_lemon_xml_sections`, and the
+  `build_lemon_xml_sections_if_applicable` dispatch hook (category `lemon` + `.xml` + `<knowledge>`).
+- Wired the new hook into `app/backend/prepdocslib/filestrategy.py` `parse_file` (right after the
+  HYROX block).
+- Added `app/backend/prep_lemon_xml.py` — ingestion CLI mirroring `prep_hyrox_json.py`
+  (XML parse, blob `content_type` `application/xml`, defaults category/prefix `lemon`).
+- Synced `prepdocslib` into all four `app/functions/*/prepdocslib` copies via
+  `python scripts/copy_prepdocslib.py` (backend and copies byte-identical).
+- Added `tests/test_lemonxml.py` (11 tests: field mapping, markdown/table preservation, url
+  placeholder handling, long-content split, duplicate/empty-content guards, sniff, dispatch gating).
+- Updated `CLAUDE.md` (Adding Data bullet; parser-dispatch contract four → five).
+
+#### Verification
+
+- `pytest tests/test_lemonxml.py` → 11 passed. `ty check` on the new/edited files → clean.
+- Offline dry parse of the real `data/lemon_demo_knowledge.xml` → 24 docs, 24 distinct chunk
+  `sourcepage`s, all `category=lemon`, all `url=None`, unique ids, no sub-splitting.
+- Pre-existing unrelated failure (NOT from this change):
+  `tests/test_publishonefeed.py::test_build_publishone_feed_sections_preserves_folder_metadata_and_inline_targets`
+  asserts `len(sections)==1` but the splitter yields 2 for that image+link content; none of that
+  test's deps were touched and it bypasses `parse_file`.
+
 ## 2026-07-03
 
 ### `/admin/uploads`: managed uploads list is now blob-driven — script/feed-ingested files show up and stay in sync

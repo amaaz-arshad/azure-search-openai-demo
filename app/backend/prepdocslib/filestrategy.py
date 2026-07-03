@@ -16,6 +16,7 @@ from .figureprocessor import FigureProcessor, MediaDescriptionStrategy, process_
 from .fhgjson import build_fhg_sections_if_applicable
 from .fileprocessor import FileProcessor
 from .hyroxjson import build_hyrox_sections_if_applicable
+from .lemonxml import build_lemon_xml_sections_if_applicable
 from .listfilestrategy import File, ListFileStrategy
 from .mediadescriber import ContentUnderstandingDescriber
 from .publishonefeed import build_feed_sections_if_applicable
@@ -72,6 +73,14 @@ async def parse_file(
     )
     if hyrox_sections is not None:
         return hyrox_sections
+
+    lemon_xml_sections = await build_lemon_xml_sections_if_applicable(
+        file=file,
+        category=category,
+        check_cancel=check_cancel,
+    )
+    if lemon_xml_sections is not None:
+        return lemon_xml_sections
 
     snap_sections = await build_snap_sections_if_applicable(
         file=file,

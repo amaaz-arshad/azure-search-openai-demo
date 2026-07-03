@@ -405,8 +405,8 @@
     "semantic_hash": "682562ff94abdcacaf7a5863de9b51b4"
   },
   "app/backend/prepdocslib/filestrategy.py": {
-    "mtime": 1783101670.362256,
-    "ast_hash": "1c21531e033a04d46ec1b55312f7c2a7",
+    "mtime": 1783118157.3807588,
+    "ast_hash": "b568c66da2de704eb47db4187e34d51a",
     "semantic_hash": ""
   },
   "app/backend/prepdocslib/htmlparser.py": {
@@ -6015,8 +6015,8 @@
     "semantic_hash": "77ec55ea90a84f95635bc9985e49b57a"
   },
   "CLAUDE.md": {
-    "mtime": 1783101753.1499305,
-    "ast_hash": "72d9eb5cea08372e12b603d201298a76",
+    "mtime": 1783118621.0552485,
+    "ast_hash": "f762ce995d858cd7bad1c5e8b825c37c",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -8410,8 +8410,8 @@
     "semantic_hash": "b7d811e41ee8cb385db724f4491957fb"
   },
   "CHANGES.md": {
-    "mtime": 1783115243.4625533,
-    "ast_hash": "c17f9bc54656cf12275878a724ca4ae6",
+    "mtime": 1783118666.2979317,
+    "ast_hash": "25f84fa179757e2b5d86d163e7a858c3",
     "semantic_hash": ""
   },
   "aci-openlit.example.yaml": {
@@ -9517,6 +9517,21 @@
   "tests/test_categoryupload.py": {
     "mtime": 1783114818.6163836,
     "ast_hash": "91815c0aa23b7347a2cb002c98d725f7",
+    "semantic_hash": ""
+  },
+  "app/backend/prep_lemon_xml.py": {
+    "mtime": 1783118206.2260811,
+    "ast_hash": "788ce9a2cab8d61e8d082878a3848ded",
+    "semantic_hash": ""
+  },
+  "app/backend/prepdocslib/lemonxml.py": {
+    "mtime": 1783118304.3126316,
+    "ast_hash": "c4358cf54bce4eb220d8fe8f7f12a390",
+    "semantic_hash": ""
+  },
+  "tests/test_lemonxml.py": {
+    "mtime": 1783118391.3770201,
+    "ast_hash": "cec5bbef290d7da504e1ab92d1dbfaf1",
     "semantic_hash": ""
   }
 }
