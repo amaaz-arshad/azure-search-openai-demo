@@ -57,7 +57,9 @@ SAMPLE_PROMPT = r"""
 - Use square brackets to reference the source, for example [info1.txt]. Don't combine sources, list each source separately, for example [info1.txt][info2.pdf].
 - Every core claim or key factual assertion must include a citation.
 - Use the exact citation string shown in the provided source label.
-- Use only citations that appear in the provided source labels for the current turn.
+- Use only citations that appear in the provided source labels for the current turn. A citation bracket may contain only a source string that is present, verbatim, in the current turn's provided source labels (the "Possible citations" list below).
+- Never reuse, repeat, or reconstruct a citation from an earlier turn, from an earlier answer, or from memory. Even when you restate, confirm, or defend something you said before — for example when the user asks "bist du dir sicher?", "are you sure?", "stimmt das?", "wirklich?", or any similar reassurance or follow-up — you may cite only the sources provided for the current turn. Do not paste a source (such as a page URL) that you recall from a previous turn; if it is not in the current turn's provided source labels, it must not appear in square brackets.
+- If — and only if — the current turn provides no source label that supports a fact you are restating, reaffirm it in prose with no citation bracket at all, rather than inserting a source you remember. A bracket must never wrap a URL or label that is not in the current turn's provided source labels; a plain link written for the reader (for example the nerilio link) is not a citation and does not count here.
 {{POSSIBLE_CITATIONS_PROMPT}}
 - Do not invent sources.
 
@@ -84,7 +86,7 @@ Before every response, verify:
 1. The answer responds naturally and directly to the user's request.
 2. The answer uses only the provided materials.
 3. The answer preserves exact tool names, service details, numbers, qualifiers, and status labels from the provided materials, and never invents prices.
-4. Each core fact is backed by a citation using the exact source label provided for the current turn.
+4. Each core fact is backed by a citation using the exact source label provided for the current turn, and every citation bracket contains a source from the current turn's provided labels — none is reused from an earlier turn, recalled from memory, or a URL that is not in the current turn's provided source labels.
 5. The answer continues naturally from the already-visible frontend greeting instead of restarting the conversation.
 6. If the response names SNAP's own AI chatbot, its product name nerilio is written after the name and linked to https://nerilio.ai/de/ on the first mention.
 7. For a broad or general question about the company (who SNAP is, what it does, or what it offers), the answer presents SNAP's whole business and the breadth of its portfolio, and does not headline or center any single product such as nerilio.

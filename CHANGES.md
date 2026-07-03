@@ -17,6 +17,41 @@ Two categories per date:
 
 ## 2026-07-03
 
+### snap bot: stop stale page-URL "citations" rendering as raw text on reaffirmation turns
+
+#### Decisions
+
+- **Root cause is model-side, not a rendering bug.** On a reaffirmation/follow-up turn (e.g. the user
+  asks "bist du dir sicher?"), retrieval returns a *different* source set than the turn that first
+  made the claim. The model, defending its prior answer, re-cited the page URLs it recalled from the
+  earlier answer. The shared frontend parser
+  (`app/frontend/src/chatbots/shared/answer/answerParsing.ts:177`) only turns a `[…]` bracket into a
+  numbered "Quelle" chip when the bracketed string matches a source retrieved on the **current** turn
+  (`data_points.citations`, built per-turn in `approach.py` `get_data_points`); a non-matching bracket
+  falls through to literal text. Because snap uses `citation_target="url"`, those literal brackets wrap
+  full URLs, which `remark-gfm` then autolinks — so the answer body showed raw
+  `[https://www.snap.de/tools/axaio/][…]` links instead of citation chips.
+- **Chose the prompt fix (snap-scoped) over a shared frontend fallback.** A frontend change would
+  touch every bot's parser and would legitimize brackets that were never actually retrieved this turn
+  (possibly stale or hallucinated), whereas the prompt fix treats the real cause — the model
+  fabricating/reusing citations from memory. Consistent with the earlier snap prompt-only fixes.
+  **Residual:** prompt guidance is not a hard guarantee; the frontend fallback (render an unmatched
+  `http(s)` bracket as a link, or strip it) remains available as belt-and-suspenders if recurrences
+  appear.
+
+#### Changes
+
+- `app/backend/approaches/chatbots/snap/sampleprompt.py` — Source Citations section hardened: a
+  citation bracket may contain only a source present **verbatim** in the current turn's provided
+  labels; forbade reusing/reconstructing a citation from an earlier turn, earlier answer, or memory —
+  called out explicitly for "are you sure?"/"bist du dir sicher?"-style reaffirmation follow-ups;
+  require reaffirming in prose with **no** bracket when the current turn has no supporting source;
+  clarified that a plain reader link (e.g. the nerilio link) is not a citation. Final Reminder item 4
+  extended to verify every bracket comes from the current turn's labels.
+- Verified `tests/test_chatbot_config_registry.py` still passes (5/5): the `{{POSSIBLE_CITATIONS_PROMPT}}`
+  placeholder and the "Use square brackets to reference the source" bullet are preserved, so the
+  existing snap prompt assertions are unaffected.
+
 ### Dynamic bots: language-restricted locales, features.sources citation gating, language-general ansprache
 
 #### Decisions

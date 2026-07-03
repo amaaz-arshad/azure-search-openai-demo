@@ -235,9 +235,9 @@
     "semantic_hash": "81051bcc2cf1bedf378224b0a93e2877"
   },
   "app/backend/approaches/chatbots/nerilio/config.py": {
-    "mtime": 1777371740.4229608,
-    "ast_hash": "ecaed30ee8881c91e0a562b6f9a27552",
-    "semantic_hash": "ecaed30ee8881c91e0a562b6f9a27552"
+    "mtime": 1783051808.3610084,
+    "ast_hash": "62a77ed2081ccf904adf848b535bf641",
+    "semantic_hash": ""
   },
   "app/backend/approaches/chatbots/nerilio/sampleprompt.py": {
     "mtime": 1782063960.315062,
@@ -540,8 +540,8 @@
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/registry.ts": {
-    "mtime": 1783017101.7672634,
-    "ast_hash": "7ad74b55f3e5867a1e41e09ecf5f59e5",
+    "mtime": 1783051814.3219342,
+    "ast_hash": "4361a5ab5328fc23d6fc9c61205bf096",
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/agindo/authConfig.ts": {
@@ -5875,8 +5875,8 @@
     "semantic_hash": "9c81d6b228aa06a7794ac9e2ab441b1b"
   },
   "tests/test_chatbot_config_registry.py": {
-    "mtime": 1782444876.128723,
-    "ast_hash": "09ce5401f921cd2993e535ffa665d4ab",
+    "mtime": 1783051832.7809222,
+    "ast_hash": "863a4fb080ba5eda763605c3caea7378",
     "semantic_hash": ""
   },
   "tests/test_content_file.py": {
@@ -6015,8 +6015,8 @@
     "semantic_hash": "77ec55ea90a84f95635bc9985e49b57a"
   },
   "CLAUDE.md": {
-    "mtime": 1783028056.0551322,
-    "ast_hash": "89f9dab590d44d22e3fac00cb92120ac",
+    "mtime": 1783083177.0065296,
+    "ast_hash": "4f2ec8d4617c3ce3ffb435aa9f6c62a4",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -8470,8 +8470,8 @@
     "semantic_hash": "b7d811e41ee8cb385db724f4491957fb"
   },
   "CHANGES.md": {
-    "mtime": 1783023441.1024003,
-    "ast_hash": "ae862606fc7202ed104da52c39a7ac89",
+    "mtime": 1783083212.756054,
+    "ast_hash": "6a9c1c0cb70736ef656695f190fe3200",
     "semantic_hash": ""
   },
   "aci-openlit.example.yaml": {
@@ -8570,13 +8570,13 @@
     "semantic_hash": ""
   },
   "app/backend/approaches/chatbots/snap/config.py": {
-    "mtime": 1782444876.015259,
-    "ast_hash": "78f9ff848c20e8f391cab1ab4410303b",
+    "mtime": 1783051803.263635,
+    "ast_hash": "63397761611deb3a5c96ec6cacb34f7d",
     "semantic_hash": ""
   },
   "app/backend/approaches/chatbots/snap/sampleprompt.py": {
-    "mtime": 1782444876.015259,
-    "ast_hash": "320a9a23a8544183e05d0ae4a3f145c2",
+    "mtime": 1783087610.5676253,
+    "ast_hash": "fcde77cc79812c5a0afd29c204798f33",
     "semantic_hash": ""
   },
   "app/backend/prepdocslib/snapjson.py": {
@@ -9080,8 +9080,8 @@
     "semantic_hash": ""
   },
   "app/backend/core/dynamic_bot_config.py": {
-    "mtime": 1782870820.7669551,
-    "ast_hash": "e5445d00dd601ccf63d77c938756bd9d",
+    "mtime": 1783082955.4815178,
+    "ast_hash": "d6b74a145949dd11d5642d896b6debca",
     "semantic_hash": ""
   },
   "tests/test_bot_config.py": {
@@ -9100,8 +9100,8 @@
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/generic/pages/chat/Chat.tsx": {
-    "mtime": 1782874775.2838778,
-    "ast_hash": "48d67f63a45ae03fc1a5c710cda35bc8",
+    "mtime": 1783083006.6022623,
+    "ast_hash": "fa9a411f75114dfcc03c5252a25bb122",
     "semantic_hash": ""
   },
   "app/backend/core/chatbotsessioncounterstore.py": {
@@ -9115,13 +9115,13 @@
     "semantic_hash": ""
   },
   "tests/test_dynamic_prompt_config.py": {
-    "mtime": 1782871194.5948524,
-    "ast_hash": "ff216a96fe453312f97f7a53c8c2503d",
+    "mtime": 1783083025.5767667,
+    "ast_hash": "7d33c48c537173b06db499f626410dd7",
     "semantic_hash": ""
   },
   "docs/provisioning-api.md": {
-    "mtime": 1782901213.6673005,
-    "ast_hash": "a0f402eb6853a752d6707949b09dbbe2",
+    "mtime": 1783083136.9185197,
+    "ast_hash": "cf2ea23969be6fa9678ae38a02220e87",
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/generic/botConfigContext.ts": {
@@ -9130,8 +9130,8 @@
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/generic/createGenericI18n.ts": {
-    "mtime": 1782874642.0703886,
-    "ast_hash": "1322653ecb541100e797c9575a0b0010",
+    "mtime": 1783082976.670054,
+    "ast_hash": "4871e4439273b56049cbe6cba43f4186",
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/generic/pages/layout/Layout.tsx": {
