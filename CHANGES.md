@@ -17,6 +17,71 @@ Two categories per date:
 
 ## 2026-07-03
 
+### snap bot: stop general "who are you / what do you do" answers over-focusing on nerilio
+
+#### Decisions
+
+- **The fix is in the prompt, not the data.** `data/snap.json` already has strong whole-company docs
+  (`home`, `ueber-uns`, `beratung`, `tools`, `support`, `use-cases`) that describe SNAP as a vendor-neutral
+  content-workflow specialist, and line 15 already lists nerilio as one of ~11 portfolio tools. The reported
+  answer ("Wir sind SNAP Innovation … mit unserem eigenen KI-Wissensassistenten nerilio …") is model-generated
+  at runtime, so the durable lever is a rule in `snap/sampleprompt.py`, consistent with the earlier nerilio-link
+  fix on the same file.
+- **Root cause: prompt emphasis, not just retrieval.** The two prominent nerilio rules (the "approved standing
+  fact" and the mandatory name+link rule) create heavy nerilio salience, and nothing told the model that for a
+  *general* company question nerilio is just one peer product. The product owner's framing: on the `/snap` bot
+  "nerilio is a product like the others we are offering" — general answers must cover all of SNAP.
+- **Hard constraint preserved: do NOT weaken the mandatory nerilio name+link contract** (deliberately hardened in
+  the prior session). The new rule only demotes nerilio's *prominence* in answers that were not about SNAP's AI
+  chatbot; whenever nerilio is legitimately named it is still linked to `https://nerilio.ai/de/`, and when the
+  user does ask about the SNAP AI Chatbot the mandatory intro+link still fires.
+- **nerilio stays a peer, not omitted.** Chose "present it only as one peer among the others" over an earlier
+  draft's "mention it, if at all" (adversarial review flagged that the latter licenses dropping nerilio from a
+  legitimate portfolio list). Instruction language kept English-only with English example questions (glosses of
+  user input, not output templates) so no German leaks into en/nl answers; portfolio breadth subordinated to
+  "as the sources support" to stay inside the source-only/citation contract.
+- **Verification: draft → adversarial-review → synthesize workflow** (3 diverse drafters, 3 skeptical reviewers on
+  distinct lenses — fixes-bug / breaks-link-contract / language-leak / too-heavy-handed — then a synthesis pass).
+  All reviewers agreed the merged wording fixes the bug without breaking the link, source-only, citation, or
+  language contracts. File re-verified to parse/import, each new fragment present exactly once, placeholders and
+  em-dashes intact. A live check on the deployed bot is the final confirmation (a prompt edit can't be exercised
+  through the real RAG pipeline offline).
+- **Second pass after live-answer review.** Testing the deployed answers confirmed the split predicted by the
+  retrieval-bias note: "Wer seid ihr?" (pulls company/team docs) produced an ideal whole-company answer with no
+  nerilio focus, but "Was macht ihr?" (pulls nerilio/RAG product docs) still opened with SNAP yet gave nerilio a
+  full dedicated paragraph + a "book a demo of nerilio" CTA as the only named product. So the first edit removed
+  the *headline* effect but not the *body* dominance under nerilio-heavy retrieval. Added a proportionality
+  constraint to the same bullet — governs *how* the model presents whatever it retrieves, so it works even when
+  retrieval floods nerilio chunks: no dedicated paragraph, extended feature rundown, or product-specific CTA for
+  any single product in a general answer; put the weight on services + overall portfolio; invite the user to ask
+  about a product specifically if it deserves more detail. Deliberately did NOT mandate naming several peer tools
+  (would conflict with the source-only/citation rule when only nerilio chunks were retrieved) — the constraint
+  caps emphasis rather than forcing an uncitable tool list.
+- **Residual risk (out of scope): retrieval bias.** Even with the proportionality cap, if RAG returns
+  predominantly nerilio-heavy chunks for a broad query the model has little else to cite, so the answer may still
+  lean nerilio (just no longer headlined or paragraph-dominated). The complementary fix is retrieval-side: surface
+  SNAP company/services docs for general queries.
+- **Live-prompt precedence caveat (unchanged from prior entry):** `apply_saved_chatbot_prompt_override` resolves
+  snap's prompt as client template → dynamic registry → **saved blob override** (`/manage-prompts`) →
+  `sampleprompt.py`. If a saved override exists for `snap`, this edit is inert until the override is reset or the
+  same rules are added there; otherwise it takes effect on backend restart / `azd deploy`.
+
+#### Changes
+
+- `app/backend/approaches/chatbots/snap/sampleprompt.py`:
+  - *Source and Knowledge Restrictions* — appended a guard clause to the "Approved standing fact" bullet: the
+    nerilio-identity exception governs only naming/linking when nerilio is genuinely the subject, and is never a
+    reason to raise/inject/foreground nerilio in unrelated answers.
+  - *Company, Tool and Service Answer Rules* — added a bullet (immediately after the mandatory must-link bullet):
+    broad who/what-does-SNAP-do questions answer about SNAP as a whole (vendor-neutral content-workflow expertise;
+    consulting, integration & installation, operation & support, training; portfolio breadth as sources support),
+    with nerilio as one peer among the other 10 tools, never the headline; closing sentence reaffirms the
+    mandatory name+link rule so the guard can't be misread as weakening it. Second pass (after live-answer review)
+    extended this same bullet with a proportionality cap: in a general answer, no single product gets a dedicated
+    paragraph, extended feature rundown, or product-specific call-to-action; weight goes to services + overall
+    portfolio, with an invite to ask about a product specifically if it needs more detail.
+  - *Final Reminder* — added item 7 reinforcing whole-company framing for general company questions.
+
 ### Upgrade `snap` and `nerilio` bots from `gpt-4.1-mini` to `gpt-4.1`
 
 #### Decisions
@@ -51,10 +116,13 @@ Two categories per date:
 - **Grounded, not invented.** The `https://nerilio.ai/` link is well-supported by the provided materials (the
   "Neu im Portfolio: nerilio" article links `nerilio.ai` twice), so the new rule stays inside the prompt's
   "use only the provided materials / do not invent sources" contract.
-- **User choices:** link target is the locale-neutral `https://nerilio.ai/` (redirects to the visitor's
-  language, safe across the bot's de/en/nl answers); the linked `nerilio` name is added on the **first mention
-  only** per response, plain text afterwards, to read naturally. The rule applies only to SNAP's own
-  chatbot/assistant, never to the third-party portfolio tools.
+- **User choices:** the linked `nerilio` name is added on the **first mention only** per response, plain text
+  afterwards, to read naturally. The rule applies only to SNAP's own chatbot/assistant, never to the third-party
+  portfolio tools. Link target: initially the locale-neutral `https://nerilio.ai/`, then **changed to the German
+  page `https://nerilio.ai/de/`** at the user's request (the neutral root was resolving to the English site). All
+  four occurrences in the prompt (standing fact, rule, de/en/nl examples, Final Reminder item 6) point to `/de/`,
+  so the link is German even in en/nl answers — acceptable since the bot is German-first; can be made
+  per-language later if wanted.
 
 - **Live prompt precedence matters for this change to show.** `apply_saved_chatbot_prompt_override`
   (`app/backend/app.py`) resolves the snap prompt as client `prompt_template` → dynamic registry → **saved blob
