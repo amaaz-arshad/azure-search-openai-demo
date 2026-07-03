@@ -19,15 +19,22 @@ const SUPPORTED = ["de", "en", "nl"];
 
 /**
  * Build a runtime i18next instance for a dynamic (provisioned) bot. The UI chrome comes from lemon's
- * base bundle for EACH supported locale and follows the browser locale via LanguageDetector — same as
- * a built-in bot — with the provisioned default language as the fallback. Only the per-bot identity
+ * base bundle, but ONLY the provisioned `languages` are served: resource bundles are registered for
+ * exactly those locales, so a bot provisioned with one language always renders in it regardless of the
+ * browser locale, while a multi-language bot follows the browser locale among the provisioned set
+ * (falling back to the provisioned default). The chat request's `language` override follows the same
+ * resolved locale, so LLM answers are restricted alongside the UI. Only the per-bot identity
  * (display name → title, greeting → welcome message, disclaimer text) is overlaid per language.
  */
 export function createGenericI18n(config: BotConfig): I18nInstance {
-    const fallback = SUPPORTED.includes(config.defaultLanguage) ? config.defaultLanguage : "en";
+    const provisioned = (config.languages ?? []).filter(code => SUPPORTED.includes(code));
+    // Defensive only: /bot-config always sends a non-empty `languages`; keep every locale usable if
+    // a malformed payload ever slips through rather than hard-forcing one.
+    const allowed = provisioned.length > 0 ? provisioned : SUPPORTED;
+    const fallback = allowed.includes(config.defaultLanguage) ? config.defaultLanguage : allowed[0];
 
     const resources: Record<string, { translation: Record<string, any> }> = {};
-    for (const code of SUPPORTED) {
+    for (const code of allowed) {
         const base = BASE_BUNDLES[code];
         const greeting = config.greeting?.[code];
         const disclaimerMessage = config.disclaimer?.[code];
@@ -51,7 +58,7 @@ export function createGenericI18n(config: BotConfig): I18nInstance {
     const instance = createInstance();
     instance.use(LanguageDetector).use(initReactI18next).init({
         resources,
-        supportedLngs: SUPPORTED,
+        supportedLngs: allowed,
         fallbackLng: fallback,
         load: "languageOnly",
         detection: {

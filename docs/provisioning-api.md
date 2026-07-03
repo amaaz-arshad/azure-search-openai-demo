@@ -100,15 +100,15 @@ actually does with it today.
 | --- | --- | --- |
 | `number_sessions` | Session cap: Free 30 / Basic 5000 / Pro 10000 / Enterprise **-1 = unlimited**. | **Enforced** — see §6. |
 | `prompt` | System prompt. Empty → a **mode-aware** default: the generic tutor prompt for tutor bots, else a neutral Q&A RAG prompt. | **Applied.** |
-| `ansprache` | `informal` \| `formal` (aliases `du`/`sie`). German addressing. | **Applied** — appended as a directive to the system prompt. |
+| `ansprache` | `informal` \| `formal` (aliases `du`/`sie`). Formal/informal addressing. | **Applied** — appended as a language-general directive to the system prompt (explicit German du/Sie and Dutch je/u forms, a generic rule for any other language with the distinction, a tone rule for languages without one such as English). |
 | `llm` | Model id (e.g. `gpt-5`). | **Applied** when the model is deployed here; otherwise a **mode-aware default** is used: `gpt-5.4` for tutor bots, `gpt-4.1` for Q&A bots (empty/unknown/undeployed all fall back this way). |
 | `reasoning_effort` | Reasoning effort for reasoning-capable models (`minimal`/`low`/`medium`/`high`/`xhigh`, model-dependent). | **Applied** — validated against the effective model. Missing or unsupported → defaults to `high`; ignored on non-reasoning models (e.g. `gpt-4.1`). |
 | `design.color_primary` | Hex theme color. | **Applied** (frontend theme). |
-| `languages` | List of language labels (`["Deutsch"]`). Only **de / en / nl** supported; `Deutsch→de`, `English→en`, `Nederlands→nl`. | **Applied** (frontend locales; first = default). |
+| `languages` | List of language labels (`["Deutsch"]`). Only **de / en / nl** supported; `Deutsch→de`, `English→en`, `Nederlands→nl`; unsupported labels are dropped (empty result → `de`). | **Applied** — the bot serves ONLY these locales. One language pins the UI to it regardless of the browser locale; several let the browser locale pick among them, falling back to the first (= default). LLM answers follow the resolved locale. |
 | `greeting` | `{ "<Language>": "text" }` welcome message per language. | **Applied** (frontend welcome bubble). |
 | `disclaimer` | `{ "<Language>": "text" }` disclaimer per language. | **Applied** (frontend disclaimer banner text). |
 | `features.disclaimer` | Show/hide the disclaimer banner. | **Applied.** |
-| `features.sources` | Show/hide citations in answers. | **Applied.** |
+| `features.sources` | Show/hide citations in answers. | **Applied** — `false` strips inline citation links from displayed answers and hides the citation list (shown unless `false`). |
 | `features.history` | Chat history UI (browser/IndexedDB). | **Applied** — shown unless `false`. |
 | `features.speech_input` | Microphone / speech-to-text UI. | **Applied** — default **OFF**; shown only if `true` **and** the deployment enables speech input. |
 | `features.speech_output_browser` | Free browser text-to-speech UI. | **Applied** — default **OFF**; shown only if `true` **and** the deployment enables browser TTS. |

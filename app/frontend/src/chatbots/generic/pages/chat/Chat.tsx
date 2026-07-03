@@ -47,6 +47,10 @@ const Chat = () => {
     const { t, i18n } = useTranslation();
     const botConfig = useBotConfig();
     const chatbotCategory = botConfig.botName;
+    // Provisioned features.sources gates citations: when false, inline citation links are stripped
+    // from the displayed answer and the citation list under it is hidden (showCitations on the
+    // shared ChatbotAnswer). Default ON, like the other content features (disclaimer, history).
+    const sourcesEnabled = botConfig.features?.sources !== false;
     // Localized labels/descriptions for the interactive option buttons (mode/level/count);
     // also used to detect when a turn was an option click so its user bubble is suppressed.
     const optionTexts = useMemo(() => buildOptionTexts(t), [t]);
@@ -823,6 +827,7 @@ const Chat = () => {
                                             index={index}
                                             speechConfig={speechConfig}
                                             isSelected={false}
+                                            showCitations={sourcesEnabled}
                                             optionSelectedValue={getOptionSelectedValue(streamedAnswers, index)}
                                             optionsLocked={true}
                                             onOptionSelected={q => handleOptionSelected(index, q)}
@@ -852,6 +857,7 @@ const Chat = () => {
                                             index={index}
                                             speechConfig={speechConfig}
                                             isSelected={selectedAnswer === index && activeAnalysisPanelTab !== undefined}
+                                            showCitations={sourcesEnabled}
                                             optionSelectedValue={getOptionSelectedValue(answers, index)}
                                             optionsLocked={index !== answers.length - 1 || isLoading}
                                             onOptionSelected={q => handleOptionSelected(index, q)}

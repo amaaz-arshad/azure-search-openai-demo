@@ -53,6 +53,17 @@ def test_ansprache_directive(value, expected):
     assert ansprache_directive(value) == expected
 
 
+@pytest.mark.parametrize("directive", [INFORMAL_ANSPRACHE_DIRECTIVE, FORMAL_ANSPRACHE_DIRECTIVE])
+def test_ansprache_directives_are_language_general(directive):
+    # The directive must hold whatever language the answer is in: explicit German and Dutch forms,
+    # a generic rule for other T-V languages, and a tone rule for languages without the distinction.
+    assert "German" in directive
+    assert "Dutch" in directive
+    assert "any other" in directive
+    assert "English" in directive
+    assert "tone" in directive
+
+
 def test_build_appends_directive_to_custom_prompt():
     prompt = build_dynamic_system_prompt(make_record(prompt="BASE PROMPT", ansprache="informal"), "DEFAULT")
     assert prompt == f"BASE PROMPT\n\n{INFORMAL_ANSPRACHE_DIRECTIVE}"

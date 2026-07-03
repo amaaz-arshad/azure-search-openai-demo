@@ -17,6 +17,54 @@ Two categories per date:
 
 ## 2026-07-03
 
+### Dynamic bots: language-restricted locales, features.sources citation gating, language-general ansprache
+
+#### Decisions
+
+- **Audit-then-fix of the provisioning create contract** (ansprache, languages, greeting, disclaimer,
+  features). Greeting, disclaimer text + banner gate, `features.history` (navbar menu + panel +
+  IndexedDB), and the three granular speech toggles were already correctly applied — left untouched.
+  Three gaps were found and fixed:
+- **`languages` did not restrict the UI.** `createGenericI18n` registered lemon's bundles for all of
+  de/en/nl and always followed the browser locale, so `languages:["Deutsch"]` still rendered English
+  UI (and English LLM answers, since the chat `language` override follows `i18n.language`) in an
+  English browser. Now resource bundles and `supportedLngs` are built from exactly the provisioned
+  locales: one language pins the UI regardless of browser locale; several follow the browser among
+  them with the provisioned default (first entry) as fallback. The LLM answer language follows
+  automatically because the request `language` override is the resolved locale. Unsupported labels
+  keep being dropped backend-side (empty result → `de`) — the frontend only has de/en/nl bundles, per
+  the repo's standardized-locales contract. A defensive all-locales fallback remains for a malformed
+  /bot-config payload with no usable `languages` (never produced by the backend).
+- **`features.sources` was documented as applied but wasn't.** The shared `ChatbotAnswer` has a
+  `showCitations` prop (strips inline citation links from the displayed markdown and hides the
+  citation list) but no caller ever passed it. Generic `Chat.tsx` now passes
+  `showCitations={features.sources !== false}` to both Answer renders (streaming + static). Default
+  ON like the other content features. Chose the existing display-side gate over also stripping the
+  citation instruction from the backend prompt: stored content keeps the brackets (replays into
+  history and re-strips on render), copy/speech already used the stripped text, and the default
+  dynamic prompts stay mode-agnostic.
+- **`ansprache` was already applied but German-only in wording.** The appended system-prompt
+  directive now covers every answer language: explicit German (du/dich/dir/dein vs Sie/Ihnen/Ihr) and
+  Dutch (je/jij/jou vs u/uw) forms, a generic rule for any other language with a T-V distinction
+  (French tu/vous, Spanish tú/usted, …), and a tone rule (casual vs professional) for languages
+  without one, such as English. Kept the append mechanism (works for custom AND default prompts, no
+  placeholder needed in customer prompts) rather than a `{{ansprache}}` template variable.
+
+#### Changes
+
+- `app/backend/core/dynamic_bot_config.py` — `INFORMAL_ANSPRACHE_DIRECTIVE`/`FORMAL_ANSPRACHE_DIRECTIVE`
+  rewritten language-general (German + Dutch explicit, generic T-V rule, English tone rule).
+- `app/frontend/src/chatbots/generic/createGenericI18n.ts` — bundles + `supportedLngs` restricted to
+  the provisioned `languages`; fallback = provisioned default (first entry).
+- `app/frontend/src/chatbots/generic/pages/chat/Chat.tsx` — `showCitations={features.sources !== false}`
+  on both Answer renders.
+- `tests/test_dynamic_prompt_config.py` — new parametrized test guarding the language-general
+  directive contract (45 tests pass across this file plus `test_bot_config.py`).
+- `docs/provisioning-api.md` — `ansprache`, `languages`, and `features.sources` rows updated to the
+  now-true behavior.
+- `CLAUDE.md` — dynamic-bots bullet extended with the locale-restriction, citation-gating, and
+  language-general-ansprache contracts.
+
 ### snap bot: stop general "who are you / what do you do" answers over-focusing on nerilio
 
 #### Decisions

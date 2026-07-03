@@ -41,17 +41,28 @@ LANGUAGE_LABEL_TO_CODE: dict[str, str] = {
 
 DEFAULT_LANGUAGE_CODE = "de"
 
-# `ansprache` (German formal/informal addressing) is a structured field the control panel sets
+# `ansprache` (formal/informal addressing) is a structured field the control panel sets
 # independently of the prompt text. Built-in bots hardcode informal "du"; dynamic bots honor the
 # configured value by appending a directive to their system prompt. The nerilio backend sends
-# "informal"/"formal"; "du"/"sie" are accepted as aliases.
+# "informal"/"formal"; "du"/"sie" are accepted as aliases. The directive is language-general:
+# explicit forms for German and Dutch (the T-V locales this deployment serves), a generic rule for
+# any other language with a formal/informal distinction, and a tone rule for languages without one
+# (English), so it holds whatever language the answer ends up in.
 INFORMAL_ANSPRACHE_DIRECTIVE = (
-    "Always address the user informally. In German, use the informal du/dich/dir/dein "
-    "and never the formal Sie/Ihnen/Ihr."
+    "Always address the user informally, whatever language you are answering in. Where the "
+    "language distinguishes informal from formal address, use the informal form: in German "
+    "du/dich/dir/dein (never the formal Sie/Ihnen/Ihr), in Dutch je/jij/jou/jouw (never the "
+    "formal u/uw), and the equivalent informal second person in any other such language "
+    "(e.g. French tu, Spanish tú, Italian tu). In languages without this distinction, such as "
+    "English, use a friendly, casual tone."
 )
 FORMAL_ANSPRACHE_DIRECTIVE = (
-    "Always address the user formally. In German, use the formal Sie/Ihnen/Ihr "
-    "and never the informal du."
+    "Always address the user formally, whatever language you are answering in. Where the "
+    "language distinguishes formal from informal address, use the formal form: in German "
+    "Sie/Ihnen/Ihr (never the informal du/dich/dir/dein), in Dutch u/uw (never the informal "
+    "je/jij/jou), and the equivalent formal second person in any other such language "
+    "(e.g. French vous, Spanish usted, Italian Lei). In languages without this distinction, "
+    "such as English, use a polite, professional tone."
 )
 ANSPRACHE_DIRECTIVES: dict[str, str] = {
     "informal": INFORMAL_ANSPRACHE_DIRECTIVE,
