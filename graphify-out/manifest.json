@@ -10,8 +10,8 @@
     "semantic_hash": "c8206d7e25a79e5a4ed79f965d38d672"
   },
   "app/backend/app.py": {
-    "mtime": 1783102210.4335952,
-    "ast_hash": "5c4ea5ddf7fb149bc879d07d88b7d8b9",
+    "mtime": 1783115070.6122706,
+    "ast_hash": "c1d4a920287fc1d693f1b7b47aa6d920",
     "semantic_hash": ""
   },
   "app/backend/config.py": {
@@ -370,9 +370,9 @@
     "semantic_hash": "29d7688a3f2e18828caa4fbc96cba13f"
   },
   "app/backend/prepdocslib/categoryupload.py": {
-    "mtime": 1774491406.9130323,
-    "ast_hash": "fd5031e9374def8f33727ab80427cb08",
-    "semantic_hash": "fd5031e9374def8f33727ab80427cb08"
+    "mtime": 1783115070.6132736,
+    "ast_hash": "e77e11d0464659181b04a646360cc6d4",
+    "semantic_hash": ""
   },
   "app/backend/prepdocslib/cloudingestionstrategy.py": {
     "mtime": 1774356202.7961917,
@@ -455,9 +455,9 @@
     "semantic_hash": ""
   },
   "app/backend/prepdocslib/searchmanager.py": {
-    "mtime": 1781824010.482505,
-    "ast_hash": "815991100fa783ca99e806504dd74293",
-    "semantic_hash": "815991100fa783ca99e806504dd74293"
+    "mtime": 1783115070.6142735,
+    "ast_hash": "20b10dd04092515b7a18bc8a0c99a681",
+    "semantic_hash": ""
   },
   "app/backend/prepdocslib/servicesetup.py": {
     "mtime": 1774888224.5697713,
@@ -8410,8 +8410,8 @@
     "semantic_hash": "b7d811e41ee8cb385db724f4491957fb"
   },
   "CHANGES.md": {
-    "mtime": 1783102280.7121813,
-    "ast_hash": "74311c02870f1a5e01f0d483a5ca343f",
+    "mtime": 1783115243.4625533,
+    "ast_hash": "c17f9bc54656cf12275878a724ca4ae6",
     "semantic_hash": ""
   },
   "aci-openlit.example.yaml": {
@@ -9512,6 +9512,11 @@
   "app/frontend/src/pages/admin/index.ts": {
     "mtime": 1783096742.9131033,
     "ast_hash": "1086d097b58eeeca3cbddf84e853267d",
+    "semantic_hash": ""
+  },
+  "tests/test_categoryupload.py": {
+    "mtime": 1783114818.6163836,
+    "ast_hash": "91815c0aa23b7347a2cb002c98d725f7",
     "semantic_hash": ""
   }
 }

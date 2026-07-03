@@ -6,8 +6,8 @@ import os
 import re
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
-from typing import Optional
-from urllib.parse import unquote, urlparse
+from typing import Iterable, Optional
+from urllib.parse import unquote
 
 from .blobmanager import BlobListEntry, BlobManager
 from .embeddings import OpenAIEmbeddings
@@ -61,10 +61,13 @@ class CategoryUploadAddResult:
 
 class CategoryUploadStrategy:
     """
-    Strategy for uploading shared files into an arbitrary search category.
-    Files are stored directly under <category>/ in blob storage. Hidden manifest
-    blobs under <category>/.managed-uploads/ track which filenames are owned by
-    this manager so built-in category content is left untouched.
+    Strategy for managing the shared content files of a search category.
+    Every ingestion path (this manager, the prepdocs scripts, and the feed
+    auto-indexers) stores a category's source files flat at <category>/<filename>
+    in blob storage, so listing and deletion are driven by those blobs directly —
+    files show up here no matter which path uploaded them. Hidden manifest blobs
+    under <category>/.managed-uploads/ additionally record the uploads this
+    manager performed itself.
     """
 
     def __init__(
@@ -74,11 +77,17 @@ class CategoryUploadStrategy:
         blob_manager: BlobManager,
         search_field_name_embedding: Optional[str] = None,
         embeddings: Optional[OpenAIEmbeddings] = None,
+        known_categories: Optional[Iterable[str]] = None,
     ):
         self.file_processors = file_processors
         self.embeddings = embeddings
         self.search_info = search_info
         self.blob_manager = blob_manager
+        self.known_categories = {
+            name
+            for name in (known_categories or [])
+            if MANAGED_UPLOAD_CATEGORY_PATTERN.fullmatch(name)
+        }
         self.search_manager = SearchManager(
             search_info=self.search_info,
             search_analyzer_name=None,
@@ -140,28 +149,6 @@ class CategoryUploadStrategy:
     def blob_url_for_name(self, blob_name: str) -> str:
         return unquote(f"{self.blob_manager.endpoint}/{self.blob_manager.container}/{blob_name}")
 
-    def storage_url_to_blob_name(self, storage_url: Optional[str]) -> Optional[str]:
-        if not storage_url:
-            return None
-        parsed_url = urlparse(storage_url)
-        decoded_path = unquote(parsed_url.path).lstrip("/")
-        container_prefix = f"{self.blob_manager.container}/"
-        if decoded_path.startswith(container_prefix):
-            return decoded_path[len(container_prefix) :]
-        return None
-
-    def is_own_storage_url(self, storage_url: Optional[str], category: str, filename: str) -> bool:
-        blob_name = self.storage_url_to_blob_name(storage_url)
-        if blob_name is None:
-            return False
-        return blob_name == self.file_blob_name(category, filename)
-
-    def manifest_category_from_blob_name(self, blob_name: str) -> Optional[str]:
-        match = MANAGED_UPLOAD_MANIFEST_PATTERN.match(blob_name)
-        if not match:
-            return None
-        return match.group("category")
-
     def manifest_to_entry(self, manifest: CategoryUploadManifest) -> CategoryUploadEntry:
         return CategoryUploadEntry(
             category=manifest.category,
@@ -170,58 +157,72 @@ class CategoryUploadStrategy:
             uploaded_at=manifest.uploaded_at,
         )
 
-    def entry_from_manifest_blob(self, manifest_blob: BlobListEntry) -> Optional[CategoryUploadEntry]:
-        manifest_category = self.manifest_category_from_blob_name(manifest_blob.name)
-        if manifest_category is None:
+    def entry_from_file_blob(self, category: str, blob: BlobListEntry) -> Optional[CategoryUploadEntry]:
+        file_prefix = f"{self.storage_prefix(category)}/"
+        if not blob.name.startswith(file_prefix):
             return None
-        token = manifest_blob.name.rsplit("/", 1)[-1][:-5]
-        try:
-            filename = self.decode_token(token)
-        except Exception:
-            logger.warning("Skipping unreadable managed upload manifest blob %s", manifest_blob.name)
+        relative_name = blob.name[len(file_prefix) :]
+        # Only blobs directly under <category>/ are content files; nested blobs are
+        # metadata (.managed-uploads/, .manifests/), feed source folders, or
+        # per-user chatbot uploads and must not surface here.
+        if not relative_name or "/" in relative_name:
             return None
-        uploaded_at = manifest_blob.last_modified.isoformat() if manifest_blob.last_modified is not None else None
         return CategoryUploadEntry(
-            category=manifest_category,
-            filename=self.logical_filename(filename),
-            storage_url=self.blob_url_for_name(self.file_blob_name(manifest_category, filename)),
-            uploaded_at=uploaded_at,
+            category=category,
+            filename=relative_name,
+            storage_url=self.blob_url_for_name(blob.name),
+            uploaded_at=blob.last_modified.isoformat() if blob.last_modified is not None else None,
         )
 
-    async def iter_manifest_blobs(self, category: Optional[str] = None) -> list[BlobListEntry]:
-        if category is not None:
-            normalized_category = self.normalize_category(category)
-            return [
-                blob
-                for blob in await self.blob_manager.list_blobs(f"{self.manifest_prefix(normalized_category)}/")
-                if MANAGED_UPLOAD_MANIFEST_PATTERN.match(blob.name)
-            ]
+    async def list_category_files(self, category: str) -> list[CategoryUploadEntry]:
+        normalized_category = self.normalize_category(category)
+        blobs = await self.blob_manager.list_blobs(f"{self.storage_prefix(normalized_category)}/")
+        return [
+            entry
+            for entry in (self.entry_from_file_blob(normalized_category, blob) for blob in blobs)
+            if entry is not None
+        ]
 
-        manifest_blobs: list[BlobListEntry] = []
-        top_level_prefixes = await self.blob_manager.list_blob_prefixes()
-        for top_level_prefix in top_level_prefixes:
+    async def has_managed_manifests(self, category: str) -> bool:
+        normalized_category = self.normalize_category(category)
+        blobs = await self.blob_manager.list_blobs(f"{self.manifest_prefix(normalized_category)}/")
+        return any(MANAGED_UPLOAD_MANIFEST_PATTERN.match(blob.name) for blob in blobs)
+
+    async def list_indexed_categories(self) -> set[str]:
+        try:
+            facet_categories = await self.search_manager.list_category_facets()
+        except Exception:
+            logger.warning(
+                "Unable to list indexed categories from search; falling back to known and manifest categories",
+                exc_info=True,
+            )
+            return set()
+        return {name for name in facet_categories if MANAGED_UPLOAD_CATEGORY_PATTERN.fullmatch(name)}
+
+    async def candidate_categories(self) -> list[str]:
+        """Top-level blob prefixes that hold real category content. Gated to known
+        chatbot categories, categories present in the search index, or categories
+        with managed-upload manifests, so infrastructure prefixes (prompts/, bots/,
+        log folders, ...) never surface as categories."""
+        allowed_categories = self.known_categories | await self.list_indexed_categories()
+        candidates: set[str] = set()
+        for top_level_prefix in await self.blob_manager.list_blob_prefixes():
             normalized_prefix = top_level_prefix.strip("/\\")
             if not normalized_prefix:
                 continue
             category_name = normalized_prefix.split("/", 1)[0]
             if not MANAGED_UPLOAD_CATEGORY_PATTERN.fullmatch(category_name):
                 continue
-            manifest_blobs.extend(
-                [
-                    blob
-                    for blob in await self.blob_manager.list_blobs(f"{self.manifest_prefix(category_name)}/")
-                    if MANAGED_UPLOAD_MANIFEST_PATTERN.match(blob.name)
-                ]
-            )
-        return manifest_blobs
+            if category_name in allowed_categories or await self.has_managed_manifests(category_name):
+                candidates.add(category_name)
+        return sorted(candidates)
 
     async def list_category_counts(self) -> dict[str, int]:
         category_counts: dict[str, int] = {}
-        for manifest_blob in await self.iter_manifest_blobs():
-            manifest_category = self.manifest_category_from_blob_name(manifest_blob.name)
-            if manifest_category is None:
-                continue
-            category_counts[manifest_category] = category_counts.get(manifest_category, 0) + 1
+        for category_name in await self.candidate_categories():
+            file_count = len(await self.list_category_files(category_name))
+            if file_count:
+                category_counts[category_name] = file_count
         return dict(sorted(category_counts.items()))
 
     async def get_manifest(self, category: str, filename: str) -> Optional[CategoryUploadManifest]:
@@ -273,32 +274,24 @@ class CategoryUploadStrategy:
     async def clear_cancel_request(self, category: str, upload_id: str) -> None:
         await self.blob_manager.remove_blob_name(self.cancel_blob_name(category, upload_id))
 
-    async def list_upload_documents(self, filename: str, category: str) -> list[dict]:
-        manifest = await self.get_manifest(category, filename)
-        if manifest is None:
-            return []
-        documents = await self.search_manager.list_documents(path=filename, category=self.normalize_category(category))
-        return [
-            document
-            for document in documents
-            if document.get("storageUrl") == manifest.storage_url
-        ]
-
-    async def delete_documents_for_storage_url(self, filename: str, category: str, storage_url: Optional[str]) -> None:
+    async def delete_documents_for_storage_url(self, storage_url: Optional[str]) -> None:
+        # storageUrl is the join key every ingestion path (managed upload, prepdocs
+        # scripts, feed auto-indexers) stamps on its documents, so this removes a
+        # file's documents regardless of which path indexed them.
         if not storage_url:
             return
-        documents = await self.search_manager.list_documents(path=filename, category=self.normalize_category(category))
-        document_ids = [document["id"] for document in documents if document.get("storageUrl") == storage_url]
-        await self.search_manager.delete_documents_by_ids(document_ids)
+        documents = await self.search_manager.list_documents(storage_url=storage_url)
+        await self.search_manager.delete_documents_by_ids([document["id"] for document in documents])
 
-    async def remove_stale_upload_documents(self, filename: str, category: str, keep_storage_url: Optional[str]) -> None:
-        documents = await self.list_upload_documents(filename, category=category)
-        document_ids = [
-            document["id"]
-            for document in documents
-            if keep_storage_url is None or document.get("storageUrl") != keep_storage_url
-        ]
-        await self.search_manager.delete_documents_by_ids(document_ids)
+    async def delete_documents_for_file(self, filename: str, category: str) -> None:
+        normalized_category = self.normalize_category(category)
+        normalized_filename = self.logical_filename(filename)
+        storage_urls = {self.blob_url_for_name(self.file_blob_name(normalized_category, normalized_filename))}
+        manifest = await self.get_manifest(normalized_category, normalized_filename)
+        if manifest is not None and manifest.storage_url:
+            storage_urls.add(manifest.storage_url)
+        for storage_url in storage_urls:
+            await self.delete_documents_for_storage_url(storage_url)
 
     async def list_managed_blob_names(self, filename: str, category: str) -> list[str]:
         blob_names = []
@@ -319,24 +312,12 @@ class CategoryUploadStrategy:
 
     async def cleanup_canceled_upload(
         self,
-        filename: str,
-        category: str,
         new_blob_name: Optional[str],
         new_storage_url: Optional[str],
     ) -> None:
-        await self.delete_documents_for_storage_url(filename, category=category, storage_url=new_storage_url)
+        await self.delete_documents_for_storage_url(new_storage_url)
         if new_blob_name is not None:
             await self.blob_manager.remove_blob_name(new_blob_name)
-
-    async def has_conflicting_non_upload_document(self, filename: str, category: str) -> bool:
-        documents = await self.search_manager.list_documents(path=filename, category=self.normalize_category(category))
-        manifest = await self.get_manifest(category, filename)
-        if manifest is None:
-            return len(documents) > 0
-        for document in documents:
-            if document.get("storageUrl") != manifest.storage_url:
-                return True
-        return False
 
     async def add_file(self, file: File, category: str, upload_id: Optional[str] = None) -> CategoryUploadAddResult:
         normalized_category = self.normalize_category(category)
@@ -345,10 +326,8 @@ class CategoryUploadStrategy:
         if file_extension not in self.file_processors:
             raise ValueError(f"Unsupported file type: {filename}")
         existing_manifest = await self.get_manifest(normalized_category, filename)
-        if await self.has_conflicting_non_upload_document(filename, category=normalized_category):
-            raise ValueError(
-                f"Filename '{filename}' conflicts with existing {normalized_category} content. Rename the file and upload it again."
-            )
+        target_blob_name = self.file_blob_name(normalized_category, filename)
+        replaced_existing = existing_manifest is not None or await self.blob_manager.blob_exists(target_blob_name)
 
         upload_id = upload_id or datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")
         new_blob_name: Optional[str] = None
@@ -370,12 +349,10 @@ class CategoryUploadStrategy:
                 raise ValueError(f"Unable to extract searchable content from {filename}")
 
             await check_cancel()
-            await self.remove_stale_upload_documents(
-                filename,
-                category=normalized_category,
-                keep_storage_url=None,
-            )
-            new_blob_name = self.file_blob_name(normalized_category, filename)
+            # Replace any previous version of this file, no matter which ingestion
+            # path (managed upload, script, feed) indexed it.
+            await self.delete_documents_for_file(filename, category=normalized_category)
+            new_blob_name = target_blob_name
             new_storage_url = await self.blob_manager.upload_blob_data(
                 file.content,
                 new_blob_name,
@@ -404,49 +381,51 @@ class CategoryUploadStrategy:
             await self.save_manifest(manifest)
             return CategoryUploadAddResult(
                 entry=self.manifest_to_entry(manifest),
-                replaced_existing=existing_manifest is not None,
+                replaced_existing=replaced_existing,
             )
         except ChatbotUploadCancelled:
             await self.cleanup_canceled_upload(
-                filename,
-                category=normalized_category,
                 new_blob_name=new_blob_name,
                 new_storage_url=new_storage_url,
             )
             raise
         except Exception:
             await self.cleanup_canceled_upload(
-                filename,
-                category=normalized_category,
                 new_blob_name=new_blob_name,
                 new_storage_url=new_storage_url,
             )
             raise
 
+    async def remove_sibling_chatbot_manifest(self, category: str, filename: str) -> None:
+        # Per-bot chatbot uploads (ChatbotUploadStrategy) track the same
+        # <category>/<filename> blob in <category>/.manifests/; drop that record too
+        # so the bot's own upload list doesn't keep a ghost entry after an admin delete.
+        blob_name = f"{self.storage_prefix(category)}/.manifests/{self.filename_token(filename)}.json"
+        if await self.blob_manager.blob_exists(blob_name):
+            await self.blob_manager.remove_blob_name(blob_name)
+
     async def remove_file(self, filename: str, category: str) -> None:
         normalized_category = self.normalize_category(category)
         normalized_filename = self.logical_filename(filename)
-        await self.remove_stale_upload_documents(
-            normalized_filename,
-            category=normalized_category,
-            keep_storage_url=None,
-        )
+        await self.delete_documents_for_file(normalized_filename, category=normalized_category)
         await self.remove_stale_blobs(
             normalized_filename,
             category=normalized_category,
             keep_blob_name=None,
         )
         await self.remove_manifest(normalized_category, normalized_filename)
-
-    async def iter_manifest_blob_names(self, category: Optional[str] = None) -> list[str]:
-        return [blob.name for blob in await self.iter_manifest_blobs(category=category)]
+        await self.remove_sibling_chatbot_manifest(normalized_category, normalized_filename)
 
     async def list_entries(self, category: Optional[str] = None) -> list[CategoryUploadEntry]:
-        entries = [
-            entry
-            for entry in (self.entry_from_manifest_blob(blob) for blob in await self.iter_manifest_blobs(category=category))
-            if entry is not None
-        ]
+        if category is not None:
+            normalized_category = self.normalize_category(category)
+            if normalized_category not in await self.candidate_categories():
+                return []
+            entries = await self.list_category_files(normalized_category)
+        else:
+            entries = []
+            for category_name in await self.candidate_categories():
+                entries.extend(await self.list_category_files(category_name))
         return sorted(
             entries,
             key=lambda entry: (
@@ -493,27 +472,24 @@ class CategoryUploadStrategy:
     async def remove_all_files(self, category: Optional[str] = None) -> tuple[list[CategoryUploadEntry], list[dict[str, str]]]:
         deleted: list[CategoryUploadEntry] = []
         failed: list[dict[str, str]] = []
-        categories = [self.normalize_category(category)] if category is not None else await self.list_categories()
 
-        for managed_category in categories:
-            entries = await self.list_entries(category=managed_category)
-            for entry in entries:
-                try:
-                    await self.remove_file(entry.filename, managed_category)
-                    deleted.append(entry)
-                except Exception as error:
-                    logger.error(
-                        "Failed to remove managed upload '%s' from '%s': %s",
-                        entry.filename,
-                        managed_category,
-                        error,
-                    )
-                    failed.append(
-                        {
-                            "category": managed_category,
-                            "filename": entry.filename,
-                            "message": "Unexpected delete failure",
-                        }
-                    )
+        for entry in await self.list_entries(category=category):
+            try:
+                await self.remove_file(entry.filename, entry.category)
+                deleted.append(entry)
+            except Exception as error:
+                logger.error(
+                    "Failed to remove managed upload '%s' from '%s': %s",
+                    entry.filename,
+                    entry.category,
+                    error,
+                )
+                failed.append(
+                    {
+                        "category": entry.category,
+                        "filename": entry.filename,
+                        "message": "Unexpected delete failure",
+                    }
+                )
 
         return deleted, failed

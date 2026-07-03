@@ -17,6 +17,64 @@ Two categories per date:
 
 ## 2026-07-03
 
+### `/admin/uploads`: managed uploads list is now blob-driven — script/feed-ingested files show up and stay in sync
+
+#### Decisions
+
+- **Listing derives from the actual `<category>/<filename>` blobs, not from manifests.** Managed
+  uploads previously listed only files with a hidden manifest under
+  `<category>/.managed-uploads/manifests/`, which only the admin uploader writes — so files
+  ingested by `prepdocs` scripts (`snap/snap.json`, `lemon/HYROX_Level_1.json`, `fhg/fhg.json`) and
+  the feed auto-indexers (`moodle/*.xml`, `publishone/*.xml`) were invisible (9 files at cutover).
+  Since **every** ingestion path stores its source blob flat at `<category>/<filename>` in the same
+  `content` container, `CategoryUploadStrategy.list_entries` now enumerates those blobs directly:
+  no backfill needed, and any future upload (admin UI, script, auto-indexer) is visible
+  automatically. `uploaded_at` comes from the blob's `last_modified`. Manifests are still written
+  by admin uploads (provenance) but no longer gate visibility.
+- **Category gating so infrastructure prefixes can't leak.** A top-level prefix only counts as a
+  category when it is a known chatbot name (`KNOWN_CHATBOT_NAMES`, new `known_categories` ctor arg),
+  OR appears as a `category` facet in the search index (new `SearchManager.list_category_facets`;
+  failure falls back gracefully), OR contains managed-upload manifests. This keeps
+  `hyrox-assessment-logs/`, `prompts/`, `bots/`, `embed/`, `counters/`, `wiki/` out. Only blobs
+  **directly** under `<category>/` are listed (depth-1 rule), which hides feed source drops
+  (`nerilio/Nerilio-*/…`), user-scoped per-user uploads (`free|rak/<token>/…`), and all dot-folder
+  metadata. Validated read-only against the live account: 484 files across 15 categories, facet
+  call OK, logs prefix hidden.
+- **Delete and re-upload now work for files from any origin (unified semantics).** Deletion keys on
+  `storageUrl` — the join key every ingestion path stamps on its search docs — via a filterable
+  `storageUrl eq` query (`SearchManager.list_documents` gained a `storage_url` param), so deleting a
+  feed/script file removes its blob AND its indexed docs (previously the blob would delete but docs
+  stayed). It also removes a sibling `ChatbotUploadStrategy` manifest (`<cat>/.manifests/<token>.json`,
+  e.g. demo) so the bot's own upload list doesn't keep ghost entries. Re-uploading an existing
+  filename **replaces** the previous content (docs deleted by storageUrl before re-index) instead of
+  erroring — the old `has_conflicting_non_upload_document` guard ("rename the file") existed to
+  protect script-owned content, a separation this change deliberately removes; `replacedExisting`
+  is now blob-existence based. Note: deleting a feed-mirrored file does NOT touch the
+  `nerilio/Nerilio-*` source blob, so a re-dropped feed file will re-index (that is the feed
+  contract). "Delete all" now covers script/feed files too.
+
+#### Changes
+
+- `app/backend/prepdocslib/searchmanager.py` — `list_documents` passes `storage_url` through to
+  `build_filter`; new `list_category_facets()` (single facet query, `category,count:1000`).
+- `app/backend/prepdocslib/categoryupload.py` — blob-driven `list_entries`/`list_category_counts`
+  via new `candidate_categories`/`list_category_files`/`entry_from_file_blob`/`has_managed_manifests`/
+  `list_indexed_categories`; `delete_documents_for_storage_url` now filters by storageUrl (new
+  `delete_documents_for_file` unions target-blob URL + manifest URL); `remove_file` handles
+  manifest-less files + sibling chatbot manifest cleanup; `add_file` replaces same-name content from
+  any origin (conflict error removed); removed dead `entry_from_manifest_blob`, `iter_manifest_blobs`,
+  `iter_manifest_blob_names`, `list_upload_documents`, `remove_stale_upload_documents`,
+  `has_conflicting_non_upload_document`, `is_own_storage_url`, `storage_url_to_blob_name`;
+  `remove_all_files` simplified to one listing pass.
+- `app/backend/app.py` — `CategoryUploadStrategy(known_categories=KNOWN_CHATBOT_NAMES)`.
+- `tests/test_categoryupload.py` — new offline unit tests (fake blob/search managers): unified
+  listing across ingestion paths, category gating (facet/manifest/known + hidden infra prefixes),
+  facet-failure fallback, manifest-less delete by storageUrl, replace-on-reupload.
+- `python scripts/copy_prepdocslib.py` re-run (functions copies, gitignored).
+- No frontend changes: `/managed_uploads` payload shape is unchanged; the page picks up the new
+  entries and category counts as-is. Baseline note: the pre-existing offline test failures in
+  `tests/test_upload.py` (admin-auth 401s etc.) are unchanged — failure sets identical to HEAD.
+
 ### `/admin/uploads`: category combobox + wire fhg/moodle/publishone custom parsers into managed uploads
 
 #### Decisions

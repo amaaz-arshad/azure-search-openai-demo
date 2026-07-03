@@ -2713,6 +2713,7 @@ async def setup_clients():
         embeddings=chatbot_upload_embeddings,
         search_field_name_embedding=AZURE_SEARCH_FIELD_NAME_EMBEDDING,
         blob_manager=global_blob_manager,
+        known_categories=KNOWN_CHATBOT_NAMES,
     )
 
     user_blob_manager = None

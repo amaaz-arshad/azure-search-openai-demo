@@ -737,10 +737,11 @@ class SearchManager:
         self,
         path: Optional[str] = None,
         category: Optional[str] = None,
+        storage_url: Optional[str] = None,
         user: Optional[str] = None,
     ) -> list[dict[str, Any]]:
         documents: list[dict[str, Any]] = []
-        filter_expression = self.build_filter(path=path, category=category, user=user)
+        filter_expression = self.build_filter(path=path, category=category, storage_url=storage_url, user=user)
         max_results = 1000
         skip = 0
 
@@ -761,6 +762,21 @@ class SearchManager:
                     break
                 skip += max_results
         return documents
+
+    async def list_category_facets(self) -> list[str]:
+        async with self.search_info.create_search_client() as search_client:
+            result = await search_client.search(
+                search_text="*",
+                facets=["category,count:1000"],
+                top=0,
+            )
+            facets = await result.get_facets()
+        categories: list[str] = []
+        for facet in (facets or {}).get("category", []):
+            value = facet.get("value")
+            if value:
+                categories.append(str(value))
+        return categories
 
     async def delete_documents_by_ids(self, document_ids: list[str]) -> None:
         if not document_ids:
