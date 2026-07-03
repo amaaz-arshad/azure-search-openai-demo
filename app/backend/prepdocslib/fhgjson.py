@@ -1,11 +1,15 @@
+import json
 import logging
 import re
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Optional
 
 import tiktoken
 
-from .page import Page
+from .listfilestrategy import File
+from .page import Chunk, Page
+from .searchmanager import Section
 from .textsplitter import ENCODING_MODEL, SentenceTextSplitter
 
 logger = logging.getLogger("scripts")
@@ -305,3 +309,71 @@ def require_string_list_field(study: dict[str, Any], field_name: str) -> list[st
     if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
         raise ValueError(f"FHG study field '{field_name}' must be an array of strings")
     return value
+
+
+def load_fhg_payload(file: File) -> Any:
+    file.content.seek(0)
+    raw_content = file.content.read()
+    file.content.seek(0)
+    if isinstance(raw_content, bytes):
+        return json.loads(raw_content.decode("utf-8-sig"))
+    return json.loads(raw_content)
+
+
+def looks_like_fhg_payload(payload: Any) -> bool:
+    return isinstance(payload, dict) and isinstance(payload.get("documents"), list)
+
+
+def prepare_fhg_sections(
+    payload: dict[str, Any],
+    *,
+    file: File,
+    category: str,
+    max_chunk_tokens: int = DEFAULT_MAX_CHUNK_TOKENS,
+) -> list[Section]:
+    dataset = prepare_fhg_dataset(
+        payload,
+        dataset_filename=file.filename(),
+        category=category,
+        max_chunk_tokens=max_chunk_tokens,
+    )
+    return [
+        Section(
+            chunk=Chunk(page_num=index, text=document.content),
+            content=file,
+            category=document.category,
+            id=document.id,
+            sourcepage=document.sourcepage,
+            sourcefile=document.sourcefile,
+            title=document.title,
+            url=document.url,
+            tags=document.tags,
+            user=document.user,
+        )
+        for index, document in enumerate(dataset.documents)
+    ]
+
+
+async def build_fhg_sections_if_applicable(
+    *,
+    file: File,
+    category: Optional[str],
+    check_cancel: Optional[Callable[[], Awaitable[None]]] = None,
+) -> Optional[list[Section]]:
+    if (category or "").strip().lower() != "fhg" or file.file_extension().lower() != ".json":
+        return None
+
+    if check_cancel is not None:
+        await check_cancel()
+
+    payload = load_fhg_payload(file)
+    if not looks_like_fhg_payload(payload):
+        return None
+
+    logger.info("Using FHG-specific JSON parser for '%s'", file.filename())
+    sections = prepare_fhg_sections(payload, file=file, category="fhg")
+
+    if check_cancel is not None:
+        await check_cancel()
+
+    return sections

@@ -524,6 +524,7 @@ async def test_list_managed_uploaded_files(client, monkeypatch):
     assert response.status_code == 200
     assert payload["categories"] == ["demo", "sartorius"]
     assert payload["categoryCounts"] == {"demo": 1, "sartorius": 1}
+    assert payload["knownCategories"] == sorted(app.KNOWN_CHATBOT_NAMES)
     assert payload["totalCount"] == 2
     assert payload["totalAllCount"] == 2
     assert payload["page"] == 1

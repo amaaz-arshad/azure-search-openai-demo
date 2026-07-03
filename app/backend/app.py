@@ -245,6 +245,7 @@ INTERNAL_INVALID_SOURCE_BOTS = frozenset(
 )
 
 NON_CHATBOT_FRONTEND_PREFIXES = {
+    "admin",
     "assets",
     "auth_setup",
     "chat",
@@ -273,7 +274,6 @@ NON_CHATBOT_FRONTEND_PREFIXES = {
     "upload",
     "upload-files",
     "internal-admin",
-    "verwaltung",
 }
 
 # Keep in sync with frontend chatbot routes in app/frontend/src/chatbots/registry.ts.
@@ -1030,10 +1030,14 @@ async def manage_prompts_page(subpath: str | None = None):
     return await serve_spa_index()
 
 
-@bp.route("/verwaltung")
-@bp.route("/verwaltung/")
-@bp.route("/verwaltung/<path:subpath>")
-async def verwaltung_page(subpath: str | None = None):
+@bp.route("/admin")
+@bp.route("/admin/")
+@bp.route("/admin/<path:subpath>")
+async def admin_page(subpath: str | None = None):
+    # Single SPA shell for the consolidated internal admin tools (Chatbots, Prompts, Uploads,
+    # nerilio users, Embed demo). Deep links like /admin/prompts serve index.html so the React
+    # router can mount the right tab; the old per-tool routes above still serve the SPA and the
+    # frontend redirects them into the matching /admin/* tab.
     return await serve_spa_index()
 
 
@@ -2202,6 +2206,9 @@ async def list_managed_uploads():
                 "files": [dataclasses.asdict(entry) for entry in page_result.entries],
                 "categories": sorted(category_counts),
                 "categoryCounts": category_counts,
+                # Upload targets are the built-in bots only; provisioned/dynamic bots get their
+                # knowledge-base files from a separate backend, not this admin uploader.
+                "knownCategories": sorted(KNOWN_CHATBOT_NAMES) if include_categories else [],
                 "totalCount": page_result.total_count,
                 "totalAllCount": sum(category_counts.values()) if include_categories else None,
                 "page": page_result.page,

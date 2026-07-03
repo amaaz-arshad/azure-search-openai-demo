@@ -1,6 +1,7 @@
 import logging
 import re
 import xml.etree.ElementTree as ET
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Optional
 
@@ -511,5 +512,35 @@ async def build_publishone_feed_sections(
             section.url = feed_document.url
             section.tags = feed_document.tags
         sections.extend(document_sections)
+
+    return sections
+
+
+FEED_CATEGORIES = frozenset({"moodle", "publishone"})
+
+
+async def build_feed_sections_if_applicable(
+    *,
+    file: File,
+    file_processors: dict[str, FileProcessor],
+    category: Optional[str],
+    check_cancel: Optional[Callable[[], Awaitable[None]]] = None,
+) -> Optional[list[Section]]:
+    normalized_category = (category or "").strip().lower()
+    if normalized_category not in FEED_CATEGORIES or file.file_extension().lower() != ".xml":
+        return None
+
+    if check_cancel is not None:
+        await check_cancel()
+
+    logger.info("Using PublishOne feed XML parser for '%s'", file.filename())
+    sections = await build_publishone_feed_sections(
+        file=file,
+        file_processors=file_processors,
+        category=normalized_category,
+    )
+
+    if check_cancel is not None:
+        await check_cancel()
 
     return sections

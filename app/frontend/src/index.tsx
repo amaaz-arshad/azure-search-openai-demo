@@ -20,15 +20,7 @@ import ChatbotDirectory from "./pages/ChatbotDirectory";
 import ManagePromptsPage from "./pages/ManagePrompts";
 import FreeUsersPage from "./pages/FreeUsers";
 import UploadFilesPage from "./pages/UploadFiles";
-import {
-    ConfigurePage,
-    CustomersPage,
-    DashboardPage,
-    KnowledgeBasesPage,
-    PortalPage,
-    UsersPage,
-    VerwaltungLayout
-} from "./pages/verwaltung";
+import { AdminLayout, EmbedDemoTab } from "./pages/admin";
 import { msalConfig, useLogin } from "./authConfig";
 
 initializeIcons();
@@ -82,42 +74,25 @@ const router = createBrowserRouter([
         )
     },
     {
-        path: "/chatbots",
-        element: <ChatbotDirectory />
-    },
-    {
-        path: "/upload-files",
-        element: <UploadFilesPage />
-    },
-    {
-        path: "/free-users",
-        element: <FreeUsersPage />
-    },
-    {
-        path: "/public-test-users",
-        element: <Navigate to="/free-users" replace />
-    },
-    {
-        path: "/manage-prompts",
-        element: <ManagePromptsPage />
-    },
-    {
-        path: "/verwaltung",
-        element: <VerwaltungLayout />,
+        // Consolidated internal admin shell: one password gate + tab bar over the former standalone
+        // /chatbots, /manage-prompts, /upload-files, /free-users pages plus the embed-demo iframe.
+        path: "/admin",
+        element: <AdminLayout />,
         children: [
-            { index: true, element: <Navigate to="/verwaltung/dashboard" replace /> },
-            { path: "dashboard", element: <DashboardPage /> },
-            { path: "customers", element: <CustomersPage /> },
-            { path: "users", element: <UsersPage /> },
-            { path: "knowledge-bases", element: <KnowledgeBasesPage /> },
-            { path: "configure", element: <ConfigurePage /> },
-            { path: "configure/:botId", element: <ConfigurePage /> }
+            { index: true, element: <Navigate to="/admin/chatbots" replace /> },
+            { path: "chatbots", element: <ChatbotDirectory /> },
+            { path: "prompts", element: <ManagePromptsPage /> },
+            { path: "uploads", element: <UploadFilesPage /> },
+            { path: "users", element: <FreeUsersPage /> },
+            { path: "embed", element: <EmbedDemoTab /> }
         ]
     },
-    {
-        path: "/verwaltung/portal",
-        element: <PortalPage />
-    },
+    // Legacy admin URLs redirect into the matching /admin tab so existing bookmarks keep working.
+    { path: "/chatbots", element: <Navigate to="/admin/chatbots" replace /> },
+    { path: "/manage-prompts", element: <Navigate to="/admin/prompts" replace /> },
+    { path: "/upload-files", element: <Navigate to="/admin/uploads" replace /> },
+    { path: "/free-users", element: <Navigate to="/admin/users" replace /> },
+    { path: "/public-test-users", element: <Navigate to="/admin/users" replace /> },
     ...chatbotRoutes,
     {
         // Anonymized embed target. The bot is chosen from the backend-injected name, never the URL.

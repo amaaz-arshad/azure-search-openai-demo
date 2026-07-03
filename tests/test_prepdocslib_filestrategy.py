@@ -1,3 +1,4 @@
+import json
 import os
 from io import BytesIO
 
@@ -16,9 +17,26 @@ from prepdocslib.listfilestrategy import (
 from prepdocslib.page import ImageOnPage, Page
 from prepdocslib.strategy import DocumentAction, SearchInfo
 from prepdocslib.textparser import TextParser
-from prepdocslib.textsplitter import SimpleTextSplitter
+from prepdocslib.textsplitter import SentenceTextSplitter, SimpleTextSplitter
+from prepdocslib.xmlparser import XmlParser
 
 from .mocks import MockAzureCredential
+
+FEED_XML = """<?xml version="1.0" encoding="utf-8"?>
+<folder id="8775" documentTypeName="Mobile Learning" document-type-key="desnapmobilelearning">
+  <naam>Testkurs</naam>
+  <document id="8786" documentTypeName="Mobile Learning" document-type-key="desnapmobilelearning" state-id="35" state="New" final="false">
+    <naam>erste_hilfe_elearning</naam>
+    <lastmodified>2026-03-25T14:05:59.9814172Z</lastmodified>
+    <document version="1">
+      <section orientation="portrait">
+        <h1>1. Einfuehrung in die Erste Hilfe</h1>
+        <p>Erste Hilfe umfasst alle Massnahmen im Notfall.</p>
+      </section>
+    </document>
+  </document>
+</folder>
+"""
 
 
 class SingleFileListStrategy(ListFileStrategy):
@@ -167,6 +185,109 @@ async def test_parse_file_keeps_non_hyrox_json_generic_for_lemon_category():
     assert sections[0].sourcepage is None
     assert sections[0].title is None
     assert '"title": "Plain JSON"' in sections[0].chunk.text
+
+
+def build_fhg_stream():
+    payload = {
+        "count": 1,
+        "documents": [
+            {
+                "category": ["Bachelor-Studiengänge", "Studium"],
+                "content": "Erster Absatz.\n\nZweiter Absatz.",
+                "doc_id": "page-812",
+                "filename": "studium/bachelor/radiologietechnologie",
+                "metadata": {"studium_name": "Radiologietechnologie"},
+                "parent_id": "page-224",
+                "tags": ["Radiologietechnologie"],
+                "title": "Radiologietechnologie",
+                "url": "https://www.fhg-tirol.ac.at/page.cfm?vpath=studium/bachelor/radiologietechnologie",
+            }
+        ],
+    }
+    stream = BytesIO(json.dumps(payload).encode("utf-8"))
+    stream.name = "fhg.json"
+    return stream
+
+
+@pytest.mark.asyncio
+async def test_parse_file_uses_fhg_mapping_for_fhg_json():
+    file = File(content=build_fhg_stream())
+
+    sections = await parse_file(
+        file,
+        {".json": FileProcessor(JsonParser(), SimpleTextSplitter())},
+        category="fhg",
+    )
+
+    assert len(sections) == 1
+    section = sections[0]
+    assert section.id == "fhg-page-812-chunk-001"
+    assert section.category == "fhg"
+    assert section.sourcepage == "doc_id=page-812;parent_id=page-224"
+    assert section.sourcefile == "studium/bachelor/radiologietechnologie"
+    assert section.title == "Radiologietechnologie"
+    assert section.url == "https://www.fhg-tirol.ac.at/page.cfm?vpath=studium/bachelor/radiologietechnologie"
+    assert "title: Radiologietechnologie" in section.chunk.text
+    assert "content:\nErster Absatz.\n\nZweiter Absatz." in section.chunk.text
+
+
+@pytest.mark.asyncio
+async def test_parse_file_keeps_fhg_json_generic_for_non_fhg_category():
+    file = File(content=build_fhg_stream())
+
+    sections = await parse_file(
+        file,
+        {".json": FileProcessor(JsonParser(), SimpleTextSplitter())},
+        category="sartorius",
+    )
+
+    assert len(sections) == 1
+    assert sections[0].id is None
+    assert sections[0].sourcepage is None
+    assert sections[0].title is None
+    assert '"doc_id": "page-812"' in sections[0].chunk.text
+
+
+def build_feed_stream():
+    stream = BytesIO(FEED_XML.encode("utf-8"))
+    stream.name = "feed.xml"
+    return stream
+
+
+@pytest.mark.parametrize("category", ["moodle", "publishone"])
+@pytest.mark.asyncio
+async def test_parse_file_uses_feed_mapping_for_feed_xml(category):
+    file = File(content=build_feed_stream())
+
+    sections = await parse_file(
+        file,
+        {".xml": FileProcessor(XmlParser(), SentenceTextSplitter())},
+        category=category,
+    )
+
+    assert len(sections) == 1
+    section = sections[0]
+    assert section.sourcepage == "8786"
+    assert section.sourcefile == "feed.xml"
+    assert section.title == "erste_hilfe_elearning"
+    assert section.url == "https://amsterdam.publishone.nl/document/8786/content"
+    assert section.id.endswith(f"-{category}-8786-chunk-001")
+
+
+@pytest.mark.asyncio
+async def test_parse_file_keeps_feed_xml_generic_for_non_feed_category():
+    file = File(content=build_feed_stream())
+
+    sections = await parse_file(
+        file,
+        {".xml": FileProcessor(XmlParser(), SentenceTextSplitter())},
+        category="sartorius",
+    )
+
+    assert len(sections) >= 1
+    assert sections[0].url is None
+    assert sections[0].title is None
+    assert sections[0].sourcepage is None
 
 
 @pytest.mark.asyncio

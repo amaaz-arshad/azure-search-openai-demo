@@ -1,7 +1,5 @@
-import { ChangeEvent, DragEvent, FormEvent, startTransition, useEffect, useRef, useState } from "react";
+import { ChangeEvent, DragEvent, startTransition, useEffect, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { Link } from "react-router-dom";
-import { Icon } from "@fluentui/react";
 import {
     ArrowClockwise24Regular,
     ArrowUpload24Regular,
@@ -19,7 +17,7 @@ import {
     listManagedUploadsApi,
     uploadManagedFilesApi
 } from "./uploadFilesApi";
-import { useInternalAdminAccess } from "../shared/useInternalAdminAccess";
+import { useAdminShell } from "../admin/AdminShellContext";
 import styles from "./UploadFilesPage.module.css";
 
 const acceptedFileTypes = ".txt,.md,.csv,.json,.pdf,.html,.xml";
@@ -108,17 +106,7 @@ const matchesLibraryFilters = (entry: ManagedUploadEntry, categoryFilter: string
 };
 
 const UploadFilesPage = () => {
-    const {
-        isAuthenticated,
-        isCheckingAuthentication,
-        authError,
-        clearAuthError,
-        handleUnauthorizedError,
-        login,
-        logout
-    } = useInternalAdminAccess();
-    const [password, setPassword] = useState("");
-    const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+    const { handleUnauthorizedError, registerGuard, unregisterGuard } = useAdminShell();
     const [uploadCategory, setUploadCategory] = useState("");
     const [categoryFilter, setCategoryFilter] = useState(allCategoriesValue);
     const [query, setQuery] = useState("");
@@ -126,6 +114,7 @@ const UploadFilesPage = () => {
     const [queueItems, setQueueItems] = useState<UploadQueueItem[]>([]);
     const [uploadedFiles, setUploadedFiles] = useState<ManagedUploadEntry[]>([]);
     const [availableCategories, setAvailableCategories] = useState<string[]>([]);
+    const [knownCategories, setKnownCategories] = useState<string[]>([]);
     const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
     const [filteredFileCount, setFilteredFileCount] = useState(0);
     const [totalManagedFiles, setTotalManagedFiles] = useState(0);
@@ -154,6 +143,8 @@ const UploadFilesPage = () => {
 
     const normalizedQuery = debouncedQuery.trim().toLowerCase();
 
+    const uploadCategoryOptions = sortCategories([...knownCategories, ...availableCategories]);
+
     const hasActiveQueue = queueItems.some(item => activeStatuses.includes(item.status));
     const dismissableQueueItemsCount = queueItems.filter(item => !activeStatuses.includes(item.status)).length;
     const totalPages = Math.max(1, Math.ceil(filteredFileCount / rowsPerPage));
@@ -161,8 +152,6 @@ const UploadFilesPage = () => {
     const pageStartIndex = (currentPageSafe - 1) * rowsPerPage;
 
     const resetAdminState = (preserveStatus = false) => {
-        setPassword("");
-        setIsPasswordVisible(false);
         if (!preserveStatus) {
             setStatus(undefined);
         }
@@ -173,6 +162,7 @@ const UploadFilesPage = () => {
         setQueueState(() => []);
         setUploadedFiles([]);
         setAvailableCategories([]);
+        setKnownCategories([]);
         setCategoryCounts({});
         setFilteredFileCount(0);
         setTotalManagedFiles(0);
@@ -273,6 +263,7 @@ const UploadFilesPage = () => {
             setFilteredFileCount(response.totalCount);
             if (options?.includeCategories !== false) {
                 setAvailableCategories(sortCategories(response.categories));
+                setKnownCategories(sortCategories(response.knownCategories ?? []));
                 setCategoryCounts(response.categoryCounts);
                 setTotalManagedFiles(typeof response.totalAllCount === "number" ? response.totalAllCount : 0);
                 setHasLoadedLibraryMetadata(true);
@@ -728,30 +719,15 @@ const UploadFilesPage = () => {
         }
     };
 
-    const handleUnlock = async (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        if (await login(password)) {
-            setPassword("");
-            setIsPasswordVisible(false);
-            return;
-        }
-    };
-
-    const handleLockPage = () => {
-        if (hasActiveQueue || isStopping) {
-            setStatus({
-                tone: "warning",
-                message: "Stop the active upload queue before locking the page."
-            });
-            return;
-        }
-        resetAdminState();
-        void logout();
-    };
-
     useEffect(() => {
         queueRef.current = queueItems;
     }, [queueItems]);
+
+    // Block admin tab switches / logout while an upload is active or being stopped.
+    useEffect(() => {
+        registerGuard("upload-files", () => (hasActiveQueue || isStopping ? "An upload is in progress. Leave and stop it?" : null));
+        return () => unregisterGuard("upload-files");
+    }, [hasActiveQueue, isStopping, registerGuard, unregisterGuard]);
 
     useEffect(() => {
         hasLoadedLibraryMetadataRef.current = hasLoadedLibraryMetadata;
@@ -765,11 +741,9 @@ const UploadFilesPage = () => {
     }, [query]);
 
     useEffect(() => {
-        if (!isAuthenticated) {
-            return;
-        }
         void loadFiles();
-    }, [isAuthenticated, categoryFilter, debouncedQuery, currentPage, rowsPerPage]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [categoryFilter, debouncedQuery, currentPage, rowsPerPage]);
 
     useEffect(() => {
         if (currentPage > totalPages) {
@@ -778,13 +752,11 @@ const UploadFilesPage = () => {
     }, [currentPage, totalPages]);
 
     useEffect(() => {
-        if (!isAuthenticated) {
-            return;
-        }
         if (queueItems.some(item => item.status === "queued") && !processingRef.current) {
             void runQueue();
         }
-    }, [queueItems, isAuthenticated]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [queueItems]);
 
     useEffect(() => {
         if (!(hasActiveQueue || isStopping)) {
@@ -839,89 +811,30 @@ const UploadFilesPage = () => {
                         <p className={styles.subtitle}>Manage shared uploads across chatbot categories.</p>
                     </div>
                     <div className={styles.headerActions}>
-                        <span className={styles.countPill}>
-                            {isAuthenticated ? `${totalManagedFiles} managed files` : "Protected page"}
-                        </span>
-                        {isAuthenticated ? (
-                            <>
-                                <Link className={styles.secondaryButton} to="/chatbots">
-                                    Back to directory
-                                </Link>
-                                <Link className={styles.secondaryButton} to="/free-users">
-                                    nerilio users
-                                </Link>
-                                <Link className={styles.secondaryButton} to="/manage-prompts">
-                                    Manage prompts
-                                </Link>
-                                <button className={styles.secondaryButton} type="button" onClick={handleLockPage}>
-                                    Lock page
-                                </button>
-                            </>
-                        ) : null}
+                        <span className={styles.countPill}>{`${totalManagedFiles} managed files`}</span>
                     </div>
                 </header>
 
-                <section className={`${styles.panel} ${!isAuthenticated ? styles.panelLocked : ""}`}>
-                    {!isAuthenticated ? (
-                        <div className={styles.accessState}>
-                            <div className={styles.accessHeader}>
-                                <span className={styles.badge}>Protected</span>
-                                <h2 className={styles.sectionTitle}>Unlock upload manager</h2>
-                            </div>
-                            <form className={styles.form} onSubmit={handleUnlock} autoComplete="off">
-                                <label className={styles.label} htmlFor="upload-manager-password">
-                                    Password
-                                </label>
-                                <div className={styles.inputWrap}>
-                                    <input
-                                        id="upload-manager-password"
-                                        className={styles.input}
-                                        type={isPasswordVisible ? "text" : "password"}
-                                        name="upload-manager-access-code"
-                                        value={password}
-                                        onChange={event => {
-                                            setPassword(event.target.value);
-                                            clearAuthError();
-                                        }}
-                                        placeholder="Enter password"
-                                        autoComplete="off"
-                                        spellCheck={false}
-                                        autoCapitalize="none"
-                                        autoCorrect="off"
-                                    />
-                                    <button
-                                        className={styles.visibilityToggle}
-                                        type="button"
-                                        aria-label={isPasswordVisible ? "Hide password" : "Show password"}
-                                        aria-pressed={isPasswordVisible}
-                                        onClick={() => setIsPasswordVisible(current => !current)}
-                                    >
-                                        <Icon iconName={isPasswordVisible ? "Hide3" : "RedEye"} />
-                                    </button>
-                                </div>
-                                <button className={styles.primaryButton} type="submit" disabled={isCheckingAuthentication}>
-                                    {isCheckingAuthentication ? "Unlocking..." : "Unlock upload manager"}
-                                </button>
-                                <p className={styles.errorMessage}>{authError}</p>
-                            </form>
-                        </div>
-                    ) : (
-                        <>
+                <section className={styles.panel}>
+                    <>
                             <div className={styles.toolbar}>
                                 <div className={styles.field}>
                                     <label className={styles.label} htmlFor="upload-category">
                                         Upload category
                                     </label>
-                                    <input
+                                    <select
                                         id="upload-category"
-                                        className={styles.input}
+                                        className={styles.select}
                                         value={uploadCategory}
                                         onChange={event => setUploadCategory(normalizeCategory(event.target.value))}
-                                        placeholder="e.g. sartorius"
-                                        spellCheck={false}
-                                        autoCapitalize="none"
-                                        autoCorrect="off"
-                                    />
+                                    >
+                                        <option value="">Select a category</option>
+                                        {uploadCategoryOptions.map(category => (
+                                            <option key={category} value={category}>
+                                                {category}
+                                            </option>
+                                        ))}
+                                    </select>
                                 </div>
                                 <div className={styles.toolbarActions}>
                                     <button className={styles.primaryButton} type="button" disabled={isStopping} onClick={() => fileInputRef.current?.click()}>
@@ -1215,7 +1128,6 @@ const UploadFilesPage = () => {
                                 ) : null}
                             </section>
                         </>
-                    )}
                 </section>
             </section>
         </main>

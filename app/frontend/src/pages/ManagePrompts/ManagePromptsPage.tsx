@@ -1,11 +1,9 @@
-import { FormEvent, MouseEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { Link } from "react-router-dom";
-import { Icon } from "@fluentui/react";
 
 import { formatChatbotLabel, getChatbotRouteSegment } from "../shared/chatbotDisplay";
 import { PromptAdminEntry, listPromptAdminEntriesApi, resetPromptAdminEntryApi, savePromptAdminEntryApi } from "./promptAdminApi";
-import { useInternalAdminAccess } from "../shared/useInternalAdminAccess";
+import { useAdminShell } from "../admin/AdminShellContext";
 import styles from "./ManagePromptsPage.module.css";
 
 type StatusState =
@@ -31,18 +29,10 @@ const formatTimestamp = (timestamp?: string | null) => {
 const sortPromptEntries = (entries: PromptAdminEntry[]) =>
     [...entries].sort((left, right) => left.chatbotName.localeCompare(right.chatbotName));
 
+// Rendered inside the /admin shell (see pages/admin/AdminLayout). The shell owns the auth gate;
+// unsaved-changes protection for tab switches / logout is registered through the shell guard.
 const ManagePromptsPage = () => {
-    const {
-        isAuthenticated,
-        isCheckingAuthentication,
-        authError,
-        clearAuthError,
-        handleUnauthorizedError,
-        login,
-        logout
-    } = useInternalAdminAccess();
-    const [password, setPassword] = useState("");
-    const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+    const { handleUnauthorizedError, registerGuard, unregisterGuard } = useAdminShell();
     const [query, setQuery] = useState("");
     const [prompts, setPrompts] = useState<PromptAdminEntry[]>([]);
     const [selectedChatbotName, setSelectedChatbotName] = useState("");
@@ -70,8 +60,6 @@ const ManagePromptsPage = () => {
     const isDirty = selectedPrompt !== null && draftPrompt !== selectedPrompt.currentPrompt;
 
     const resetLocalState = () => {
-        setPassword("");
-        setIsPasswordVisible(false);
         setQuery("");
         setPrompts([]);
         setSelectedChatbotName("");
@@ -104,8 +92,7 @@ const ManagePromptsPage = () => {
             const nextPrompts = sortPromptEntries(response.prompts);
             setPrompts(nextPrompts);
 
-            const nextSelectedPrompt =
-                nextPrompts.find(prompt => prompt.chatbotName === selectedChatbotName) || nextPrompts[0] || null;
+            const nextSelectedPrompt = nextPrompts.find(prompt => prompt.chatbotName === selectedChatbotName) || nextPrompts[0] || null;
             setSelectedChatbotName(nextSelectedPrompt?.chatbotName || "");
             setDraftPrompt(nextSelectedPrompt?.currentPrompt || "");
         } catch (error) {
@@ -138,25 +125,21 @@ const ManagePromptsPage = () => {
 
     const applyUpdatedPrompt = (nextPrompt: PromptAdminEntry) => {
         setPrompts(currentPrompts =>
-            sortPromptEntries(
-                currentPrompts.map(prompt => (prompt.chatbotName === nextPrompt.chatbotName ? nextPrompt : prompt))
-            )
+            sortPromptEntries(currentPrompts.map(prompt => (prompt.chatbotName === nextPrompt.chatbotName ? nextPrompt : prompt)))
         );
         setSelectedPromptEntry(nextPrompt);
     };
 
     useEffect(() => {
-        if (!isAuthenticated) {
-            return;
-        }
-
         void loadPrompts();
 
         return () => {
             loadAbortRef.current?.abort();
         };
-    }, [isAuthenticated]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
+    // Warn on hard page unloads and block admin tab switches / logout while a prompt edit is unsaved.
     useEffect(() => {
         if (!isDirty) {
             return;
@@ -171,34 +154,10 @@ const ManagePromptsPage = () => {
         return () => window.removeEventListener("beforeunload", handleBeforeUnload);
     }, [isDirty]);
 
-    const handleUnlock = async (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-
-        const authenticated = await login(password);
-        if (!authenticated) {
-            return;
-        }
-
-        setPassword("");
-        setIsPasswordVisible(false);
-    };
-
-    const handleLockPage = () => {
-        if (!confirmDiscardChanges()) {
-            return;
-        }
-
-        resetLocalState();
-        void logout();
-    };
-
-    const handleGuardedNavigation = (event: MouseEvent<HTMLAnchorElement>) => {
-        if (confirmDiscardChanges()) {
-            return;
-        }
-
-        event.preventDefault();
-    };
+    useEffect(() => {
+        registerGuard("manage-prompts", () => (isDirty ? "Discard unsaved prompt changes?" : null));
+        return () => unregisterGuard("manage-prompts");
+    }, [isDirty, registerGuard, unregisterGuard]);
 
     const handleSelectChatbot = (nextChatbotName: string) => {
         if (nextChatbotName === selectedChatbotName) {
@@ -292,242 +251,146 @@ const ManagePromptsPage = () => {
                     </div>
 
                     <div className={styles.headerActions}>
-                        <span className={styles.countPill}>
-                            {isAuthenticated ? `${prompts.length} chatbot prompts` : "Protected page"}
-                        </span>
-                        {isAuthenticated ? (
-                            <>
-                                <Link className={styles.secondaryButton} to="/chatbots" onClick={handleGuardedNavigation}>
-                                    Directory
-                                </Link>
-                                <Link className={styles.secondaryButton} to="/upload-files" onClick={handleGuardedNavigation}>
-                                    Uploads
-                                </Link>
-                                <Link
-                                    className={styles.secondaryButton}
-                                    to="/free-users"
-                                    onClick={handleGuardedNavigation}
-                                >
-                                    nerilio users
-                                </Link>
-                                <button className={styles.secondaryButton} type="button" onClick={handleLockPage}>
-                                    Lock page
-                                </button>
-                            </>
-                        ) : null}
+                        <span className={styles.countPill}>{`${prompts.length} chatbot prompts`}</span>
                     </div>
                 </header>
 
-                <section className={`${styles.panel} ${!isAuthenticated ? styles.panelLocked : ""}`}>
-                    {!isAuthenticated ? (
-                        <div className={styles.accessState}>
-                            <div className={styles.accessHeader}>
-                                <span className={styles.badge}>Protected</span>
-                                <h2 className={styles.sectionTitle}>Unlock prompt admin</h2>
-                                <p className={styles.accessDescription}>
-                                    Sign in with the shared internal admin password to load and update saved chatbot prompts.
-                                </p>
-                            </div>
-
-                            <form className={styles.form} onSubmit={handleUnlock} autoComplete="off">
-                                <label className={styles.label} htmlFor="manage-prompts-password">
-                                    Password
-                                </label>
-                                <div className={styles.inputWrap}>
-                                    <input
-                                        id="manage-prompts-password"
-                                        className={styles.input}
-                                        type={isPasswordVisible ? "text" : "password"}
-                                        name="manage-prompts-password"
-                                        value={password}
-                                        onChange={event => {
-                                            setPassword(event.target.value);
-                                            clearAuthError();
-                                        }}
-                                        placeholder="Enter password"
-                                        autoComplete="off"
-                                        spellCheck={false}
-                                        autoCapitalize="none"
-                                        autoCorrect="off"
-                                        data-lpignore="true"
-                                        data-1p-ignore="true"
-                                        data-form-type="other"
-                                    />
-                                    <button
-                                        className={styles.visibilityToggle}
-                                        type="button"
-                                        aria-label={isPasswordVisible ? "Hide password" : "Show password"}
-                                        aria-pressed={isPasswordVisible}
-                                        onClick={() => setIsPasswordVisible(current => !current)}
-                                    >
-                                        <Icon iconName={isPasswordVisible ? "Hide3" : "RedEye"} />
-                                    </button>
-                                </div>
-
-                                <button className={styles.primaryButton} type="submit" disabled={isCheckingAuthentication}>
-                                    {isCheckingAuthentication ? "Unlocking..." : "Unlock prompt admin"}
-                                </button>
-
-                                <p className={styles.errorMessage} role="alert" aria-live="polite">
-                                    {authError}
-                                </p>
-                            </form>
+                <section className={styles.panel}>
+                    {status ? (
+                        <div
+                            className={`${styles.statusMessage} ${
+                                status.tone === "success" ? styles.statusSuccess : status.tone === "warning" ? styles.statusWarning : styles.statusError
+                            }`}
+                            role="status"
+                        >
+                            {status.message}
                         </div>
-                    ) : (
-                        <>
-                            {status ? (
-                                <div
-                                    className={`${styles.statusMessage} ${
-                                        status.tone === "success"
-                                            ? styles.statusSuccess
-                                            : status.tone === "warning"
-                                              ? styles.statusWarning
-                                              : styles.statusError
-                                    }`}
-                                    role="status"
-                                >
-                                    {status.message}
-                                </div>
-                            ) : null}
+                    ) : null}
 
-                            <div className={styles.layoutGrid}>
-                                <aside className={styles.sidebar}>
-                                    <div className={styles.sidebarHeader}>
+                    <div className={styles.layoutGrid}>
+                        <aside className={styles.sidebar}>
+                            <div className={styles.sidebarHeader}>
+                                <div>
+                                    <span className={styles.sectionLabel}>Chatbots</span>
+                                    <h2 className={styles.sectionTitle}>Prompt list</h2>
+                                </div>
+                                <span className={styles.sidebarCount}>
+                                    {filteredPrompts.length} of {prompts.length}
+                                </span>
+                            </div>
+
+                            <input
+                                className={styles.searchInput}
+                                type="search"
+                                value={query}
+                                onChange={event => setQuery(event.target.value)}
+                                placeholder="Search chatbots"
+                                aria-label="Search chatbot prompts"
+                            />
+
+                            <div className={styles.chatbotList}>
+                                {filteredPrompts.length > 0 ? (
+                                    filteredPrompts.map(prompt => (
+                                        <button
+                                            key={prompt.chatbotName}
+                                            className={`${styles.chatbotButton} ${
+                                                prompt.chatbotName === selectedChatbotName ? styles.chatbotButtonActive : ""
+                                            }`}
+                                            type="button"
+                                            onClick={() => handleSelectChatbot(prompt.chatbotName)}
+                                        >
+                                            <div className={styles.chatbotRow}>
+                                                <strong className={styles.chatbotTitle}>{formatChatbotLabel(prompt.chatbotName)}</strong>
+                                                <span
+                                                    className={`${styles.sourcePill} ${
+                                                        prompt.source === "override" ? styles.sourceOverride : styles.sourceDefault
+                                                    }`}
+                                                >
+                                                    {prompt.source === "override" ? "Override" : "Default"}
+                                                </span>
+                                            </div>
+                                            <span className={styles.chatbotMeta}>/{getChatbotRouteSegment(prompt.chatbotName)}</span>
+                                        </button>
+                                    ))
+                                ) : (
+                                    <div className={styles.emptyState}>
+                                        <strong className={styles.emptyTitle}>No matching chatbots</strong>
+                                        <span className={styles.emptyText}>Try a different search term.</span>
+                                    </div>
+                                )}
+                            </div>
+                        </aside>
+
+                        <section className={styles.editor}>
+                            {selectedPrompt ? (
+                                <>
+                                    <div className={styles.editorHeader}>
                                         <div>
-                                            <span className={styles.sectionLabel}>Chatbots</span>
-                                            <h2 className={styles.sectionTitle}>Prompt list</h2>
+                                            <div className={styles.editorTitleRow}>
+                                                <h2 className={styles.editorTitle}>{formatChatbotLabel(selectedPrompt.chatbotName)}</h2>
+                                                <span
+                                                    className={`${styles.sourcePill} ${
+                                                        selectedPrompt.source === "override" ? styles.sourceOverride : styles.sourceDefault
+                                                    }`}
+                                                >
+                                                    {selectedPrompt.source === "override" ? "Override" : "Default"}
+                                                </span>
+                                                {isDirty ? <span className={styles.dirtyPill}>Unsaved changes</span> : null}
+                                            </div>
+                                            <p className={styles.timestamp}>{formatTimestamp(selectedPrompt.updatedAt)}</p>
                                         </div>
-                                        <span className={styles.sidebarCount}>
-                                            {filteredPrompts.length} of {prompts.length}
-                                        </span>
+
+                                        <div className={styles.editorActions}>
+                                            <button
+                                                className={styles.secondaryButton}
+                                                type="button"
+                                                onClick={handleReset}
+                                                disabled={selectedPrompt.source === "default" || isResetting || isSaving}
+                                            >
+                                                {isResetting ? "Resetting..." : "Reset to default"}
+                                            </button>
+                                            <button
+                                                className={styles.primaryButton}
+                                                type="button"
+                                                onClick={handleSave}
+                                                disabled={!isDirty || isSaving || isResetting}
+                                            >
+                                                {isSaving ? "Saving..." : "Save prompt"}
+                                            </button>
+                                        </div>
                                     </div>
 
-                                    <input
-                                        className={styles.searchInput}
-                                        type="search"
-                                        value={query}
-                                        onChange={event => setQuery(event.target.value)}
-                                        placeholder="Search chatbots"
-                                        aria-label="Search chatbot prompts"
+                                    <label className={styles.label} htmlFor="prompt-editor">
+                                        Raw prompt
+                                    </label>
+                                    <textarea
+                                        id="prompt-editor"
+                                        className={styles.textarea}
+                                        value={draftPrompt}
+                                        onChange={event => {
+                                            setDraftPrompt(event.target.value);
+                                            setStatus(undefined);
+                                        }}
+                                        spellCheck={false}
                                     />
 
-                                    <div className={styles.chatbotList}>
-                                        {filteredPrompts.length > 0 ? (
-                                            filteredPrompts.map(prompt => (
-                                                <button
-                                                    key={prompt.chatbotName}
-                                                    className={`${styles.chatbotButton} ${
-                                                        prompt.chatbotName === selectedChatbotName ? styles.chatbotButtonActive : ""
-                                                    }`}
-                                                    type="button"
-                                                    onClick={() => handleSelectChatbot(prompt.chatbotName)}
-                                                >
-                                                    <div className={styles.chatbotRow}>
-                                                        <strong className={styles.chatbotTitle}>
-                                                            {formatChatbotLabel(prompt.chatbotName)}
-                                                        </strong>
-                                                        <span
-                                                            className={`${styles.sourcePill} ${
-                                                                prompt.source === "override"
-                                                                    ? styles.sourceOverride
-                                                                    : styles.sourceDefault
-                                                            }`}
-                                                        >
-                                                            {prompt.source === "override" ? "Override" : "Default"}
-                                                        </span>
-                                                    </div>
-                                                            <span className={styles.chatbotMeta}>/{getChatbotRouteSegment(prompt.chatbotName)}</span>
-                                                </button>
-                                            ))
-                                        ) : (
-                                            <div className={styles.emptyState}>
-                                                <strong className={styles.emptyTitle}>No matching chatbots</strong>
-                                                <span className={styles.emptyText}>Try a different search term.</span>
-                                            </div>
-                                        )}
+                                    <div className={styles.helperRow}>
+                                        <span className={styles.helperText}>
+                                            Saved overrides are stored in private blob storage and applied on the next chat request.
+                                        </span>
+                                        <span className={styles.promptStats}>{draftPrompt.length} characters</span>
                                     </div>
-                                </aside>
-
-                                <section className={styles.editor}>
-                                    {selectedPrompt ? (
-                                        <>
-                                            <div className={styles.editorHeader}>
-                                                <div>
-                                                    <div className={styles.editorTitleRow}>
-                                                        <h2 className={styles.editorTitle}>
-                                                            {formatChatbotLabel(selectedPrompt.chatbotName)}
-                                                        </h2>
-                                                        <span
-                                                            className={`${styles.sourcePill} ${
-                                                                selectedPrompt.source === "override"
-                                                                    ? styles.sourceOverride
-                                                                    : styles.sourceDefault
-                                                            }`}
-                                                        >
-                                                            {selectedPrompt.source === "override" ? "Override" : "Default"}
-                                                        </span>
-                                                        {isDirty ? <span className={styles.dirtyPill}>Unsaved changes</span> : null}
-                                                    </div>
-                                                    <p className={styles.timestamp}>{formatTimestamp(selectedPrompt.updatedAt)}</p>
-                                                </div>
-
-                                                <div className={styles.editorActions}>
-                                                    <button
-                                                        className={styles.secondaryButton}
-                                                        type="button"
-                                                        onClick={handleReset}
-                                                        disabled={selectedPrompt.source === "default" || isResetting || isSaving}
-                                                    >
-                                                        {isResetting ? "Resetting..." : "Reset to default"}
-                                                    </button>
-                                                    <button
-                                                        className={styles.primaryButton}
-                                                        type="button"
-                                                        onClick={handleSave}
-                                                        disabled={!isDirty || isSaving || isResetting}
-                                                    >
-                                                        {isSaving ? "Saving..." : "Save prompt"}
-                                                    </button>
-                                                </div>
-                                            </div>
-
-                                            <label className={styles.label} htmlFor="prompt-editor">
-                                                Raw prompt
-                                            </label>
-                                            <textarea
-                                                id="prompt-editor"
-                                                className={styles.textarea}
-                                                value={draftPrompt}
-                                                onChange={event => {
-                                                    setDraftPrompt(event.target.value);
-                                                    setStatus(undefined);
-                                                }}
-                                                spellCheck={false}
-                                            />
-
-                                            <div className={styles.helperRow}>
-                                                <span className={styles.helperText}>
-                                                    Saved overrides are stored in private blob storage and applied on the next chat request.
-                                                </span>
-                                                <span className={styles.promptStats}>{draftPrompt.length} characters</span>
-                                            </div>
-                                        </>
-                                    ) : (
-                                        <div className={styles.emptyEditor}>
-                                            <strong className={styles.emptyTitle}>
-                                                {isLoading ? "Loading prompts..." : "No prompt selected"}
-                                            </strong>
-                                            <span className={styles.emptyText}>
-                                                {isLoading
-                                                    ? "Prompt data is loading from the backend."
-                                                    : "Choose a chatbot from the list to edit its prompt."}
-                                            </span>
-                                        </div>
-                                    )}
-                                </section>
-                            </div>
-                        </>
-                    )}
+                                </>
+                            ) : (
+                                <div className={styles.emptyEditor}>
+                                    <strong className={styles.emptyTitle}>{isLoading ? "Loading prompts..." : "No prompt selected"}</strong>
+                                    <span className={styles.emptyText}>
+                                        {isLoading ? "Prompt data is loading from the backend." : "Choose a chatbot from the list to edit its prompt."}
+                                    </span>
+                                </div>
+                            )}
+                        </section>
+                    </div>
                 </section>
             </section>
         </main>
@@ -535,4 +398,3 @@ const ManagePromptsPage = () => {
 };
 
 export default ManagePromptsPage;
-

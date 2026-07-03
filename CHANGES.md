@@ -17,6 +17,115 @@ Two categories per date:
 
 ## 2026-07-03
 
+### `/admin/uploads`: category combobox + wire fhg/moodle/publishone custom parsers into managed uploads
+
+#### Decisions
+
+- **Custom parsers must fire on manual uploads, not just the feed path.** `parse_file`
+  (`app/backend/prepdocslib/filestrategy.py`) — the function `CategoryUploadStrategy.add_file`
+  (the `/admin/uploads` → `/managed_uploads` path) calls — only dispatched to the HYROX (category
+  `lemon`) and snap (category `snap`) custom parsers. FHG JSON (`fhgjson.py`) and Moodle/PublishOne
+  XML (`publishonefeed.py`) were wired **only** into the Azure Function `moodle_auto_indexer`
+  (Event-Grid feed from `content/nerilio/Nerilio-*/`) and the `prep_fhg_json.py` CLI, so uploading
+  those via `/admin/uploads` silently fell back to the *generic* JSON/XML parser (generic chunking,
+  no first-class title/url, wrong ids). Now all four custom parsers dispatch on managed uploads.
+  Full custom-parser inventory verified: exactly these four — no bot under `approaches/chatbots/`
+  defines its own parser (bensberg uploads PDFs → generic PDF parser, correctly).
+- **Category-gated dispatch, mirroring hyrox/snap.** FHG fires only for `.json` on category `fhg`
+  that *looks like* an FHG payload (dict with a `documents` list) — else it returns `None` and falls
+  through to generic (same lenient pattern as snap's feed-marker check). Feed parser fires only for
+  `.xml` on category `moodle`/`publishone`. Section ids are deterministic and identical to the feed
+  path, so managed uploads and feed re-indexing overwrite the same search docs (idempotent). The two
+  ingestion paths still store the raw blob at different locations (`<category>/<file>` for managed
+  uploads vs `content/<category>/…` for the feed) and manage deletion independently; mixing both for
+  one category is an accepted edge case (managed delete keys on the manifest storageUrl).
+- **Upload category is a strict dropdown (no free typing).** Typos were the reported pain. A
+  dropdown-only `<select>` eliminates them, and it's safe here because this admin uploader targets
+  **built-in bots only** — provisioned/dynamic bots (whose `category == botName`, intentionally kept
+  out of `KNOWN_CHATBOT_NAMES`) receive their knowledge-base files from a **separate backend**, so
+  they don't belong in this list. Options = backend `KNOWN_CHATBOT_NAMES` (new `knownCategories`
+  field on the `/managed_uploads` GET response) merged with categories that already have uploads (a
+  safety net so any existing category stays reachable). An earlier draft used an editable
+  `<input list>`+`<datalist>` combobox and even enumerated dynamic bots via
+  `ChatbotRegistryStore.list_records()`; both were dropped once dynamic-bot uploads were confirmed
+  out of scope for this UI.
+
+#### Changes
+
+- `app/backend/prepdocslib/fhgjson.py` — added `load_fhg_payload` (utf-8-sig), `looks_like_fhg_payload`,
+  `prepare_fhg_sections` (prepared docs → `Section[]`), and `build_fhg_sections_if_applicable`.
+- `app/backend/prepdocslib/publishonefeed.py` — added `FEED_CATEGORIES` + async
+  `build_feed_sections_if_applicable` wrapper around `build_publishone_feed_sections`.
+- `app/backend/prepdocslib/filestrategy.py` — `parse_file` now dispatches to the FHG and feed
+  builders after hyrox/snap.
+- `app/backend/app.py` — `list_managed_uploads` returns `knownCategories` (`sorted(KNOWN_CHATBOT_NAMES)`
+  when `includeCategories`).
+- `app/frontend/src/pages/UploadFiles/uploadFilesApi.ts` — `knownCategories?: string[]` on the list
+  response type.
+- `app/frontend/src/pages/UploadFiles/UploadFilesPage.tsx` — Upload category is now a strict
+  `<select>` dropdown (placeholder + options merged from `knownCategories` + existing upload
+  categories); new `knownCategories` state (set/reset alongside `availableCategories`).
+- `python scripts/copy_prepdocslib.py` re-run to sync the three edited prepdocslib modules into the
+  four `app/functions/*/prepdocslib` copies.
+- Tests: `tests/test_prepdocslib_filestrategy.py` — added fhg + moodle/publishone dispatch tests
+  (and negative non-matching-category fallbacks); `tests/test_upload.py` — `knownCategories`
+  assertion on `test_list_managed_uploaded_files`.
+
+### Consolidate internal admin tools under a single `/admin` shell; delete `verwaltung`
+
+#### Decisions
+
+- **One password-gated `/admin` shell with tabs replaces four standalone admin pages.** `/chatbots`,
+  `/manage-prompts`, `/upload-files`, `/free-users` each re-implemented the *same* login gate + a
+  cross-link header and were only reachable by typing the URL. They are now tabs under one shell
+  (`/admin/chatbots`, `/admin/prompts`, `/admin/uploads`, `/admin/users`) plus `/admin/embed`. Auth
+  was already unified server-side (one `internal_tools_admin_session` cookie), so this is a
+  frontend-chrome/routing consolidation — **no backend auth change**.
+- **embed-demo stays backend-served; the Embed tab iframes it.** `app/backend/embed_demo.html` is
+  vanilla JS with working widget-injection + whitelist logic; rewriting it as React was higher risk
+  for no functional gain. `/admin/embed` iframes `/embed-demo` same-origin — it shares the cookie so
+  it auto-reveals (no second login). Confirmed no `X-Frame-Options`/`frame-ancestors` blocks it (the
+  only CSP `frame-ancestors` is set in `serve_spa_index`, which governs framing *of* the parent).
+- **Old URLs redirect client-side, not via server 301.** Backend keeps serving the SPA for the legacy
+  paths; React Router `<Navigate>` sends them to the matching `/admin/*` tab. Simplest correct option
+  for internal pages (no SEO concern) and bookmarks keep working.
+- **Nav/data-loss guards centralized in the shell.** Instead of per-page anchor intercepts, tabs
+  register a predicate into an `AdminShellContext` guard registry; the shell runs one React Router v7
+  `useBlocker` for all tab switches (sidesteps RR's single-active-blocker limit) and consults the same
+  registry before "Lock admin" logout. Prompts registers unsaved-edits, Uploads registers active-queue.
+- **`verwaltung` deleted entirely (superseded the earlier "keep separate" answer).** It was a
+  half-finished PHP-port with empty shells and *zero* backend wiring (grep-confirmed), plus a
+  customer-facing `PortalPage`; the user confirmed it is no longer needed.
+- **Kept each tab page's own `.page` background** rather than hoisting it into the shell — avoids a
+  CSS-custom-property (`--accent` etc.) inheritance rewrite across four modules and keeps each tab
+  pixel-identical to before. The shell only owns the login gate, sticky tab bar, and logout.
+
+#### Changes
+
+- Deleted `app/frontend/src/pages/verwaltung/` (13 files) and its imports/routes in
+  `app/frontend/src/index.tsx`; removed the `/verwaltung*` route and the `"verwaltung"` prefix in
+  `app/backend/app.py`.
+- `app/backend/app.py`: added `"admin"` to `NON_CHATBOT_FRONTEND_PREFIXES`; added `/admin` +
+  `/admin/` + `/admin/<path:subpath>` SPA-serving route (`admin_page`).
+- New `app/frontend/src/pages/admin/`: `AdminLayout.tsx` (shell: gate + tab bar + logout +
+  `useBlocker` guard), `AdminLayout.module.css`, `AdminShellContext.tsx` (auth + guard registry),
+  `EmbedDemoTab.tsx` (iframe), `index.ts` (barrel).
+- `app/frontend/src/index.tsx`: added the nested `/admin` route (5 tab children + index redirect to
+  `/admin/chatbots`) and turned the five legacy paths into `<Navigate>` redirects.
+- Refactored the four page components (`ChatbotDirectory`, `ManagePromptsPage`, `UploadFilesPage`,
+  `FreeUsersPage`): removed their inline login gate, header cross-links, and Lock button; they now
+  consume `AdminShellContext` (`handleUnauthorizedError`, guard registration) and render content only.
+- `app/frontend/src/pages/admin/AdminLayout.module.css`: made the admin top bar mobile-responsive.
+  The single "brand | tabs | Lock admin" flex row jumbled on phones; now below 900px it stacks into
+  two rows (brand + Lock admin on top via `order`/`margin-left:auto`, the tab strip on its own
+  full-width row that wraps its pills), with a compact tweak under 480px. Verified 320–1280px:
+  zero horizontal overflow, all tabs in-bounds, tabs below the brand row on mobile.
+- `app/backend/embed_demo.html`: hide its own "Lock page" button (and row) when framed
+  (`window.self !== window.top`) — inside the `/admin/embed` tab the shell's "Lock admin" owns
+  logout, and logging out from the iframe would clear the session but only reload the iframe,
+  leaving the shell looking authenticated. Standalone `/embed-demo` still shows it.
+- Updated `CLAUDE.md` (admin-auth contract bullet + embed bullet) to describe the `/admin` shell.
+
 ### snap bot: stop stale page-URL "citations" rendering as raw text on reaffirmation turns
 
 #### Decisions

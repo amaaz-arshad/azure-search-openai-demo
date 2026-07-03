@@ -13,10 +13,12 @@ from pypdf import PdfReader
 from .blobmanager import AdlsBlobManager, BaseBlobManager, BlobManager
 from .embeddings import ImageEmbeddings, OpenAIEmbeddings
 from .figureprocessor import FigureProcessor, MediaDescriptionStrategy, process_page_image
+from .fhgjson import build_fhg_sections_if_applicable
 from .fileprocessor import FileProcessor
 from .hyroxjson import build_hyrox_sections_if_applicable
 from .listfilestrategy import File, ListFileStrategy
 from .mediadescriber import ContentUnderstandingDescriber
+from .publishonefeed import build_feed_sections_if_applicable
 from .searchmanager import SearchManager, Section
 from .snapjson import build_snap_sections_if_applicable
 from .strategy import DocumentAction, SearchInfo, Strategy
@@ -78,6 +80,23 @@ async def parse_file(
     )
     if snap_sections is not None:
         return snap_sections
+
+    fhg_sections = await build_fhg_sections_if_applicable(
+        file=file,
+        category=category,
+        check_cancel=check_cancel,
+    )
+    if fhg_sections is not None:
+        return fhg_sections
+
+    feed_sections = await build_feed_sections_if_applicable(
+        file=file,
+        file_processors=file_processors,
+        category=category,
+        check_cancel=check_cancel,
+    )
+    if feed_sections is not None:
+        return feed_sections
 
     processor = file_processors.get(key)
     if processor is None:

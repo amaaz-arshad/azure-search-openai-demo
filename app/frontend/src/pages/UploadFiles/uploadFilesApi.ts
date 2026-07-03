@@ -19,6 +19,7 @@ export type ManagedUploadListResponse = {
     files: ManagedUploadEntry[];
     categories: string[];
     categoryCounts: Record<string, number>;
+    knownCategories?: string[];
     totalCount: number;
     totalAllCount?: number | null;
     page: number;

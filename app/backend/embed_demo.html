@@ -283,6 +283,17 @@
       var gateError = document.getElementById("gateError");
       var lockBtn = document.getElementById("lockBtn");
 
+      // When hosted inside the /admin shell (the "Embed demo" tab iframes this page), the shell's own
+      // "Lock admin" button owns logout. Logging out from inside the iframe would clear the shared
+      // session but only reload the iframe, leaving the shell looking authenticated — so hide the
+      // standalone "Lock page" button (and its row) when framed. Comparing window references is safe
+      // even cross-origin, and this survives the ?bot= reloads (the iframe stays an iframe).
+      var isFramed = window.self !== window.top;
+      if (isFramed && lockBtn) {
+        var lockRow = lockBtn.closest(".headerRow") || lockBtn;
+        lockRow.hidden = true;
+      }
+
       var select = document.getElementById("botSelect");
       var snippetEl = document.getElementById("snippet");
       var copyBtn = document.getElementById("copyBtn");

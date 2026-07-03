@@ -700,6 +700,37 @@ async def test_manage_prompts_spa_route(client):
 
 
 @pytest.mark.asyncio
+async def test_admin_spa_route(client):
+    response = await client.get("/admin")
+    assert response.status_code == 200
+    assert response.content_type.startswith("text/html")
+
+
+@pytest.mark.asyncio
+async def test_admin_subpath_spa_route(client):
+    # Deep links into a tab must serve index.html so the React router can mount that tab.
+    response = await client.get("/admin/prompts")
+    assert response.status_code == 200
+    assert response.content_type.startswith("text/html")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("path", ["/chatbots", "/upload-files", "/free-users", "/manage-prompts"])
+async def test_legacy_admin_routes_still_serve_spa(client, path):
+    # Legacy admin URLs keep serving the SPA; the frontend then redirects them into the /admin tabs.
+    response = await client.get(path)
+    assert response.status_code == 200
+    assert response.content_type.startswith("text/html")
+
+
+def test_admin_is_reserved_non_chatbot_prefix():
+    # "admin" must be reserved so the /<chatbot_name> catch-all and dynamic-bot provisioning can't
+    # take it; the removed verwaltung mini-app must no longer be reserved.
+    assert "admin" in app.NON_CHATBOT_FRONTEND_PREFIXES
+    assert "verwaltung" not in app.NON_CHATBOT_FRONTEND_PREFIXES
+
+
+@pytest.mark.asyncio
 async def test_widget_loader_served_with_short_cache(client):
     response = await client.get("/widget.js")
     assert response.status_code == 200
@@ -892,6 +923,7 @@ def test_chat_history_scope_marks_internal_admin_routes_as_non_chatbot():
     chat_history_scope = (
         Path(app.__file__).resolve().parent.parent / "frontend" / "src" / "chatHistoryScope.ts"
     ).read_text(encoding="utf-8")
+    assert '"admin"' in chat_history_scope
     assert '"free-users"' in chat_history_scope
     assert '"public-test-users"' in chat_history_scope
     assert '"manage-prompts"' in chat_history_scope
