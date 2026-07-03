@@ -1,11 +1,13 @@
-"""Parser for the snap.de website feed (data/snap.json).
+"""Parser for the snap.de + nerilio.ai website feed (data/snap.json).
 
-The feed is a single JSON object scraped from the snap.de WordPress REST API by
-``scripts/scrape_snap.py``. Each record is one snap.de page or news post with a
-first-class ``title`` and live ``url`` so citations link back to the public page
-instead of a storage blob. The feed is ingested into Azure AI Search under
-category ``snap`` either by uploading ``snap.json`` through the admin managed-file
-uploader (which routes here via ``build_snap_sections_if_applicable``).
+The feed is a single JSON object scraped by ``scripts/scrape_snap.py``: snap.de
+pages/posts via the WordPress REST API plus nerilio.ai pages via a sitemap crawl
+(their record ids are prefixed ``nerilio-``), and one dedicated header/footer
+site-info document per site. Each record has a first-class ``title`` and live
+``url`` so citations link back to the public page instead of a storage blob. The
+feed keeps the ``"feed": "snap.de"`` marker and is ingested into Azure AI Search
+under category ``snap`` either by uploading ``snap.json`` through the admin
+managed-file uploader (which routes here via ``build_snap_sections_if_applicable``).
 
 Shape::
 

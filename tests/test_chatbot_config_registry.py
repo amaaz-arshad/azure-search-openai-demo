@@ -14,15 +14,15 @@ def test_chatbot_config_registry_loads_known_configs() -> None:
 
     nerilio = get_chatbot_config("nerilio")
     assert nerilio is not None
-    assert nerilio.chatgpt_model == "gpt-4.1-mini"
-    assert nerilio.chatgpt_deployment == "gpt-4.1-mini"
+    assert nerilio.chatgpt_model == "gpt-4.1"
+    assert nerilio.chatgpt_deployment == "gpt-4.1"
     assert nerilio.reasoning_effort is None
     assert nerilio.support_email == "hallo@nerilio.ai"
     assert nerilio.prompt_mode == "override"
 
     snap = get_chatbot_config("snap")
     assert snap is not None
-    assert snap.chatgpt_model == "gpt-4.1-mini"
+    assert snap.chatgpt_model == "gpt-4.1"
     assert snap.support_email == "info@snap.de"
     assert snap.citation_target == "url"
     assert snap.prompt_mode == "override"

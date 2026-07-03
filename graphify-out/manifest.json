@@ -6015,8 +6015,8 @@
     "semantic_hash": "77ec55ea90a84f95635bc9985e49b57a"
   },
   "CLAUDE.md": {
-    "mtime": 1783010068.3750403,
-    "ast_hash": "e508783a46b90de83968a0f802e84bd5",
+    "mtime": 1783028056.0551322,
+    "ast_hash": "89f9dab590d44d22e3fac00cb92120ac",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -8580,13 +8580,13 @@
     "semantic_hash": ""
   },
   "app/backend/prepdocslib/snapjson.py": {
-    "mtime": 1782444876.0182593,
-    "ast_hash": "1b18755c260ddc807f65d837024d126b",
+    "mtime": 1783027933.5078392,
+    "ast_hash": "de4a09c3a5968555ccbb6fb954ea8859",
     "semantic_hash": ""
   },
   "app/backend/refresh_snap.py": {
-    "mtime": 1782444876.0182593,
-    "ast_hash": "f63bd71b4f9627f6fbfeeee22ccf9496",
+    "mtime": 1783027933.5141156,
+    "ast_hash": "eac5470c56ab28027dac16adf340c2d1",
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/snap/api/index.ts": {
@@ -8930,8 +8930,8 @@
     "semantic_hash": ""
   },
   "scripts/scrape_snap.py": {
-    "mtime": 1782444876.1267133,
-    "ast_hash": "d592761735ca0c7330c67be343b3ac5a",
+    "mtime": 1783046973.050946,
+    "ast_hash": "ae3251bc725bd048164836b018a282e9",
     "semantic_hash": ""
   },
   "tests/test_snapjson.py": {
@@ -9537,6 +9537,21 @@
   "app/frontend/src/chatbots/cbtx/vite-env.d.ts": {
     "mtime": 1783019787.575367,
     "ast_hash": "8f68c27c3fc38817b2726b20e2d4f1ee",
+    "semantic_hash": ""
+  },
+  "data/snap.json": {
+    "mtime": 1783047078.7118795,
+    "ast_hash": "3ebc272c613110a1236c196921ceb17e",
+    "semantic_hash": ""
+  },
+  "data/snap.state.json": {
+    "mtime": 1783047113.5460448,
+    "ast_hash": "80a9489b8d703f75ce48961bad878b60",
+    "semantic_hash": ""
+  },
+  "tests/test_scrape_snap.py": {
+    "mtime": 1783047025.9539087,
+    "ast_hash": "6f353fa34ce822c4b9f97957a415f69c",
     "semantic_hash": ""
   }
 }

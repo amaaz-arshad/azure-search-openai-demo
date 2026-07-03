@@ -15,6 +15,138 @@ Two categories per date:
 
 ---
 
+## 2026-07-03
+
+### Upgrade `snap` and `nerilio` bots from `gpt-4.1-mini` to `gpt-4.1`
+
+#### Decisions
+
+- **Scope: the two Q&A bots that were the only ones still on `gpt-4.1-mini`.** `snap` and `nerilio` were the
+  sole entries in `registry.ts` (and the only per-bot `config.py` files) pinned to `gpt-4.1-mini`; every other
+  bot already runs `gpt-4.1` (8 bots) or `gpt-5.4-mini` (tutor/assessment). `gpt-4.1` is a deployed model in the
+  active nerilio resource, so the deployment name `gpt-4.1` is valid as-is — no infra change needed.
+- **Left `DEFAULT_DEVELOPER_CHAT_MODEL = "gpt-4.1-mini"` and the `DEVELOPER_CHAT_MODELS` list in `app.py`
+  untouched.** Those govern the developer-settings model dropdown default/options, not a bot's runtime model;
+  both `snap` and `nerilio` set their model explicitly in `config.py`, so the global default never applied to
+  them. Out of scope for "upgrade the bots".
+
+#### Changes
+
+- `app/backend/approaches/chatbots/snap/config.py` — `chatgpt_model`/`chatgpt_deployment` → `gpt-4.1`.
+- `app/backend/approaches/chatbots/nerilio/config.py` — `chatgpt_model`/`chatgpt_deployment` → `gpt-4.1`.
+- `app/frontend/src/chatbots/registry.ts` — `nerilio` and `snap` `llm` metadata → `gpt-4.1`.
+- `tests/test_chatbot_config_registry.py` — updated `snap`/`nerilio` model+deployment assertions to `gpt-4.1`
+  (5 tests pass).
+
+### snap bot: inline `nerilio` product-name link when describing the SNAP AI Chatbot
+
+#### Decisions
+
+- **The change goes in the prompt, not the data.** The sentence the user quoted ("Der SNAP AI Chatbot ist eine
+  von SNAP entwickelte KI-Lösung, die auf der sogenannten RAG-Technologie … basiert") is model-generated at
+  runtime — it is *not* stored verbatim anywhere. The closest source is the `snap-ai-chatbot-mit-rag-technologie`
+  news article in `data/snap.json`, which only says "Der SNAP AI Chatbot basiert auf RAG". Editing `snap.json`
+  would be pointless: it is fully regenerated on every `refresh_snap.py` run. So the durable fix is a rule in the
+  snap system prompt.
+- **Grounded, not invented.** The `https://nerilio.ai/` link is well-supported by the provided materials (the
+  "Neu im Portfolio: nerilio" article links `nerilio.ai` twice), so the new rule stays inside the prompt's
+  "use only the provided materials / do not invent sources" contract.
+- **User choices:** link target is the locale-neutral `https://nerilio.ai/` (redirects to the visitor's
+  language, safe across the bot's de/en/nl answers); the linked `nerilio` name is added on the **first mention
+  only** per response, plain text afterwards, to read naturally. The rule applies only to SNAP's own
+  chatbot/assistant, never to the third-party portfolio tools.
+
+- **Live prompt precedence matters for this change to show.** `apply_saved_chatbot_prompt_override`
+  (`app/backend/app.py`) resolves the snap prompt as client `prompt_template` → dynamic registry → **saved blob
+  override** (`ChatbotPromptStore`, editable via `/manage-prompts`) → `sampleprompt.py` default. So if a saved
+  override exists for `snap`, editing `sampleprompt.py` is inert until the override is reset or the same rule is
+  added there. Otherwise the change needs a backend restart / `azd deploy` (SAMPLE_PROMPT loads at startup).
+- **Wording hardened + made language-agnostic.** The first softly-worded, German-only-example version dropped the
+  link on English answers. Rewrote it with de/en/nl examples and an explicit note that the `[nerilio](…)`
+  hyperlink is a Markdown link, *not* a `[source]` citation (the prompt heavily trains "square brackets =
+  citation", which discouraged the link).
+- **Root cause was retrieval-dependence, not just wording.** Two identical "What is the SNAP AI Chatbot?" tests
+  behaved differently: one retrieved the *"Neu im Portfolio: nerilio"* launch article and named nerilio, the other
+  retrieved only the *Made-in-Hamburg / RAG / e-learning* articles and did **not** — because the source-only rule
+  ("never rely on outside knowledge") forbids injecting nerilio when its source chunk isn't retrieved. Fix: made
+  the nerilio identity a **standing brand fact** in *Source and Knowledge Restrictions* — the single documented
+  exception to the source-only rule, needing no citation — so the linking rule fires on every answer that
+  describes SNAP's own chatbot regardless of what search returns. The exception is scoped strictly to naming the
+  product nerilio and linking its site; all other claims still require sources.
+- **Frontend rendering was never the blocker** (verified): snap uses the shared `ChatbotAnswer` (ReactMarkdown),
+  whose `a` renderer allows `https://` hrefs, and `parseAnswerToMarkdown` leaves `[nerilio](https://nerilio.ai/)`
+  intact (no snap citation ends with `nerilio`), so the link renders as a real anchor once the model emits it.
+
+#### Changes
+
+- `app/backend/approaches/chatbots/snap/sampleprompt.py`:
+  - Added the nerilio identity as an **approved standing fact** under *Source and Knowledge Restrictions* (the one
+    exception to the source-only rule, no citation required) so the branding is retrieval-independent.
+  - Rewrote the *Company, Tool and Service Answer Rules* bullet: on every answer that describes/names SNAP's own
+    chatbot, introduce it with product name and turn `nerilio` into a Markdown link to `https://nerilio.ai/` on
+    first mention (de/en/nl examples; clarified link ≠ citation; fires even when sources omit nerilio).
+  - Added item 6 to the **Final Reminder** checklist to reinforce compliance.
+
+### snap pipeline: header/footer scraping + nerilio.ai as a second source in category `snap`
+
+#### Decisions
+
+- **Header/footer become one dedicated site-info document per site** (`website-header-footer`,
+  `nerilio-website-header-footer`) instead of being appended to every page — confirmed with the user. The WP REST
+  API used for snap.de bodies returns no theme chrome, which is why the footer (both office addresses, phone/fax,
+  info@snap.de, legal links) was missing from the index; it is now scraped from the rendered homepage
+  (`<header id="main-header">` + Divi theme-builder `<footer>`).
+- **nerilio.ai is scraped as rendered HTML, not WP-API** — it is a pre-rendered static React site on Apache with no
+  WordPress. Its `sitemap.xml` (7 URLs: DE/EN home + FAQ, German-only Datenschutz/Impressum/AGB) is the
+  authoritative page list; same-site link discovery is only a safety net because navigation is client-side (almost
+  no `<a href>`s). An **empty sitemap is fatal** — crawling blind would produce a near-empty feed that the
+  delete+reindex would mirror into the index.
+- **FAQ answers come from schema.org FAQPage JSON-LD**: the visible accordion DOM contains only the questions; the
+  full answers exist exclusively in the structured-data script. `@type` arrays (`["FAQPage","WebPage"]`) are
+  accepted.
+- **Both sites share one feed + category** (user requirement): `data/snap.json` keeps `"feed": "snap.de"` so the
+  parser/managed-upload routing is untouched; nerilio record ids are prefixed `nerilio-` and `merge_documents`
+  fails hard on any id collision.
+- **Change detection is per-site, either triggers the full refresh** (user requirement): snap.de keeps the WP
+  watermark plus a new hash of the extracted homepage chrome markdown (theme edits never bump pages/posts);
+  nerilio.ai uses sitemap + per-page HEAD `Last-Modified`/`ETag` (Apache static files; verified stable across
+  consecutive fetches). Old single-site state files simply read as "changed" once.
+- **Failure contract hardened after adversarial review** (a workflow reproduced the failure offline): per-page
+  nerilio fetch errors were originally warn-and-skip, meaning a partial outage (e.g. 5 of 7 pages 503) would pass
+  the weak guards and the destructive delete+reindex would silently wipe those pages — and the HEAD-status flip in
+  the watermark is exactly what would trigger that refresh. Now **only 404/410 drops a page** (index mirrors the
+  live site); any other failure (5xx/network) raises and aborts before the delete. Also from review: off-site
+  redirect targets are dropped (a parked-domain 301 would otherwise be indexed under a nerilio id),
+  `clean_inline` no longer eats literal `[bracketed]` prose in non-WP titles/FAQ text, and the crawl cap
+  (`MAX_CRAWL_PAGES`, now fatal when genuinely hit) ignores duplicate queue entries.
+- Change detection intentionally covers only sitemap-listed pages; a change on a hypothetical non-sitemap page
+  would not trigger a refresh (none exist today).
+
+#### Changes
+
+- `scripts/scrape_snap.py`: rendered-HTML helpers (`fetch_text`, `fetch_head`, `extract_body`,
+  `extract_tag_blocks`, `extract_site_chrome`, `extract_html_title`, `extract_internal_links`,
+  `parse_sitemap_urls`, `extract_faq_pairs`); `scrape_nerilio` crawl + `build_nerilio_document` +
+  per-site chrome documents; `scrape()` orchestrates both sites with hard per-site guards and
+  `merge_documents`; `fetch_remote_state` now returns `{"snap": {..., chrome_hash}, "nerilio": {sitemap, pages}}`;
+  extractor gains `exclude_tags`/`strip_shortcodes` options, skips `noscript`, strips soft hyphens + Divi
+  icon-font PUA glyphs, spaces out linkless anchors/buttons, and rewrites empty `[](url)` links to bare URLs
+  (image tokens protected); feed output gains `sources` and a `--nerilio-base-url` flag.
+- `app/backend/refresh_snap.py`: dual-site change check with per-site logging, `--nerilio-base-url`,
+  scraper invocation passes both URLs, `load_scraped_payload` refuses the destructive step unless both sites
+  contributed documents; docstrings updated.
+- `app/backend/prepdocslib/snapjson.py`: docstring only (dual-site feed description); functions copies synced via
+  `scripts/copy_prepdocslib.py`.
+- `tests/test_scrape_snap.py` (new, 33 tests): chrome extraction, exclusions, glyph/soft-hyphen cleanup, sitemap
+  parsing, link discovery, FAQ JSON-LD (incl. `@type` arrays, bad JSON, dedupe), id/tags, HTTP-date parsing,
+  merge collisions, watermark composition, crawl failure contract (503/URLError abort, 404 drops, off-site
+  redirect drops, empty sitemap aborts, cap vs duplicates), and `refresh_snap` payload validation.
+- `CLAUDE.md`: snap refresh bullet rewritten for the dual-site pipeline.
+- Ran the live pipeline (`refresh_snap.py --force`): 52 documents scraped (44 snap.de incl. chrome doc, 8
+  nerilio.ai), category `snap` reindexed to 138 chunks; verified in Azure AI Search that the contact-data probe
+  returns both chrome docs and "Was ist nerilio" returns the FAQ answers; `--check-only` afterwards reports
+  UP-TO-DATE for both sites.
+
 ## 2026-07-02
 
 ### snap bot UI: SNAP wordmark in navbar + disclaimer moved under the composer
