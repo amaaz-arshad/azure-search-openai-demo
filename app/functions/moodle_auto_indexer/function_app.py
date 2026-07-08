@@ -4,6 +4,11 @@ Azure Function: external feed auto indexer.
 Watches external drop folders inside blob storage, copies supported files into
 chatbot-owned folders such as `content/moodle/` and `content/publishone/`, and
 indexes them into Azure AI Search under the corresponding chatbot category.
+
+Also hosts the `content2` dynamic multi-bot indexer: it watches the whole
+`content2` container (layout `content2/<bot_name>/<file>`), derives the search
+category from the per-bot folder, parses files with the generic parsers only,
+and indexes them in place without mirroring into `content`.
 """
 
 import json
@@ -89,6 +94,21 @@ FEED_DEFINITIONS = {
     ),
 }
 
+# --- content2 dynamic multi-bot indexer -------------------------------------------------------
+# Provisioned ("generic") chatbots receive their knowledge-base files in a dedicated `content2`
+# container, one folder per bot: content2/<bot_name>/<file>. Unlike the feeds above this indexer:
+#   * watches the whole content2 container (no fixed source prefix),
+#   * derives the search category dynamically from the <bot_name> folder,
+#   * never mirrors into `content` (files are indexed in place; storageUrl points at content2),
+#   * parses every file with the generic extension-based parsers only (no custom feed parsers).
+# One event-subscription pair covers all bots; a brand-new bot folder "just works" with no config.
+CONTENT2_FEED_NAME = "content2"
+CONTENT2_CONTAINER = os.getenv("CONTENT2_AUTO_INDEX_CONTAINER", "content2")
+# Local-parseable generic extensions (Document Intelligence is not wired into this function app,
+# so Office/image formats are intentionally out of scope). is_supported() further intersects this
+# with the actually-available file_processors.
+CONTENT2_DEFAULT_EXTENSIONS = (".pdf", ".html", ".txt", ".md", ".csv", ".json", ".xml")
+
 
 @dataclass
 class GlobalSettings:
@@ -173,6 +193,49 @@ def build_auto_indexer(
         ),
         file_processors=file_processors,
         section_builder=build_fhg_json_sections if feed.name == "fhg" else build_publishone_feed_sections,
+    )
+
+
+def build_content2_auto_indexer(
+    *,
+    blob_manager,
+    search_info,
+    embeddings,
+    embedding_field_name: str,
+    file_processors,
+) -> AutoBlobIndexer:
+    allowed_extensions = parse_allowed_extensions(
+        os.getenv("CONTENT2_AUTO_INDEX_ALLOWED_EXTENSIONS"),
+        CONTENT2_DEFAULT_EXTENSIONS,
+    )
+
+    return AutoBlobIndexer(
+        config=AutoBlobIndexerConfig(
+            trigger_container=CONTENT2_CONTAINER,
+            source_prefix="",
+            target_prefix="",
+            category="",
+            allowed_extensions=allowed_extensions,
+            manage_search_index=False,
+            remove_by_storage_url=False,
+            source_container=CONTENT2_CONTAINER,
+            mirror_blob=False,
+            dynamic_category_from_path=True,
+            force_generic_parsing=True,
+        ),
+        blob_manager=blob_manager,
+        search_manager=SearchManager(
+            search_info=search_info,
+            search_analyzer_name=os.getenv("AZURE_SEARCH_ANALYZER_NAME"),
+            use_acls=False,
+            use_parent_index_projection=False,
+            embeddings=embeddings,
+            field_name_embedding=embedding_field_name,
+            search_images=False,
+            enforce_access_control=False,
+        ),
+        file_processors=file_processors,
+        section_builder=None,
     )
 
 
@@ -300,6 +363,13 @@ def configure_global_settings() -> None:
         )
         for feed_name, feed in FEED_DEFINITIONS.items()
     }
+    auto_indexers[CONTENT2_FEED_NAME] = build_content2_auto_indexer(
+        blob_manager=blob_manager,
+        search_info=search_info,
+        embeddings=embeddings,
+        embedding_field_name=embedding_field_name,
+        file_processors=file_processors,
+    )
     settings = GlobalSettings(auto_indexers=auto_indexers)
 
 
@@ -360,6 +430,26 @@ async def fhg_delete_sync(event: func.EventGridEvent) -> None:
         await handle_delete_event(event, "fhg")
     except Exception:
         logger.exception("Unhandled exception in fhg_delete_sync")
+        raise
+
+
+@app.function_name(name="content2_auto_index")
+@app.event_grid_trigger(arg_name="event")
+async def content2_auto_index(event: func.EventGridEvent) -> None:
+    try:
+        await handle_create_event(event, CONTENT2_FEED_NAME)
+    except Exception:
+        logger.exception("Unhandled exception in content2_auto_index")
+        raise
+
+
+@app.function_name(name="content2_delete_sync")
+@app.event_grid_trigger(arg_name="event")
+async def content2_delete_sync(event: func.EventGridEvent) -> None:
+    try:
+        await handle_delete_event(event, CONTENT2_FEED_NAME)
+    except Exception:
+        logger.exception("Unhandled exception in content2_delete_sync")
         raise
 
 

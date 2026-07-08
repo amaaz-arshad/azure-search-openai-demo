@@ -282,3 +282,41 @@ async def test_content_file_infers_category_from_referer(monkeypatch, client):
     assert response.headers["Content-Type"] == "application/pdf"
     assert await response.get_data() == b"category content"
     assert requested_paths[0] == "knoll/role_library.pdf"
+
+
+@pytest.mark.asyncio
+async def test_content2_file_found(monkeypatch, client):
+    quart_app = client.app
+
+    requested = []
+
+    async def mock_download_blob(path: str, user_oid=None, container=None):
+        requested.append((path, container))
+        if path == "bxa/faq.pdf" and container == "content2":
+            return (
+                b"content2 doc",
+                {"content_settings": {"content_type": "application/pdf"}},
+            )
+        return None
+
+    monkeypatch.setattr(quart_app.config[app.CONFIG_GLOBAL_BLOB_MANAGER], "download_blob", mock_download_blob)
+
+    response = await client.get("/content2/bxa/faq.pdf")
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/pdf"
+    assert await response.get_data() == b"content2 doc"
+    # Served from the dedicated content2 container, keyed by <bot>/<file>.
+    assert requested == [("bxa/faq.pdf", "content2")]
+
+
+@pytest.mark.asyncio
+async def test_content2_file_notfound(monkeypatch, client):
+    quart_app = client.app
+
+    async def mock_download_blob(path: str, user_oid=None, container=None):
+        return None
+
+    monkeypatch.setattr(quart_app.config[app.CONFIG_GLOBAL_BLOB_MANAGER], "download_blob", mock_download_blob)
+
+    response = await client.get("/content2/bxa/missing.pdf")
+    assert response.status_code == 404

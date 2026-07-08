@@ -10,6 +10,9 @@ class MockBlobManager:
         self.uploads: list[dict[str, Any]] = []
         self.removals: list[str] = []
         self.downloads: dict[str, tuple[bytes, dict[str, Any]]] = {}
+        self.download_calls: list[tuple[str, str | None]] = []
+        self.endpoint = "https://storage.example.com"
+        self.container = "content"
 
     async def upload_blob_data(self, file, blob_name: str, content_type: str | None = None) -> str:
         self.uploads.append(
@@ -25,7 +28,8 @@ class MockBlobManager:
     async def remove_blob_name(self, blob_name: str) -> None:
         self.removals.append(blob_name)
 
-    async def download_blob(self, blob_name: str):
+    async def download_blob(self, blob_name: str, container: str | None = None):
+        self.download_calls.append((blob_name, container))
         return self.downloads.get(blob_name)
 
     def url_for_blob_name(self, blob_name: str) -> str:
@@ -387,3 +391,126 @@ async def test_auto_blob_indexer_delete_can_remove_by_storage_url_for_custom_sou
         }
     ]
     assert blob_manager.removals == ["fhg/fhg.json"]
+
+
+def make_content2_indexer(blob_manager, search_manager, file_processors=None) -> AutoBlobIndexer:
+    """A content2 dynamic indexer: whole-container watch, per-bot category, no mirror, generic only."""
+    return AutoBlobIndexer(
+        config=AutoBlobIndexerConfig(
+            trigger_container="content2",
+            source_prefix="",
+            target_prefix="",
+            category="",
+            allowed_extensions=frozenset({".pdf", ".txt", ".json"}),
+            manage_search_index=False,
+            source_container="content2",
+            mirror_blob=False,
+            dynamic_category_from_path=True,
+            force_generic_parsing=True,
+        ),
+        blob_manager=blob_manager,
+        search_manager=search_manager,
+        file_processors=file_processors or {".pdf": object(), ".txt": object(), ".json": object()},
+    )
+
+
+@pytest.mark.asyncio
+async def test_content2_indexer_indexes_in_place_without_mirror(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, Any] = {}
+    sections = [object()]
+
+    async def fake_parse_file(*args, **kwargs):
+        captured.update(kwargs)
+        return sections
+
+    monkeypatch.setattr("prepdocslib.blobautoindex.parse_file", fake_parse_file)
+
+    blob_manager = MockBlobManager()
+    search_manager = MockSearchManager()
+    indexer = make_content2_indexer(blob_manager, search_manager)
+
+    result = await indexer.index_blob(
+        blob_name="content2/bxa/faq.pdf",
+        content=b"%PDF-1.4",
+        content_type="application/pdf",
+    )
+
+    assert result.status == "indexed"
+    # Category is derived from the per-bot folder and generic parsing is forced.
+    assert captured["category"] == "bxa"
+    assert captured["force_generic"] is True
+    # No mirror copy into the `content` container.
+    assert blob_manager.uploads == []
+    assert result.target_blob_name is None
+    # storageUrl points at the in-place content2 source blob.
+    assert result.storage_url == "https://storage.example.com/content2/bxa/faq.pdf"
+    assert search_manager.updates[0]["url"] == "https://storage.example.com/content2/bxa/faq.pdf"
+    # Stale docs for the file are purged by exact source storageUrl within the bot category.
+    assert search_manager.removals == [
+        {"path": None, "category": "bxa", "storage_url": "https://storage.example.com/content2/bxa/faq.pdf"}
+    ]
+
+
+@pytest.mark.asyncio
+async def test_content2_indexer_skips_blob_without_bot_folder(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def fake_parse_file(*args, **kwargs):
+        raise AssertionError("parse_file should not be called for a blob without a bot folder")
+
+    monkeypatch.setattr("prepdocslib.blobautoindex.parse_file", fake_parse_file)
+
+    blob_manager = MockBlobManager()
+    search_manager = MockSearchManager()
+    indexer = make_content2_indexer(blob_manager, search_manager)
+
+    result = await indexer.index_blob(
+        blob_name="content2/orphan.pdf",
+        content=b"%PDF",
+        content_type="application/pdf",
+    )
+
+    assert result.status == "skipped-no-category"
+    assert search_manager.updates == []
+    assert search_manager.removals == []
+    assert blob_manager.uploads == []
+
+
+@pytest.mark.asyncio
+async def test_content2_indexer_delete_purges_docs_without_deleting_blob() -> None:
+    blob_manager = MockBlobManager()
+    search_manager = MockSearchManager()
+    indexer = make_content2_indexer(blob_manager, search_manager)
+
+    result = await indexer.delete_blob(blob_name="content2/bxa/faq.pdf")
+
+    assert result.status == "deleted"
+    assert search_manager.removals == [
+        {"path": None, "category": "bxa", "storage_url": "https://storage.example.com/content2/bxa/faq.pdf"}
+    ]
+    # Nothing was ever mirrored into `content`, so no blob is deleted here.
+    assert blob_manager.removals == []
+
+
+@pytest.mark.asyncio
+async def test_content2_indexer_from_storage_reads_source_container(monkeypatch: pytest.MonkeyPatch) -> None:
+    sections = [object()]
+
+    async def fake_parse_file(*args, **kwargs):
+        return sections
+
+    monkeypatch.setattr("prepdocslib.blobautoindex.parse_file", fake_parse_file)
+
+    blob_manager = MockBlobManager()
+    blob_manager.downloads["bxa/guide.txt"] = (
+        b"hello world",
+        {"content_settings": {"content_type": "text/plain"}},
+    )
+    search_manager = MockSearchManager()
+    indexer = make_content2_indexer(blob_manager, search_manager)
+
+    result = await indexer.index_blob_from_storage(blob_name="content2/bxa/guide.txt")
+
+    assert result.status == "indexed"
+    # The download is scoped to the content2 source container, not the default `content`.
+    assert blob_manager.download_calls == [("bxa/guide.txt", "content2")]
+    assert blob_manager.uploads == []
+    assert result.storage_url == "https://storage.example.com/content2/bxa/guide.txt"

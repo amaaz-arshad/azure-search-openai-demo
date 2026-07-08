@@ -291,6 +291,61 @@ async def test_parse_file_keeps_feed_xml_generic_for_non_feed_category():
 
 
 @pytest.mark.asyncio
+async def test_parse_file_force_generic_bypasses_hyrox_custom_parser():
+    # Same HYROX-shaped JSON + category "lemon" that WOULD hit the custom HYROX mapping,
+    # but force_generic keeps it on the plain JsonParser (used by the content2 indexer).
+    file = File(content=build_hyrox_stream())
+
+    sections = await parse_file(
+        file,
+        {".json": FileProcessor(JsonParser(), SimpleTextSplitter())},
+        category="lemon",
+        force_generic=True,
+    )
+
+    assert len(sections) == 1
+    assert sections[0].sourcepage is None
+    assert sections[0].title is None
+    assert '"lms_id": "17818"' in sections[0].chunk.text
+    assert "ignored summary" in sections[0].chunk.text
+
+
+@pytest.mark.asyncio
+async def test_parse_file_force_generic_bypasses_fhg_custom_parser():
+    file = File(content=build_fhg_stream())
+
+    sections = await parse_file(
+        file,
+        {".json": FileProcessor(JsonParser(), SimpleTextSplitter())},
+        category="fhg",
+        force_generic=True,
+    )
+
+    assert len(sections) == 1
+    assert sections[0].id is None
+    assert sections[0].sourcepage is None
+    assert sections[0].title is None
+    assert '"doc_id": "page-812"' in sections[0].chunk.text
+
+
+@pytest.mark.asyncio
+async def test_parse_file_force_generic_bypasses_feed_custom_parser():
+    file = File(content=build_feed_stream())
+
+    sections = await parse_file(
+        file,
+        {".xml": FileProcessor(XmlParser(), SentenceTextSplitter())},
+        category="moodle",
+        force_generic=True,
+    )
+
+    assert len(sections) >= 1
+    assert sections[0].url is None
+    assert sections[0].title is None
+    assert sections[0].sourcepage is None
+
+
+@pytest.mark.asyncio
 async def test_file_strategy_setup_with_content_understanding(monkeypatch, mock_env):
     """Test that FileStrategy.setup() properly initializes content understanding."""
 

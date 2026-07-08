@@ -27,6 +27,17 @@ class AutoBlobIndexerConfig:
     allowed_extensions: frozenset[str]
     manage_search_index: bool = True
     remove_by_storage_url: bool = False
+    # --- dynamic / no-mirror / generic mode (content2 provisioned-bot indexer) ---
+    # Download the source blob from this container instead of the blob manager's default container.
+    source_container: Optional[str] = None
+    # When False, do NOT copy the source blob into target_prefix; index it in place and point
+    # storageUrl at the source blob URL (used by content2, which is never mirrored into `content`).
+    mirror_blob: bool = True
+    # When True, derive the search category from the first path segment after source_prefix
+    # (e.g. content2/<bot_name>/<file> -> category "<bot_name>") instead of using `category`.
+    dynamic_category_from_path: bool = False
+    # When True, force generic extension-based parsing (bypass all custom content-specific parsers).
+    force_generic_parsing: bool = False
 
 
 @dataclass(frozen=True)
@@ -110,7 +121,56 @@ class AutoBlobIndexer:
     def source_matches_prefix(self, blob_name: str) -> bool:
         normalized_blob_name = self.normalize_source_blob_name(blob_name)
         source_prefix = normalize_prefix(self.config.source_prefix)
+        if not source_prefix:
+            # Empty prefix means "watch the whole container" (content2 dynamic indexer).
+            return bool(normalized_blob_name)
         return normalized_blob_name == source_prefix or normalized_blob_name.startswith(f"{source_prefix}/")
+
+    def relative_to_source_prefix(self, normalized_blob_name: str) -> str:
+        source_prefix = normalize_prefix(self.config.source_prefix)
+        if source_prefix and normalized_blob_name.startswith(f"{source_prefix}/"):
+            return normalized_blob_name[len(source_prefix) + 1 :]
+        return normalized_blob_name
+
+    def category_for_blob(self, normalized_blob_name: str) -> Optional[str]:
+        """Return the search category for a blob.
+
+        In dynamic mode the category is the first path segment after source_prefix
+        (the per-bot folder in content2). Returns None when no bot folder is present.
+        """
+        if not self.config.dynamic_category_from_path:
+            return self.config.category
+        relative = self.relative_to_source_prefix(normalized_blob_name)
+        segments = relative.split("/")
+        if len(segments) < 2 or not segments[0].strip():
+            return None
+        return segments[0].strip()
+
+    def source_storage_url(self, normalized_blob_name: str) -> str:
+        container = self.config.source_container or self.blob_manager.container
+        endpoint = self.blob_manager.endpoint.rstrip("/")
+        return f"{endpoint}/{container}/{normalized_blob_name}"
+
+    def build_remove_kwargs(
+        self,
+        *,
+        category: str,
+        filename: str,
+        target_blob_name: Optional[str],
+        storage_url: Optional[str],
+    ) -> dict:
+        if not self.config.mirror_blob:
+            # No-mirror mode: docs for one source file are uniquely identified by the exact
+            # source storageUrl (full content2 path), scoped to the bot's category.
+            return {"category": category, "storage_url": storage_url}
+        remove_kwargs = {
+            "path": None if self.config.remove_by_storage_url else filename,
+            "category": category,
+            "storage_url_suffix": target_blob_name,
+        }
+        if self.config.remove_by_storage_url and storage_url is not None:
+            remove_kwargs["storage_url"] = storage_url
+        return remove_kwargs
 
     def target_blob_name_for_source(self, blob_name: str) -> str:
         normalized_blob_name = self.normalize_source_blob_name(blob_name)
@@ -172,6 +232,17 @@ class AutoBlobIndexer:
                 status="skipped-extension",
             )
 
+        category = self.category_for_blob(normalized_source_blob_name)
+        if category is None:
+            logger.info("Skipping blob without a per-bot folder: %s", normalized_source_blob_name)
+            return AutoBlobIndexResult(
+                source_blob_name=normalized_source_blob_name,
+                target_blob_name=None,
+                storage_url=None,
+                indexed_sections=0,
+                status="skipped-no-category",
+            )
+
         await self.ensure_index()
 
         filename = os.path.basename(normalized_source_blob_name)
@@ -182,42 +253,47 @@ class AutoBlobIndexer:
                 sections = await self.section_builder(
                     file=file_wrapper,
                     file_processors=self.file_processors,
-                    category=self.config.category,
+                    category=category,
                 )
             else:
                 sections = await parse_file(
                     file=file_wrapper,
                     file_processors=self.file_processors,
-                    category=self.config.category,
+                    category=category,
+                    force_generic=self.config.force_generic_parsing,
                 )
         finally:
             file_wrapper.close()
 
-        target_blob_name = self.target_blob_name_for_source(normalized_source_blob_name)
-        target_content_type = self.content_type_for_filename(filename, content_type)
-        storage_url = await self.blob_manager.upload_blob_data(
-            io.BytesIO(content),
-            target_blob_name,
-            content_type=target_content_type,
-        )
+        if self.config.mirror_blob:
+            target_blob_name = self.target_blob_name_for_source(normalized_source_blob_name)
+            target_content_type = self.content_type_for_filename(filename, content_type)
+            storage_url = await self.blob_manager.upload_blob_data(
+                io.BytesIO(content),
+                target_blob_name,
+                content_type=target_content_type,
+            )
+        else:
+            # No mirror: index in place, storageUrl points at the source blob (content2).
+            target_blob_name = None
+            storage_url = self.source_storage_url(normalized_source_blob_name)
 
-        remove_kwargs = {
-            "path": None if self.config.remove_by_storage_url else filename,
-            "category": self.config.category,
-            "storage_url_suffix": target_blob_name,
-        }
-        if self.config.remove_by_storage_url:
-            remove_kwargs["storage_url"] = storage_url
+        remove_kwargs = self.build_remove_kwargs(
+            category=category,
+            filename=filename,
+            target_blob_name=target_blob_name,
+            storage_url=storage_url,
+        )
         await self.search_manager.remove_content(**remove_kwargs)
 
         if not sections:
-            logger.info("No searchable sections extracted from %s; blob copied but index cleared for that file", filename)
+            logger.info("No searchable sections extracted from %s; index cleared for that file", filename)
             return AutoBlobIndexResult(
                 source_blob_name=normalized_source_blob_name,
                 target_blob_name=target_blob_name,
                 storage_url=storage_url,
                 indexed_sections=0,
-                status="copied-no-content",
+                status="copied-no-content" if self.config.mirror_blob else "no-content",
             )
 
         await self.search_manager.update_content(sections, url=storage_url)
@@ -251,7 +327,9 @@ class AutoBlobIndexer:
                 status="skipped-extension",
             )
 
-        source_blob = await self.blob_manager.download_blob(normalized_source_blob_name)
+        source_blob = await self.blob_manager.download_blob(
+            normalized_source_blob_name, container=self.config.source_container
+        )
         if source_blob is None:
             logger.warning("Source blob not found for auto-indexing: %s", normalized_source_blob_name)
             return AutoBlobIndexResult(
@@ -296,18 +374,47 @@ class AutoBlobIndexer:
                 status="skipped-extension",
             )
 
+        category = self.category_for_blob(normalized_source_blob_name)
+        if category is None:
+            logger.info("Skipping delete for blob without a per-bot folder: %s", normalized_source_blob_name)
+            return AutoBlobIndexResult(
+                source_blob_name=normalized_source_blob_name,
+                target_blob_name=None,
+                storage_url=None,
+                indexed_sections=0,
+                status="skipped-no-category",
+            )
+
         filename = os.path.basename(normalized_source_blob_name)
+
+        if not self.config.mirror_blob:
+            # No-mirror mode: nothing was copied into `content`, and the source blob is already gone.
+            # Only purge the indexed docs for that exact source storageUrl within the bot's category.
+            storage_url = self.source_storage_url(normalized_source_blob_name)
+            await self.search_manager.remove_content(**self.build_remove_kwargs(
+                category=category,
+                filename=filename,
+                target_blob_name=None,
+                storage_url=storage_url,
+            ))
+            return AutoBlobIndexResult(
+                source_blob_name=normalized_source_blob_name,
+                target_blob_name=None,
+                storage_url=storage_url,
+                indexed_sections=0,
+                status="deleted",
+            )
+
         target_blob_name = self.target_blob_name_for_source(normalized_source_blob_name)
         storage_url = self.storage_url_for_target_blob(target_blob_name) if self.config.remove_by_storage_url else None
         if self.config.remove_by_storage_url and storage_url is None:
             raise RuntimeError("Blob manager must provide url_for_blob_name when remove_by_storage_url is enabled")
-        remove_kwargs = {
-            "path": None if self.config.remove_by_storage_url else filename,
-            "category": self.config.category,
-            "storage_url_suffix": target_blob_name,
-        }
-        if storage_url is not None:
-            remove_kwargs["storage_url"] = storage_url
+        remove_kwargs = self.build_remove_kwargs(
+            category=category,
+            filename=filename,
+            target_blob_name=target_blob_name,
+            storage_url=storage_url,
+        )
         await self.search_manager.remove_content(**remove_kwargs)
         await self.blob_manager.remove_blob_name(target_blob_name)
         return AutoBlobIndexResult(

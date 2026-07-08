@@ -97,6 +97,10 @@ param storageAccountName string = '' // Set in main.parameters.json
 param storageResourceGroupName string = '' // Set in main.parameters.json
 param storageResourceGroupLocation string = location
 param storageContainerName string = 'content'
+// Dedicated container for provisioned ("generic") bot knowledge-base files, one folder per bot
+// (content2/<bot_name>/<file>). Watched by the content2 dynamic auto-indexer. Keep the default in
+// sync with CONTENT2_AUTO_INDEX_CONTAINER (defaults to 'content2' in the auto-indexer function).
+param content2ContainerName string = 'content2'
 param storageSkuName string // Set in main.parameters.json
 
 param defaultReasoningEffort string // Set in main.parameters.json
@@ -1019,6 +1023,10 @@ module storage 'core/storage/storage-account.bicep' = {
     containers: [
       {
         name: storageContainerName
+        publicAccess: 'None'
+      }
+      {
+        name: content2ContainerName
         publicAccess: 'None'
       }
       {

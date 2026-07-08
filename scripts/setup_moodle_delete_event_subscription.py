@@ -60,6 +60,25 @@ SUBSCRIPTIONS = (
         "subject_prefix": "/blobServices/default/containers/content/blobs/nerilio/Nerilio-fhg/",
         "subject_suffix": ".json",
     },
+    {
+        # content2 dynamic multi-bot indexer: watches the whole content2 container so any new
+        # bot folder (content2/<bot_name>/) is covered without a new subscription. No suffix
+        # filter — many extensions are supported; the function's is_supported() gate filters.
+        "name": "content2-auto-indexer-create-sync",
+        "function_name": "content2_auto_index",
+        "event_types": ("Microsoft.Storage.BlobCreated",),
+        "description": "content2 create/update",
+        "subject_prefix": "/blobServices/default/containers/content2/blobs/",
+        "subject_suffix": "",
+    },
+    {
+        "name": "content2-auto-indexer-delete-sync",
+        "function_name": "content2_delete_sync",
+        "event_types": ("Microsoft.Storage.BlobDeleted",),
+        "description": "content2 delete-sync",
+        "subject_prefix": "/blobServices/default/containers/content2/blobs/",
+        "subject_suffix": "",
+    },
 )
 
 
@@ -250,11 +269,11 @@ def configure_single_subscription(
         function_resource_id,
         "--subject-begins-with",
         subject_prefix,
-        "--subject-ends-with",
-        subject_suffix,
         "-o",
         "none",
     ]
+    if subject_suffix:
+        command.extend(["--subject-ends-with", subject_suffix])
     if event_types:
         command.extend(["--included-event-types", *event_types])
     if not subscription_exists:

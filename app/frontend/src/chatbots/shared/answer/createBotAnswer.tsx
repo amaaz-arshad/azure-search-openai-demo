@@ -41,6 +41,10 @@ interface BotAnswerOptions {
     // (e.g. the HYROX assessment bot strips its hidden control markers). The stored
     // answer is left untouched so it still replays into the next request's history.
     preprocessAnswerText?: (text: string) => string;
+    // Backend blob-proxy route used to resolve citation source files. Defaults to "content";
+    // provisioned ("generic") bots pass "content2" because their files live in the content2
+    // container and are not mirrored into content.
+    citationContentRoot?: string;
 }
 
 /**
@@ -86,7 +90,7 @@ export function createBotAnswer(
                 copiedLabel={t("tooltips.copied")}
                 citationLabel={t("citationWithColon")}
                 followupQuestionsLabel={t("followupQuestions")}
-                buildCitationPath={reference => getCitationFilePath(reference)}
+                buildCitationPath={reference => getCitationFilePath(reference, options.citationContentRoot)}
                 SpeechOutputBrowserComponent={SpeechOutputBrowserComponent}
                 SpeechOutputAzureComponent={SpeechOutputAzureComponent}
             />

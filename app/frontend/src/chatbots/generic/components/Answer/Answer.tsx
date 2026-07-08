@@ -10,4 +10,6 @@ import { SpeechOutputAzure } from "../../../lemon/components/Answer/SpeechOutput
 // neutral shared app mark (applogo.svg) means a provisioned bot NEVER inherits another bot's logo —
 // unlike importing lemon's pre-baked Answer, which froze the lemon-chatbot.png avatar into every
 // dynamic bot. Once BotConfig carries a per-bot logo URL this can prefer that over applogo.svg.
-export const Answer = createBotAnswer(appLogo, SpeechOutputBrowser, SpeechOutputAzure);
+// citationContentRoot "content2": provisioned bots' KB files live in the content2 container and
+// are never mirrored into content, so citations must resolve through the backend /content2 route.
+export const Answer = createBotAnswer(appLogo, SpeechOutputBrowser, SpeechOutputAzure, { citationContentRoot: "content2" });

@@ -64,48 +64,53 @@ async def parse_file(
     figure_processor: Optional[FigureProcessor] = None,
     user_oid: Optional[str] = None,
     check_cancel: Optional[Callable[[], Awaitable[None]]] = None,
+    force_generic: bool = False,
 ) -> list[Section]:
     key = file.file_extension().lower()
-    hyrox_sections = await build_hyrox_sections_if_applicable(
-        file=file,
-        category=category,
-        check_cancel=check_cancel,
-    )
-    if hyrox_sections is not None:
-        return hyrox_sections
+    # When force_generic is set, skip every content-specific custom parser (hyrox/lemon/snap/fhg/feed)
+    # and route straight to the generic extension-based parsers below. Used by the content2 dynamic
+    # auto-indexer so provisioned-bot files are always parsed generically regardless of category.
+    if not force_generic:
+        hyrox_sections = await build_hyrox_sections_if_applicable(
+            file=file,
+            category=category,
+            check_cancel=check_cancel,
+        )
+        if hyrox_sections is not None:
+            return hyrox_sections
 
-    lemon_xml_sections = await build_lemon_xml_sections_if_applicable(
-        file=file,
-        category=category,
-        check_cancel=check_cancel,
-    )
-    if lemon_xml_sections is not None:
-        return lemon_xml_sections
+        lemon_xml_sections = await build_lemon_xml_sections_if_applicable(
+            file=file,
+            category=category,
+            check_cancel=check_cancel,
+        )
+        if lemon_xml_sections is not None:
+            return lemon_xml_sections
 
-    snap_sections = await build_snap_sections_if_applicable(
-        file=file,
-        category=category,
-        check_cancel=check_cancel,
-    )
-    if snap_sections is not None:
-        return snap_sections
+        snap_sections = await build_snap_sections_if_applicable(
+            file=file,
+            category=category,
+            check_cancel=check_cancel,
+        )
+        if snap_sections is not None:
+            return snap_sections
 
-    fhg_sections = await build_fhg_sections_if_applicable(
-        file=file,
-        category=category,
-        check_cancel=check_cancel,
-    )
-    if fhg_sections is not None:
-        return fhg_sections
+        fhg_sections = await build_fhg_sections_if_applicable(
+            file=file,
+            category=category,
+            check_cancel=check_cancel,
+        )
+        if fhg_sections is not None:
+            return fhg_sections
 
-    feed_sections = await build_feed_sections_if_applicable(
-        file=file,
-        file_processors=file_processors,
-        category=category,
-        check_cancel=check_cancel,
-    )
-    if feed_sections is not None:
-        return feed_sections
+        feed_sections = await build_feed_sections_if_applicable(
+            file=file,
+            file_processors=file_processors,
+            category=category,
+            check_cancel=check_cancel,
+        )
+        if feed_sections is not None:
+            return feed_sections
 
     processor = file_processors.get(key)
     if processor is None:

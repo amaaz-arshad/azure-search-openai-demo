@@ -15,6 +15,75 @@ Two categories per date:
 
 ---
 
+## 2026-07-08
+
+### `content2` dynamic multi-bot auto-indexer (provisioned/generic bots)
+
+#### Decisions
+
+- **New indexing path for provisioned ("generic") bots, modeled on the Moodle/PublishOne/FHG Event
+  Grid auto-indexer but generalized.** The nerilio side drops each dynamic bot's KB files into a
+  dedicated `content2` container as `content2/<bot_name>/<file>`. A new pair of Event Grid functions
+  (`content2_auto_index`/`content2_delete_sync`, hosted in the existing `moodle_auto_indexer`
+  Functions app) indexes/deletes those files into Azure AI Search under `category=<bot_name>`.
+- **Four deliberate departures from the feed indexers:** (1) **dynamic category** derived from the
+  `<bot_name>` folder rather than a fixed per-feed constant, so a brand-new bot folder "just works"
+  with no new config or subscription; (2) **no mirroring** into `content` — files are indexed in
+  place and `storageUrl` points at the content2 blob; (3) **generic parsers only** (new
+  `force_generic` flag on `parse_file` bypasses all five custom content-specific parsers), honoring
+  the requirement to never use fhg/lemon/snap/hyrox/publishone parsers; (4) reads from a **separate
+  container** via the existing `download_blob(container=…)` override.
+- **Extend `AutoBlobIndexer` rather than write a new engine.** Added guarded config flags
+  (`source_container`, `mirror_blob`, `dynamic_category_from_path`, `force_generic_parsing`) whose
+  defaults preserve the existing Moodle/PublishOne/FHG behavior exactly, reusing the tested
+  idempotent remove/update logic. Stale-doc removal (re-index and delete) keys on `category`+exact
+  source `storageUrl`; delete performs **no** blob removal (the source is already gone, nothing was
+  mirrored).
+- **Formats: local-parseable set only** (`.pdf/.html/.txt/.md/.csv/.json/.xml`). Chosen over wiring
+  Azure Document Intelligence into the function app (would add infra + RBAC); Office/image formats
+  are skipped and logged. One Event Grid subscription pair (whole `content2` container prefix, **no**
+  suffix filter) covers all bots; the code-side `is_supported` gate filters unsupported extensions.
+- **Citations served from a new backend `/content2/<path>` route** (reads the `content2` container),
+  and the generic frontend emits `/content2/` links. Because no-mirror means files never reach the
+  `content` container, the default `/content` proxy would 404; user confirmed the `/content2/<path>`
+  approach. The shared `getCitationFilePath` (used by 17 bots) was **parametrized** with an optional
+  `contentRoot` (default `content`) rather than edited, and only the generic bot passes
+  `citationContentRoot: "content2"` via `createBotAnswer` — so the other 16 bots are untouched.
+- **Out of scope / follow-up:** bot deprovisioning cascade (purge `category=<bot>` docs +
+  `content2/<bot>/` blobs) still lives as the existing `provisioning.py:214-215` TODO; not wired here.
+
+#### Changes
+
+- `app/backend/prepdocslib/filestrategy.py` — added `force_generic: bool = False` to `parse_file`;
+  when set, the five `build_*_if_applicable` custom dispatchers are skipped.
+- `app/backend/prepdocslib/blobautoindex.py` — added `AutoBlobIndexerConfig` flags
+  (`source_container`, `mirror_blob`, `dynamic_category_from_path`, `force_generic_parsing`); new
+  helpers (`category_for_blob`, `relative_to_source_prefix`, `source_storage_url`,
+  `build_remove_kwargs`); empty-`source_prefix` = whole-container match; `index_blob`/
+  `index_blob_from_storage`/`delete_blob` branch on the no-mirror/dynamic/generic mode.
+- `app/functions/moodle_auto_indexer/function_app.py` — `CONTENT2_FEED_NAME`/`CONTENT2_CONTAINER`/
+  `CONTENT2_DEFAULT_EXTENSIONS`, `build_content2_auto_indexer(...)`, registered under key
+  `content2` in `configure_global_settings`, and `content2_auto_index`/`content2_delete_sync`
+  Event Grid functions.
+- `scripts/setup_moodle_delete_event_subscription.py` — two new `SUBSCRIPTIONS` rows (create+delete)
+  for the `content2` container root with no suffix filter; `--subject-ends-with` now conditional.
+- `infra/main.bicep` — new `content2ContainerName` param (default `content2`) added to the content
+  storage account's `containers`.
+- `app/backend/app.py` — `CONTENT2_STORAGE_CONTAINER` constant and the `/content2/<path>`
+  (`content2_file`) route serving from the content2 container.
+- `app/frontend/src/api/api.ts` — `getCitationFilePath(citation, contentRoot="content")`;
+  `app/frontend/src/chatbots/shared/answer/createBotAnswer.tsx` — `citationContentRoot` option
+  threaded into `buildCitationPath`; `app/frontend/src/chatbots/generic/components/Answer/Answer.tsx`
+  — passes `{ citationContentRoot: "content2" }`.
+- Ran `python scripts/copy_prepdocslib.py` to sync `blobautoindex.py`/`filestrategy.py` into all four
+  function-app `prepdocslib/` copies.
+- Tests: `tests/test_prepdocslib_filestrategy.py` (3 `force_generic` bypass tests),
+  `tests/test_blobautoindex.py` (4 content2-mode tests + `MockBlobManager` `download_blob(container=…)`
+  support), `tests/test_function_apps.py` (2 content2 event-function tests),
+  `tests/test_content_file.py` (2 `/content2` route tests). All pass (85 + 16); frontend `npm run
+  build` succeeds; `ty check` shows no new diagnostics from these files.
+- Docs: `CLAUDE.md` — new content2 contract bullet + Adding Data bullet.
+
 ## 2026-07-04
 
 ### Lemon bot corpus: custom parser + CLI to ingest `lemon_demo_knowledge.xml` (replacing HYROX)

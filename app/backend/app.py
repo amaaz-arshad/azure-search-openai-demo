@@ -234,6 +234,10 @@ bp = Blueprint("routes", __name__, static_folder="static")
 mimetypes.add_type("application/javascript", ".js")
 mimetypes.add_type("text/css", ".css")
 STATIC_ROOT = Path(__file__).resolve().parent / "static"
+# Dedicated container for provisioned ("generic") bot knowledge-base files (content2/<bot>/<file>).
+# Served by the /content2 citation route; keep in sync with CONTENT2_AUTO_INDEX_CONTAINER / the
+# content2ContainerName bicep param (all default to "content2").
+CONTENT2_STORAGE_CONTAINER = os.getenv("AZURE_STORAGE_CONTAINER2", "content2")
 FREE_CHATBOT_NAME = "free"
 FREE_CHATBOT_ROUTE_NAME = "free"
 RAK_CHATBOT_NAME = "rak"
@@ -1163,6 +1167,38 @@ async def content_file(path: str, auth_claims: dict[str, Any]):
         mime_type = mimetypes.guess_type(path)[0] or "application/octet-stream"
 
     # Create a BytesIO object from the bytes
+    blob_file = io.BytesIO(content)
+    return await send_file(blob_file, mimetype=mime_type, as_attachment=False, attachment_filename=path)
+
+
+@bp.route("/content2/<path:path>")
+@authenticated_path
+async def content2_file(path: str, auth_claims: dict[str, Any]):
+    """
+    Serve source files for provisioned ("generic") chatbots from the dedicated `content2`
+    container (layout content2/<bot_name>/<file>). The content2 auto-indexer indexes these
+    files in place and never mirrors them into the `content` container, so the standard
+    /content route cannot resolve them; this route reads directly from `content2`.
+    """
+    # Remove page number from path, filename-1.txt -> filename.txt
+    if path.find("#page=") > 0:
+        path = path.rsplit("#page=", 1)[0]
+    current_app.logger.info("Opening content2 file %s", path)
+    blob_manager: BlobManager = current_app.config[CONFIG_GLOBAL_BLOB_MANAGER]
+    result = await blob_manager.download_blob(path, container=CONTENT2_STORAGE_CONTAINER)
+
+    if not result:
+        abort(404)
+
+    content, properties = result
+
+    if not properties or "content_settings" not in properties:
+        abort(404)
+
+    mime_type = properties["content_settings"]["content_type"]
+    if mime_type == "application/octet-stream":
+        mime_type = mimetypes.guess_type(path)[0] or "application/octet-stream"
+
     blob_file = io.BytesIO(content)
     return await send_file(blob_file, mimetype=mime_type, as_attachment=False, attachment_filename=path)
 

@@ -134,6 +134,81 @@ async def test_moodle_delete_sync_removes_target_blob_for_delete_event(monkeypat
 
 
 @pytest.mark.asyncio
+async def test_content2_auto_index_function_indexes_triggered_blob(monkeypatch: pytest.MonkeyPatch) -> None:
+    class MockAutoIndexer:
+        def __init__(self) -> None:
+            self.calls: list[dict[str, Any]] = []
+
+        async def index_blob_from_storage(self, *, blob_name: str):
+            self.calls.append({"blob_name": blob_name})
+            return type(
+                "Result",
+                (),
+                {
+                    "source_blob_name": blob_name,
+                    "status": "indexed",
+                    "indexed_sections": 1,
+                    "target_blob_name": None,
+                },
+            )()
+
+    auto_indexer = MockAutoIndexer()
+    monkeypatch.setattr(
+        moodle_auto_indexer,
+        "settings",
+        moodle_auto_indexer.GlobalSettings(
+            auto_indexers={moodle_auto_indexer.CONTENT2_FEED_NAME: auto_indexer}
+        ),
+    )
+
+    await moodle_auto_indexer.content2_auto_index(
+        EventGridEventStub(
+            "/blobServices/default/containers/content2/blobs/bxa/faq.pdf",
+            "Microsoft.Storage.BlobCreated",
+        )
+    )
+
+    assert auto_indexer.calls == [{"blob_name": "content2/bxa/faq.pdf"}]
+
+
+@pytest.mark.asyncio
+async def test_content2_delete_sync_removes_index_docs_for_delete_event(monkeypatch: pytest.MonkeyPatch) -> None:
+    class MockAutoIndexer:
+        def __init__(self) -> None:
+            self.deleted: list[str] = []
+
+        async def delete_blob(self, *, blob_name: str):
+            self.deleted.append(blob_name)
+            return type(
+                "Result",
+                (),
+                {
+                    "source_blob_name": blob_name,
+                    "status": "deleted",
+                    "target_blob_name": None,
+                },
+            )()
+
+    auto_indexer = MockAutoIndexer()
+    monkeypatch.setattr(
+        moodle_auto_indexer,
+        "settings",
+        moodle_auto_indexer.GlobalSettings(
+            auto_indexers={moodle_auto_indexer.CONTENT2_FEED_NAME: auto_indexer}
+        ),
+    )
+
+    await moodle_auto_indexer.content2_delete_sync(
+        EventGridEventStub(
+            "/blobServices/default/containers/content2/blobs/bxa/faq.pdf",
+            "Microsoft.Storage.BlobDeleted",
+        )
+    )
+
+    assert auto_indexer.deleted == ["content2/bxa/faq.pdf"]
+
+
+@pytest.mark.asyncio
 async def test_publishone_auto_index_function_indexes_triggered_blob(monkeypatch: pytest.MonkeyPatch) -> None:
     class MockAutoIndexer:
         def __init__(self) -> None:

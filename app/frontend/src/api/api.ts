@@ -73,17 +73,20 @@ export async function getSpeechApi(text: string): Promise<string | null> {
         .then(blob => (blob ? URL.createObjectURL(blob) : null));
 }
 
-export function getCitationFilePath(citation: string): string {
+// contentRoot selects the backend blob-proxy route. Defaults to "content"; provisioned ("generic")
+// bots pass "content2" because their source files live in the dedicated content2 container and are
+// never mirrored into content (see createBotAnswer citationContentRoot / the backend /content2 route).
+export function getCitationFilePath(citation: string, contentRoot: string = "content"): string {
     // If there are parentheses at end of citation, remove part in parentheses
     const cleanedCitation = citation.replace(/\s*\(.*?\)\s*$/, "").trim();
     const [pathWithoutFragment, fragment] = cleanedCitation.split("#", 2);
     const fragmentSuffix = fragment ? `#${fragment}` : "";
     const chatbotName = getCurrentChatbotName();
     if (!chatbotName) {
-        return `${BACKEND_URI}/content/${pathWithoutFragment}${fragmentSuffix}`;
+        return `${BACKEND_URI}/${contentRoot}/${pathWithoutFragment}${fragmentSuffix}`;
     }
 
-    return `${BACKEND_URI}/content/${chatbotName}/${pathWithoutFragment}${fragmentSuffix}`;
+    return `${BACKEND_URI}/${contentRoot}/${chatbotName}/${pathWithoutFragment}${fragmentSuffix}`;
 }
 
 export async function uploadFileApi(request: FormData, idToken: string): Promise<SimpleAPIResponse> {
