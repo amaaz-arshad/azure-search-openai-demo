@@ -274,7 +274,7 @@ declare global {
     width: var(--cw-width, 400px); height: var(--cw-height, 640px);
     max-height: calc(100vh - 112px); max-width: calc(100vw - 40px);
     border-radius: 16px; overflow: hidden; background: #fff;
-    box-shadow: 0 12px 48px rgba(0,0,0,0.30); border: 1px solid rgba(0,0,0,0.08);
+    box-shadow: 0 12px 48px rgba(0,0,0,0.30);
     opacity: 0; transform: translateY(12px) scale(0.98); pointer-events: none;
     transition: opacity .18s ease, transform .18s ease;
 }

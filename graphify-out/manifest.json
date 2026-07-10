@@ -7925,8 +7925,8 @@
     "semantic_hash": "af5a041c18e33f6084af23ab476b5388"
   },
   "app/frontend/src/widget/widget.ts": {
-    "mtime": 1782475000.62091,
-    "ast_hash": "81f72a6ea85a023f6a1a4a716d64250c",
+    "mtime": 1783693688.4642503,
+    "ast_hash": "45d39e4fc49a93534f23b880b37161bd",
     "semantic_hash": ""
   },
   "app/frontend/tsconfig.json": {
@@ -8410,8 +8410,8 @@
     "semantic_hash": "b7d811e41ee8cb385db724f4491957fb"
   },
   "CHANGES.md": {
-    "mtime": 1783625102.5612104,
-    "ast_hash": "4a8c8c540b53d3b84a1a409d589e058f",
+    "mtime": 1783697078.331072,
+    "ast_hash": "c8a46a0ff3ba63dae8dc1094fe981175",
     "semantic_hash": ""
   },
   "aci-openlit.example.yaml": {
@@ -8515,13 +8515,13 @@
     "semantic_hash": ""
   },
   "app/backend/approaches/chatbots/snap/sampleprompt.py": {
-    "mtime": 1783087610.5676253,
-    "ast_hash": "fcde77cc79812c5a0afd29c204798f33",
+    "mtime": 1783696917.7156322,
+    "ast_hash": "68a8bd638fa5c22d3dbea0cae786d9ea",
     "semantic_hash": ""
   },
   "app/backend/prepdocslib/snapjson.py": {
-    "mtime": 1783608316.1627357,
-    "ast_hash": "526931c3db355a80a4c926dfba0f5f5c",
+    "mtime": 1783696911.857956,
+    "ast_hash": "a96f080bdc9646893a5c920cd509c276",
     "semantic_hash": ""
   },
   "app/backend/refresh_snap.py": {
@@ -8875,8 +8875,8 @@
     "semantic_hash": ""
   },
   "tests/test_snapjson.py": {
-    "mtime": 1783608349.0040138,
-    "ast_hash": "9f5ea3e163c327f5a96db91dbd6feba4",
+    "mtime": 1783696943.77212,
+    "ast_hash": "1b9ffe9c35824cbc86e21bf720be662d",
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/snap/assets/robo1.png": {

@@ -15,6 +15,19 @@ Two categories per date:
 
 ---
 
+## 2026-07-10
+
+### Removed hairline border from the embed widget popup panel
+
+#### Decisions
+
+- **The popup's `.panel` had a `border: 1px solid rgba(0,0,0,0.08)` alongside its box-shadow and white background** — this is shared CSS in `widget.ts`'s `styleSheet()`, so it applied to every bot's embed popup uniformly (not per-bot). User asked to check for/remove a white border; confirmed present and removed it, keeping the box-shadow for depth since that's a separate effect that wasn't in question.
+
+#### Changes
+
+- `app/frontend/src/widget/widget.ts` — dropped the `border` declaration from `.panel` in `styleSheet()`.
+- Verified via a headless-browser screenshot (Playwright, static test harness stubbing the `/embed/<id>/config` fetch) that the computed border is now `0px none` and the popup renders as a clean rounded rectangle with only the box-shadow for definition.
+
 ## 2026-07-09
 
 ### Shipped dynamic `/example` bot seed
@@ -114,6 +127,39 @@ Two categories per date:
 - Re-indexed category `snap` (`python app/backend/refresh_snap.py --force`) so existing docs pick up
   corrected titles. Verified against the live index: 139 snap docs / 52 records; `tools-vjoon-k4` →
   `"vjoon K4"` and `tools-vjoon-seven` → `"vjoon Seven"`; no `Vjoon`/`Codesco` casing left in any title.
+
+### snap bot: extend brand-casing to full portfolio + prompt list
+
+#### Decisions
+
+- **Confirmed the divergence is source data, not scraping.** Verified on the live site + freshly
+  scraped feed: `scrape_snap.py` copies text verbatim (no case transform). The reference-link title
+  is the WordPress **page-title field** (`title.rendered`), which was hand-entered in title-case per
+  page, while the brand's real casing lives in the page body/H1 (the running text). E.g. `tools/
+  vjoon-k4/`: WP title `"Vjoon K4"`, H1/body `"vjoon K4"`. Purely per-page CMS data entry (the
+  `nerilio` page title was always lowercase).
+- **Checked all 11 portfolio tools against body-prose casing.** Only four titles diverge: `Axaio`,
+  `Callas`, `Dataplan` (bodies write them fully lowercase), and the `Seven` in `Vjoon Seven` (body +
+  portfolio write `vjoon seven`, both lowercase). `Caymland`/`EasyCatalog`/`Enfocus`/`nerilio`/
+  `PublishOne`/`Twixl` already match their running text — left untouched. **`Enfocus` deliberately
+  kept capitalized**: the enfocus tool page's own body writes "Enfocus", so its title already matches
+  (snap.de's portfolio list lowercases it, but that's the inconsistent one).
+- **User approved updating the prompt's portfolio list too**, so the model writes brands canonically
+  in new answer text (last round it was data-only; this round the prompt was in scope).
+
+#### Changes
+
+- `app/backend/prepdocslib/snapjson.py`: extended `BRAND_CANONICAL` with `axaio`, `callas`,
+  `dataplan`, and the multi-word `"vjoon seven"` (ordered before the `"vjoon"` prefix so the regex
+  alternation prefers the longer match). Synced the four `app/functions/*` copies.
+- `app/backend/approaches/chatbots/snap/sampleprompt.py`: rewrote the portfolio tool list on L15 and
+  L25 to canonical casing (`axaio, callas, Caymland, dataplan, EasyCatalog, Enfocus, nerilio,
+  PublishOne, Twixl, vjoon K4, vjoon seven`).
+- `tests/test_snapjson.py`: added casing cases for the new brands + multi-word `vjoon seven`, a
+  parser-level `vjoon seven` title test, and assertions that unmapped brands (Enfocus/Caymland/
+  EasyCatalog/PublishOne) are left as-is. 35 pass.
+- Re-indexed (`refresh_snap.py --force`) and verified live: all `tools-*` titles now canonical
+  (`axaio`, `callas`, `dataplan`, `vjoon K4`, `vjoon seven`, …); BAD-casing check empty; 139 docs.
 
 ## 2026-07-08
 

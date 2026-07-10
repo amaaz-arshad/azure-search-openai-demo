@@ -159,12 +159,19 @@ async def test_build_snap_sections_if_applicable_only_for_snap_json():
     [
         ("Vjoon K4", "vjoon K4"),
         ("VJOON", "vjoon"),
-        ("vjoon Seven", "vjoon Seven"),
+        # "vjoon seven" is a multi-word entry: both words lowercase, and it must win
+        # over the "vjoon" single-token entry (alternation order).
+        ("Vjoon Seven", "vjoon seven"),
+        ("Vjoon Seven: Der zentrale Content Hub", "vjoon seven: Der zentrale Content Hub"),
+        ("Axaio", "axaio"),
+        ("Callas", "callas"),
+        ("Dataplan", "dataplan"),
         ("Codesco", "CoDesCo"),
         ("codesco", "CoDesCo"),
         ("CODESCO", "CoDesCo"),
         # Multiple brand tokens in one string are each normalized.
         ("Vjoon K4 und Codesco", "vjoon K4 und CoDesCo"),
+        ("Axaio, Callas und Dataplan", "axaio, callas und dataplan"),
         # Hyphen/punctuation counts as a word boundary.
         ("vjoon-k4", "vjoon-k4"),
         ("Vjoon.", "vjoon."),
@@ -172,6 +179,11 @@ async def test_build_snap_sections_if_applicable_only_for_snap_json():
         ("vjoonize", "vjoonize"),
         ("supervjoon", "supervjoon"),
         ("Codescoly", "Codescoly"),
+        # Brands NOT in the map keep their casing (Enfocus/Caymland/Twixl/EasyCatalog/PublishOne).
+        ("Enfocus", "Enfocus"),
+        ("Caymland", "Caymland"),
+        ("EasyCatalog", "EasyCatalog"),
+        ("PublishOne", "PublishOne"),
         # Non-brand text is untouched.
         ("Nerilio - Content Workflow", "Nerilio - Content Workflow"),
         ("", ""),
@@ -199,6 +211,16 @@ def test_prepare_snap_dataset_normalizes_codesco_in_title():
     )
 
     assert dataset.documents[0].title == "CoDesCo Partnerschaft"
+
+
+def test_prepare_snap_dataset_normalizes_multiword_vjoon_seven_in_title():
+    dataset = prepare_snap_dataset(
+        build_snap_payload([build_snap_record(record_id="tools-vjoon-seven", title="Vjoon Seven")]),
+        dataset_filename="snap.json",
+        category="snap",
+    )
+
+    assert dataset.documents[0].title == "vjoon seven"
 
 
 def test_prepare_snap_dataset_leaves_body_content_verbatim():

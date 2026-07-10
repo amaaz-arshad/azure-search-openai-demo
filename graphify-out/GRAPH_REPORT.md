@@ -1,16 +1,16 @@
-# Graph Report - agentic-retrieval  (2026-07-09)
+# Graph Report - agentic-retrieval  (2026-07-10)
 
 ## Corpus Check
-- 1702 files · ~2,315,414 words
+- 1702 files · ~2,315,959 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 10962 nodes · 19458 edges · 1871 communities (1280 shown, 591 thin omitted)
+- 10970 nodes · 19468 edges · 1861 communities (1270 shown, 591 thin omitted)
 - Extraction: 80% EXTRACTED · 20% INFERRED · 0% AMBIGUOUS · INFERRED: 3832 edges (avg confidence: 0.61)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `e953ccf0`
+- Built from commit: `c67cd5b4`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -591,7 +591,6 @@
 - [[_COMMUNITY_Community 1262|Community 1262]]
 - [[_COMMUNITY_Community 1263|Community 1263]]
 - [[_COMMUNITY_Community 1264|Community 1264]]
-- [[_COMMUNITY_Community 1265|Community 1265]]
 - [[_COMMUNITY_Community 1266|Community 1266]]
 - [[_COMMUNITY_Community 1267|Community 1267]]
 - [[_COMMUNITY_Community 1268|Community 1268]]
@@ -699,20 +698,13 @@
 - [[_COMMUNITY_Community 1403|Community 1403]]
 - [[_COMMUNITY_Community 1406|Community 1406]]
 - [[_COMMUNITY_Community 1411|Community 1411]]
-- [[_COMMUNITY_Community 1421|Community 1421]]
 - [[_COMMUNITY_Community 1422|Community 1422]]
 - [[_COMMUNITY_Community 1423|Community 1423]]
 - [[_COMMUNITY_Community 1424|Community 1424]]
-- [[_COMMUNITY_Community 1425|Community 1425]]
-- [[_COMMUNITY_Community 1426|Community 1426]]
-- [[_COMMUNITY_Community 1428|Community 1428]]
 - [[_COMMUNITY_Community 1430|Community 1430]]
 - [[_COMMUNITY_Community 1436|Community 1436]]
-- [[_COMMUNITY_Community 1437|Community 1437]]
 - [[_COMMUNITY_Community 1438|Community 1438]]
-- [[_COMMUNITY_Community 1440|Community 1440]]
 - [[_COMMUNITY_Community 1446|Community 1446]]
-- [[_COMMUNITY_Community 1447|Community 1447]]
 - [[_COMMUNITY_Community 1450|Community 1450]]
 - [[_COMMUNITY_Community 1451|Community 1451]]
 - [[_COMMUNITY_Community 1455|Community 1455]]
@@ -940,16 +932,16 @@
 10. `getCurrentChatbotName()` - 101 edges
 
 ## Surprising Connections (you probably didn't know these)
+- `format_as_ndjson()` --calls--> `test_format_as_ndjson()`  [INFERRED]
+  app/backend/app.py → tests/test_app.py
 - `get_registered_chatbot_names()` --calls--> `test_every_registered_chatbot_has_a_public_id()`  [INFERRED]
   app/backend/approaches/chatbot_prompt_registry.py → tests/test_embed_public_ids.py
+- `compute_tally()` --calls--> `test_compute_tally_pass_threshold_is_80_percent_inclusive()`  [INFERRED]
+  app/backend/approaches/chatbots/hyrox_assessment/results.py → tests/test_hyrox_assessment.py
 - `get_public_id()` --calls--> `test_alias_public_test_maps_to_free()`  [INFERRED]
   app/backend/embed_public_ids.py → tests/test_embed_public_ids.py
 - `File` --uses--> `File`  [INFERRED]
   tests/test_lemonxml.py → app/backend/prepdocslib/listfilestrategy.py
-- `File` --uses--> `File`  [INFERRED]
-  tests/test_snapjson.py → app/backend/prepdocslib/listfilestrategy.py
-- `get_document_citation_target()` --calls--> `test_get_document_citation_target_uses_url_for_external_feed_categories()`  [INFERRED]
-  app/backend/approaches/chatreadretrieveread.py → tests/test_chatapproach.py
 
 ## Import Cycles
 - 1-file cycle: `app/backend/core/chatbotembedconfigstore.py -> app/backend/core/chatbotembedconfigstore.py`
@@ -1048,71 +1040,71 @@
 - **Agindo BasicAuth Flow** — agindo_basicauth, agindo_basiclogin, agindo_layout [EXTRACTED 0.95]
 - **Demo Chatbot Bootstrap** — demo_chatbot_main, demo_layoutwrapper, demo_authconfig, demo_logincontext [EXTRACTED 0.90]
 
-## Communities (1871 total, 591 thin omitted)
+## Communities (1861 total, 591 thin omitted)
 
 ### Community 0 - "Community 0"
 Cohesion: 0.06
 Nodes (67): Class that splits pages into smaller chunks. This is required because embedding, SentenceTextSplitter, pytest_generate_tests(), Parametrize the test_doc fixture with all the pdf files in the test-data directo, Figure at very start of page should be emitted (regression test for missing emis, Unbalanced <figure> markup should be treated as plain text and still be split sa, A single oversized sentence (no punctuation) should be recursively split by toke, Exercise fallback path when no sentence ending near midpoint causes half/overlap (+59 more)
 
 ### Community 1 - "Community 1"
-Cohesion: 0.08
-Nodes (42): setup_openai_client(), MockAzureCredential, AuthenticationErrorMockEmbeddingsClient, create_rate_limit_client(), fake_response(), MockClient, MockEmbeddingsClient, CreateEmbeddingResponse (+34 more)
+Cohesion: 0.07
+Nodes (47): AuthenticationErrorMockEmbeddingsClient, create_rate_limit_client(), fake_response(), MockClient, MockEmbeddingsClient, CreateEmbeddingResponse, RateLimitMockEmbeddingsClient, test_compute_embedding_autherror() (+39 more)
 
 ### Community 2 - "Community 2"
 Cohesion: 0.16
 Nodes (29): Any, File, Section, build_chunk_texts(), build_fhg_sections_if_applicable(), build_metadata_lines(), FhgPreparedDocument, get_optional_string_field() (+21 more)
 
 ### Community 3 - "Community 3"
-Cohesion: 0.07
-Nodes (12): CategoryUploadStrategy, Top-level blob prefixes that hold real category content. Gated to known, Strategy for managing the shared content files of a search category.     Every, FakeBlobManager, FakeSearchManager, filename_token(), make_manager(), test_add_file_replaces_documents_from_other_ingestion_paths() (+4 more)
+Cohesion: 0.13
+Nodes (3): CategoryUploadStrategy, Top-level blob prefixes that hold real category content. Gated to known, Strategy for managing the shared content files of a search category.     Every
 
 ### Community 4 - "Community 4"
 Cohesion: 0.07
 Nodes (28): 2026-06-21, Bensberg visible bot name aligned with Lemon, Changes, Changes, Changes, Changes, Changes, Changes (+20 more)
 
 ### Community 5 - "Community 5"
-Cohesion: 0.11
-Nodes (30): datetime, build_possible_citations_prompt(), get_chatbot_citation_target(), get_chatbot_config(), get_chatbot_prompt_mode(), get_language_name(), load_all_chatbot_configs(), load_chatbot_config() (+22 more)
+Cohesion: 0.13
+Nodes (27): build_possible_citations_prompt(), get_chatbot_citation_target(), get_chatbot_config(), get_chatbot_prompt_mode(), get_language_name(), load_all_chatbot_configs(), load_chatbot_config(), Return a dict of chatbot_name → ChatbotConfig for all bots that have a config.py (+19 more)
 
 ### Community 6 - "Community 6"
-Cohesion: 0.04
-Nodes (49): 2026-06-20, "Andere Option" button: solid border to match the other choice buttons, Beautiful global tooltip restyle (all bots), Changes, Changes, Changes, Changes, Changes (+41 more)
+Cohesion: 0.05
+Nodes (46): 2026-06-20, "Andere Option" button: solid border to match the other choice buttons, Changes, Changes, Changes, Changes, Changes, Changes (+38 more)
 
 ### Community 7 - "Community 7"
 Cohesion: 0.01
 Nodes (143): analysisServicesServers, apiManagementService, appConfigurationConfigurationStores, appContainerApps, appManagedEnvironments, authorizationPolicyDefinitions, automationAutomationAccounts, blueprintBlueprints (+135 more)
 
 ### Community 8 - "Community 8"
-Cohesion: 0.05
-Nodes (62): File, File, FileProcessor, Section, OpenAIEmbeddings, SearchInfo, AsyncTokenCredential, AzureKeyCredential (+54 more)
+Cohesion: 0.06
+Nodes (50): OpenAIEmbeddings, SearchInfo, AsyncTokenCredential, AzureKeyCredential, build_default_semantic_search(), Class to manage a search service. It can create indexes, and update or remove se, Creates one or more Knowledge Bases in the search index based on desired knowled, SearchManager (+42 more)
 
 ### Community 9 - "Community 9"
 Cohesion: 0.14
 Nodes (8): Deployment, RAG chat: Using agentic retrieval, RAG chat: Deploying on Azure App Service, RAG chat: Deploying with minimal costs, Reducing costs locally, RAG chat: Troubleshooting deployment, Additional documentation, RAG chat: Sharing deployment environments
 
 ### Community 10 - "Community 10"
-Cohesion: 0.15
-Nodes (8): IO, Dialect, CsvParser, Parse CSV-like tabular files into one Page per logical row.      Goals:     - Ha, test_csvparser_empty_file(), test_csvparser_handles_semicolon_and_multiline_fields_with_metadata(), test_csvparser_multiple_rows_keep_row_boundaries_and_offsets(), test_csvparser_single_row_renders_labeled_record()
+Cohesion: 0.14
+Nodes (9): IO, Page, Dialect, CsvParser, Parse CSV-like tabular files into one Page per logical row.      Goals:     - Ha, test_csvparser_empty_file(), test_csvparser_handles_semicolon_and_multiline_fields_with_metadata(), test_csvparser_multiple_rows_keep_row_boundaries_and_offsets() (+1 more)
 
 ### Community 11 - "Community 11"
 Cohesion: 0.04
-Nodes (82): 2026-06-30, 2026-07-01, `/admin/uploads`: category combobox + wire fhg/moodle/publishone custom parsers into managed uploads, `/admin/uploads`: managed uploads list is now blob-driven — script/feed-ingested files show up and stay in sync, Changes, Changes, Changes, Changes (+74 more)
+Nodes (82): 2026-06-30, 2026-07-01, `/admin/uploads`: category combobox + wire fhg/moodle/publishone custom parsers into managed uploads, Beautiful global tooltip restyle (all bots), Changes, Changes, Changes, Changes (+74 more)
 
 ### Community 12 - "Community 12"
-Cohesion: 0.06
-Nodes (94): AsyncOpenAI, AsyncTokenCredential, BlobManager, Namespace, Path, SearchInfo, AsyncOpenAI, AsyncTokenCredential (+86 more)
+Cohesion: 0.05
+Nodes (104): Any, AsyncTokenCredential, SearchInfo, Namespace, AsyncOpenAI, AsyncTokenCredential, Namespace, AsyncOpenAI (+96 more)
 
 ### Community 13 - "Community 13"
-Cohesion: 0.23
-Nodes (20): AutoBlobIndexerConfig, make_content2_indexer(), MockBlobManager, MockSearchManager, AutoBlobIndexer, MonkeyPatch, A content2 dynamic indexer: whole-container watch, per-bot category, no mirror,, test_auto_blob_indexer_can_remove_by_storage_url_for_custom_sourcefiles() (+12 more)
+Cohesion: 0.12
+Nodes (25): AutoBlobIndexer, AutoBlobIndexerConfig, normalize_blob_name(), normalize_prefix(), Return the search category for a blob.          In dynamic mode the category is, make_content2_indexer(), MockBlobManager, MockSearchManager (+17 more)
 
 ### Community 14 - "Community 14"
-Cohesion: 0.13
-Nodes (28): ListFileStrategy, FileStrategy, parse_file(), Strategy for ingesting documents into a search service from files stored either, Class that splits pages into smaller chunks based on a max object length. It is, SimpleTextSplitter, BytesIO, build_feed_stream() (+20 more)
+Cohesion: 0.07
+Nodes (21): Props, Props, Props, bensbergChatbot, cbtxChatbot, root, router, LayoutWrapper() (+13 more)
 
 ### Community 15 - "Community 15"
-Cohesion: 0.08
-Nodes (15): Exception, load_azd_env(), Get path to current azd env file and load file using python-dotenv, AdlsGen2Setup, main(), Any, AsyncTokenCredential, DataLakeDirectoryClient (+7 more)
+Cohesion: 0.10
+Nodes (13): Exception, load_azd_env(), Get path to current azd env file and load file using python-dotenv, AdlsGen2Setup, main(), Any, AsyncTokenCredential, DataLakeDirectoryClient (+5 more)
 
 ### Community 16 - "Community 16"
 Cohesion: 0.06
@@ -1127,19 +1119,19 @@ Cohesion: 0.12
 Nodes (39): Any, assert_not_reserved(), build_fields_from_payload(), get_chatbot_registry_store(), handle_create(), handle_delete(), handle_set_active(), handle_update() (+31 more)
 
 ### Community 19 - "Community 19"
-Cohesion: 0.10
-Nodes (21): 2026-06-12, All bots: chat history panel overlays instead of pushing on mobile, All bots: mobile history panel gets a scrim; Nerilio header shows full name, Changes, Changes, Changes, Changes, Changes (+13 more)
+Cohesion: 0.08
+Nodes (24): 2026-06-12, All bots: chat history panel overlays instead of pushing on mobile, All bots: history panel overlays on tablet-portrait widths, All bots: mobile history panel gets a scrim; Nerilio header shows full name, Changes, Changes, Changes, Changes (+16 more)
 
 ### Community 20 - "Community 20"
 Cohesion: 0.08
 Nodes (24): ACL handling, Adding data with document level access control, Authentication behavior by environment, Automatic Setup, Client App, Cloud ingestion with Azure Data Lake Storage Gen2, Configure Server App Known Client Applications, Enabling global access for specific documents (+16 more)
 
 ### Community 21 - "Community 21"
-Cohesion: 0.17
-Nodes (21): Any, SearchClient, auth_setup(), Validate an access token is issued by Entra, create_authentication_helper(), create_mock_jwt(), create_search_client(), test_auth_setup() (+13 more)
+Cohesion: 0.21
+Nodes (20): Any, SearchClient, auth_setup(), create_authentication_helper(), create_mock_jwt(), create_search_client(), test_auth_setup(), test_auth_setup_required_access_control() (+12 more)
 
 ### Community 22 - "Community 22"
-Cohesion: 0.12
+Cohesion: 0.10
 Nodes (8): datetime, format_utc(), InMemoryBlobManager, InMemoryBlobServiceClient, InMemoryContainerClient, test_empty_rules_clears_the_record(), test_missing_config_is_allow_all(), test_save_and_load_round_trip_normalizes_rules()
 
 ### Community 23 - "Community 23"
@@ -1147,8 +1139,8 @@ Cohesion: 0.09
 Nodes (21): ActivityDetail, ChatAppRequest, ChatAppRequestContext, ChatAppRequestOverrides, ChatAppResponse, ChatAppResponseOrError, ChatbotBulkDeleteResponse, ChatbotUploadFailure (+13 more)
 
 ### Community 24 - "Community 24"
-Cohesion: 0.06
-Nodes (66): admin_page(), build_chat_model_deployments(), build_simple_auth_required_response(), cancel_chatbot_upload(), cancel_managed_upload(), chatbot_directory(), chatbot_entry(), config() (+58 more)
+Cohesion: 0.04
+Nodes (92): admin_page(), apply_saved_chatbot_prompt_override(), bot_config(), build_chat_model_deployments(), build_simple_auth_required_response(), cancel_chatbot_upload(), cancel_managed_upload(), chat() (+84 more)
 
 ### Community 25 - "Community 25"
 Cohesion: 0.08
@@ -1163,12 +1155,12 @@ Cohesion: 0.09
 Nodes (21): ActivityDetail, ChatAppRequest, ChatAppRequestContext, ChatAppRequestOverrides, ChatAppResponse, ChatAppResponseOrError, ChatbotBulkDeleteResponse, ChatbotUploadFailure (+13 more)
 
 ### Community 28 - "Community 28"
-Cohesion: 0.05
-Nodes (89): Page, IO, Page, IO, Page, IO, Page, AsyncTokenCredential (+81 more)
+Cohesion: 0.04
+Nodes (128): ABC, IO, Page, IO, Page, Any, IO, Page (+120 more)
 
 ### Community 29 - "Community 29"
-Cohesion: 0.09
-Nodes (25): ABC, Any, SearchInfo, SearchManager, SearchManager, delete_documents_by_category(), main(), remove_existing_hyrox_documents() (+17 more)
+Cohesion: 0.07
+Nodes (28): SearchManager, BlobManager, Path, SearchManager, remove_existing_hyrox_documents(), resolve_embedding_settings(), run(), close_clients() (+20 more)
 
 ### Community 30 - "Community 30"
 Cohesion: 0.07
@@ -1179,24 +1171,24 @@ Cohesion: 0.09
 Nodes (17): BlobManager, ChatbotWikiStore, normalize_category(), normalize_slug(), A wiki exists for a category iff its index.md is present., A wiki is keyed by a single category. Accept the same value the backend puts in, Blob-backed store for the LLM-Wiki retrieval mode.      Mirrors ``ChatbotPromptS, InMemoryBlobManager (+9 more)
 
 ### Community 32 - "Community 32"
-Cohesion: 0.36
-Nodes (23): buildInitialConversation(), buildInitialAssistantPair(), getHistorySourceBot(), clearChat(), createClientSessionId(), getConfig(), getCurrentSessionState(), getLastRealQuestion() (+15 more)
+Cohesion: 0.27
+Nodes (29): buildInitialConversation(), buildInitialAssistantPair(), getHistorySourceBot(), clearChat(), createClientSessionId(), getConfig(), getCurrentSessionState(), getLastRealQuestion() (+21 more)
 
 ### Community 33 - "Community 33"
-Cohesion: 0.21
-Nodes (14): main(), ManageAcl, Any, SearchClient, Manually enable document level access control on a search index and manually set, test_add_acl(), test_enable_acls_with_missing_fields(), test_enable_acls_without_missing_fields() (+6 more)
+Cohesion: 0.10
+Nodes (25): main(), ManageAcl, Any, AsyncTokenCredential, AzureKeyCredential, SearchClient, Manually enable document level access control on a search index and manually set, Initializes the command          Parameters         ----------         servi (+17 more)
 
 ### Community 34 - "Community 34"
 Cohesion: 0.23
 Nodes (7): HTMLParser, collapse_inline(), _MarkdownExtractor, normalize_href(), Resolve an anchor/image URL for markdown (absolute where possible), dropping, Convert a WordPress/Divi HTML body into GitHub-flavored markdown: headings,, Collapse all whitespace (including newlines) in an inline fragment to single
 
 ### Community 35 - "Community 35"
-Cohesion: 0.03
-Nodes (55): get_public_id(), Return the public ID for a chatbot route name, or None if it has no embed identi, The assessment bot grades from its in-prompt rubric, so /chat must succeed, login_internal_admin(), login_simple_chatbot(), messages_contains_text(), OpenLitAttributeRecorder, pop_citation_activity_details() (+47 more)
+Cohesion: 0.02
+Nodes (60): get_request_route_chatbot_name(), get_public_id(), Return the public ID for a chatbot route name, or None if it has no embed identi, The assessment bot grades from its in-prompt rubric, so /chat must succeed, login_internal_admin(), login_simple_chatbot(), messages_contains_text(), OpenLitAttributeRecorder (+52 more)
 
 ### Community 36 - "Community 36"
-Cohesion: 0.13
-Nodes (13): Chat(), EMPTY_REASONING_EFFORT_OPTIONS, getLegacyReasoningEffortOptions(), GPT_5_4_REASONING_EFFORT_OPTIONS, GPT_5_REASONING_EFFORT_OPTIONS, SourceBotOption, getSourceBotLabel(), getSourceBotWelcome() (+5 more)
+Cohesion: 0.16
+Nodes (7): Chat(), EMPTY_REASONING_EFFORT_OPTIONS, getLegacyReasoningEffortOptions(), GPT_5_4_REASONING_EFFORT_OPTIONS, GPT_5_REASONING_EFFORT_OPTIONS, SourceBotOption, InternalLayoutOutletContext
 
 ### Community 37 - "Community 37"
 Cohesion: 0.10
@@ -1215,8 +1207,8 @@ Cohesion: 0.11
 Nodes (18): ActivityDetail, ChatAppRequest, ChatAppRequestContext, ChatAppRequestOverrides, ChatAppResponse, ChatAppResponseOrError, CitationActivityDetail, Config (+10 more)
 
 ### Community 41 - "Community 41"
-Cohesion: 0.06
-Nodes (43): BlobManager, datetime, URLSafeTimedSerializer, delete_free_admin_user(), upload(), format_utc(), FreeAccount, FreeAuthError (+35 more)
+Cohesion: 0.08
+Nodes (30): BlobManager, datetime, Path, URLSafeTimedSerializer, delete_free_admin_user(), embed_demo(), format_utc(), FreeAccount (+22 more)
 
 ### Community 42 - "Community 42"
 Cohesion: 0.12
@@ -1224,11 +1216,11 @@ Nodes (19): cancelManagedUploadApi(), deleteManagedUploadedFileApi(), deleteMana
 
 ### Community 43 - "Community 43"
 Cohesion: 0.08
-Nodes (30): Any, BlobManager, Namespace, SearchInfo, close_clients(), build_category_blob_name(), build_storage_url_migrations(), copy_blob() (+22 more)
+Nodes (24): close_clients(), CustomUvicornWorker, Browser, close_clients(), delete_documents_by_category function, delete_documents_by_category main, Gunicorn Config, load_azd_env (+16 more)
 
 ### Community 44 - "Community 44"
 Cohesion: 0.05
-Nodes (16): HistoryPanel(), HistoryPanel(), HistoryPanel(), HistoryPanel(), HistoryPanel(), HistoryPanel(), HistoryPanel(), HistoryPanel() (+8 more)
+Nodes (17): HistoryPanel(), HistoryPanel(), HistoryPanel(), HistoryPanel(), HistoryPanel(), HistoryPanel(), HistoryPanel(), HistoryPanel() (+9 more)
 
 ### Community 45 - "Community 45"
 Cohesion: 0.11
@@ -1247,24 +1239,24 @@ Cohesion: 0.11
 Nodes (27): AnalysisPanelTabs enum, AnalysisPanel barrel (demo), buildOptionTexts(), isOptionSelectionTurn(), matchesChoiceValue(), parseChoiceMarker(), Chat(), Chat() (+19 more)
 
 ### Community 49 - "Community 49"
-Cohesion: 0.10
-Nodes (31): Any, ChatbotRegistryRecord, ansprache_directive(), build_bot_config_payload(), derive_chatbot_mode(), language_label_to_code(), map_language_keyed(), map_language_list() (+23 more)
+Cohesion: 0.12
+Nodes (27): Any, ChatbotRegistryRecord, build_bot_config_payload(), derive_chatbot_mode(), language_label_to_code(), map_language_keyed(), map_language_list(), Map a dynamic chatbot's registry record onto the runtime config its frontend nee (+19 more)
 
 ### Community 50 - "Community 50"
 Cohesion: 0.08
-Nodes (20): pivotItemDisabledStyle, Props, HistoryPanel(), Props, Claim, Props, appServicesLogout(), AppServicesToken (+12 more)
+Nodes (19): pivotItemDisabledStyle, Props, Props, Claim, Props, appServicesLogout(), AppServicesToken, AuthSetup (+11 more)
 
 ### Community 51 - "Community 51"
 Cohesion: 0.11
 Nodes (18): ActivityDetail, ChatAppRequest, ChatAppRequestContext, ChatAppRequestOverrides, ChatAppResponse, ChatAppResponseOrError, CitationActivityDetail, Config (+10 more)
 
 ### Community 52 - "Community 52"
-Cohesion: 0.09
-Nodes (45): get_question(), module_label(), module_questions(), Return the question with this 1..52 number, or None if unknown., M7.1' -> 'Module 7.1' (learner-facing module heading)., Ordered question numbers in ``module_key`` (empty if unknown)., _answer_module(), _drive_to_final_question() (+37 more)
+Cohesion: 0.06
+Nodes (70): AssessmentQuestion, get_question(), is_last_module(), key_point_count(), max_points(), module_index(), module_label(), module_max_points() (+62 more)
 
 ### Community 53 - "Community 53"
-Cohesion: 0.19
-Nodes (8): generate_ground_truth_ragas(), get_azure_credential(), get_search_documents(), main(), Test script for Azure AI Search elevated read permissions. This script verifies, SearchIndexClient, MonkeyPatch, test_main_passes_search_key_and_closes_credential()
+Cohesion: 0.09
+Nodes (16): generate_ground_truth_ragas(), get_azure_credential(), get_search_documents(), main(), Test script for Azure AI Search elevated read permissions. This script verifies, SearchIndexClient, test_search_results_filtering_by_scores(), test_search_results_query_rewriting() (+8 more)
 
 ### Community 54 - "Community 54"
 Cohesion: 0.11
@@ -1272,14 +1264,14 @@ Nodes (18): ActivityDetail, ChatAppRequest, ChatAppRequestContext, ChatAppReques
 
 ### Community 55 - "Community 55"
 Cohesion: 0.04
-Nodes (53): buildPublishOneUrl(), getCitationLabel(), AnswerOptions(), AnswerOptionsProps, isListLayout(), ActivityDetailLike, ActivityStepMeta, activityTypeLabels (+45 more)
+Nodes (52): buildPublishOneUrl(), getCitationLabel(), AnswerOptions(), AnswerOptionsProps, isListLayout(), ActivityDetailLike, ActivityStepMeta, activityTypeLabels (+44 more)
 
 ### Community 57 - "Community 57"
 Cohesion: 0.11
 Nodes (18): ActivityDetail, ChatAppRequest, ChatAppRequestContext, ChatAppRequestOverrides, ChatAppResponse, ChatAppResponseOrError, CitationActivityDetail, Config (+10 more)
 
 ### Community 58 - "Community 58"
-Cohesion: 0.08
+Cohesion: 0.09
 Nodes (25): 2026-06-19, Add framer-motion to frontend for Framer Motion skills, Changes, Changes, Changes, Changes, Changes, Changes (+17 more)
 
 ### Community 59 - "Community 59"
@@ -1291,64 +1283,64 @@ Cohesion: 0.11
 Nodes (18): Azure account requirements, Clean up, Cost estimation, Deploying, Deploying again, Getting help, Getting Started, GitHub Codespaces (+10 more)
 
 ### Community 61 - "Community 61"
-Cohesion: 0.05
-Nodes (28): pivotItemDisabledStyle, Props, Props, Claim, Props, pivotItemDisabledStyle, Props, Props (+20 more)
+Cohesion: 0.06
+Nodes (16): pivotItemDisabledStyle, Props, Claim, Props, pivotItemDisabledStyle, Props, Claim, Props (+8 more)
 
 ### Community 62 - "Community 62"
 Cohesion: 0.12
 Nodes (15): Agent Instructions, Adding new azd environment variables, Adding new features, Adding new UI strings, Code style, Contributing, Development Environment Setup, Running E2E Tests (Playwright) (+7 more)
 
 ### Community 63 - "Community 63"
-Cohesion: 0.08
-Nodes (19): pivotItemDisabledStyle, Props, Props, Claim, Props, appServicesLogout(), AppServicesToken, AuthSetup (+11 more)
+Cohesion: 0.09
+Nodes (14): pivotItemDisabledStyle, Props, HistoryPanel(), Claim, Props, appServicesLogout(), AppServicesToken, AuthSetup (+6 more)
 
 ### Community 64 - "Community 64"
-Cohesion: 0.08
-Nodes (20): CosmosDBMigrator, migrate_cosmosdb_data(), A migration script to migrate data from CosmosDB to a new format. The old schem, Close the CosmosDB client., Legacy function for backward compatibility.     Migrate data from CosmosDB to a, Migrator class for CosmosDB data migration., Initialize the migrator with CosmosDB account and database.          Args:, Connect to CosmosDB and initialize containers. (+12 more)
+Cohesion: 0.13
+Nodes (16): CosmosDBMigrator, migrate_cosmosdb_data(), A migration script to migrate data from CosmosDB to a new format. The old schem, Close the CosmosDB client., Legacy function for backward compatibility.     Migrate data from CosmosDB to a, Migrator class for CosmosDB data migration., Initialize the migrator with CosmosDB account and database.          Args:, Connect to CosmosDB and initialize containers. (+8 more)
 
 ### Community 65 - "Community 65"
 Cohesion: 0.06
 Nodes (31): Read the optimized search query from a chat completion tool call., mock_search(), mock_retrieval_response(), MockAsyncSearchResultsIterator, MockCaption, VectorQuery, mock_retrieval(), mock_search() (+23 more)
 
 ### Community 66 - "Community 66"
-Cohesion: 0.16
-Nodes (26): Application, add_client_secret(), client_app(), create_application(), create_or_update_application_with_secret(), main(), GraphServiceClient, random_app_identifier() (+18 more)
+Cohesion: 0.09
+Nodes (36): Application, get_application(), GraphServiceClient, test_authentication_enabled(), add_client_secret(), client_app(), create_application(), create_or_update_application_with_secret() (+28 more)
 
 ### Community 67 - "Community 67"
-Cohesion: 0.17
-Nodes (10): Any, _C, get_token_auth_header(), authenticated(), authenticated_path(), internal_admin_required(), Decorator for routes that request a specific file that might require access cont, Decorator for routes that might require access control. Unpacks Authorization he (+2 more)
+Cohesion: 0.13
+Nodes (11): Any, _C, get_token_auth_header(), authenticated(), authenticated_path(), internal_admin_required(), Decorator for routes that request a specific file that might require access cont, Decorator for routes that might require access control. Unpacks Authorization he (+3 more)
 
 ### Community 69 - "Community 69"
 Cohesion: 0.05
-Nodes (38): 2026-05-26, 2026-06-02, 2026-06-03, 2026-06-04, 2026-06-05, 2026-06-11, 2026-06-23, 2026-06-29 (+30 more)
+Nodes (40): 2026-05-26, 2026-06-02, 2026-06-03, 2026-06-04, 2026-06-05, 2026-06-11, 2026-06-23, 2026-06-29 (+32 more)
 
 ### Community 70 - "Community 70"
-Cohesion: 0.07
-Nodes (15): mock_retrieval_response_with_sharepoint(), mock_retrieval_response_with_sorting(), mock_retrieval_response_with_top_limit(), mock_speak_text_cancelled(), mock_speak_text_failed(), mock_speak_text_success(), MockAiohttpClientResponse404, MockAudio (+7 more)
+Cohesion: 0.06
+Nodes (16): AioHttpTransportResponse, mock_retrieval_response_with_sharepoint(), mock_retrieval_response_with_sorting(), mock_speak_text_cancelled(), mock_speak_text_failed(), mock_speak_text_success(), MockAiohttpClientResponse, MockAiohttpClientResponse404 (+8 more)
 
 ### Community 71 - "Community 71"
 Cohesion: 0.12
 Nodes (16): 1. Full merge, 2. Trailing sentence fragment carry‑forward, Chunk normalization, Cross-page boundary repair, Example 1: Simple page, Example 2: Atomic block in middle, Example 3: Oversized single span requiring recursive midpoint overlap split, Example 3b: Oversized span with word-break fallback (+8 more)
 
 ### Community 72 - "Community 72"
-Cohesion: 0.09
-Nodes (38): Any, _assistant_index_that_asked(), assistant_texts(), build_result_payload(), _completed_state(), compute_tally(), _current_question_interaction(), derive_turn_state() (+30 more)
+Cohesion: 0.10
+Nodes (19): upload(), adls_blob_manager(), blob_manager(), Test that BlobManager.download_blob returns None when download_response.properti, Test that AdlsBlobManager.download_blob returns None when a user tries to access, Test that AdlsBlobManager.download_blob works when a user has permission to acce, test_adls_download_blob_permission_denied(), test_adls_download_blob_with_permission() (+11 more)
 
 ### Community 73 - "Community 73"
 Cohesion: 0.23
 Nodes (14): getPreferredSpeechSynthesisOutputFormat(), getSpeechRecognitionLocale(), getSpeechToken(), SpeechTokenResponse, SupportedSpeechLanguages, synthesisFormatCandidates, Props, stopRecognizer() (+6 more)
 
 ### Community 74 - "Community 74"
-Cohesion: 0.07
-Nodes (48): AsyncOpenAI, AsyncTokenCredential, BlobManager, Namespace, OpenAIEmbeddings, Path, SearchInfo, AsyncOpenAI (+40 more)
+Cohesion: 0.10
+Nodes (31): AsyncOpenAI, AsyncTokenCredential, Strategy, SearchIndexerSkillset, AsyncOpenAI, AsyncTokenCredential, BlobManager, DocumentAction (+23 more)
 
 ### Community 75 - "Community 75"
-Cohesion: 0.09
-Nodes (28): apply_saved_chatbot_prompt_override(), bot_config(), chat(), chat_stream(), enforce_dynamic_chatbot_gate(), ensure_example_dynamic_bot_seeded(), get_chatbot_name_from_request_json(), get_chatbot_registry_store() (+20 more)
+Cohesion: 0.16
+Nodes (13): Any, AsyncTokenCredential, AzureKeyCredential, BaseBlobManager, ImageEmbeddings, AsyncOpenAI, AsyncTokenCredential, MediaDescriber (+5 more)
 
 ### Community 76 - "Community 76"
 Cohesion: 0.09
-Nodes (14): appServicesLogout(), AppServicesToken, AuthSetup, getAppServicesToken(), getRedirectUri(), getToken(), getTokenClaims(), getUsername() (+6 more)
+Nodes (20): appServicesLogout(), AppServicesToken, AuthSetup, checkLoggedIn(), getAppServicesToken(), getRedirectUri(), getToken(), getTokenClaims() (+12 more)
 
 ### Community 78 - "Community 78"
 Cohesion: 0.07
@@ -1363,16 +1355,16 @@ Cohesion: 0.13
 Nodes (23): host_matches(), match_url(), normalize_rule(), normalize_rules(), parse_rule(), path_matches(), Domain/URL whitelist rules for the embeddable chatbot widget.  A chatbot may res, Build the ``Content-Security-Policy: frame-ancestors`` value for a whitelist. (+15 more)
 
 ### Community 81 - "Community 81"
-Cohesion: 0.06
-Nodes (24): pivotItemDisabledStyle, Props, Props, Claim, Props, bensbergChatbot, LayoutWrapper(), internalChatbot (+16 more)
+Cohesion: 0.07
+Nodes (20): pivotItemDisabledStyle, Props, Props, Claim, Props, LayoutWrapper(), InternalLayout(), appServicesLogout() (+12 more)
 
 ### Community 82 - "Community 82"
 Cohesion: 0.06
 Nodes (33): value, value, value, value, value, value, value, parameters (+25 more)
 
 ### Community 83 - "Community 83"
-Cohesion: 0.11
-Nodes (11): ChatbotDirectory(), sortedChatbots, chatbotDefinitions, EmbedBridge(), isEmbedMode(), chatbotRoutes, embedMode, root (+3 more)
+Cohesion: 0.12
+Nodes (10): EmbedDemoTab(), EmbedBridge(), isEmbedMode(), GenericChatbotRoute(), chatbotRoutes, embedMode, root, router (+2 more)
 
 ### Community 84 - "Community 84"
 Cohesion: 0.13
@@ -1383,8 +1375,8 @@ Cohesion: 0.09
 Nodes (23): login_simple_chatbot(), test_chathistory_deleteitem(), test_chathistory_getitem(), test_chathistory_getitem_error_container(), test_chathistory_getitem_error_disabled(), test_chathistory_getitem_error_entra(), test_chathistory_getitem_error_runtime(), test_chathistory_getitem_internal_legacy_session_returns_404() (+15 more)
 
 ### Community 86 - "Community 86"
-Cohesion: 0.12
-Nodes (28): Any, Any, get_content_filter_message(), load_chatbot_content_filter_messages(), normalize_content_filter_language(), normalize_content_filter_messages(), normalize_chatbot_name(), format_as_ndjson() (+20 more)
+Cohesion: 0.10
+Nodes (29): Any, BytesIO, Any, get_content_filter_message(), load_chatbot_content_filter_messages(), normalize_content_filter_language(), normalize_content_filter_messages(), normalize_chatbot_name() (+21 more)
 
 ### Community 87 - "Community 87"
 Cohesion: 0.13
@@ -1392,23 +1384,23 @@ Nodes (15): Chat approach, Chat with multimodal feature, Configuring parameters 
 
 ### Community 89 - "Community 89"
 Cohesion: 0.09
-Nodes (65): Any, ChatbotRegistryRecord, ChatbotRegistryStore, FreeAuthStore, SimpleChatbotAuthStore, BlobManager, BlobManager, Any (+57 more)
+Nodes (63): Any, ChatbotRegistryRecord, ChatbotRegistryStore, FreeAuthStore, SimpleChatbotAuthStore, BlobManager, Any, BlobManager (+55 more)
 
 ### Community 90 - "Community 90"
-Cohesion: 0.22
+Cohesion: 0.24
 Nodes (10): 2026-06-26, Changes, Changes, Changes, Decisions, Decisions, Decisions, Embed widget: per-bot launcher icon color; hyrox black bubble + yellow icon (+2 more)
 
 ### Community 91 - "Community 91"
-Cohesion: 0.17
+Cohesion: 0.15
 Nodes (13): 2026-06-16, Changes, Changes, Changes, Changes, Decisions, Decisions, Decisions (+5 more)
 
 ### Community 92 - "Community 92"
-Cohesion: 0.17
-Nodes (28): ChatbotTheme, chatbotThemes, createPageGradient(), createSurfaceColor(), createUserBubbleGradient(), cssVariablesFromTheme(), darken(), DeepPartial (+20 more)
+Cohesion: 0.15
+Nodes (31): ChatbotThemeRoot(), ChatbotThemeRootProps, ChatbotTheme, chatbotThemes, ChatbotThemeSeed, createPageGradient(), createSurfaceColor(), createUserBubbleGradient() (+23 more)
 
 ### Community 93 - "Community 93"
-Cohesion: 0.16
-Nodes (28): Any, File, Section, Encoding, build_hyrox_sections_if_applicable(), choose_split_boundary(), dedupe_preserve_order(), find_max_token_end() (+20 more)
+Cohesion: 0.18
+Nodes (25): Any, File, Section, build_hyrox_sections_if_applicable(), choose_split_boundary(), find_max_token_end(), get_optional_string_field(), get_required_string_field() (+17 more)
 
 ### Community 94 - "Community 94"
 Cohesion: 0.09
@@ -1419,12 +1411,12 @@ Cohesion: 0.06
 Nodes (19): stripAssessmentMarkers(), createBotAnswer(), Answer, Answer, Answer, Answer, Answer, Answer (+11 more)
 
 ### Community 96 - "Community 96"
-Cohesion: 0.08
-Nodes (34): mock_blob_container_client(), mock_user_directory_client(), MockBlob, MockBlobClient, MockDirectoryClient, login_simple_chatbot(), test_content_file_category_prefixed_blob_found(), test_content_file_chatbot_uploaded_found() (+26 more)
+Cohesion: 0.06
+Nodes (36): mock_blob_container_client(), mock_user_directory_client(), MockBlob, MockBlobClient, MockDirectoryClient, MockFileClient, login_simple_chatbot(), test_content_file_category_prefixed_blob_found() (+28 more)
 
 ### Community 97 - "Community 97"
-Cohesion: 0.08
-Nodes (27): Any, ChatCompletionMessageParam, ChatCompletionToolParam, KnowledgeBaseRetrievalClient, from_completion_usage(), Return the lowest valid reasoning_effort for the given model., CompletionUsage, mock_search_knowledgebase() (+19 more)
+Cohesion: 0.17
+Nodes (17): KnowledgeBaseRetrievalClient, mock_search_knowledgebase(), create_mock_retrieve(), Create a mock_retrieve function that returns different response types.      Su, Agentic retrieval tests, SharePoint references should be captured and exposed alongside documents., Minimal reasoning effort should invoke query rewriting and surface the rewrite r, When minimal reasoning is requested the latest message must be a string. (+9 more)
 
 ### Community 98 - "Community 98"
 Cohesion: 0.13
@@ -1439,23 +1431,23 @@ Cohesion: 0.11
 Nodes (18): ActivityDetail, ChatAppRequest, ChatAppRequestContext, ChatAppRequestOverrides, ChatAppResponse, ChatAppResponseOrError, CitationActivityDetail, Config (+10 more)
 
 ### Community 101 - "Community 101"
-Cohesion: 0.11
-Nodes (22): Path, build_embed_admin_payload(), embed_demo(), embed_widget_config(), get_chatbot_embed_config_store(), get_internal_admin_embed_config(), save_internal_admin_embed_config(), generate_public_id() (+14 more)
+Cohesion: 0.12
+Nodes (20): build_embed_admin_payload(), embed_widget_config(), get_chatbot_embed_config_store(), get_internal_admin_embed_config(), save_internal_admin_embed_config(), generate_public_id(), is_embeddable(), main() (+12 more)
 
 ### Community 102 - "Community 102"
-Cohesion: 0.15
-Nodes (44): Element, Element, append_tag(), build_document_content(), build_feed_document(), build_folder_context_lines(), build_publishone_feed_sections(), build_tags() (+36 more)
+Cohesion: 0.11
+Nodes (53): Element, File, FileProcessor, Section, Element, IO, Page, append_tag() (+45 more)
 
 ### Community 103 - "Community 103"
 Cohesion: 0.07
 Nodes (27): dependencies, @azure/msal-browser, @azure/msal-react, dompurify, @fluentui/react, @fluentui/react-components, @fluentui/react-icons, framer-motion (+19 more)
 
 ### Community 104 - "Community 104"
-Cohesion: 0.04
-Nodes (72): Any, AsyncTokenCredential, AzureKeyCredential, BaseBlobManager, ImageEmbeddings, AsyncOpenAI, AsyncTokenCredential, Any (+64 more)
+Cohesion: 0.07
+Nodes (31): process_page_image(), Generate description, upload image, and optionally compute embedding for a figur, assert_image_equal(), Fixture for a sample ImageOnPage object used across multiple tests., Test ImageOnPage.from_skill_payload when bytes_base64 is not provided., Test ImageOnPage.from_skill_payload with invalid page_num., Test ImageOnPage.from_skill_payload with invalid bbox., sample_image() (+23 more)
 
 ### Community 105 - "Community 105"
-Cohesion: 0.15
+Cohesion: 0.17
 Nodes (13): 2026-06-15, All bots: answer-table containment extended to tablet portrait (fix 768–991px x-scroll), All bots: continuous table scroll shadow (overlay instead of background), All bots: mobile-legible readable-text sizing (15px, decoupled from shrinking root), All bots: navbar menu + chat-history chrome mobile-legibility (14px), Changes, Changes, Changes (+5 more)
 
 ### Community 106 - "Community 106"
@@ -1465,6 +1457,10 @@ Nodes (24): FakePromptStore, FakeRegistry, make_ctx(), make_record(), Tests for 
 ### Community 107 - "Community 107"
 Cohesion: 0.15
 Nodes (13): Answer formatting, Error in streamed response, Error response, HTTP requests to chat app endpoints, HTTP responses from RAG chat app endpoints, Non-streaming response, RAG Chat: HTTP Protocol, Request context properties (+5 more)
+
+### Community 108 - "Community 108"
+Cohesion: 0.05
+Nodes (3): FreeProfile, logout(), DemoLayoutOutletContext
 
 ### Community 109 - "Community 109"
 Cohesion: 0.11
@@ -1495,8 +1491,8 @@ Cohesion: 0.14
 Nodes (14): AdditionalTotal, calcPercent(), PercentBase, SupplementaryUsage, TokenLabelKey, TokenUsage, TokenUsageGraphProps, TokenUsageSegmentLabels (+6 more)
 
 ### Community 116 - "Community 116"
-Cohesion: 0.27
-Nodes (20): Element, File, Section, build_lemon_xml_sections_if_applicable(), get_direct_child(), get_direct_child_text(), is_lemon_knowledge_xml(), iter_child_elements() (+12 more)
+Cohesion: 0.14
+Nodes (33): Element, File, Section, dedupe_preserve_order(), sanitize_identifier(), build_lemon_xml_sections_if_applicable(), get_direct_child(), get_direct_child_text() (+25 more)
 
 ### Community 117 - "Community 117"
 Cohesion: 0.23
@@ -1511,8 +1507,8 @@ Cohesion: 0.49
 Nodes (8): appServicesLogout(), checkLoggedIn(), fetchAuthSetup(), getAppServicesToken(), getRedirectUri(), getToken(), getTokenClaims(), getUsername()
 
 ### Community 121 - "Community 121"
-Cohesion: 0.08
-Nodes (15): datetime, list_uploaded(), Lists the uploaded documents for the current user.     Only returns files direc, format_utc(), copy_tree(), main(), Path, Synchronize prepdocslib ingestion library to function apps. This script ensures (+7 more)
+Cohesion: 0.11
+Nodes (13): BlobManager, datetime, list_uploaded(), Lists the uploaded documents for the current user.     Only returns files direc, ChatbotPromptStore, format_utc(), InMemoryBlobManager, InMemoryBlobServiceClient (+5 more)
 
 ### Community 122 - "Community 122"
 Cohesion: 0.23
@@ -1531,7 +1527,7 @@ Cohesion: 0.07
 Nodes (4): onEnterPress(), QuestionInput(), sendQuestion(), StopCircleIcon()
 
 ### Community 126 - "Community 126"
-Cohesion: 0.07
+Cohesion: 0.08
 Nodes (19): pivotItemDisabledStyle, Props, Props, Claim, Props, appServicesLogout(), AppServicesToken, AuthSetup (+11 more)
 
 ### Community 127 - "Community 127"
@@ -1539,23 +1535,23 @@ Cohesion: 0.09
 Nodes (20): pivotItemDisabledStyle, Props, Props, Claim, Props, appServicesLogout(), AppServicesToken, AuthSetup (+12 more)
 
 ### Community 128 - "Community 128"
-Cohesion: 0.08
-Nodes (19): pivotItemDisabledStyle, Props, Props, Claim, Props, appServicesLogout(), AppServicesToken, AuthSetup (+11 more)
+Cohesion: 0.09
+Nodes (20): pivotItemDisabledStyle, Props, Props, Claim, Props, appServicesLogout(), AppServicesToken, AuthSetup (+12 more)
 
 ### Community 129 - "Community 129"
 Cohesion: 0.08
-Nodes (20): pivotItemDisabledStyle, Props, HistoryPanel(), Props, Claim, Props, appServicesLogout(), AppServicesToken (+12 more)
+Nodes (19): pivotItemDisabledStyle, Props, Props, Claim, Props, appServicesLogout(), AppServicesToken, AuthSetup (+11 more)
 
 ### Community 130 - "Community 130"
-Cohesion: 0.06
-Nodes (25): pivotItemDisabledStyle, Props, Props, Claim, Props, isAuthenticated(), AppGate(), root (+17 more)
+Cohesion: 0.09
+Nodes (20): pivotItemDisabledStyle, Props, Props, Claim, Props, appServicesLogout(), AppServicesToken, AuthSetup (+12 more)
 
 ### Community 131 - "Community 131"
 Cohesion: 0.23
 Nodes (9): ActivityStepMeta, buildActivityStepMap(), CitationDetail, CitationFragment, collectCitations(), extractCitationDetails(), HtmlParsedAnswer, normalizeAnswerText() (+1 more)
 
 ### Community 132 - "Community 132"
-Cohesion: 0.09
+Cohesion: 0.08
 Nodes (20): pivotItemDisabledStyle, Props, Props, Claim, Props, appServicesLogout(), AppServicesToken, AuthSetup (+12 more)
 
 ### Community 133 - "Community 133"
@@ -1575,8 +1571,8 @@ Cohesion: 0.15
 Nodes (10): Props, SpeechOutputAzureButton(), clearPlaybackFallbackTimer(), closePlayer(), closeSynthesizer(), finishPlayback(), handlePlay(), handleStop() (+2 more)
 
 ### Community 137 - "Community 137"
-Cohesion: 0.09
-Nodes (19): Props, Props, Claim, Props, appServicesLogout(), AppServicesToken, AuthSetup, checkLoggedIn() (+11 more)
+Cohesion: 0.08
+Nodes (21): Props, Props, Claim, Props, isAuthenticated(), InternalBasicAuthGate(), appServicesLogout(), AppServicesToken (+13 more)
 
 ### Community 138 - "Community 138"
 Cohesion: 0.23
@@ -1587,8 +1583,8 @@ Cohesion: 0.23
 Nodes (9): ActivityStepMeta, buildActivityStepMap(), CitationDetail, CitationFragment, collectCitations(), extractCitationDetails(), HtmlParsedAnswer, normalizeAnswerText() (+1 more)
 
 ### Community 140 - "Community 140"
-Cohesion: 0.08
-Nodes (56): get_file_acls(), Extract user and group IDs from ADLS Gen2 ACLs for a file.      Args:, configure_global_settings(), ChunkStub, EventGridEventStub, LogCaptureFixture, MonkeyPatch, Test that get_file_acls extracts user OIDs with read permission. (+48 more)
+Cohesion: 0.09
+Nodes (31): Any, build_document_components(), extract_document(), get_file_acls(), process_document(), Azure Search Custom Skill: Extract document content      Input format (single, Process a single document: download, parse, extract figures, upload images, Extract user and group IDs from ADLS Gen2 ACLs for a file.      Args: (+23 more)
 
 ### Community 141 - "Community 141"
 Cohesion: 0.23
@@ -1619,16 +1615,12 @@ Cohesion: 0.15
 Nodes (10): FreeUserOptions, chatApi(), deleteChatHistoryApi(), deleteUploadedFileApi(), getChatHistoryApi(), getChatHistoryListApi(), getHeaders(), listUploadedFilesApi() (+2 more)
 
 ### Community 148 - "Community 148"
-Cohesion: 0.22
-Nodes (9): botConfigApi(), BotConfig, BotConfigContext, BASE_BUNDLES, createGenericI18n(), SUPPORTED, GenericChatbotRoute(), loadingStyle (+1 more)
+Cohesion: 0.14
+Nodes (12): botConfigApi(), BotConfig, Chat(), Layout(), BotConfigContext, useBotConfig(), BASE_BUNDLES, createGenericI18n() (+4 more)
 
 ### Community 149 - "Community 149"
-Cohesion: 0.21
-Nodes (10): ADMIN_TABS, AdminLayout(), AdminShellContext, AdminShellContextValue, useAdminShell(), EmbedDemoTab(), FreeUsersPage(), useInternalAdminAccess() (+2 more)
-
-### Community 150 - "Community 150"
-Cohesion: 0.15
-Nodes (3): InternalBasicAuthGate(), Component(), getNoPageLanguage()
+Cohesion: 0.26
+Nodes (9): ADMIN_TABS, AdminLayout(), AdminShellContext, AdminShellContextValue, useAdminShell(), FreeUsersPage(), useInternalAdminAccess(), sortCategories() (+1 more)
 
 ### Community 151 - "Community 151"
 Cohesion: 0.11
@@ -1655,12 +1647,12 @@ Cohesion: 0.29
 Nodes (3): onRetrievalModeChange(), onSearchImageEmbeddingsChange(), onSearchTextEmbeddingsChange()
 
 ### Community 157 - "Community 157"
-Cohesion: 0.10
-Nodes (17): pivotItemDisabledStyle, Props, Props, Claim, Props, appServicesLogout(), AppServicesToken, AuthSetup (+9 more)
+Cohesion: 0.09
+Nodes (20): pivotItemDisabledStyle, Props, Props, Claim, Props, appServicesLogout(), AppServicesToken, AuthSetup (+12 more)
 
 ### Community 158 - "Community 158"
-Cohesion: 0.11
-Nodes (12): pivotItemDisabledStyle, Props, Claim, Props, appServicesLogout(), AppServicesToken, AuthSetup, getAppServicesToken() (+4 more)
+Cohesion: 0.10
+Nodes (18): pivotItemDisabledStyle, Props, Claim, Props, appServicesLogout(), AppServicesToken, AuthSetup, checkLoggedIn() (+10 more)
 
 ### Community 159 - "Community 159"
 Cohesion: 0.29
@@ -1672,7 +1664,7 @@ Nodes (9): ActivityStepMeta, buildActivityStepMap(), CitationDetail, CitationFra
 
 ### Community 161 - "Community 161"
 Cohesion: 0.11
-Nodes (12): _ChunkBuilder, _normalize_chunk(), Normalize a non-figure chunk that may slightly exceed max_chars.      Allows o, Accumulates sentence-like spans for a single page until size limits are reached., Append a figure (allowed to overflow) to current accumulation and flush in one s, Find a good split position near midpoint.          Returns (index, use_overlap, Recursively split plain text by token count.          Boundary preference orde, Heuristic heading detector used to suppress cross-page semantic overlap when a n (+4 more)
+Nodes (14): Chunk, Page, _ChunkBuilder, _normalize_chunk(), Normalize a non-figure chunk that may slightly exceed max_chars.      Allows o, Accumulates sentence-like spans for a single page until size limits are reached., Append a figure (allowed to overflow) to current accumulation and flush in one s, Find a good split position near midpoint.          Returns (index, use_overlap (+6 more)
 
 ### Community 165 - "Community 165"
 Cohesion: 0.26
@@ -1755,8 +1747,8 @@ Cohesion: 0.18
 Nodes (6): acceptedExtensions, activeStatuses, Props, QueueItemStatus, StatusState, UploadQueueItem
 
 ### Community 198 - "Community 198"
-Cohesion: 0.20
-Nodes (16): build_dynamic_system_prompt(), Build a dynamic bot's effective system prompt: its custom prompt when provided,, FakePromptStore, FakeRegistry, make_record(), Tests for dynamic-bot `ansprache` (formal/informal) wiring into the system promp, test_apply_saved_appends_ansprache_for_dynamic_bot(), test_apply_saved_empty_prompt_no_ansprache_still_default() (+8 more)
+Cohesion: 0.14
+Nodes (20): ansprache_directive(), build_dynamic_system_prompt(), Map an `ansprache` value to a system-prompt addressing directive, or None if uns, Build a dynamic bot's effective system prompt: its custom prompt when provided,, Default tutor (dual Q&A + Tutor) system prompt for dynamic (provisioned) bots., FakePromptStore, FakeRegistry, make_record() (+12 more)
 
 ### Community 201 - "Community 201"
 Cohesion: 0.15
@@ -1788,7 +1780,7 @@ Nodes (10): chatApi(), deleteChatHistoryApi(), deleteUploadedFileApi(), getChatH
 
 ### Community 209 - "Community 209"
 Cohesion: 0.14
-Nodes (15): checkLoggedIn(), agindoChatbot, AppGate(), root, router, LayoutWrapper(), checkLoggedIn(), AppGate() (+7 more)
+Nodes (9): FakeBlobManager, FakeSearchManager, filename_token(), make_manager(), test_add_file_replaces_documents_from_other_ingestion_paths(), test_list_entries_gates_unknown_categories_on_index_and_manifests(), test_list_entries_shows_files_from_all_ingestion_paths(), test_list_entries_survives_search_facet_failure() (+1 more)
 
 ### Community 211 - "Community 211"
 Cohesion: 0.26
@@ -1807,8 +1799,8 @@ Cohesion: 0.26
 Nodes (10): chatApi(), deleteChatHistoryApi(), deleteUploadedFileApi(), getChatHistoryApi(), getChatHistoryListApi(), getCitationFilePath(), getHeaders(), listUploadedFilesApi() (+2 more)
 
 ### Community 215 - "Community 215"
-Cohesion: 0.23
-Nodes (5): AutoBlobIndexer, normalize_blob_name(), normalize_prefix(), Return the search category for a blob.          In dynamic mode the category is, test_normalize_blob_name_strips_container_prefix()
+Cohesion: 0.26
+Nodes (16): Any, File, Section, Chunk, Semantic chunk emitted by the splitter (may originate wholly within one page, build_snap_sections_if_applicable(), get_required_string_field(), get_string_list_field() (+8 more)
 
 ### Community 219 - "Community 219"
 Cohesion: 0.23
@@ -1843,16 +1835,16 @@ Cohesion: 0.33
 Nodes (7): Figure Processing Stage, Multimodal RAG Evaluation Config, Multimodal RAG Customization (RAG_SEARCH_* / RAG_SEND_*), Multimodal Documents Feature, Image Embeddings (Azure AI Vision), Azure AI Vision, Azure Blob Storage
 
 ### Community 232 - "Community 232"
-Cohesion: 0.26
-Nodes (10): formatTimestamp(), ManagePromptsPage(), StatusState, listPromptAdminEntriesApi(), parseErrorMessage(), PromptAdminEntry, PromptAdminListResponse, PromptAdminMutationResponse (+2 more)
+Cohesion: 0.21
+Nodes (11): formatTimestamp(), ManagePromptsPage(), StatusState, listPromptAdminEntriesApi(), parseErrorMessage(), PromptAdminEntry, PromptAdminListResponse, PromptAdminMutationResponse (+3 more)
 
 ### Community 234 - "Community 234"
-Cohesion: 0.24
-Nodes (4): FakeSearchClient, FakeSearchInfo, test_delete_documents_by_category_escapes_single_quotes(), test_delete_documents_by_category_removes_documents_in_batches()
+Cohesion: 0.15
+Nodes (16): Select the appropriate file processor for a given filename.      Args:, select_processor_for_filename(), Parses simple text into a Page object., TextParser, ChunkStub, Any, LogCaptureFixture, Reload module without pytest env to trigger init warning path. (+8 more)
 
 ### Community 235 - "Community 235"
 Cohesion: 0.06
-Nodes (26): pivotItemDisabledStyle, Props, Props, Claim, Props, acceptedExtensions, activeStatuses, Props (+18 more)
+Nodes (25): pivotItemDisabledStyle, Props, Props, Claim, Props, acceptedExtensions, activeStatuses, Props (+17 more)
 
 ### Community 237 - "Community 237"
 Cohesion: 0.14
@@ -1883,8 +1875,8 @@ Cohesion: 0.20
 Nodes (14): RAG Chunking Pattern (token limits), Vector Search (embeddings), Data Ingestion Guide, Document Extraction Stage, Ingestion Stages (Extract/Figure/Text), Supported Document Formats, Text Processing Stage (Merge/Chunk/Embed), Azure Document Intelligence (+6 more)
 
 ### Community 250 - "Community 250"
-Cohesion: 0.08
-Nodes (45): cut_premature_ending(), _dedupe_preserve_order(), ending_cut_index(), format_asked_marker(), format_modfail_marker(), format_modpass_marker(), format_module_marker(), format_plan_marker() (+37 more)
+Cohesion: 0.04
+Nodes (96): Any, _assistant_index_that_asked(), assistant_texts(), build_result_payload(), build_state_injection(), _completed_state(), compute_tally(), _current_question_interaction() (+88 more)
 
 ### Community 256 - "Community 256"
 Cohesion: 0.18
@@ -1899,7 +1891,7 @@ Cohesion: 0.22
 Nodes (8): Analysis Process, Constraints, Example Categories to Target, Issue Triager, Output Format, Primary Objective, Success Criteria, Task Requirements
 
 ### Community 259 - "Community 259"
-Cohesion: 0.17
+Cohesion: 0.15
 Nodes (13): 2026-06-24, Bensberg bot: rename display name from Lemon®AID to Bensberg, Changes, Changes, Changes, Changes, Decisions, Decisions (+5 more)
 
 ### Community 260 - "Community 260"
@@ -1959,7 +1951,7 @@ Cohesion: 0.40
 Nodes (4): HYROX Level 2 "Mastering Performance" Coach Assessment — system prompt.  Unlike, Render the structured question pool into a delimited block for the prompt, group, render_question_pool(), test_render_question_pool_includes_every_question_and_module_headings()
 
 ### Community 294 - "Community 294"
-Cohesion: 0.15
+Cohesion: 0.14
 Nodes (7): mock_vision_response(), MockResponse, MockAsyncOpenAI, MockChatCompletions, test_contentunderstanding_analyze(), test_multimodal_model_describer(), test_multimodal_model_describer_empty_response()
 
 ### Community 298 - "Community 298"
@@ -1987,8 +1979,8 @@ Cohesion: 0.67
 Nodes (3): QueryPlanStep type, activityTypeLabels, getStepLabel()
 
 ### Community 307 - "Community 307"
-Cohesion: 0.16
-Nodes (4): File, IO, Uploads a file directly to the user's directory in ADLS (no subdirectory)., Adds citation text to an image from a document.         Args:             imag
+Cohesion: 0.13
+Nodes (4): MockAsyncPageIterator, MockPagesAsyncIterator, Helper class to mock an async page from CosmosDB, Helper class to mock an iterator of pages
 
 ### Community 316 - "Community 316"
 Cohesion: 0.27
@@ -2005,10 +1997,6 @@ Nodes (3): azd up workflow (hooks, provisioning, deploy), Continuous Deployment 
 ### Community 352 - "Community 352"
 Cohesion: 0.67
 Nodes (3): Deployment Logs & Debugging, Oryx Build Process, Debugging App Service Deployments
-
-### Community 360 - "Community 360"
-Cohesion: 0.18
-Nodes (12): AssessmentQuestion, is_last_module(), module_index(), module_max_points(), next_module(), HYROX Level 2 "Mastering Performance" Coach Assessment — question bank.  AUTO-, Maximum points available in ``module_key`` (0 if unknown)., 0-based position of ``module_key`` in the fixed order (-1 if unknown). (+4 more)
 
 ### Community 389 - "Community 389"
 Cohesion: 0.25
@@ -2043,8 +2031,8 @@ Cohesion: 0.29
 Nodes (5): iconButtonStyles, iconProps, IHelpCalloutProps, labelCalloutStackStyles, stackTokens
 
 ### Community 398 - "Community 398"
-Cohesion: 0.15
-Nodes (18): Any, AsyncTokenCredential, BlobManager, SearchInfo, close_clients(), delete_blobs_with_prefix(), delete_category_data(), DeleteCategoryDataResult (+10 more)
+Cohesion: 0.07
+Nodes (47): BlobManager, Any, SearchInfo, Any, BlobManager, SearchInfo, BlobManager, OpenAIEmbeddings (+39 more)
 
 ### Community 400 - "Community 400"
 Cohesion: 0.29
@@ -2059,8 +2047,8 @@ Cohesion: 0.31
 Nodes (8): deleteFreeUserApi(), FreeAdminUser, FreeAdminUsersResponse, FreeDeleteUserResponse, FreeResetPasswordResponse, listFreeUsersApi(), parseErrorMessage(), resetFreeUserPasswordApi()
 
 ### Community 410 - "Community 410"
-Cohesion: 0.21
-Nodes (6): grant_application_admin_consent(), GrantDefinition, FakeOAuthGrant, test_grant_application_admin_consent_creates_grants(), test_grant_application_admin_consent_handles_insufficient_permissions(), test_grant_application_admin_consent_skips_existing_grants()
+Cohesion: 0.22
+Nodes (8): configure_global_settings(), Test text processor uses ManagedIdentityCredential with client ID., configure_global_settings wires up embedding service when configuration is compl, Figure processor is created with warning when USE_MULTIMODAL is true but OpenAI, test_figure_processor_warns_when_openai_incomplete(), test_text_processor_embeddings_setup(), test_text_processor_with_client_id(), Azure Function: Text Processor. Custom skill for Azure AI Search that merges pa
 
 ### Community 413 - "Community 413"
 Cohesion: 0.26
@@ -2107,24 +2095,16 @@ Cohesion: 0.29
 Nodes (7): Compatibility, Control LLM input sources, Control vector retrieval, Customize the multimodal approach, Deployment, Prerequisites, RAG chat: Support for multimodal documents
 
 ### Community 525 - "Community 525"
-Cohesion: 0.10
-Nodes (27): key_point_count(), max_points(), module_of(), How many required key points question ``number`` has (== expected length of the, The point cap for question ``number`` (0 if unknown)., The module key for question ``number`` ("" if unknown)., build_state_injection(), normalize_score() (+19 more)
+Cohesion: 0.47
+Nodes (5): Remove all hidden control markers from text (defense in depth; the frontend also, strip_markers(), assert_turn_invariants(), test_hyrox_live_smoke(), validate_score_markers()
 
 ### Community 526 - "Community 526"
-Cohesion: 0.16
-Nodes (13): CustomUvicornWorker, delete_documents_by_category function, delete_documents_by_category main, Gunicorn Config, load_azd_env, load_azd_env(), Get path to current azd env file and load file using python-dotenv, main.py entry (+5 more)
+Cohesion: 0.67
+Nodes (3): datetime, format_utc(), Blob-backed, multi-replica-safe cumulative session counter for DYNAMIC bots.  Qu
 
 ### Community 749 - "Community 749"
 Cohesion: 0.33
 Nodes (5): Committing the change, Fixer Mode Instructions, Local server setup, Making the PR, Running Python scripts
-
-### Community 753 - "Community 753"
-Cohesion: 0.40
-Nodes (5): is_give_up_or_meta(), normalize_give_up_text(), Lowercase, drop apostrophes, and collapse every non-letter/digit run to a single, True only when the WHOLE message is a give-up/meta statement (modulo trivial fil, test_is_give_up_or_meta_only_matches_whole_message_give_ups()
-
-### Community 756 - "Community 756"
-Cohesion: 0.25
-Nodes (13): build_file(), parse_dataset(), File, test_build_lemon_xml_sections_if_applicable_declines_non_knowledge_xml(), test_build_lemon_xml_sections_if_applicable_declines_non_xml_extension(), test_build_lemon_xml_sections_if_applicable_declines_wrong_category(), test_build_lemon_xml_sections_if_applicable_returns_sections_for_lemon_xml(), test_prepare_lemon_xml_dataset_content_keeps_markdown_and_drops_extras() (+5 more)
 
 ### Community 765 - "Community 765"
 Cohesion: 0.33
@@ -2167,8 +2147,8 @@ Cohesion: 0.23
 Nodes (15): build_document(), fetch_collection(), fetch_json(), fetch_remote_state(), fetch_snap_remote_state(), merge_documents(), Any, Fetch all records of a WP REST collection (pages/posts), paginating as needed. (+7 more)
 
 ### Community 933 - "Community 933"
-Cohesion: 0.20
-Nodes (22): AutoBlobIndexer, EventGridEvent, build_auto_indexer(), build_content2_auto_indexer(), build_fhg_json_sections(), content2_auto_index(), content2_delete_sync(), FeedDefinition (+14 more)
+Cohesion: 0.21
+Nodes (21): AutoBlobIndexer, EventGridEvent, build_auto_indexer(), build_content2_auto_indexer(), build_fhg_json_sections(), content2_auto_index(), content2_delete_sync(), FeedDefinition (+13 more)
 
 ### Community 940 - "Community 940"
 Cohesion: 0.15
@@ -2179,8 +2159,8 @@ Cohesion: 0.40
 Nodes (4): Answers, HistoryMetaData, HistoryProviderOptions, IHistoryProvider
 
 ### Community 1229 - "Community 1229"
-Cohesion: 0.14
-Nodes (34): Any, File, Section, build_snap_sections_if_applicable(), get_required_string_field(), get_string_list_field(), is_snap_payload(), normalize_brand_casing() (+26 more)
+Cohesion: 0.21
+Nodes (21): normalize_brand_casing(), prepare_snap_dataset(), Rewrite known SNAP brand tokens to their canonical casing (whole-word, case-inse, build_snap_payload(), build_snap_record(), make_file(), NamedBytesIO, File (+13 more)
 
 ### Community 1232 - "Community 1232"
 Cohesion: 0.40
@@ -2199,8 +2179,8 @@ Cohesion: 0.40
 Nodes (4): Answers, HistoryMetaData, HistoryProviderOptions, IHistoryProvider
 
 ### Community 1246 - "Community 1246"
-Cohesion: 0.09
-Nodes (64): AdlsBlobManager, AsyncOpenAI, AsyncStream, BlobManager, ChatCompletion, ChatCompletionChunk, ImageEmbeddings, PromptManager (+56 more)
+Cohesion: 0.06
+Nodes (72): AdlsBlobManager, Any, AsyncOpenAI, AsyncStream, BlobManager, ChatCompletion, ChatCompletionChunk, ChatCompletionMessageParam (+64 more)
 
 ### Community 1247 - "Community 1247"
 Cohesion: 0.40
@@ -2251,8 +2231,8 @@ Cohesion: 0.11
 Nodes (9): Props, Props, acceptedExtensions, activeStatuses, Props, QueueItemStatus, StatusState, UploadQueueItem (+1 more)
 
 ### Community 1340 - "Community 1340"
-Cohesion: 0.17
-Nodes (13): 2026-06-13, All bots: history panel overlays on tablet-portrait widths, All bots: responsive answer tables (polished horizontal scroll), Changes, Changes, Changes, Changes, Decisions (+5 more)
+Cohesion: 0.20
+Nodes (10): 2026-06-13, All bots: responsive answer tables (polished horizontal scroll), Changes, Changes, Changes, Decisions, Decisions, Decisions (+2 more)
 
 ### Community 1341 - "Community 1341"
 Cohesion: 0.29
@@ -2267,56 +2247,36 @@ Cohesion: 0.33
 Nodes (5): Answers, HistoryMetaData, HistoryProviderOptions, HistorySessionMetadata, IHistoryProvider
 
 ### Community 1357 - "Community 1357"
-Cohesion: 0.09
-Nodes (22): 2026-07-03, Changes, Changes, Changes, Changes, Changes, Changes, Changes (+14 more)
+Cohesion: 0.08
+Nodes (25): 2026-07-03, `/admin/uploads`: managed uploads list is now blob-driven — script/feed-ingested files show up and stay in sync, Changes, Changes, Changes, Changes, Changes, Changes (+17 more)
 
 ### Community 1364 - "Community 1364"
-Cohesion: 0.06
-Nodes (57): Any, build_document_components(), extract_document(), process_document(), Azure Search Custom Skill: Extract document content      Input format (single, Process a single document: download, parse, extract figures, upload images, process_figure_request(), Entrypoint for Azure Search custom skill calls. (+49 more)
+Cohesion: 0.07
+Nodes (66): process_figure_request(), Entrypoint for Azure Search custom skill calls., GlobalSettings, build_raw_request(), build_request(), EventGridEventStub, HttpRequest, MonkeyPatch (+58 more)
 
 ### Community 1373 - "Community 1373"
 Cohesion: 0.08
-Nodes (8): MarkdownViewerProps, MarkdownViewerProps, Props, MarkdownViewerProps, Props, Props, MarkdownViewerProps, TooltipTargetProps
+Nodes (8): MarkdownViewerProps, Props, MarkdownViewerProps, MarkdownViewerProps, MarkdownViewerProps, MarkdownViewerProps, MarkdownViewerProps, TooltipTargetProps
 
 ### Community 1385 - "Community 1385"
-Cohesion: 0.18
-Nodes (12): EmbedConfigEntry, EmbedConfigMutationResponse, EmbedConfigResponse, getEmbedConfigApi(), parseErrorMessage(), saveEmbedConfigApi(), EmbedSnippetModal(), EmbedSnippetModalProps (+4 more)
+Cohesion: 0.15
+Nodes (14): ChatbotDirectory(), sortedChatbots, EmbedConfigEntry, EmbedConfigMutationResponse, EmbedConfigResponse, getEmbedConfigApi(), parseErrorMessage(), saveEmbedConfigApi() (+6 more)
 
 ### Community 1406 - "Community 1406"
 Cohesion: 0.67
 Nodes (3): datetime, format_utc(), Blob-backed store for dynamically provisioned chatbots.  This is the runtime sou
 
-### Community 1421 - "Community 1421"
-Cohesion: 0.29
-Nodes (4): Chat(), Layout(), useBotConfig(), setGlobalOpenRecentChats()
-
 ### Community 1423 - "Community 1423"
-Cohesion: 0.25
-Nodes (8): 2026-07-09, Changes, Changes, Decisions, Decisions, Fix "m is not a function" crash (scrollIntoView effect cleanup) + global route error boundary, Shipped dynamic `/example` bot seed, snap bot: canonical brand-name casing in reference-link titles
-
-### Community 1425 - "Community 1425"
-Cohesion: 0.29
-Nodes (4): BlobProperties, Downloads a blob from Azure Storage.         If user_oid is provided, it checks, Properties of a blob, with optional fields for content settings, Downloads a blob from Azure Blob Storage.          Args:             blob_pat
-
-### Community 1426 - "Community 1426"
-Cohesion: 0.33
-Nodes (3): AioHttpTransportResponse, MockAiohttpClientResponse, HttpRequest
+Cohesion: 0.15
+Nodes (13): 2026-07-09, Changes, Changes, Changes, Changes, Decisions, Decisions, Decisions (+5 more)
 
 ### Community 1430 - "Community 1430"
 Cohesion: 0.33
 Nodes (6): 2026-06-09, Changes, Decisions, Follow-up: drag-to-resize the widget panel, Follow-up: embed layout fixes (from live testing), Follow-up: served `/embed-demo` page with a chatbot picker
 
-### Community 1437 - "Community 1437"
-Cohesion: 0.40
-Nodes (4): get_application(), GraphServiceClient, test_authentication_enabled(), main()
-
-### Community 1447 - "Community 1447"
-Cohesion: 0.50
-Nodes (3): AsyncTokenCredential, AzureKeyCredential, Initializes the command          Parameters         ----------         servi
-
 ### Community 1583 - "Community 1583"
 Cohesion: 0.08
-Nodes (9): MarkdownViewerProps, MarkdownViewerProps, MarkdownViewerProps, MarkdownViewerProps, MarkdownViewerProps, MarkdownViewerProps, MarkdownViewerProps, MarkdownViewerProps (+1 more)
+Nodes (9): MarkdownViewerProps, MarkdownViewerProps, MarkdownViewerProps, Props, Props, MarkdownViewerProps, MarkdownViewerProps, MarkdownViewerProps (+1 more)
 
 ### Community 1631 - "Community 1631"
 Cohesion: 0.50
@@ -2331,18 +2291,18 @@ Cohesion: 0.67
 Nodes (3): Customizing Workload Profile, Private endpoints, RAG chat: Deploying on Azure Container Apps
 
 ## Knowledge Gaps
-- **2473 isolated node(s):** `ChatCompletionSystemMessageParam`, `ChatCompletionUserMessageParam`, `ChatCompletionMessageParam`, `ChatCompletionToolParam`, `AsyncOpenAI` (+2468 more)
+- **2482 isolated node(s):** `ChatCompletionSystemMessageParam`, `ChatCompletionUserMessageParam`, `ChatCompletionMessageParam`, `ChatCompletionToolParam`, `AsyncOpenAI` (+2477 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **591 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `BlobManager` connect `Community 12` to `Community 3`, `Community 5`, `Community 8`, `Community 13`, `Community 398`, `Community 14`, `Community 1425`, `Community 146`, `Community 22`, `Community 28`, `Community 29`, `Community 31`, `Community 41`, `Community 43`, `Community 307`, `Community 56`, `Community 74`, `Community 1364`, `Community 215`, `Community 89`, `Community 1246`, `Community 97`, `Community 101`, `Community 104`, `Community 1265`, `Community 1270`, `Community 121`, `Community 1406`?**
+- **Why does `isAuthenticated()` connect `Community 137` to `Community 128`, `Community 416`, `Community 130`, `Community 132`, `Community 135`, `Community 360`, `Community 76`, `Community 16`, `Community 210`, `Community 126`, `Community 157`, `Community 158`, `Community 127`?**
+  _High betweenness centrality (0.009) - this node is a cross-community bridge._
+- **Why does `BlobManager` connect `Community 12` to `Community 3`, `Community 8`, `Community 140`, `Community 13`, `Community 526`, `Community 398`, `Community 146`, `Community 22`, `Community 28`, `Community 29`, `Community 31`, `Community 33`, `Community 41`, `Community 56`, `Community 72`, `Community 74`, `Community 86`, `Community 89`, `Community 1246`, `Community 97`, `Community 1270`, `Community 121`, `Community 1406`?**
   _High betweenness centrality (0.008) - this node is a cross-community bridge._
-- **Why does `buildOptionTexts()` connect `Community 48` to `Community 36`, `Community 55`?**
-  _High betweenness centrality (0.008) - this node is a cross-community bridge._
-- **Why does `isAuthenticated()` connect `Community 130` to `Community 128`, `Community 416`, `Community 132`, `Community 135`, `Community 137`, `Community 16`, `Community 209`, `Community 210`, `Community 150`, `Community 157`, `Community 126`, `Community 127`?**
+- **Why does `buildOptionTexts()` connect `Community 48` to `Community 36`, `Community 1583`, `Community 55`?**
   _High betweenness centrality (0.008) - this node is a cross-community bridge._
 - **Are the 218 inferred relationships involving `BlobManager` (e.g. with `Any` and `ChatbotRegistryRecord`) actually correct?**
   _`BlobManager` has 218 INFERRED edges - model-reasoned connections that need verification._
@@ -2351,4 +2311,4 @@ _Questions this graph is uniquely positioned to answer:_
 - **Are the 86 inferred relationships involving `SearchManager` (e.g. with `AsyncOpenAI` and `AsyncTokenCredential`) actually correct?**
   _`SearchManager` has 86 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `Create the shipped /example dynamic bot once if it does not already exist.`, `Return the active provisioned (dynamic) record for a name, or None.      Built`, `Pre-chat gate for DYNAMIC (provisioned) bots. Returns None to proceed, or an` to the rest of the system?**
-  _2887 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _2896 weakly-connected nodes found - possible documentation gaps or missing edges._

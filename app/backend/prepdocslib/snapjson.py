@@ -54,7 +54,13 @@ DEFAULT_MAX_CHUNK_TOKENS = 650
 # running text. Keys are lowercase; matched case-insensitively on word
 # boundaries. Extend this map as new brands need enforcing.
 BRAND_CANONICAL: dict[str, str] = {
+    # Multi-word product names MUST come before their single-token prefix so the
+    # regex alternation prefers the longer match ("vjoon seven" before "vjoon").
+    "vjoon seven": "vjoon seven",
     "vjoon": "vjoon",
+    "axaio": "axaio",
+    "callas": "callas",
+    "dataplan": "dataplan",
     "codesco": "CoDesCo",
 }
 
