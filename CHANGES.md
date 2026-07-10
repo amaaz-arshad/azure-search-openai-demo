@@ -15,6 +15,106 @@ Two categories per date:
 
 ---
 
+## 2026-07-09
+
+### Shipped dynamic `/example` bot seed
+
+#### Decisions
+
+- **`/example` should be a provisioned dynamic bot, not a new built-in route.** The repo already has the generic runtime path for dynamic bots (`/ :botName` + `/bot-config/<name>`), so the smallest way to ship `/example` was to seed a dynamic registry record at app startup and let the existing generic frontend render it.
+- **Seed is idempotent and non-destructive.** If an `example` record already exists, startup leaves it alone so manual provisioning changes are preserved.
+
+#### Changes
+
+- `app/backend/app.py` — added `EXAMPLE_DYNAMIC_BOT_NAME`, `EXAMPLE_DYNAMIC_BOT_DEFAULTS`, and `ensure_example_dynamic_bot_seeded()`, then invoked the helper during backend startup after the registry store is configured.
+- `tests/test_dynamic_resolution.py` — added regression coverage proving the example bot seed is created once, skipped on later startup passes, and does not overwrite an existing record.
+
+### Fix "m is not a function" crash (scrollIntoView effect cleanup) + global route error boundary
+
+#### Decisions
+
+- **Reported symptom:** the provisioned bot `/xba` opened fine, but clicking the Q&A mode button
+  ("Ich habe eine Frage") replaced the whole page with React Router's raw developer error screen
+  (`TypeError: m is not a function`, pure-vendor stack). After the first crash, the bot crashed **on
+  every load** — the poisoned flow was re-triggered by restore-last-session-on-load.
+- **Root cause (confirmed by exact reproduction): the concise-arrow scroll effects in every bot's
+  `Chat.tsx`** — `useEffect(() => chatMessageStreamEnd.current?.scrollIntoView({...}), [isLoading])`
+  and `..., [streamedAnswers])` — **return `scrollIntoView`'s return value to React as the effect
+  cleanup.** Natively that's `undefined` (harmless), but smooth-scroll **browser extensions patch
+  `Element.prototype.scrollIntoView` to return an animation-handle object**; React stores it as the
+  destroy function and calls it the next time the effect re-runs (`isLoading` flips on send;
+  `streamedAnswers` is set by session restore on load) → `TypeError` in `safelyCallDestroy` (minified:
+  `m is not a function`) → app dies. Proven by simulating the patch in Playwright: dev React warns
+  "useEffect must not return anything besides a function … You returned: [object Object]" **at Chat**,
+  then throws "destroy is not a function" at `safelyCallDestroy` — the production error verbatim.
+- **Why only this bot / this user:** the bug required (a) a browser with such an extension and (b) an
+  effect *re-run*. Other bots "worked" because merely loading them runs the effects once — without a
+  stored active session nothing re-triggers; they would crash identically mid-conversation. `/xba`
+  crashed on load because its active-session pointer + IndexedDB session (written before the crash)
+  re-ran the `[streamedAnswers]` effect during restore. Nothing was wrong with the provisioning
+  payload (`/bot-config/xba` is valid; `llm: "gpt-5"` self-heals server-side by design).
+- **Fix: block-body the two scroll effects in all 20 `Chat.tsx` files** so the effect returns
+  `undefined` regardless of what a patched `scrollIntoView` returns, with a comment so the concise
+  form isn't reintroduced. Repo-wide sweep confirmed no other concise-arrow effect returns a DOM API
+  result.
+- **Defense-in-depth shipped alongside:** a single top-level router `errorElement` so any stray
+  render/commit error from ANY route degrades to a friendly, self-contained fallback (Reload / home)
+  instead of React Router's raw developer error page. React Router renders `errorElement` in place of
+  the matched route, so per-route providers (bot `I18nextProvider`, `ChatbotThemeRoot`) are NOT in
+  scope — the boundary is deliberately provider-free: no `useTranslation`, no theme tokens, inline
+  styles only, locale from `document.documentElement.lang` / `navigator.language` (default `de`).
+- Investigation dead-ends kept for the record: deployed bundles were byte-identical to source; all
+  passive effects in react-spring/react-i18next/react-spinners/floating-ui return proper cleanups;
+  the real `/bot-config/xba`, `/config`, and captured live `/chat/stream` payloads replayed cleanly
+  12/12 in a clean browser — which is what pointed to an environment-dependent monkey-patch.
+
+#### Changes
+
+- `app/frontend/src/chatbots/<all 20 bots>/pages/chat/Chat.tsx` — the two scroll effects
+  (`[isLoading]`, `[streamedAnswers]`) converted from concise arrows to block bodies (+ comment);
+  no behavior change beyond discarding the return value.
+- `app/frontend/src/chatbots/shared/error/RouteErrorBoundary.tsx` (new) — friendly full-page fallback
+  using `useRouteError`; logs the underlying error to the console for support; inline-styled,
+  provider-free, de/en/nl copy.
+- `app/frontend/src/index.tsx` — wrapped all routes in one pathless layout route
+  (`element: <Outlet/>`, `errorElement: <RouteErrorBoundary/>`). No route paths/behavior changed.
+- Verified with Playwright (dev build): with `Element.prototype.scrollIntoView` patched to return an
+  object (extension simulation) the pre-fix code crashes on load exactly like production; post-fix,
+  fresh load → option click → streamed answer → reload-with-session-restore all pass with zero
+  errors, both with and without the patch. A throwing test route renders the friendly boundary
+  instead of the raw error page. `npm run build` clean.
+
+### snap bot: canonical brand-name casing in reference-link titles
+
+#### Decisions
+
+- **Root cause is data, not the prompt.** The snap bot cites with `citation_target="url"`, so the
+  model only emits the page URL in `[…]`. The reference-link *title* the user sees is the
+  backend-supplied `displayLabel` = the search-doc `title` field, which is scraped verbatim from the
+  snap.de WordPress page-title field. That CMS field is sometimes mis-cased (`"Vjoon K4"`) while the
+  body prose is correct (`"vjoon K4"`), producing a reference link whose casing disagrees with the
+  running text. Because the model never authors this title, a prompt instruction cannot fix it — the
+  fix must normalize the `title` at ingestion.
+- **Scope: titles only, `vjoon` + `CoDesCo` only, no prompt change.** Chose the minimal targeted fix.
+  Body `content` is left verbatim (already canonical), the brand map holds only the two flagged
+  brands (extensible by one line), and `sampleprompt.py`/scraper/frontend/`data/snap.json` are
+  untouched. Normalization runs at parse/index time, so the committed feed keeps its raw casing and
+  the *index* gets canonical titles. Deferred: applying the same normalizer to `content`, and
+  expanding the brand map.
+
+#### Changes
+
+- `app/backend/prepdocslib/snapjson.py`: added `BRAND_CANONICAL` map, `BRAND_CASING_RE`, and
+  `normalize_brand_casing()` (whole-word, case-insensitive); applied it to the `title` read in
+  `prepare_snap_dataset`. Added `import re`.
+- Synced the four `app/functions/*/prepdocslib/snapjson.py` copies via `scripts/copy_prepdocslib.py`.
+- `tests/test_snapjson.py`: added parametrized `normalize_brand_casing` tests (casing variants,
+  word-boundary safety, non-brand text) and `prepare_snap_dataset` tests asserting title
+  normalization for `vjoon`/`CoDesCo` and that body `content` is left verbatim. All 25 pass.
+- Re-indexed category `snap` (`python app/backend/refresh_snap.py --force`) so existing docs pick up
+  corrected titles. Verified against the live index: 139 snap docs / 52 records; `tools-vjoon-k4` →
+  `"vjoon K4"` and `tools-vjoon-seven` → `"vjoon Seven"`; no `Vjoon`/`Codesco` casing left in any title.
+
 ## 2026-07-08
 
 ### `content2` dynamic multi-bot auto-indexer (provisioned/generic bots)

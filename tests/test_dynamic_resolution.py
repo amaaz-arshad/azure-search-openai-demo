@@ -26,10 +26,23 @@ class FakeRegistry:
     def __init__(self, records=None):
         self.records = records or {}
         self.load_calls: list[str | None] = []
+        self.save_calls: list[tuple[str | None, dict]] = []
 
     async def load_record(self, name):
         self.load_calls.append(normalize_chatbot_name(name))
         return self.records.get(normalize_chatbot_name(name))
+
+    async def save_record(self, bot_name, *, fields):
+        normalized = normalize_chatbot_name(bot_name)
+        self.save_calls.append((normalized, dict(fields)))
+        self.records[normalized] = make_record(
+            normalized,
+            prompt=fields.get("prompt", ""),
+            llm=fields.get("llm"),
+            active=bool(fields.get("active", False)),
+            modes=fields.get("modes"),
+        )
+        return self.records[normalized]
 
 
 class FakePromptStore:
@@ -97,6 +110,40 @@ async def test_resolve_short_circuits_builtin_without_touching_registry():
     async with quart_app.app_context():
         assert await app_module.resolve_active_dynamic_record("demo") is None
     assert registry.load_calls == []  # registry never consulted for a built-in name
+
+
+# --- shipped example bot bootstrap -------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_example_dynamic_bot_is_seeded_once_and_is_idempotent():
+    registry = FakeRegistry({})
+    quart_app = make_ctx(registry)
+    async with quart_app.app_context():
+        await app_module.ensure_example_dynamic_bot_seeded()
+        await app_module.ensure_example_dynamic_bot_seeded()
+
+    assert registry.load_calls == ["example", "example"]
+    assert len(registry.save_calls) == 1
+    bot_name, fields = registry.save_calls[0]
+    assert bot_name == "example"
+    assert fields["display_name"] == "Example"
+    assert fields["active"] is True
+    assert fields["number_sessions"] == app_module.UNLIMITED_SESSIONS
+    assert fields["modes"] == {"qa": True, "tutor": False, "assessment": False}
+    assert fields["features"] == {"disclaimer": True, "history": True, "sources": False}
+    assert fields["languages"] == ["English", "Deutsch", "Nederlands"]
+
+
+@pytest.mark.asyncio
+async def test_example_dynamic_bot_seed_skips_existing_record():
+    registry = FakeRegistry({"example": make_record("example", active=True)})
+    quart_app = make_ctx(registry)
+    async with quart_app.app_context():
+        await app_module.ensure_example_dynamic_bot_seeded()
+
+    assert registry.load_calls == ["example"]
+    assert registry.save_calls == []
 
 
 # --- apply_saved_chatbot_prompt_override (dynamic branch) ---------------------------------

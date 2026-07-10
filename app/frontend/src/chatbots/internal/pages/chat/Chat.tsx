@@ -653,8 +653,15 @@ const Chat = () => {
         setSpeechUrls(nextAnswers.length ? [null] : []);
     }, [answers.length, initialAssistantPair]);
 
-    useEffect(() => chatMessageStreamEnd.current?.scrollIntoView({ behavior: "smooth" }), [isLoading]);
-    useEffect(() => chatMessageStreamEnd.current?.scrollIntoView({ behavior: "auto" }), [streamedAnswers]);
+    // Block-bodied on purpose: scrollIntoView's return value must never become the effect cleanup —
+    // browser smooth-scroll extensions patch Element.prototype.scrollIntoView to return an object,
+    // and React would crash calling it as a destroy function ("m is not a function").
+    useEffect(() => {
+        chatMessageStreamEnd.current?.scrollIntoView({ behavior: "smooth" });
+    }, [isLoading]);
+    useEffect(() => {
+        chatMessageStreamEnd.current?.scrollIntoView({ behavior: "auto" });
+    }, [streamedAnswers]);
     useEffect(() => {
         getConfig();
     }, []);

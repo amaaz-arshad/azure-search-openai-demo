@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { Navigate, RouterProvider, createBrowserRouter } from "react-router-dom";
+import { Navigate, Outlet, RouterProvider, createBrowserRouter } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { initializeIcons } from "@fluentui/react";
 import { MsalProvider } from "@azure/msal-react";
@@ -14,6 +14,7 @@ import { GenericChatbotRoute } from "./chatbots/generic";
 import { Component as SharedNoPage } from "./chatbots/shared/noPage/NoPage";
 import { ChatbotThemeRoot } from "./chatbots/shared/theme/ChatbotThemeRoot";
 import { EmbedBridge } from "./chatbots/shared/embed/EmbedBridge";
+import { RouteErrorBoundary } from "./chatbots/shared/error/RouteErrorBoundary";
 import { isEmbedMode } from "./chatbots/shared/embed/embedMode";
 import i18n from "./chatbots/nerilio/i18n/config";
 import ChatbotDirectory from "./pages/ChatbotDirectory";
@@ -66,54 +67,65 @@ const chatbotRoutes = chatbotDefinitions.flatMap(chatbot => [
 
 const router = createBrowserRouter([
     {
-        path: "/",
-        element: (
-            <I18nextProvider i18n={i18n}>
-                <SharedNoPage />
-            </I18nextProvider>
-        )
-    },
-    {
-        // Consolidated internal admin shell: one password gate + tab bar over the former standalone
-        // /chatbots, /manage-prompts, /upload-files, /free-users pages plus the embed-demo iframe.
-        path: "/admin",
-        element: <AdminLayout />,
+        // Pathless layout route: its errorElement catches any render/commit error bubbling up from ANY
+        // child route (built-in bots, the dynamic /:botName generic bot, admin, embed) and renders a
+        // friendly fallback instead of React Router's raw developer error page — so one stray error
+        // (e.g. a browser extension tampering with the page) never white-screens the whole SPA. The
+        // <Outlet/> just renders the matched child; it adds no path segment. See CHANGES.md 2026-07-09.
+        element: <Outlet />,
+        errorElement: <RouteErrorBoundary />,
         children: [
-            { index: true, element: <Navigate to="/admin/chatbots" replace /> },
-            { path: "chatbots", element: <ChatbotDirectory /> },
-            { path: "prompts", element: <ManagePromptsPage /> },
-            { path: "uploads", element: <UploadFilesPage /> },
-            { path: "users", element: <FreeUsersPage /> },
-            { path: "embed", element: <EmbedDemoTab /> }
+            {
+                path: "/",
+                element: (
+                    <I18nextProvider i18n={i18n}>
+                        <SharedNoPage />
+                    </I18nextProvider>
+                )
+            },
+            {
+                // Consolidated internal admin shell: one password gate + tab bar over the former standalone
+                // /chatbots, /manage-prompts, /upload-files, /free-users pages plus the embed-demo iframe.
+                path: "/admin",
+                element: <AdminLayout />,
+                children: [
+                    { index: true, element: <Navigate to="/admin/chatbots" replace /> },
+                    { path: "chatbots", element: <ChatbotDirectory /> },
+                    { path: "prompts", element: <ManagePromptsPage /> },
+                    { path: "uploads", element: <UploadFilesPage /> },
+                    { path: "users", element: <FreeUsersPage /> },
+                    { path: "embed", element: <EmbedDemoTab /> }
+                ]
+            },
+            // Legacy admin URLs redirect into the matching /admin tab so existing bookmarks keep working.
+            { path: "/chatbots", element: <Navigate to="/admin/chatbots" replace /> },
+            { path: "/manage-prompts", element: <Navigate to="/admin/prompts" replace /> },
+            { path: "/upload-files", element: <Navigate to="/admin/uploads" replace /> },
+            { path: "/free-users", element: <Navigate to="/admin/users" replace /> },
+            { path: "/public-test-users", element: <Navigate to="/admin/users" replace /> },
+            ...chatbotRoutes,
+            {
+                // Anonymized embed target. The bot is chosen from the backend-injected name, never the URL.
+                path: "/embed/:publicId",
+                element: embedChatbot ? wrapChatbotElement(embedChatbot, <embedChatbot.LayoutWrapper />) : <Navigate to="/" replace />,
+                children: embedChatbot ? [{ index: true, element: <embedChatbot.Chat /> }] : undefined
+            },
+            {
+                // Dynamic (provisioned) bots resolved at runtime from /bot-config. Built-in bots and all
+                // literal top-level routes rank higher, so only names not matched statically reach here; an
+                // unknown/inactive name 404s and redirects home (same UX as the "*" fallback below).
+                path: "/:botName",
+                element: <GenericChatbotRoute embedMode={embedMode} />
+            },
+            {
+                path: "/:botName/*",
+                element: <GenericChatbotRoute embedMode={embedMode} />
+            },
+            {
+                path: "*",
+                element: <Navigate to="/" replace />
+            }
         ]
-    },
-    // Legacy admin URLs redirect into the matching /admin tab so existing bookmarks keep working.
-    { path: "/chatbots", element: <Navigate to="/admin/chatbots" replace /> },
-    { path: "/manage-prompts", element: <Navigate to="/admin/prompts" replace /> },
-    { path: "/upload-files", element: <Navigate to="/admin/uploads" replace /> },
-    { path: "/free-users", element: <Navigate to="/admin/users" replace /> },
-    { path: "/public-test-users", element: <Navigate to="/admin/users" replace /> },
-    ...chatbotRoutes,
-    {
-        // Anonymized embed target. The bot is chosen from the backend-injected name, never the URL.
-        path: "/embed/:publicId",
-        element: embedChatbot ? wrapChatbotElement(embedChatbot, <embedChatbot.LayoutWrapper />) : <Navigate to="/" replace />,
-        children: embedChatbot ? [{ index: true, element: <embedChatbot.Chat /> }] : undefined
-    },
-    {
-        // Dynamic (provisioned) bots resolved at runtime from /bot-config. Built-in bots and all
-        // literal top-level routes rank higher, so only names not matched statically reach here; an
-        // unknown/inactive name 404s and redirects home (same UX as the "*" fallback below).
-        path: "/:botName",
-        element: <GenericChatbotRoute embedMode={embedMode} />
-    },
-    {
-        path: "/:botName/*",
-        element: <GenericChatbotRoute embedMode={embedMode} />
-    },
-    {
-        path: "*",
-        element: <Navigate to="/" replace />
     }
 ]);
 

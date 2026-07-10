@@ -7,6 +7,7 @@ from prepdocslib.listfilestrategy import File
 from prepdocslib.snapjson import (
     build_snap_sections_if_applicable,
     is_snap_payload,
+    normalize_brand_casing,
     prepare_snap_dataset,
     prepare_snap_sections,
     validate_snap_payload,
@@ -151,3 +152,64 @@ async def test_build_snap_sections_if_applicable_only_for_snap_json():
     # snap category but a non-snap JSON payload -> not claimed (falls through to generic parser).
     other_file = File(content=NamedBytesIO(json.dumps({"documents": []}).encode("utf-8"), "other.json"))
     assert await build_snap_sections_if_applicable(file=other_file, category="snap") is None
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("Vjoon K4", "vjoon K4"),
+        ("VJOON", "vjoon"),
+        ("vjoon Seven", "vjoon Seven"),
+        ("Codesco", "CoDesCo"),
+        ("codesco", "CoDesCo"),
+        ("CODESCO", "CoDesCo"),
+        # Multiple brand tokens in one string are each normalized.
+        ("Vjoon K4 und Codesco", "vjoon K4 und CoDesCo"),
+        # Hyphen/punctuation counts as a word boundary.
+        ("vjoon-k4", "vjoon-k4"),
+        ("Vjoon.", "vjoon."),
+        # Word-boundary safety: brand tokens embedded in a larger word are left alone.
+        ("vjoonize", "vjoonize"),
+        ("supervjoon", "supervjoon"),
+        ("Codescoly", "Codescoly"),
+        # Non-brand text is untouched.
+        ("Nerilio - Content Workflow", "Nerilio - Content Workflow"),
+        ("", ""),
+    ],
+)
+def test_normalize_brand_casing(raw: str, expected: str):
+    assert normalize_brand_casing(raw) == expected
+
+
+def test_prepare_snap_dataset_normalizes_brand_casing_in_title():
+    dataset = prepare_snap_dataset(
+        build_snap_payload([build_snap_record(record_id="tools-vjoon-k4", title="Vjoon K4")]),
+        dataset_filename="snap.json",
+        category="snap",
+    )
+
+    assert dataset.documents[0].title == "vjoon K4"
+
+
+def test_prepare_snap_dataset_normalizes_codesco_in_title():
+    dataset = prepare_snap_dataset(
+        build_snap_payload([build_snap_record(record_id="partner-codesco", title="Codesco Partnerschaft")]),
+        dataset_filename="snap.json",
+        category="snap",
+    )
+
+    assert dataset.documents[0].title == "CoDesCo Partnerschaft"
+
+
+def test_prepare_snap_dataset_leaves_body_content_verbatim():
+    # Scope is titles only: brand casing inside content must not be rewritten.
+    dataset = prepare_snap_dataset(
+        build_snap_payload(
+            [build_snap_record(title="Vjoon K4", content="Der Titel steht als Vjoon K4 in der CMS-Kopfzeile.")]
+        ),
+        dataset_filename="snap.json",
+        category="snap",
+    )
+
+    assert dataset.documents[0].title == "vjoon K4"
+    assert dataset.documents[0].content == "Der Titel steht als Vjoon K4 in der CMS-Kopfzeile."

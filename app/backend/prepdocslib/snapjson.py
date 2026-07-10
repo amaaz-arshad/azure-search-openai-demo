@@ -31,6 +31,7 @@ Shape::
 
 import logging
 import os
+import re
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -45,6 +46,27 @@ logger = logging.getLogger("scripts")
 
 SNAP_FEED_MARKER = "snap.de"
 DEFAULT_MAX_CHUNK_TOKENS = 650
+
+# Canonical casing for SNAP brand/product names. Reference-link titles come from
+# the scraped WordPress page-title field, which is sometimes mis-cased (e.g. the
+# CMS enters "Vjoon K4" while the body prose uses the correct "vjoon K4"). We
+# normalize known brand tokens in the *title* so the reference link matches the
+# running text. Keys are lowercase; matched case-insensitively on word
+# boundaries. Extend this map as new brands need enforcing.
+BRAND_CANONICAL: dict[str, str] = {
+    "vjoon": "vjoon",
+    "codesco": "CoDesCo",
+}
+
+BRAND_CASING_RE = re.compile(
+    r"\b(" + "|".join(re.escape(key) for key in BRAND_CANONICAL) + r")\b",
+    re.IGNORECASE,
+)
+
+
+def normalize_brand_casing(text: str) -> str:
+    """Rewrite known SNAP brand tokens to their canonical casing (whole-word, case-insensitive)."""
+    return BRAND_CASING_RE.sub(lambda m: BRAND_CANONICAL[m.group(0).lower()], text)
 
 
 @dataclass(frozen=True)
@@ -147,7 +169,7 @@ def prepare_snap_dataset(
 
     for record in records:
         record_id = get_required_string_field(record, "id")
-        title = get_required_string_field(record, "title")
+        title = normalize_brand_casing(get_required_string_field(record, "title"))
         url = get_required_string_field(record, "url")
         tags = list(dict.fromkeys(get_string_list_field(record, "tags")))
         page_type = (record.get("type") or "").strip() if isinstance(record.get("type"), str) else ""

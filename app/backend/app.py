@@ -569,6 +569,42 @@ def get_chatbot_session_counter_store() -> ChatbotSessionCounterStore:
     return cast(ChatbotSessionCounterStore, counter_store)
 
 
+EXAMPLE_DYNAMIC_BOT_NAME = "example"
+EXAMPLE_DYNAMIC_BOT_DEFAULTS: dict[str, Any] = {
+    "display_name": "Example",
+    "active": True,
+    "number_sessions": UNLIMITED_SESSIONS,
+    "prompt": (
+        "You are Example, a helpful general-purpose assistant. Answer clearly and concisely in the "
+        "user's language. If you do not know, say so instead of guessing."
+    ),
+    "modes": {"qa": True, "tutor": False, "assessment": False},
+    "design": {"color_primary": "#4b5563"},
+    "languages": ["English", "Deutsch", "Nederlands"],
+    "greeting": {
+        "English": "Welcome to Example. How can I help?",
+        "Deutsch": "Willkommen bei Example. Wie kann ich helfen?",
+        "Nederlands": "Welkom bij Example. Waar kan ik je mee helpen?",
+    },
+    "disclaimer": {
+        "English": "Example is an AI assistant. Responses are generated automatically.",
+        "Deutsch": "Example ist ein KI-Assistent. Antworten werden automatisch generiert.",
+        "Nederlands": "Example is een AI-assistent. Antwoorden worden automatisch gegenereerd.",
+    },
+    "features": {"disclaimer": True, "history": True, "sources": False},
+}
+
+
+async def ensure_example_dynamic_bot_seeded() -> None:
+    """Create the shipped /example dynamic bot once if it does not already exist."""
+
+    store = get_chatbot_registry_store()
+    if await store.load_record(EXAMPLE_DYNAMIC_BOT_NAME) is not None:
+        return
+    await store.save_record(EXAMPLE_DYNAMIC_BOT_NAME, fields=EXAMPLE_DYNAMIC_BOT_DEFAULTS)
+    current_app.logger.info("Seeded example dynamic chatbot at /example")
+
+
 # Minimal neutral system prompt for a dynamic bot whose control panel sent an empty `prompt`.
 # Real bots override this by sending their own prompt; the placeholders are substituted by
 # render_chatbot_prompt. Built-in bots never use this — they keep their source prompts.
@@ -2675,6 +2711,7 @@ async def setup_clients():
     # STUB auth (plan Phase 0): static Bearer key from env. Final scheme TBD with the nerilio backend; when
     # promoted to an azd variable, wire it through main.parameters.json/main.bicep/pipelines.
     current_app.config[CONFIG_PROVISIONING_API_KEY] = os.getenv("PROVISIONING_API_KEY") or None
+    await ensure_example_dynamic_bot_seeded()
     # Blob-backed store for the LLM-Wiki retrieval mode (pilot: Internal bot, lemon corpus).
     chatbot_wiki_store = ChatbotWikiStore(blob_manager=global_blob_manager)
     current_app.config[CONFIG_CHATBOT_WIKI_STORE] = chatbot_wiki_store
