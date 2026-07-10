@@ -2,7 +2,7 @@
     "pageTitle": "SNAP",
     "headerTitle": "SNAP",
     "initialUserMsg": "Hello",
-    "initialAssistantMsg": "Hello, I'm the SNAP assistant. How can I assist you today?",
+    "initialAssistantMsg": "Hello, I'm nerilio. How can I help you?",
     "chat": "Chat",
     "login": "Login",
     "logout": "Logout",

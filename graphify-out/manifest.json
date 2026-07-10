@@ -8835,18 +8835,18 @@
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/snap/locales/de/translation.json": {
-    "mtime": 1783023014.6506667,
-    "ast_hash": "7e55aed77ef09beaec2298e0391c4c8e",
+    "mtime": 1783701656.0040357,
+    "ast_hash": "2e025b983706c4dda22facc4f9667fbd",
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/snap/locales/en/translation.json": {
-    "mtime": 1783023016.6328106,
-    "ast_hash": "3ca872b29729f031f9788fad8134c210",
+    "mtime": 1783701660.344398,
+    "ast_hash": "9f242eac8b4544b7b597fb82b8be3320",
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/snap/locales/nl/translation.json": {
-    "mtime": 1783023037.2075646,
-    "ast_hash": "84275929b9dd834efbf2974d047304c3",
+    "mtime": 1783701664.8781521,
+    "ast_hash": "0be252f0f002689ed0732402c356fd9e",
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/snap/loginContext.tsx": {

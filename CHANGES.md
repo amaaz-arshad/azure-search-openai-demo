@@ -28,6 +28,20 @@ Two categories per date:
 - `app/frontend/src/widget/widget.ts` — dropped the `border` declaration from `.panel` in `styleSheet()`.
 - Verified via a headless-browser screenshot (Playwright, static test harness stubbing the `/embed/<id>/config` fetch) that the computed border is now `0px none` and the popup renders as a clean rounded rectangle with only the box-shadow for definition.
 
+### Snap bot welcome message rebrand to "nerilio"
+
+#### Decisions
+
+- **Scope kept to the frontend greeting only** — user asked to change the welcome message text, not the backend system prompt or any other "SNAP-Assistent" identity references (e.g. in `sampleprompt.py`/`config.py`), so those were left untouched.
+- **EN/NL wording was authored freely, not dictated verbatim** — the user supplied only the German text; English/Dutch equivalents were written to match tone/register (informal "du"/"je") rather than a literal word-for-word translation, since none was specified.
+- **`nerilio` kept lowercase mid-sentence** in all three locales, consistent with existing brand casing elsewhere in the repo (`nerilio.ai`, "the nerilio backend").
+
+#### Changes
+
+- `app/frontend/src/chatbots/snap/locales/de/translation.json` — `initialAssistantMsg` → "Hallo, ich bin nerilio. Wie kann ich dir helfen?"
+- `app/frontend/src/chatbots/snap/locales/en/translation.json` — `initialAssistantMsg` → "Hello, I'm nerilio. How can I help you?"
+- `app/frontend/src/chatbots/snap/locales/nl/translation.json` — `initialAssistantMsg` → "Hallo, ik ben nerilio. Hoe kan ik je helpen?"
+
 ## 2026-07-09
 
 ### Shipped dynamic `/example` bot seed
