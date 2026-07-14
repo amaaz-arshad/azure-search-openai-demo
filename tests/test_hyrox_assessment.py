@@ -271,7 +271,7 @@ def test_failing_a_module_emits_modfail_and_retry_prompt() -> None:
     assert "[[MODPASS" not in content and "[[DONE]]" not in content
     disp = results.strip_markers(content)
     assert "80%" in disp
-    assert "again" in disp.lower()
+    assert "retake" in disp.lower()
 
 
 def test_retry_restarts_same_module_fresh_excluding_failed_scores() -> None:

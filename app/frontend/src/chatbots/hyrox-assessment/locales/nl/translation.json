@@ -3,7 +3,7 @@
     "headerTitle": "HYROX Level 2 Assessment",
     "initialUserMsg": "Start",
     "greeting": "Hoi {{firstName}}!\n\n",
-    "initialAssistantMsg": "Welkom bij het HYROX Assessment “Mastering Performance”! Dit is de eindtoets om je Level 2-certificaat te behalen.\n\nHet assessment omvat alle modules. Elke module wordt apart getoetst en beoordeeld. Je beantwoordt de vragen in vrije tekst en je hebt bij elke vraag één kans om je antwoord te herzien. Om te slagen moet je per module minstens 80% scoren. Zodra je een module hebt gehaald, ga je door naar de volgende.\n\nAan het eind ontvang je een overzicht per thema.\n\nJe kunt het assessment op elk moment pauzeren en later op dit apparaat verdergaan.\n\nStart het assessment wanneer je er klaar voor bent.",
+    "initialAssistantMsg": "Welkom bij het HYROX Assessment “Mastering Performance”! Dit is de eindtoets om je Level 2-certificaat te behalen.\n\nHet assessment omvat alle modules. Elke module wordt apart getoetst en beoordeeld. Je beantwoordt de vragen in vrije tekst en je hebt bij elke vraag in die poging van de module één kans om je antwoord te herzien. Voor elke vraag is een vast aantal punten beschikbaar. Zorg dat je genoeg gerichte punten opschrijft om het betreffende aantal punten te behalen. Om te slagen moet je per module minstens 80% van de punten scoren. Zodra je een module hebt gehaald, ga je door naar de volgende.\n\nAan het eind ontvang je een overzicht per thema.\n\nJe kunt het assessment op elk moment pauzeren en later op dit apparaat verdergaan.",
     "chat": "Chat",
     "login": "Inloggen",
     "logout": "Uitloggen",

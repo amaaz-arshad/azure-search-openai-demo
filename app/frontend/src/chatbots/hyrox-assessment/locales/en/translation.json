@@ -3,7 +3,7 @@
     "headerTitle": "HYROX Level 2 Assessment",
     "initialUserMsg": "Start",
     "greeting": "Hi {{firstName}}!\n\n",
-    "initialAssistantMsg": "Welcome to the HYROX “Mastering Performance” Assessment! This is the final test to earn your Level 2 certificate.\n\nThe assessment covers all modules. Each module is tested and evaluated separately. You’ll answer the questions in free-text format and have one chance to revise your answer for each question if needed. To pass, you must score at least 80% on each module. Once you’ve passed a module, you’ll move on to the next one.\n\nAt the end, you’ll receive a summary organised by topic.\n\nYou can pause the assessment at any time and return to continue later on this device.\n\nStart the assessment when you’re ready to begin.",
+    "initialAssistantMsg": "Welcome to the HYROX “Mastering Performance” Assessment! This is the final test to earn your Level 2 certificate.\n\nThe assessment covers all modules. Each module is tested and evaluated separately. You’ll answer the questions in free-text format and have one chance on that attempt of the module to revise your answer for each question if needed. Each question has a set number of marks available. Ensure you write enough targeted points to acquire the respective number of marks available. To pass, you must score at least 80% of the marks on each module. Once you’ve passed a module, you’ll move on to the next one.\n\nAt the end, you’ll receive a summary organised by topic.\n\nYou can pause the assessment at any time and return to continue later on this device.",
     "chat": "Chat",
     "login": "Login",
     "logout": "Logout",

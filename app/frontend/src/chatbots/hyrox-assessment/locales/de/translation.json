@@ -3,7 +3,7 @@
     "headerTitle": "HYROX Level 2 Assessment",
     "initialUserMsg": "Start",
     "greeting": "Hallo {{firstName}}!\n\n",
-    "initialAssistantMsg": "Willkommen zum HYROX Assessment „Mastering Performance“! Dies ist der Abschlusstest für dein Level-2-Zertifikat.\n\nDas Assessment umfasst alle Module. Jedes Modul wird einzeln getestet und ausgewertet. Du beantwortest die Fragen im Freitext und hast bei jeder Frage eine Möglichkeit, deine Antwort zu überarbeiten. Zum Bestehen brauchst du in jedem Modul mindestens 80 %. Sobald du ein Modul bestanden hast, geht es weiter zum nächsten.\n\nAm Ende erhältst du eine Auswertung nach Themengebieten.\n\nDu kannst das Assessment jederzeit pausieren und später auf diesem Gerät fortsetzen.\n\nStarte das Assessment, wenn du bereit bist.",
+    "initialAssistantMsg": "Willkommen zum HYROX Assessment „Mastering Performance“! Dies ist der Abschlusstest für dein Level-2-Zertifikat.\n\nDas Assessment umfasst alle Module. Jedes Modul wird einzeln getestet und ausgewertet. Du beantwortest die Fragen im Freitext und hast bei jeder Frage in diesem Versuch des Moduls eine Möglichkeit, deine Antwort zu überarbeiten. Für jede Frage ist eine bestimmte Punktzahl vorgesehen. Achte darauf, genügend gezielte Punkte zu nennen, um die jeweils verfügbare Punktzahl zu erreichen. Zum Bestehen brauchst du in jedem Modul mindestens 80 % der Punkte. Sobald du ein Modul bestanden hast, geht es weiter zum nächsten.\n\nAm Ende erhältst du eine Auswertung nach Themengebieten.\n\nDu kannst das Assessment jederzeit pausieren und später auf diesem Gerät fortsetzen.",
     "chat": "Chat",
     "qa": "Stellen Sie eine Frage",
     "login": "Anmelden",

@@ -218,11 +218,20 @@ _LOCALES: dict[str, dict[str, Any]] = {
         ],
         "continue_prompt": "Ready to continue to the next module?",
         "module_fail_text": (
-            "You didn't quite reach the 80% needed to pass this module. No problem — you'll take the whole "
-            "module again, every question from the top. Carry what you've just worked through into the next "
-            "attempt."
+            "You did not reach the 80% score required to pass this module. This is a normal part of the "
+            "learning process, and you will now complete a full retake of the module assessment.\n\n"
+            "To prepare effectively for your next attempt:\n\n"
+            "- **Review module learning material:** Go through the module sections related to the topics "
+            "in question. Ensure you identify the specific areas that are relevant and answer the question "
+            "feeling more confident.\n"
+            "- **Review your previous answers:** Look at the responses you wrote before and identify any "
+            "parts that clearly contributed to your score. Reuse any text that you know has answered the "
+            "question correctly.\n"
+            "- **Strengthen each response that you did not answer correctly:** Read the question carefully. "
+            "Add any new information, refine explanations, and ensure your answer fully responds to the "
+            "question.\n"
+            "- **Start your retake:** When you're ready, retake the module!"
         ),
-        "retry_prompt": "When you're ready, retake the module.",
         "complete_result": "**Assessment complete — you've passed every module ({s}/{m}, {p}%).**",
         "summary_heading": "**Summary**",
         "summary_strengths": "**Strengths:**",
@@ -257,11 +266,20 @@ _LOCALES: dict[str, dict[str, Any]] = {
         ],
         "continue_prompt": "Bereit, mit dem nächsten Modul weiterzumachen?",
         "module_fail_text": (
-            "Du hast die nötigen 80% für dieses Modul knapp nicht erreicht. Kein Problem — du machst das "
-            "gesamte Modul noch einmal, jede Frage von vorn. Nimm das, was du gerade erarbeitet hast, mit in "
-            "den nächsten Versuch."
+            "Du hast die zum Bestehen dieses Moduls erforderlichen 80 % nicht erreicht. Das ist ein "
+            "normaler Teil des Lernprozesses, und du machst jetzt eine vollständige Wiederholung des "
+            "Modul-Assessments.\n\n"
+            "So bereitest du dich optimal auf deinen nächsten Versuch vor:\n\n"
+            "- **Lernmaterial des Moduls durchgehen:** Geh die Modulabschnitte zu den betreffenden Themen "
+            "durch. Finde gezielt die relevanten Bereiche und beantworte die Frage mit mehr Sicherheit.\n"
+            "- **Deine bisherigen Antworten durchsehen:** Sieh dir deine vorherigen Antworten an und "
+            "erkenne, welche Teile eindeutig zu deiner Punktzahl beigetragen haben. Übernimm Textstellen, "
+            "von denen du weißt, dass sie die Frage richtig beantwortet haben.\n"
+            "- **Jede nicht korrekt beantwortete Antwort verbessern:** Lies die Frage sorgfältig. Ergänze "
+            "neue Informationen, präzisiere deine Erklärungen und stelle sicher, dass deine Antwort die "
+            "Frage vollständig beantwortet.\n"
+            "- **Wiederholung starten:** Wenn du bereit bist, wiederhole das Modul!"
         ),
-        "retry_prompt": "Wenn du bereit bist, wiederhole das Modul.",
         "complete_result": "**Assessment abgeschlossen — du hast jedes Modul bestanden ({s}/{m}, {p}%).**",
         "summary_heading": "**Auswertung**",
         "summary_strengths": "**Stärken:**",
@@ -298,11 +316,20 @@ _LOCALES: dict[str, dict[str, Any]] = {
         ],
         "continue_prompt": "Klaar om verder te gaan met de volgende module?",
         "module_fail_text": (
-            "Je hebt de vereiste 80% voor deze module net niet gehaald. Geen probleem — je maakt de hele "
-            "module opnieuw, elke vraag vanaf het begin. Neem mee wat je net hebt doorgewerkt naar de "
-            "volgende poging."
+            "Je hebt de vereiste 80% om voor deze module te slagen niet gehaald. Dit is een normaal "
+            "onderdeel van het leerproces, en je maakt nu een volledige herkansing van het "
+            "module-assessment.\n\n"
+            "Zo bereid je je goed voor op je volgende poging:\n\n"
+            "- **Bekijk het lesmateriaal van de module:** Neem de moduleonderdelen door die met de "
+            "betreffende onderwerpen te maken hebben. Zorg dat je de specifieke relevante gebieden "
+            "herkent en beantwoord de vraag met meer vertrouwen.\n"
+            "- **Bekijk je eerdere antwoorden:** Kijk naar de antwoorden die je eerder schreef en bepaal "
+            "welke delen duidelijk aan je score hebben bijgedragen. Hergebruik tekst waarvan je weet dat "
+            "die de vraag correct heeft beantwoord.\n"
+            "- **Versterk elk antwoord dat je niet goed had:** Lees de vraag zorgvuldig. Voeg nieuwe "
+            "informatie toe, verfijn je uitleg en zorg dat je antwoord de vraag volledig beantwoordt.\n"
+            "- **Start je herkansing:** Wanneer je er klaar voor bent, maak je de module opnieuw!"
         ),
-        "retry_prompt": "Wanneer je er klaar voor bent, maak je de module opnieuw.",
         "complete_result": "**Beoordeling voltooid — je bent voor elke module geslaagd ({s}/{m}, {p}%).**",
         "summary_heading": "**Overzicht**",
         "summary_strengths": "**Sterke punten:**",
@@ -993,7 +1020,9 @@ def render_module_pass_transition(module_key: str, language: Optional[str] = Non
 
 def render_module_fail_transition(language: Optional[str] = None) -> str:
     L = _locale(language)
-    return f"{L['module_fail_text']}\n\n{L['retry_prompt']}".strip()
+    # module_fail_text now carries the full fail message, including the closing retake call-to-action as
+    # its final bullet, so nothing further is appended here.
+    return L["module_fail_text"]
 
 
 def _dedupe_preserve_order(items: list[str]) -> list[str]:

@@ -15,6 +15,42 @@ Two categories per date:
 
 ---
 
+## 2026-07-14
+
+### HYROX assessment: new welcome message + actionable module-fail transition
+
+#### Decisions
+
+- **Welcome message updated per client copy.** The second paragraph now states that the single
+  revision is per-question *within that attempt of the module*, that each question carries a set
+  number of marks, and that the 80% is "of the marks". The old trailing line "Start the assessment
+  when you're ready to begin." was dropped — the inline "Start assessment" button already carries
+  that call-to-action (confirmed with the user).
+- **Module-fail transition rewritten as an actionable checklist.** Replaced the one-sentence
+  "you didn't quite reach… retake" copy with a 4-step prep list (review module material, review
+  previous answers, strengthen wrong answers, start retake), rendered as a **markdown bulleted list
+  with bold labels** (chosen over plain lines by the user). The retake call-to-action is now the
+  final bullet, so the separate `retry_prompt` string was folded into `module_fail_text` and removed.
+- **Parity kept across en/de/nl.** The bot is hard-coded English-only (`HYROX_ASSESSMENT_LANGUAGE="en"`),
+  but the user asked to keep the German/Dutch copies in sync, so both messages were translated for all
+  three locales.
+- **No new e2e.** Both messages are pure copy; the only logic change (folding `retry_prompt` into
+  `module_fail_text` + simplifying `render_module_fail_transition`) is covered by existing backend unit
+  tests. `test_failing_a_module_emits_modfail_and_retry_prompt` asserted the old word "again"; it was
+  retargeted to "retake" (the new copy no longer says "again").
+
+#### Changes
+
+- `app/frontend/src/chatbots/hyrox-assessment/locales/en/translation.json`,
+  `.../de/translation.json`, `.../nl/translation.json` — new `initialAssistantMsg` welcome text
+  (per-locale wording), trailing "start now" sentence removed.
+- `app/backend/approaches/chatbots/hyrox_assessment/results.py` — rewrote `module_fail_text` (en/de/nl)
+  as the bulleted prep checklist including the retake CTA as its last bullet; removed the now-unused
+  `retry_prompt` key from all three locales; `render_module_fail_transition` now returns
+  `module_fail_text` directly.
+- `tests/test_hyrox_assessment.py` — `test_failing_a_module_emits_modfail_and_retry_prompt` now asserts
+  `"retake"` instead of `"again"`.
+
 ## 2026-07-10
 
 ### Removed hairline border from the embed widget popup panel
