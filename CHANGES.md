@@ -15,6 +15,68 @@ Two categories per date:
 
 ---
 
+## 2026-07-17
+
+### HYROX assessment: model-faked control markers stranded runs at Module 10 (bug fix)
+
+#### Decisions
+
+- **Root cause of the two "stuck after Module 10 passed" reports (web + iOS, 2026-07-15/16):**
+  `gpt-5.4-mini` imitates the backend's module-boundary bubble — fabricated result line, pass
+  transition, and the forbidden `[[MODPASS]]` marker — on ~8% of module boundaries (verified in the
+  production session logs in `hyrox-assessment-logs/`: 26 of 334 boundary-bearing messages across 8 of
+  15 completed runs). The backend never stripped model-authored control markers, so a fake
+  `[[MODPASS m=M10]]` persisted into replayed history; `derive_turn_state` then hit
+  `next_module("M10") → None → _completed_state()`, going terminal WITHOUT rendering the completion
+  sequence, `[[DONE]]`/`[[PROGRESS value=100]]`, or the LMS report — a permanent brick (typing only
+  yielded "assessment is finished" acknowledgments). Repro-proven against the real engine.
+- **Second production defect found during verification (certificate integrity):** in completed run
+  `2d5777a8` (account 70719), a fake `[[MODPASS m=M7.4]]` preceded the backend's real
+  `[[MODFAIL m=M7.4]]` in the same message; MODPASS was checked first, so the learner advanced past
+  the FAILED module (13/17, 76%) and completed with `passed: True`. Fixed by acting on the LAST
+  boundary marker in the window (the backend's marker is always trailing).
+- **Fix strategy is defense-in-depth in `results.py`, not prompt-only:** strip all backend-owned
+  markers from model output; store `[[SCORE]]` canonically with the pinned question id (a
+  verbatim-stored wrong `q` attr permanently desynced the module counter — the final question was
+  re-asked forever); ignore a MODPASS for the final module in `derive_turn_state` (backend never
+  writes one) so ALREADY-bricked legacy sessions self-heal on the learner's next message; strip
+  model-imitated module-result lines (the old `_COMPLETE_LINE_RE` missed "Module 10 complete — …"
+  because of the number between the words).
+- **Rejected alternatives:** truncation (`max_completion_tokens=8192`) and frontend/HTTP causes were
+  refuted by telemetry — zero non-200 `/chat` in the failure window, completions provably working for
+  other users, and a reload re-fires `[[PROGRESS]]` from stored history, proving the marker was never
+  emitted. A keyword-based fake-boundary-prose matcher stays rejected (same false-positive reasoning
+  as the earlier summary-matcher decision); the fake pass PROSE (minus markers/result lines) remains a
+  benign residual, as does the token-less-ending soft-stall (recovers on next message).
+- **Observability:** production logging swallowed every `hyrox_assessment` INFO line (root config is
+  WARNING; only `app` + `scripts` loggers get INFO), which is why completions were invisible in App
+  Insights. The logger is now explicitly enabled, and stripped fake markers log a WARNING so model
+  drift is measurable.
+- **Affected-user rescue:** no code path can retro-complete the two stranded runs from the server (no
+  server-side transcript exists for uncompleted runs; history is browser-local IndexedDB). After
+  deploy, each affected user just sends one more message in the existing chat — the state machine
+  re-derives the pending final question, finalises it, renders the real completion, and fires the LMS
+  trigger. Support follow-up: account 70719's certificate was granted with M7.4 below threshold
+  (business decision, not code).
+
+#### Changes
+
+- `app/backend/approaches/chatbots/hyrox_assessment/results.py` — added `FORBIDDEN_MODEL_MARKER_RE` +
+  `strip_forbidden_model_markers` (applied in `render_assessment_turn` before assembly, with a WARNING
+  log); `format_score_marker` + canonical `[[SCORE]]` storage (model markers removed from the body;
+  boundary/completion renderers take `score_marker_text`, mid-module turns append it to the trailing
+  markers); `derive_turn_state` boundary handling rewritten to last-marker-wins and to ignore a
+  final-module MODPASS (with WARNING) instead of returning `_completed_state()`; `_COMPLETE_LINE_RE`
+  extended for numbered module words and new `_MODULE_RESULT_LINE_RE` wired into
+  `strip_rendered_numbers`; module docstring updated.
+- `app/backend/app.py` — enabled the `hyrox_assessment` logger at `APP_LOG_LEVEL`.
+- `tests/test_hyrox_assessment.py` — new `_drive_to_module10` helper + 5 regression tests: fake
+  boundary markers stripped and run completes; legacy bricked history (fake `[[MODPASS m=M10]]` +
+  "Continue" + ack) recovers and completes; real MODFAIL beats an earlier fake MODPASS (retake, not
+  advance); wrong-`q` `[[SCORE]]` stored canonically (no re-ask loop); imitation module-result lines
+  stripped while mid-sentence module references are kept. Suite: 47 passed.
+- `CLAUDE.md` — HYROX contract bullet updated with the marker-neutralisation invariants.
+
 ## 2026-07-14
 
 ### HYROX assessment: new welcome message + actionable module-fail transition

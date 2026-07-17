@@ -26,6 +26,11 @@ The backend owns the per-module question counter, the running module tally, the 
 an 80% threshold, and the module transitions — it renders all of these into the message itself
 (``render_*``) so the model can neither miscount nor mis-add. When the final module is passed,
 ``record_assessment_result`` writes a session log and calls the LMS stub.
+
+Backend-authored markers the model fakes anyway are STRIPPED from its output before assembly
+(``strip_forbidden_model_markers``), and the model's ``[[SCORE]]`` is stored in canonical backend form
+(``format_score_marker``) — otherwise a fake ``[[MODPASS]]``/wrong ``q`` attribute persists into replayed
+history and corrupts the derived state (see the regex comments above each).
 """
 
 import difflib
@@ -64,6 +69,19 @@ ANY_MARKER_RE = re.compile(
     r"\[\[\s*(?:PLAN|MODULE|SCORE|ASKED|ASK|MODPASS|MODFAIL|SUMMARY|BREAK|PROGRESS|DONE)\b[^\]]*\]\]",
     re.IGNORECASE,
 )
+# Markers only the BACKEND may author. The prompt forbids the model from writing them, but a drifting
+# model imitates the module-boundary messages it sees replayed in history — markers included (observed in
+# production session logs at roughly 8% of module boundaries). Before 2026-07-17 these fakes were only
+# hidden at display and persisted into stored history, where a fake [[MODPASS]] in the FINAL module's
+# window stranded the whole run (derive_turn_state read it as "final module passed" and went terminal
+# without ever rendering the completion sequence or the LMS [[PROGRESS]] hand-off), and a fake [[MODPASS]]
+# beside the real [[MODFAIL]] could advance a learner past a failed module. render_assessment_turn now
+# strips them from the model's output before assembly so stored history stays backend-authored-only.
+# [[SCORE]]/[[ASK]]/[[SUMMARY]] are the model's own channels and are handled separately.
+FORBIDDEN_MODEL_MARKER_RE = re.compile(
+    r"\[\[\s*(?:PLAN|MODULE|MODPASS|MODFAIL|PROGRESS|DONE|ASKED|BREAK)\b[^\]]*\]\]",
+    re.IGNORECASE,
+)
 # Backend-authored, hidden: emitted once on the FINAL module's pass to hand the result back to the
 # Lemon app. The frontend hides it at render and fires lemon://save_progress?value=N. Never emitted on a
 # module pass that is not the last module, and never on a module fail.
@@ -100,7 +118,16 @@ _TOTAL_LINE_RE = re.compile(
     re.IGNORECASE | re.MULTILINE,
 )
 _COMPLETE_LINE_RE = re.compile(
-    r"^\s*\*{0,2}\s*(?:Assessment complete|Module complete|Modul abgeschlossen|Bewertung abgeschlossen|Module voltooid|Beoordeling voltooid)\b[^\n]*$",
+    r"^\s*\*{0,2}\s*(?:Assessment complete|Module(?:\s+[\d.]+)?\s+complete|Modul(?:\s+[\d.]+)?\s+abgeschlossen"
+    r"|Bewertung abgeschlossen|Module(?:\s+[\d.]+)?\s+voltooid|Beoordeling voltooid)\b[^\n]*$",
+    re.IGNORECASE | re.MULTILINE,
+)
+# A model-faked module-result line in the backend's own format ("**Module 7.4 — 13/17 (76%). Passed.**"):
+# a line that OPENS with the module word + number and carries a points fraction is always an imitation —
+# the backend renders its own result line after stripping, so it can never be caught here. (The optional
+# module number in _COMPLETE_LINE_RE covers the fraction-less variant "Module 10 complete — Passed.")
+_MODULE_RESULT_LINE_RE = re.compile(
+    r"^\s*\*{0,2}\s*Modul(?:e)?\s+[\d.]+\b[^\n]*?\d+\s*/\s*\d+[^\n]*$",
     re.IGNORECASE | re.MULTILINE,
 )
 
@@ -376,6 +403,16 @@ def format_modpass_marker(module_key: str) -> str:
 
 def format_modfail_marker(module_key: str) -> str:
     return f"[[MODFAIL m={module_key}]]"
+
+
+def format_score_marker(score: dict[str, Any]) -> str:
+    """Canonical [[SCORE]] marker text for a normalised score. Stored INSTEAD of the model's own marker
+    text: the model may write a wrong ``q`` attribute (e.g. the next question's id), and while the turn
+    itself forces the pinned id, a verbatim-stored wrong ``q`` would replay into ``_scores_in_window``
+    under the wrong question and permanently desync the module counter (the current question could then
+    never be finalised)."""
+    pts = ",".join(str(1 if p else 0) for p in score.get("points", []))
+    return f'[[SCORE q={score["q"]} points="{pts}" max={score["max"]} mod="{score["mod"]}"]]'
 
 
 def _parse_attrs(body: str) -> dict[str, Any]:
@@ -724,14 +761,29 @@ def derive_turn_state(messages: list[dict[str, Any]], final_content: Optional[st
     after_module = window[last_module.end():]
 
     # A module-boundary event after the current MODULE marker means the learner is acting on the
-    # transition this turn: continue to the next module, or retake the current one.
-    if MODPASS_MARKER_RE.search(after_module):
+    # transition this turn: continue to the next module, or retake the current one. The backend appends
+    # its single authoritative boundary marker at the very END of the boundary message, so when a legacy
+    # history (stored before model-faked markers were stripped) carries a fake beside the real one, the
+    # LAST marker in the window is the backend's — act on that, never on an earlier fake. (Observed in
+    # production: a fake [[MODPASS]] preceding the real [[MODFAIL]] used to advance a learner past a
+    # failed module because MODPASS was checked first.)
+    boundary_events = [(m.start(), "pass") for m in MODPASS_MARKER_RE.finditer(after_module)]
+    boundary_events += [(m.start(), "fail") for m in MODFAIL_MARKER_RE.finditer(after_module)]
+    if boundary_events:
+        _, boundary_kind = max(boundary_events)
+        if boundary_kind == "fail":
+            return _start_module_state(cur_mod, attempt=cur_attempt + 1, plan_is_new=False)
         nxt = next_module(cur_mod)
-        if nxt is None:
-            return _completed_state()  # final module already passed (defensive)
-        return _start_module_state(nxt, attempt=1, plan_is_new=False)
-    if MODFAIL_MARKER_RE.search(after_module):
-        return _start_module_state(cur_mod, attempt=cur_attempt + 1, plan_is_new=False)
+        if nxt is not None:
+            return _start_module_state(nxt, attempt=1, plan_is_new=False)
+        # A MODPASS for the FINAL module can only be model-faked noise replaying from a legacy session:
+        # the backend never writes one there (passing the final module renders the completion sequence
+        # with [[DONE]] + [[PROGRESS]] instead). Returning _completed_state() here — as this code did
+        # before 2026-07-17 — silently went terminal WITHOUT the completion sequence or the LMS report,
+        # permanently stranding the run (the reported "stuck after Module 10 passed" bug). Ignore the
+        # fake and fall through to the mid-module derivation so the last question can still be
+        # finalised and the genuine completion rendered.
+        logger.warning("HYROX: ignoring model-faked [[MODPASS]] for final module %s in replayed history", cur_mod)
 
     # Mid-module: the current attempt is active.
     mod_qs = module_questions(cur_mod)
@@ -907,6 +959,24 @@ def strip_rendered_numbers(text: Optional[str]) -> str:
     cleaned = _HEADER_LINE_RE.sub("", text)
     cleaned = _TOTAL_LINE_RE.sub("", cleaned)
     cleaned = _COMPLETE_LINE_RE.sub("", cleaned)
+    cleaned = _MODULE_RESULT_LINE_RE.sub("", cleaned)
+    cleaned = re.sub(r"\n[ \t]*\n[ \t]*\n+", "\n\n", cleaned)
+    return cleaned.strip()
+
+
+def strip_forbidden_model_markers(text: Optional[str]) -> str:
+    """Remove control markers only the backend may author ([[PLAN]]/[[MODULE]]/[[MODPASS]]/[[MODFAIL]]/
+    [[PROGRESS]]/[[DONE]]/[[ASKED]]/[[BREAK]]) from the MODEL's output before assembly, so a model-faked
+    marker can never persist into stored history and corrupt the replayed state (see
+    FORBIDDEN_MODEL_MARKER_RE). Applied to the model body only — the backend appends its own authoritative
+    markers afterwards."""
+    if not text:
+        return text or ""
+    found = FORBIDDEN_MODEL_MARKER_RE.findall(text)
+    if not found:
+        return text
+    logger.warning("HYROX: stripped %d model-authored control marker(s) from model output: %s", len(found), found)
+    cleaned = FORBIDDEN_MODEL_MARKER_RE.sub("", text)
     cleaned = re.sub(r"\n[ \t]*\n[ \t]*\n+", "\n\n", cleaned)
     return cleaned.strip()
 
@@ -1091,6 +1161,7 @@ def render_completion_bubbles(
     module_results: list[tuple[str, list[dict[str, Any]]]],
     overall_tally: dict[str, Any],
     language: Optional[str] = None,
+    score_marker_text: str = "",
 ) -> str:
     """Assemble the end-of-assessment message as [[BREAK]]-separated display bubbles:
 
@@ -1101,14 +1172,16 @@ def render_completion_bubbles(
     4. the motivational message,
     5. the closing message (certificate notice).
 
-    The model's hidden [[SCORE]] marker is re-appended at the very end so it still replays. The model writes
-    the take-aways after [[SUMMARY]]; the backend owns the heading and every number, and if the model omits
-    [[SUMMARY]] the learner still gets the deterministic topic-wise summary.
+    The hidden [[SCORE]] marker (``score_marker_text``, the backend's canonical form — falling back to one
+    found in ``body`` for direct callers) is re-appended at the very end so it still replays. The model
+    writes the take-aways after [[SUMMARY]]; the backend owns the heading and every number, and if the model
+    omits [[SUMMARY]] the learner still gets the deterministic topic-wise summary.
     """
     L = _locale(language)
 
-    score_marker = SCORE_MARKER_RE.search(body)
-    score_marker_text = score_marker.group(0) if score_marker else ""
+    if not score_marker_text:
+        score_marker = SCORE_MARKER_RE.search(body)
+        score_marker_text = score_marker.group(0) if score_marker else ""
     cleaned = re.sub(r"\n[ \t]*\n[ \t]*\n+", "\n\n", SCORE_MARKER_RE.sub("", body)).strip()
 
     feedback, *summary_rest = SUMMARY_TOKEN_RE.split(cleaned, maxsplit=1)
@@ -1140,12 +1213,15 @@ def render_module_end_bubbles(
     module_key: str,
     module_tally: dict[str, Any],
     language: Optional[str] = None,
+    score_marker_text: str = "",
 ) -> str:
     """Assemble a (non-final) module-boundary message as [[BREAK]]-separated bubbles: the final question's
-    score + feedback, then the module result + the pass/fail transition. The hidden [[SCORE]] marker is
-    re-appended so it replays."""
-    score_marker = SCORE_MARKER_RE.search(body)
-    score_marker_text = score_marker.group(0) if score_marker else ""
+    score + feedback, then the module result + the pass/fail transition. The hidden [[SCORE]] marker
+    (``score_marker_text``, the backend's canonical form — falling back to one found in ``body`` for direct
+    callers) is re-appended so it replays."""
+    if not score_marker_text:
+        score_marker = SCORE_MARKER_RE.search(body)
+        score_marker_text = score_marker.group(0) if score_marker else ""
     feedback = re.sub(r"\n[ \t]*\n[ \t]*\n+", "\n\n", SCORE_MARKER_RE.sub("", body)).strip()
 
     if module_tally["passed"]:
@@ -1175,6 +1251,7 @@ def render_assessment_turn(
     the cross-module totals so the result log/LMS report is built from the full assessment.
     """
     body = strip_rendered_numbers(content)
+    body = strip_forbidden_model_markers(body)
     body = strip_leaked_question_text(body)
 
     if state.get("assessment_complete") or state.get("current_id") is None:
@@ -1237,6 +1314,16 @@ def render_assessment_turn(
     if not is_completion_turn:
         body = cut_premature_ending(body)
 
+    # Store the backend's CANONICAL score marker, never the model's own text: a verbatim-stored wrong
+    # ``q`` attribute replays under the wrong question and desyncs the module counter permanently (see
+    # format_score_marker). Remove the model's marker(s) from the body here; each branch below appends
+    # the canonical form instead.
+    canonical_score_marker = ""
+    if new_score is not None:
+        canonical_score_marker = format_score_marker(new_score)
+        if SCORE_MARKER_RE.search(body):
+            body = re.sub(r"\n[ \t]*\n[ \t]*\n+", "\n\n", SCORE_MARKER_RE.sub("", body)).strip()
+
     if should_backend_render_question:
         asked_question_id = state["current_id"]
         question_block = render_question_block(
@@ -1261,12 +1348,16 @@ def render_assessment_turn(
                 all_results = list(state.get("prior_module_results", [])) + [(cur_mod, module_scores)]
                 flat_scores = [s for _, scores in all_results for s in scores]
                 overall_tally = compute_tally(flat_scores)
-                assembled = render_completion_bubbles(body, score_line, all_results, overall_tally, language)
+                assembled = render_completion_bubbles(
+                    body, score_line, all_results, overall_tally, language, canonical_score_marker
+                )
                 trailing = [DONE_MARKER, PROGRESS_MARKER]
                 assembled = (assembled + "\n\n" + "\n".join(trailing)).strip()
                 return assembled, flat_scores, overall_tally, True
             # Non-final module boundary (pass→continue, or fail→retry).
-            assembled = render_module_end_bubbles(body, score_line, cur_mod, module_tally, language)
+            assembled = render_module_end_bubbles(
+                body, score_line, cur_mod, module_tally, language, canonical_score_marker
+            )
         else:
             # 3) Mid-module: grade-first feedback, or finalise + auto-chain the next question.
             parts: list[str] = []
@@ -1299,6 +1390,10 @@ def render_assessment_turn(
         trailing.append(format_module_marker(cur_mod, int(state.get("attempt", 1))))
     if asked_question_id is not None:
         trailing.append(format_asked_marker(asked_question_id))
+    if new_score is not None and n_after < module_total:
+        # Mid-module finalisation: replay the canonical score marker here (module-boundary and completion
+        # messages embed it via render_module_end_bubbles / render_completion_bubbles instead).
+        trailing.append(canonical_score_marker)
     if new_score is not None and n_after >= module_total:
         # Module boundary (non-final): MODPASS on a pass (frontend shows Continue), MODFAIL on a fail
         # (frontend shows Retry).

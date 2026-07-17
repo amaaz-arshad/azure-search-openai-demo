@@ -3086,6 +3086,9 @@ def create_app():
     app_level = os.getenv("APP_LOG_LEVEL", "INFO")
     app.logger.setLevel(os.getenv("APP_LOG_LEVEL", app_level))
     logging.getLogger("scripts").setLevel(app_level)
+    # The HYROX assessment state engine logs completion/LMS-report lines and model-marker-drift warnings
+    # on this logger; without an explicit level they are swallowed by the WARNING root config above.
+    logging.getLogger("hyrox_assessment").setLevel(app_level)
 
     if allowed_origin := os.getenv("ALLOWED_ORIGIN"):
         allowed_origins = allowed_origin.split(";")

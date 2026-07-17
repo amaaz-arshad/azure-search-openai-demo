@@ -81,6 +81,20 @@ def _answer_module(messages: list, full_marks: bool = True):
     raise AssertionError("module never terminated")
 
 
+def _drive_to_module10(answered: int) -> list:
+    """Full-marks run into Module 10 with ``answered`` of its questions already finalised; the next
+    M10 question has just been asked and awaits the learner's answer."""
+    messages, _content, _state, _done = _turn([], "Start")
+    for _module_key in MODULES[:-1]:
+        messages, content, done = _answer_module(messages, full_marks=True)
+        assert done is False and "[[MODPASS" in content
+        messages, _content, _state, _done = _turn(messages, "Continue")
+    for _ in range(answered):
+        messages, _content, _state, done = _turn(messages, "my answer", True)
+        assert done is False
+    return messages
+
+
 # --- Question pool --------------------------------------------------------
 
 
@@ -763,3 +777,120 @@ def test_record_assessment_result_builds_payload_with_module_breakdown() -> None
     assert payload["first_name"] == "John" and payload["last_name"] == "Doe"
     assert payload["module_breakdown"]  # non-empty per-module breakdown
     assert "M1" in payload["module_breakdown"]
+
+
+# --- model-faked control markers (the 2026-07 "stuck after Module 10 passed" bug) ------------------
+#
+# Production session logs showed the model imitating the backend's module-boundary bubble — fabricated
+# result line, pass transition, AND the forbidden [[MODPASS]] marker — on ~8% of module boundaries.
+# On the final module a fake [[MODPASS]] without a usable [[SCORE]] used to strand the run terminally
+# (no completion sequence, no [[DONE]]/[[PROGRESS]], no LMS report), and a fake [[MODPASS]] beside the
+# real [[MODFAIL]] could advance a learner past a failed module.
+
+
+def test_model_faked_boundary_markers_are_stripped_and_cannot_brick_the_run() -> None:
+    q52 = module_questions("M10")[-1]
+    messages = _drive_to_module10(answered=4)  # q52 asked, awaiting the answer
+    # The observed drift shape on the final grading turn: a full fake boundary bubble, no usable score.
+    fake = (
+        "Great work.\n\n"
+        "**Module 10 complete — 26/30 (87%). Passed.**\n\n"
+        "Well done — you passed this module. Ready to continue to the next module?\n\n"
+        "[[MODPASS m=M10]]\n[[DONE]]\n[[PROGRESS value=100]]\n[[MODULE m=M11 attempt=1]]\n[[ASKED q=99]]"
+    )
+    messages = messages + [{"role": "user", "content": "my answer"}]
+    state = results.derive_turn_state(messages)
+    content, _scores, _tally, done = results.render_assessment_turn(fake, state, "en")
+    assert done is False
+    for marker in ("[[MODPASS", "[[MODFAIL", "[[DONE]]", "[[PROGRESS", "[[MODULE", "[[PLAN", "[[ASKED"):
+        assert marker not in content
+    # The fabricated result line (numbers and verdict) is stripped; the learner never sees a fake pass.
+    assert "87%" not in content and "Passed." not in content
+    # The run is NOT terminal: the next message finalises q52 and the genuine completion renders.
+    messages = messages + [{"role": "assistant", "content": content}]
+    state = results.derive_turn_state(messages)
+    assert state["assessment_complete"] is False and state["current_id"] == q52
+    messages, content, _state, done = _turn(messages, "my revised answer", True)
+    assert done is True
+    assert "[[DONE]]" in content and "[[PROGRESS value=100]]" in content
+
+
+def test_legacy_fake_final_modpass_history_recovers_instead_of_going_terminal() -> None:
+    q52 = module_questions("M10")[-1]
+    messages = _drive_to_module10(answered=4)
+    # A session STORED before fakes were stripped: the fake boundary (marker included) sits in history,
+    # the learner tapped Continue and got a plain acknowledgment. This used to derive _completed_state
+    # forever — completion sequence, [[DONE]]/[[PROGRESS]], and the LMS report were permanently lost.
+    messages = messages + [
+        {"role": "user", "content": "my answer"},
+        {"role": "assistant", "content": "**Module 10 complete — 26/30 (87%). Passed.**\n\n[[MODPASS m=M10]]"},
+        {"role": "user", "content": "Continue"},
+        {"role": "assistant", "content": "Understood."},
+    ]
+    state = results.derive_turn_state(messages)
+    assert state["assessment_complete"] is False
+    assert state["current_module"] == "M10" and state["current_id"] == q52
+    messages, content, state, done = _turn(messages, "here is my final answer", True)
+    assert state["must_finalize_current"] is True  # correction turn already spent -> finalise now
+    assert done is True
+    assert "[[DONE]]" in content and "[[PROGRESS value=100]]" in content
+
+
+def test_real_modfail_wins_over_earlier_fake_modpass_in_legacy_history() -> None:
+    # Observed in a production run: on a boundary turn the model faked "[[MODPASS m=M7.4]]" and the
+    # backend appended its real trailing "[[MODFAIL m=M7.4]]" in the same message. MODPASS used to be
+    # checked first, silently advancing the learner past the FAILED module (it completed with a 76%
+    # module on record). The LAST boundary marker in the window — always the backend's — must win,
+    # regardless of which button the stale frontend showed and the learner tapped.
+    messages, _content, _state, _done = _turn([], "Start")
+    messages, content, done = _answer_module(messages, full_marks=False)
+    assert done is False and "[[MODFAIL m=M1]]" in content
+    messages[-1] = {
+        "role": "assistant",
+        "content": "**Module 1 complete — 12/13 (92%). Passed.**\n[[MODPASS m=M1]]\n\n" + content,
+    }
+    messages, content, state, _done = _turn(messages, "Continue")
+    assert state["current_module"] == "M1" and state["attempt"] == 2
+    assert "[[MODULE m=M1 attempt=2]]" in content
+
+
+def test_score_marker_is_stored_canonically_with_the_pinned_question_id() -> None:
+    m10 = module_questions("M10")
+    q51, q52 = m10[3], m10[4]
+    messages = _drive_to_module10(answered=3)  # q51 asked, awaiting the answer
+    messages = messages + [{"role": "user", "content": "my answer"}]
+    state = results.derive_turn_state(messages)
+    assert state["current_id"] == q51
+    # The model finalises q51 but writes the NEXT question's id in the marker. The turn forces the
+    # pinned id; storing the model's text verbatim used to desync replay (q51 never scored, the counter
+    # stuck at 4 of 5, and the final question was re-asked forever).
+    wrong_q_marker = (
+        f'Solid answer.\n\n[[SCORE q={q52} points="{",".join(["1"] * key_point_count(q51))}" '
+        f'max={max_points(q51)} mod="M10"]]'
+    )
+    content, _scores, _tally, done = results.render_assessment_turn(wrong_q_marker, state, "en")
+    assert done is False
+    assert f"[[SCORE q={q51} " in content  # canonical marker, pinned question id
+    assert f"[[SCORE q={q52}" not in content
+    messages = messages + [{"role": "assistant", "content": content}]
+    state = results.derive_turn_state(messages)
+    assert state["n_in_module"] == 4 and state["current_id"] == q52
+    # And the run completes — the pre-fix behavior looped on "Question 5 of 5" indefinitely.
+    messages, content, _state, done = _turn(messages, "my final answer", True)
+    assert done is True and "[[PROGRESS value=100]]" in content
+
+
+def test_module_result_imitation_lines_are_stripped() -> None:
+    text = (
+        "Nice work on that one.\n\n"
+        "**Module 10 complete — 26/30 (87%). Passed.**\n\n"
+        "**Module 7.4 — 13/17 (76%). Below the 80% needed.**\n\n"
+        "Module 10 complete — Passed.\n\n"
+        "In Module 3 you covered 2/3 of the factors, so revisit periodisation."
+    )
+    cleaned = results.strip_rendered_numbers(text)
+    assert "Nice work on that one." in cleaned
+    assert "Module 10 complete" not in cleaned
+    assert "Module 7.4" not in cleaned
+    # Mid-sentence module references are ordinary feedback and must be kept.
+    assert "In Module 3 you covered 2/3" in cleaned
