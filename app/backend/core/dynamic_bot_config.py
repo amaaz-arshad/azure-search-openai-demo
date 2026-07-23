@@ -133,11 +133,21 @@ def derive_chatbot_mode(modes: Any) -> str:
     return "qna"
 
 
+def clean_design_asset(value: Any) -> Optional[str]:
+    """Normalize a design image field (`logo`/`icon`) to a non-empty string or None.
+
+    The control panel sends these as base64 data URIs (e.g. ``data:image/png;base64,...``), used
+    verbatim as an <img src> by the frontend. Blank/whitespace or non-string values become None so
+    the frontend falls back to the neutral shared app mark.
+    """
+    return value.strip() if isinstance(value, str) and value.strip() else None
+
+
 def build_bot_config_payload(record: ChatbotRegistryRecord) -> dict[str, Any]:
     """Build the GET /bot-config/<name> response for an active dynamic bot.
 
     Deliberately excludes the system prompt and other internals — this is the public-ish display
-    contract the frontend bootstraps from (theme, greeting, disclaimer, mode, languages, login).
+    contract the frontend bootstraps from (theme, logo/icon, greeting, disclaimer, mode, languages, login).
     """
     languages = map_language_list(record.languages) or [DEFAULT_LANGUAGE_CODE]
     design = record.design if isinstance(record.design, dict) else {}
@@ -147,6 +157,10 @@ def build_bot_config_payload(record: ChatbotRegistryRecord) -> dict[str, Any]:
         "mode": derive_chatbot_mode(record.modes),
         "llm": record.llm,
         "primaryColor": design.get("color_primary"),
+        # Base64 data-URI brand images from the control panel's `design` object: `logo` renders in the
+        # header, `icon` is the assistant-bubble avatar. Absent/blank → None (frontend uses applogo.svg).
+        "logo": clean_design_asset(design.get("logo")),
+        "icon": clean_design_asset(design.get("icon")),
         "languages": languages,
         "defaultLanguage": languages[0],
         "greeting": map_language_keyed(record.greeting),

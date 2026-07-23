@@ -89,6 +89,8 @@ def test_build_bot_config_payload_shape():
         "mode": "tutor-qna",
         "llm": "gpt-5",
         "primaryColor": "#AC44C6",
+        "logo": None,
+        "icon": None,
         "languages": ["de"],
         "defaultLanguage": "de",
         "greeting": {"de": "Willkommen!"},
@@ -96,6 +98,26 @@ def test_build_bot_config_payload_shape():
         "features": {"disclaimer": True, "history": True, "sources": False},
         "login": {"required": False, "provider": "email"},
     }
+
+
+def test_build_bot_config_payload_exposes_logo_and_icon():
+    # The control panel sends brand images as base64 data URIs inside `design`; they ride out to the
+    # frontend verbatim (logo -> header, icon -> assistant avatar).
+    logo = "data:image/png;base64,AAAAlogo=="
+    icon = "data:image/png;base64,AAAAicon=="
+    payload = build_bot_config_payload(
+        make_record(design={"color_primary": "#AC44C6", "logo": logo, "icon": icon})
+    )
+    assert payload["logo"] == logo
+    assert payload["icon"] == icon
+    assert payload["primaryColor"] == "#AC44C6"
+
+
+@pytest.mark.parametrize("blank", ["", "   ", None, 123, {}])
+def test_build_bot_config_payload_blank_logo_icon_become_none(blank):
+    payload = build_bot_config_payload(make_record(design={"logo": blank, "icon": blank}))
+    assert payload["logo"] is None
+    assert payload["icon"] is None
 
 
 def test_build_bot_config_payload_passes_speech_features_verbatim():

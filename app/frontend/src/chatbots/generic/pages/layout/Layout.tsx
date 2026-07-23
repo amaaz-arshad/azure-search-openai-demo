@@ -11,7 +11,9 @@ import { ChatAdd24Regular, History24Regular } from "@fluentui/react-icons";
 import { useLogin } from "../../../lemon/authConfig";
 import { LoginButton } from "../../../lemon/components/LoginButton";
 import styles from "../../../lemon/pages/layout/Layout.module.css";
-import appLogo from "../../../../assets/applogo.svg";
+// Fallback header mark for a provisioned bot that ships no `design.logo`: the shared nerilio robot
+// mascot (also used by the 404 NoPage), NOT the generic Azure "stars" app mark (applogo.svg).
+import fallbackLogo from "../../../shared/noPage/nerilioRobot.webp";
 import { useBotConfig } from "../../botConfigContext";
 
 let globalClearChat: () => void = () => {};
@@ -64,7 +66,9 @@ const Layout = ({ children }: PropsWithChildren) => {
                 <div className={styles.headerContainer}>
                     <Link className={styles.logoContainer} to={`/${botConfig.botName}`}>
                         <div className={styles.logoCircle}>
-                            <img alt="Logo" src={appLogo} />
+                            {/* Provisioned header logo (base64 data URI from `design.logo`); falls back to
+                                the shared nerilio robot mascot when the bot has none. */}
+                            <img alt="Logo" src={botConfig.logo || fallbackLogo} />
                         </div>
                     </Link>
 

@@ -17,6 +17,64 @@ Two categories per date:
 
 ## 2026-07-23
 
+### Dynamic bots: fallback logo/avatar is now the nerilio robot (not the Azure stars mark)
+
+#### Decisions
+
+- When a provisioned bot has **no** `design.logo` / `design.icon`, the generic frontend now falls back to
+  the shared **nerilio robot mascot** (`app/frontend/src/chatbots/shared/noPage/nerilioRobot.webp`, the
+  same asset the 404 NoPage uses) for both the header logo and the assistant-bubble avatar — replacing the
+  generic Azure "stars" app mark (`assets/applogo.svg`). User request; the robot is the nerilio brand face.
+- Imported from the existing `shared/noPage/` location (no binary moved/duplicated; Vite dedupes the one
+  hashed asset across both import sites). Satisfies the "generic/ imports chrome only from shared/" convention.
+- Framing note (accepted trade-off): the header slot is a round 35px circle with `overflow:hidden`, and the
+  robot is a full-body portrait, so it renders small and slightly clipped there. Flagged for follow-up if a
+  head-only crop or `object-fit` tweak is wanted.
+
+#### Changes
+
+- `app/frontend/src/chatbots/generic/pages/layout/Layout.tsx`: header `src` fallback `appLogo` → `nerilioRobot.webp`.
+- `app/frontend/src/chatbots/generic/components/Answer/Answer.tsx`: assistant-avatar fallback `appLogo` →
+  `nerilioRobot.webp` (both the `DefaultAnswer` binding and the `iconSrc` fallback/compare).
+- `CLAUDE.md`: dynamic-bot contract bullet updated (fallback is the nerilio robot, not `applogo.svg`).
+- Verified: frontend `tsc --noEmit` + `npm run build` (main + widget) pass.
+
+### Dynamic bots: provisioned header logo + assistant-avatar icon (`design.logo`/`design.icon`)
+
+#### Decisions
+
+- The provisioning `defaults.design` object now carries two base64 data-URI brand images: **`logo`**
+  (rendered in the header) and **`icon`** (the assistant-bubble avatar). Same for `create` and `update`.
+- **No new storage.** `build_fields_from_payload` already stores the whole `design` dict verbatim, so
+  `logo`/`icon` persist with zero registry-store changes. Consequence (accepted, matches existing
+  behavior for all nested objects): an `update` whose `design` omits these keys clears them — the panel
+  always sends the complete `design`, so this is a non-issue in practice.
+- **Header presentation: keep the existing round 35px logo slot** (user's choice over a left/wide-logo
+  treatment). The `logo` replaces the app mark inside the existing circle; a wide wordmark would be
+  clipped by the circle, which is the accepted trade-off for the smallest, most faithful change.
+- **Both fall back to `applogo.svg`** when blank/unset (`clean_design_asset` normalizes empties/non-strings
+  to `null`). The generic bot must never inherit another bot's logo, so the fallback is the neutral shared
+  app mark, never a sibling bot's asset.
+- Generic's `Answer` binding is now icon-aware: it reads `botConfig.icon` and memoizes
+  `createBotAnswer(icon || applogo, …)` per bot (icon is stable for the route lifetime → no remount churn).
+
+#### Changes
+
+- `app/backend/core/dynamic_bot_config.py`: added `clean_design_asset` helper; `build_bot_config_payload`
+  now emits top-level `logo`/`icon` from `design` (normalized to `null` when blank).
+- `app/frontend/src/api/models.ts`: `BotConfig` gains `logo: string | null` and `icon: string | null`.
+- `app/frontend/src/chatbots/generic/pages/layout/Layout.tsx`: header logo `src` = `botConfig.logo || appLogo`.
+- `app/frontend/src/chatbots/generic/components/Answer/Answer.tsx`: rewritten to a context-reading wrapper
+  that binds the assistant avatar to `botConfig.icon || applogo` via a memoized `createBotAnswer`.
+- `tests/test_bot_config.py`: `test_build_bot_config_payload_shape` updated (adds `logo`/`icon` = None);
+  added `test_build_bot_config_payload_exposes_logo_and_icon` and a blank-normalization parametrized test.
+  Full file: 31 passed.
+- `docs/provisioning-api.md`: `design.logo`/`design.icon` rows added to the `defaults` reference (Applied).
+- `CLAUDE.md`: dynamic-bot contract bullet updated to document provisioned `logo`/`icon` (replaces the
+  "no per-bot provisioned logo yet" note).
+- Verified: backend `pytest tests/test_bot_config.py` (31 passed), `ty check` on the changed module, and
+  frontend `tsc --noEmit` + `npm run build` (main + widget) all pass.
+
 ### HYROX assessment: final module (M10) now gets its own completion line
 
 #### Decisions

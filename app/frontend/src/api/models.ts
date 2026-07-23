@@ -154,6 +154,10 @@ export type BotConfig = {
     mode: "qna" | "tutor-qna";
     llm: string | null;
     primaryColor: string | null;
+    // Base64 data-URI brand images from provisioning `design`: `logo` renders in the header logo slot,
+    // `icon` is the assistant-bubble avatar. Null when unset → the generic bot falls back to applogo.svg.
+    logo: string | null;
+    icon: string | null;
     languages: string[];
     defaultLanguage: string;
     greeting: Record<string, string>;
