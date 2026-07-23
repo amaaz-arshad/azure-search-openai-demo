@@ -15,6 +15,38 @@ Two categories per date:
 
 ---
 
+## 2026-07-23
+
+### PublishOne feed: source drop folder moved to `Nerilio-Amsterdam`
+
+#### Decisions
+
+- The `publishone` auto-indexer now watches `content/nerilio/Nerilio-Amsterdam/` instead of
+  `content/nerilio/Nerilio-PublishOne/`. **Source folder only** — the bot identity, mirror target
+  (`content/publishone/`), and search `category` all stay `publishone`. Because target/category are
+  unchanged and section ids are deterministic per filename, re-dropping the same filenames into the
+  new folder overwrites the same search docs (continuity preserved).
+- `Nerilio-PublishOne` is *not* renamed in blob storage; a new `Nerilio-Amsterdam` folder is created
+  on the nerilio side. Files remaining under the old folder are no longer auto-indexed (no event
+  subscription points there anymore), but previously-indexed `publishone` docs stay in the index
+  until re-indexed or purged.
+- Left `tests/test_blobautoindex.py`'s `Nerilio-PublishOne` references untouched: that is a generic
+  `AutoBlobIndexer` unit test using self-consistent sample data, not the deployed feed config.
+- `PUBLISHONE_AUTO_INDEX_SOURCE_PREFIX` has no infra/env override, so the code default governs; no
+  Bicep/parameters/pipeline changes were needed. `function_app.py` is not a `prepdocslib` copy target,
+  so no `scripts/copy_prepdocslib.py` sync was needed.
+
+#### Changes
+
+- `app/functions/moodle_auto_indexer/function_app.py`: `publishone` `FeedDefinition.source_prefix`
+  → `nerilio/Nerilio-Amsterdam`.
+- `scripts/setup_moodle_delete_event_subscription.py`: both PublishOne Event Grid subscriptions
+  (create + delete sync) `subject_prefix` → `.../nerilio/Nerilio-Amsterdam/`. **Re-run this script
+  after deploy** so the subscriptions repoint to the new folder.
+- `tests/test_function_apps.py`: the two `publishone` feed tests now model event subjects/assertions
+  under `Nerilio-Amsterdam`. Verified passing.
+- `CLAUDE.md`: updated the Moodle/PublishOne feed playbook line to name the new source folder.
+
 ## 2026-07-17
 
 ### HYROX assessment: model-faked control markers stranded runs at Module 10 (bug fix)
