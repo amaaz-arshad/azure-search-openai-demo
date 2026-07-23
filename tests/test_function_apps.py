@@ -236,12 +236,12 @@ async def test_publishone_auto_index_function_indexes_triggered_blob(monkeypatch
 
     await moodle_auto_indexer.publishone_auto_index(
         EventGridEventStub(
-            "/blobServices/default/containers/content/blobs/nerilio/Nerilio-PublishOne/test.xml",
+            "/blobServices/default/containers/content/blobs/nerilio/Nerilio-Amsterdam/test.xml",
             "Microsoft.Storage.BlobCreated",
         )
     )
 
-    assert auto_indexer.calls == [{"blob_name": "content/nerilio/Nerilio-PublishOne/test.xml"}]
+    assert auto_indexer.calls == [{"blob_name": "content/nerilio/Nerilio-Amsterdam/test.xml"}]
 
 
 @pytest.mark.asyncio
@@ -271,12 +271,12 @@ async def test_publishone_delete_sync_removes_target_blob_for_delete_event(monke
 
     await moodle_auto_indexer.publishone_delete_sync(
         EventGridEventStub(
-            "/blobServices/default/containers/content/blobs/nerilio/Nerilio-PublishOne/test.xml",
+            "/blobServices/default/containers/content/blobs/nerilio/Nerilio-Amsterdam/test.xml",
             "Microsoft.Storage.BlobDeleted",
         )
     )
 
-    assert auto_indexer.deleted == ["content/nerilio/Nerilio-PublishOne/test.xml"]
+    assert auto_indexer.deleted == ["content/nerilio/Nerilio-Amsterdam/test.xml"]
 
 
 @pytest.mark.asyncio

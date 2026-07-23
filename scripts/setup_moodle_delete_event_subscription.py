@@ -33,7 +33,7 @@ SUBSCRIPTIONS = (
         "function_name": "publishone_auto_index",
         "event_types": ("Microsoft.Storage.BlobCreated",),
         "description": "PublishOne create/update",
-        "subject_prefix": "/blobServices/default/containers/content/blobs/nerilio/Nerilio-PublishOne/",
+        "subject_prefix": "/blobServices/default/containers/content/blobs/nerilio/Nerilio-Amsterdam/",
         "subject_suffix": ".xml",
     },
     {
@@ -41,7 +41,7 @@ SUBSCRIPTIONS = (
         "function_name": "publishone_delete_sync",
         "event_types": ("Microsoft.Storage.BlobDeleted",),
         "description": "PublishOne delete-sync",
-        "subject_prefix": "/blobServices/default/containers/content/blobs/nerilio/Nerilio-PublishOne/",
+        "subject_prefix": "/blobServices/default/containers/content/blobs/nerilio/Nerilio-Amsterdam/",
         "subject_suffix": ".xml",
     },
     {

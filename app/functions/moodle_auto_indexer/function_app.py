@@ -72,7 +72,7 @@ FEED_DEFINITIONS = {
     ),
     "publishone": FeedDefinition(
         name="publishone",
-        source_prefix="nerilio/Nerilio-PublishOne",
+        source_prefix="nerilio/Nerilio-Amsterdam",
         target_prefix="publishone",
         category="publishone",
         allowed_extensions=(".xml",),
