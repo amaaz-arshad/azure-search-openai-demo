@@ -131,7 +131,7 @@ export const chatbotThemes: Record<string, ChatbotThemeSeed> = {
         pageTone: "light"
     },
     publishone: {
-        primary: "#212529",
+        primary: "#003144",
         pageTone: "light"
     },
     rak: {

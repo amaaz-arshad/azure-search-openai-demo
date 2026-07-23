@@ -317,7 +317,7 @@ def test_full_assessment_completes_only_after_final_module() -> None:
     assert completed
 
 
-def test_completion_renders_five_break_separated_bubbles() -> None:
+def test_completion_renders_six_break_separated_bubbles() -> None:
     messages, _content, _state, _done = _turn([], "Start")
     final_content = ""
     for module_key in MODULES:
@@ -327,19 +327,22 @@ def test_completion_renders_five_break_separated_bubbles() -> None:
             break
         messages, _content, _state, _done = _turn(messages, "Continue")
     bubbles = [b.strip() for b in final_content.split(results.BUBBLE_BREAK_TOKEN)]
-    assert len(bubbles) == 5
-    assert "passed every module" in bubbles[1].lower()
-    # Bubble 3 is the deterministic topic-wise summary aggregated across all modules — one Strengths list,
+    assert len(bubbles) == 6
+    # Bubble 2 is the FINAL module's own completion line — like every non-final module — before the
+    # cross-module result in bubble 3.
+    assert "Module 10 complete" in bubbles[1] and "Passed." in bubbles[1]
+    assert "passed every module" in bubbles[2].lower()
+    # Bubble 4 is the deterministic topic-wise summary aggregated across all modules — one Strengths list,
     # and (on a full-marks run) no Worth-revisiting list since every key point was earned.
-    summary_display = results.strip_markers(bubbles[2])
+    summary_display = results.strip_markers(bubbles[3])
     assert results._locale("en")["summary_heading"] in summary_display
     assert "Strengths:" in summary_display  # full marks → every earned topic is listed
     assert "Worth revisiting" not in summary_display  # nothing missed on a full-marks run
     assert results._module_display("M1", "en") not in summary_display  # topics, not module headings
     first_topic = get_question(module_questions("M1")[0])["key_points"][0]
     assert f"- {first_topic}" in summary_display
-    assert "Mastering performance" in bubbles[3]
-    assert "certificate" in bubbles[4].lower()
+    assert "Mastering performance" in bubbles[4]
+    assert "certificate" in bubbles[5].lower()
     assert "[[" not in results.strip_markers(final_content)  # frontend display parity
 
 
@@ -509,13 +512,44 @@ def test_final_question_completes_after_correction_with_fallback_summary() -> No
     assert done is True and tally["passed"]
     assert "[[DONE]]" in content and "[[PROGRESS value=100]]" in content
     bubbles = [b.strip() for b in content.split(results.BUBBLE_BREAK_TOKEN)]
-    assert len(bubbles) == 5
-    assert "passed every module" in bubbles[1].lower()
-    summary_display = results.strip_markers(bubbles[2])
+    assert len(bubbles) == 6
+    assert "Module 10 complete" in bubbles[1] and "Passed." in bubbles[1]  # final module's own result line
+    assert "passed every module" not in bubbles[1].lower()  # ... distinct from the cross-module line
+    assert "passed every module" in bubbles[2].lower()
+    summary_display = results.strip_markers(bubbles[3])
     assert results._locale("en")["summary_heading"] in summary_display
     assert "Strengths:" in summary_display  # full marks → earned topics listed
     assert "Worth revisiting" not in summary_display  # nothing missed on a full-marks run
     assert results._module_display("M1", "en") not in summary_display  # topic-wise, no module headings
+
+
+def test_final_module_gets_its_own_completion_line() -> None:
+    # Regression: the FINAL module (M10) must get its own "Module 10 complete — s/m (p%). Passed." bubble,
+    # like every non-final module, BEFORE the cross-module "passed every module" result. Previously the last
+    # module was the ONLY one with no explicit per-module completion line (the reported gap). The module
+    # bubble reports M10's OWN total, distinct from the assessment grand total in the next bubble.
+    messages = _drive_to_final_question()
+    messages = messages + [
+        {"role": "assistant", "content": results._locale("en")["correction_offer"]},
+        {"role": "user", "content": "my improved final answer"},
+    ]
+    state = results.derive_turn_state(messages)
+    assert state["must_finalize_current"] is True
+    cid = state["current_id"]
+    content, _all_scores, tally, done = results.render_assessment_turn(
+        f"Solid, well-judged answer.\n{_score_marker(cid)}", state, "en"
+    )
+    assert done is True and tally["passed"]
+    bubbles = [results.strip_markers(b) for b in content.split(results.BUBBLE_BREAK_TOKEN)]
+    assert len(bubbles) == 6
+    module_bubble, complete_bubble = bubbles[1], bubbles[2]
+    m10_max = sum(max_points(q) for q in module_questions("M10"))
+    assert m10_max < TOTAL_MAX_POINTS  # sanity: the module total is a strict subset of the grand total
+    assert f"{results._module_display('M10', 'en')} complete" in module_bubble  # "Module 10 complete"
+    assert f"{m10_max}/{m10_max}" in module_bubble and "Passed." in module_bubble  # M10's own total
+    assert "passed every module" not in module_bubble.lower()  # ... not the cross-module line
+    assert "passed every module" in complete_bubble.lower()
+    assert f"{TOTAL_MAX_POINTS}/{TOTAL_MAX_POINTS}" in complete_bubble  # grand total, not the module total
 
 
 def test_completion_uses_model_authored_summary_when_present() -> None:
@@ -540,8 +574,9 @@ def test_completion_uses_model_authored_summary_when_present() -> None:
     content, all_scores, tally, done = results.render_assessment_turn(model_reply, state, "en")
     assert done is True and tally["passed"]
     bubbles = [b.strip() for b in content.split(results.BUBBLE_BREAK_TOKEN)]
-    assert len(bubbles) == 5
-    summary_display = results.strip_markers(bubbles[2])
+    assert len(bubbles) == 6
+    assert "Module 10 complete" in bubbles[1]  # final module's own result line precedes the summary
+    summary_display = results.strip_markers(bubbles[3])
     assert results._locale("en")["summary_heading"] in summary_display  # backend supplies the heading
     assert "reflective practice" in summary_display  # model's take-aways are used ...
     assert "periodization detail" in summary_display
@@ -593,13 +628,14 @@ def test_completion_full_marks_first_answer_uses_model_summary() -> None:
     assert done is True and tally["passed"]
     assert "[[DONE]]" in content and "[[PROGRESS value=100]]" in content
     bubbles = [b.strip() for b in content.split(results.BUBBLE_BREAK_TOKEN)]
-    assert len(bubbles) == 5
-    summary_display = results.strip_markers(bubbles[2])
+    assert len(bubbles) == 6
+    assert "Module 10 complete" in bubbles[1]  # final module's own result line
+    summary_display = results.strip_markers(bubbles[3])
     assert results._locale("en")["summary_heading"] in summary_display
     assert "pacing discipline" in summary_display and "deload logic" in summary_display
     first_kp = get_question(module_questions("M1")[0])["key_points"][0]
     assert first_kp not in summary_display  # model take-aways used, not the deterministic fallback
-    assert "certificate" in bubbles[4].lower()
+    assert "certificate" in bubbles[5].lower()
     assert len(all_scores) == TOTAL_QUESTIONS  # cross-module totals built from every question
 
 

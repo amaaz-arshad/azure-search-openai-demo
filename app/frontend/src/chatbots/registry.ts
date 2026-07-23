@@ -52,7 +52,7 @@ export const chatbotDefinitions: ChatbotDefinition[] = [
     { ...hyroxAssessmentChatbot, llm: "gpt-5.4-mini", reasoningEffort: "high", mode: "assessment", agenticRetrievalDefault: false },
     { ...internalChatbot, llm: "gpt-5.4-mini", reasoningEffort: "high", mode: "tutor-qna", agenticRetrievalDefault: false },
     { ...moodleChatbot, llm: "gpt-5.4-mini", reasoningEffort: "high", mode: "tutor-qna", agenticRetrievalDefault: false },
-    { ...publishoneChatbot, llm: "gpt-5.4-mini", reasoningEffort: "high", mode: "tutor-qna", agenticRetrievalDefault: false },
+    { ...publishoneChatbot, llm: "gpt-4.1", mode: "qna", agenticRetrievalDefault: false },
     { ...sartoriusChatbot, llm: "gpt-4.1", mode: "qna", agenticRetrievalDefault: false },
     { ...fbnChatbot, llm: "gpt-5.4-mini", reasoningEffort: "high", mode: "tutor-qna", agenticRetrievalDefault: false },
     { ...demoChatbot, llm: "gpt-5.4-mini", reasoningEffort: "high", mode: "tutor-qna", agenticRetrievalDefault: false },

@@ -1,6 +1,6 @@
 .answerContainer {
     padding: 0.6em 1em;
-    background: rgb(249, 249, 249);
+    background: #dde2eb;
     border-radius: 1.5em;
     box-shadow:
         0em 0.125em 0.25em rgba(0, 0, 0, 0.14),
@@ -14,7 +14,7 @@
 }
 
 .answerText {
-    font-size: 1rem;
+    font-size: 16px;
     font-weight: 400;
     line-height: 1.375em;
     /* padding-top: 1em;
@@ -207,9 +207,19 @@ sup {
     /* margin-bottom: 10px; */
 }
 
-.wordmarkLogo {
-    height: 28px;
-    max-width: min(210px, 62vw);
+.loadingAnswerContainer {
+    display: flex;
+    /* The card is a Fluent Stack (flex-direction: column), so align-items alone
+       only centers horizontally and the dots stuck to the top. Setting BOTH axes
+       centers the single BeatLoader child regardless of flex direction. */
+    align-items: center;
+    justify-content: center;
+    /* Size to a single line of answer text (font-size * line-height) plus the
+       shared card's 0.6em top+bottom padding (1.2em), so the loading bubble is
+       the same height as a one-line answer instead of an oversized 3.5rem box.
+       border-box (inherited from .answerContainer) means min-height includes the
+       padding, so add it here. */
+    min-height: calc(var(--chatbot-answer-font-size, 15px) * 1.72 + 1.2em);
 }
 
 

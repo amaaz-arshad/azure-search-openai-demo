@@ -17,6 +17,95 @@ Two categories per date:
 
 ## 2026-07-23
 
+### HYROX assessment: final module (M10) now gets its own completion line
+
+#### Decisions
+
+- **Symmetry bug, reported from a production screenshot.** Every non-final module renders an explicit
+  "**Module N complete — s/m (p%). Passed.**" line (via `render_module_end_bubbles`), but the FINAL
+  module (M10) jumped straight from the last question's score to the cross-module "**Assessment complete
+  — you've passed every module (211/211, 100%).**" line, so M10 was the only module with no per-module
+  completion line. This was intentional-but-inconsistent, not a crash. User chose **"add it as a separate
+  bubble"** (over merging into the feedback bubble or leaving as-is).
+- **Renders M10's OWN total, not the grand total.** The new line reports the module's own point subset
+  (e.g. `25/25`), distinct from the assessment grand total (`211/211`) in the next bubble; both read
+  100% on a clean run but the point fractions differ. It always reads as a pass — completion requires
+  clearing the final module at the 80% threshold, so `module_results[-1]` is always a passing attempt.
+- **No frontend change needed.** `splitAssessmentBubbles` renders one bubble per non-empty `[[BREAK]]`
+  segment (count-agnostic), so the 6th bubble displays automatically. The completion `content` flows
+  straight to the response with no downstream stripping (same path the non-final module line already
+  uses), so the backend-rendered line is not caught by the model-fake `_MODULE_RESULT_LINE_RE` stripper
+  (that runs on the model body only, before assembly).
+
+#### Changes
+
+- `app/backend/approaches/chatbots/hyrox_assessment/results.py`: `render_completion_bubbles` inserts
+  `render_module_result(final_module_key, compute_tally(final_module_scores), language)` as a new bubble
+  between the score+feedback bubble and the cross-module `complete_line` (guarded on non-empty
+  `module_results`); docstring bubble list updated 5 → 6.
+- `app/frontend/src/chatbots/hyrox-assessment/components/Answer/assessmentMarkers.ts`: updated the
+  `[[BREAK]]` bubble-list comment to include the final module's result line and note the count is not
+  fixed.
+- `tests/test_hyrox_assessment.py`: updated the three completion tests + the end-to-end test (renamed
+  `test_completion_renders_five_break_separated_bubbles` → `..._six_...`) to 6 bubbles with shifted
+  indices; added `test_final_module_gets_its_own_completion_line` asserting the M10 line shows the
+  module's own total, distinct from the grand total. Full file: 48 passed.
+- `CLAUDE.md`: HYROX bullet notes the final module's own result-line bubble in the completion sequence.
+
+### PublishOne bot: redesigned to snap/nerilio look, switched to Q&A-only, English-only
+
+#### Decisions
+
+- **Q&A-only.** The `publishone` bot dropped its dual tutor+Q&A flow. `registry.ts` mode
+  `tutor-qna` → `qna`; the model moved from `gpt-5.4-mini` @ `reasoning_effort="high"` to
+  **`gpt-4.1`** (no reasoning effort), matching the other Q&A bots — chosen by the user for a pure
+  retrieval Q&A bot. `sampleprompt.py` was rewritten from the ~1280-line tutor prompt to a clean
+  Q&A prompt modeled on snap's structure (source-only, citations with `{{POSSIBLE_CITATIONS_PROMPT}}`,
+  no-action, non-disclosure, inappropriate-request, missing-info fallback to `{{SUPPORT_EMAIL}}`),
+  but domain-neutral to the "provided PublishOne materials" (no snap.de/company-specific facts).
+- **English-only, always.** Frontend i18n already loaded only `en`; `Chat.tsx` now hardcodes
+  `language: "en"` in the request overrides (was already "en") and the prompt states English is fixed
+  regardless of the user's language. The binding line below the composer is English. de/nl locale
+  files are left in place (unused; `i18n/config.ts` loads only `en`) for parity.
+- **Design = snap/nerilio.** Assistant avatar is `publishone_logo.jpeg` (square orange "P" monogram)
+  rendered as a round outside-left avatar via `createBotAnswer(..., { assistantLogoPlacement:
+  "outside-left" })` — replacing the previous `wordmark` variant (so publishone no longer needs
+  `wordmarkLogo` / a wordmark logo). Answer bubble, QuestionInput, and Chat layout CSS were ported
+  from snap; the composer send button uses `var(--chatbot-navbar-background)` so it follows the theme
+  instead of snap's hardcoded purple.
+- **Greeting.** Mode-selection welcome (`[[CHOICES kind=mode]]`) removed; greeting is now the generic
+  "Hello! How can I help you today?" (user's choice).
+- **Contact email.** Backend `support_email` `info@snap.de` → `helpdesk@publishone.nl` (the only
+  `info@snap.de` reference for this bot). NB: the shared 404 (`NoPage`) still shows `hallo@nerilio.ai`
+  from the frontend `noPage.contactLine` translation — left unchanged (not the `info@snap.de` the user
+  named); flag if that should also move to `helpdesk@publishone.nl`.
+- **Theme** primary `#212529` → `#003144`.
+
+#### Changes
+
+- `app/frontend/src/chatbots/shared/theme/chatbotThemes.ts`: publishone `primary` → `#003144`.
+- `app/backend/approaches/chatbots/publishone/config.py`: `chatgpt_model`/`chatgpt_deployment` =
+  `gpt-4.1`; `support_email` → `helpdesk@publishone.nl`; removed `reasoning_effort="high"`.
+- `app/backend/approaches/chatbots/publishone/sampleprompt.py`: full rewrite to a Q&A-only English prompt.
+- `app/frontend/src/chatbots/registry.ts`: publishone → `llm: "gpt-4.1"`, `mode: "qna"`, no `reasoningEffort`.
+- `app/frontend/src/chatbots/publishone/components/Answer/Answer.tsx`: logo → `publishone_logo.jpeg`,
+  `assistantLogoPlacement: "outside-left"`, `showCopyButton: false`; dropped wordmark variant + styles import.
+- `.../publishone/components/Answer/Answer.module.css`: bubble bg `#dde2eb`, `answerText` 16px, added
+  `.loadingAnswerContainer`, removed `.wordmarkLogo`.
+- `.../publishone/components/QuestionInput/QuestionInput.tsx` + `.module.css`: ported snap's single-line
+  composer with a round themed send button (`var(--chatbot-navbar-background)`).
+- `.../publishone/pages/chat/Chat.tsx`: rewritten Q&A-only (removed all tutor option-marker machinery),
+  removed the top `ChatbotDisclaimerBanner`, added the bottom `inputDisclaimer` line with a `<Trans>`
+  `nerilio` → <https://nerilio.ai> link; `language: "en"`.
+- `.../publishone/pages/chat/Chat.module.css`: ported snap layout + added `.inputDisclaimer` (and link) styles.
+- `.../publishone/locales/en/translation.json`: greeting → generic; added `inputDisclaimer` key with the
+  `<nerilio>` link markup.
+- `CLAUDE.md`: removed `publishone` from the tutor-mode / wordmark-branding contracts and noted the conversion.
+- `app/frontend/src/chatbots/shared/speech/chatbotSpeechFeatureFlags.ts`: publishone speech flags
+  (`showSpeechInput`/`showSpeechOutputBrowser`/`showSpeechOutputAzure`) → `false`, matching snap/nerilio,
+  so the mic + TTS UI is hidden regardless of the deployment `/config` speech capability.
+- Verified: frontend `tsc --noEmit` and `vite build` both pass.
+
 ### PublishOne feed: source drop folder moved to `Nerilio-Amsterdam`
 
 #### Decisions

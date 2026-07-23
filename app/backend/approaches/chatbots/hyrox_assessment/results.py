@@ -1166,11 +1166,14 @@ def render_completion_bubbles(
     """Assemble the end-of-assessment message as [[BREAK]]-separated display bubbles:
 
     1. the final question's score + the model's feedback on that answer,
-    2. the cumulative result across all modules (always a pass — a module is only left by passing it),
-    3. the general take-aways summary across all modules — the model's text after its [[SUMMARY]] token
+    2. the FINAL module's own result line ("Module N complete — s/m (p%). Passed."), exactly like every
+       non-final module (which renders it via render_module_end_bubbles), so the last module is not the only
+       one without an explicit per-module completion line,
+    3. the cumulative result across all modules (always a pass — a module is only left by passing it),
+    4. the general take-aways summary across all modules — the model's text after its [[SUMMARY]] token
        (strengths / worth revisiting), or the deterministic topic-wise fallback when that token is missing,
-    4. the motivational message,
-    5. the closing message (certificate notice).
+    5. the motivational message,
+    6. the closing message (certificate notice).
 
     The hidden [[SCORE]] marker (``score_marker_text``, the backend's canonical form — falling back to one
     found in ``body`` for direct callers) is re-appended at the very end so it still replays. The model
@@ -1194,8 +1197,18 @@ def render_completion_bubbles(
     )
 
     complete_line = L["complete_result"].format(s=overall_tally["score"], m=overall_tally["max"], p=overall_tally["pct"])
+    # The FINAL module gets its own "Module N complete — s/m (p%). Passed." line before the cross-module
+    # result, exactly like every non-final module (render_module_end_bubbles). Without it the last module
+    # would be the only one with no explicit per-module completion line. module_results[-1] is always the
+    # final module attempt — the caller appends (cur_mod, module_scores) last — and it is always a pass
+    # (completion requires clearing the last module at the 80% threshold).
+    final_module_result = ""
+    if module_results:
+        final_module_key, final_module_scores = module_results[-1]
+        final_module_result = render_module_result(final_module_key, compute_tally(final_module_scores), language)
     bubbles = [
         "\n\n".join(part for part in (score_line, feedback) if part),
+        final_module_result,
         complete_line,
         summary,
         L["motivational_passed"],

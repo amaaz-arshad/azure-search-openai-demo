@@ -1,6 +1,6 @@
-import { useRef, useState, useEffect, useContext, useMemo } from "react";
+import { useRef, useState, useEffect, useContext } from "react";
 import { ScrollToBottomButton } from "../../../shared/scroll/ScrollToBottomButton";
-import { useTranslation } from "react-i18next";
+import { useTranslation, Trans } from "react-i18next";
 import { Helmet } from "react-helmet-async";
 import { useOutletContext } from "react-router-dom";
 import { Panel, DefaultButton } from "@fluentui/react";
@@ -25,9 +25,7 @@ import { TokenClaimsDisplay } from "../../components/TokenClaimsDisplay";
 import { LoginContext } from "../../loginContext";
 import { Settings } from "../../components/Settings/Settings";
 import { setGlobalClearChat } from "../layout/Layout";
-import { buildOptionTexts, isOptionSelectionTurn, matchesChoiceValue, parseChoiceMarker } from "../../../shared/answer";
 import { applyChatbotSpeechFeatureFlags } from "../../../shared/speech/chatbotSpeechFeatureFlags";
-import { ChatbotDisclaimerBanner } from "../../../shared/disclaimer/ChatbotDisclaimerBanner";
 import { readActiveSessionId, writeActiveSessionId, clearActiveSessionId } from "../../../shared/history/activeSession";
 
 const INITIAL_ASSISTANT_SENTINEL_USER_MESSAGE = "__initial_assistant__";
@@ -42,14 +40,10 @@ const createClientSessionId = () => {
 
 const Chat = () => {
     const { t } = useTranslation();
+    // PublishOne is a Q&A-only bot served in English regardless of the browser locale.
     const chatbotCategory = "publishone";
-    // Localized labels/descriptions for the interactive option buttons (mode/level/count);
-    // also used to detect when a turn was an option click so its user bubble is suppressed.
-    const optionTexts = useMemo(() => buildOptionTexts(t), [t]);
     const legacyInitialUserMessage: string = t("initialUserMsg");
-    // Append the hidden mode marker so the welcome renders Tutor/Q&A as buttons (+ "Andere Option").
-    // Stripped from display; the synthetic welcome pair is never sent to the backend.
-    const initialAssistantMessageContent: string = t("initialAssistantMsg") + "\n\n[[CHOICES kind=mode]][[/CHOICES]]";
+    const initialAssistantMessageContent: string = t("initialAssistantMsg");
     const initialAssistantResponse: ChatAppResponse = {
         message: {
             content: initialAssistantMessageContent,
@@ -72,7 +66,7 @@ const Chat = () => {
     const [seed, setSeed] = useState<number | null>(null);
     const [minimumRerankerScore, setMinimumRerankerScore] = useState<number>(1);
     const [minimumSearchScore, setMinimumSearchScore] = useState<number>(0);
-    const [retrieveCount, setRetrieveCount] = useState<number>(10);
+    const [retrieveCount, setRetrieveCount] = useState<number>(5);
     const [agenticReasoningEffort, setRetrievalReasoningEffort] = useState<string>("minimal");
     const [retrievalMode, setRetrievalMode] = useState<RetrievalMode>(RetrievalMode.Hybrid);
     const [useSemanticRanker, setUseSemanticRanker] = useState<boolean>(true);
@@ -94,13 +88,6 @@ const Chat = () => {
     const lastQuestionRef = useRef<string>("");
     const chatMessageStreamEnd = useRef<HTMLDivElement | null>(null);
     const chatContainerRef = useRef<HTMLDivElement | null>(null);
-    const chatInputRef = useRef<HTMLDivElement | null>(null);
-    // "Andere Option": unlock and focus the chat input so the user can type a free answer.
-    const focusInput = () => {
-        setFreeTextOptionAnswerIndex(answers.length - 1);
-        setPendingOptionSelection(null);
-        window.setTimeout(() => chatInputRef.current?.querySelector("textarea")?.focus(), 0);
-    };
     const localHistorySessionIdRef = useRef<string | null>(null);
     const hasRestoredSessionRef = useRef<boolean>(false);
 
@@ -116,18 +103,6 @@ const Chat = () => {
     const [selectedAnswer, setSelectedAnswer] = useState<number>(0);
     const [answers, setAnswers] = useState<[user: string, response: ChatAppResponse][]>([initialAssistantPair]);
     const [streamedAnswers, setStreamedAnswers] = useState<[user: string, response: ChatAppResponse][]>([initialAssistantPair]);
-    const [freeTextOptionAnswerIndex, setFreeTextOptionAnswerIndex] = useState<number | null>(null);
-    const [pendingOptionSelection, setPendingOptionSelection] = useState<{ answerIndex: number; value: string } | null>(null);
-    const getOptionSelectedValue = (sourceAnswers: [user: string, response: ChatAppResponse][], index: number) =>
-        sourceAnswers[index + 1]?.[0] ?? (pendingOptionSelection?.answerIndex === index ? pendingOptionSelection.value : undefined);
-    const activeOptionAnswerIndex = useMemo(() => {
-        const latestIndex = answers.length - 1;
-        if (latestIndex < 0 || isStreaming) {
-            return null;
-        }
-        return parseChoiceMarker(answers[latestIndex]?.[1]?.message?.content) ? latestIndex : null;
-    }, [answers, isStreaming]);
-    const optionPromptBlocksInput = activeOptionAnswerIndex !== null && freeTextOptionAnswerIndex !== activeOptionAnswerIndex;
     const [speechUrls, setSpeechUrls] = useState<(string | null)[]>([]);
 
     const [showMultimodalOptions, setShowMultimodalOptions] = useState<boolean>(false);
@@ -197,9 +172,6 @@ const Chat = () => {
             setWebSourceEnabled(config.webSourceEnabled);
             setSharePointSourceSupported(config.sharepointSourceEnabled);
             setSharePointSourceEnabled(config.sharepointSourceEnabled);
-            // if (config.showAgenticRetrievalOption) {
-            //     setRetrieveCount(10);
-            // }
             const defaultRetrievalEffort = config.defaultRetrievalReasoningEffort ?? "minimal";
             setHideMinimalRetrievalReasoningOption(config.webSourceEnabled);
             setRetrievalReasoningEffort(defaultRetrievalEffort);
@@ -344,8 +316,6 @@ const Chat = () => {
         const restoredConversation = [initialAssistantPair, ...restoredAnswers];
         setAnswers(restoredConversation);
         setStreamedAnswers(restoredConversation);
-        setFreeTextOptionAnswerIndex(null);
-        setPendingOptionSelection(null);
         lastQuestionRef.current = getLastRealQuestion(restoredAnswers);
         const restoredSessionState = restoredAnswers[restoredAnswers.length - 1][1].session_state;
         const resolvedSessionId =
@@ -409,14 +379,6 @@ const Chat = () => {
         const controller = new AbortController();
         setAbortController(controller);
         lastQuestionRef.current = question;
-        // A free-typed "Andere Option" answer: persist it as the active option message's
-        // selection so the option group stays highlighted through loading/streaming. Without this,
-        // the answers<->streamedAnswers render switch remounts AnswerOptions and drops its local
-        // optimistic "Other selected" state until the response content arrives.
-        if (freeTextOptionAnswerIndex !== null) {
-            setPendingOptionSelection({ answerIndex: freeTextOptionAnswerIndex, value: question });
-        }
-        setFreeTextOptionAnswerIndex(null);
 
         error && setError(undefined);
         setRestoredQuestion("");
@@ -533,11 +495,6 @@ const Chat = () => {
         }
     };
 
-    const handleOptionSelected = (answerIndex: number, value: string) => {
-        setPendingOptionSelection({ answerIndex, value });
-        makeApiRequest(value);
-    };
-
     const clearChat = () => {
         localHistorySessionIdRef.current = null;
         clearActiveSessionId();
@@ -547,8 +504,6 @@ const Chat = () => {
         setActiveAnalysisPanelTab(undefined);
         setAnswers([initialAssistantPair]); // Reset to welcome message
         setStreamedAnswers([initialAssistantPair]); // Reset to welcome message
-        setFreeTextOptionAnswerIndex(null);
-        setPendingOptionSelection(null);
         setSpeechUrls([null]);
         setIsLoading(false);
         setIsStreaming(false);
@@ -786,36 +741,13 @@ const Chat = () => {
             <Helmet>
                 <title>{t("pageTitle")}</title>
             </Helmet>
-            {/* <div className={styles.commandsSplitContainer}>
-                <div className={styles.commandsContainer}>
-                    {((useLogin && showChatHistoryCosmos) || showChatHistoryBrowser) && (
-                        <HistoryButton className={styles.commandButton} onClick={() => setIsHistoryPanelOpen(!isHistoryPanelOpen)} />
-                    )}
-                </div>
-                <div className={styles.commandsContainer}>
-                    <ClearChatButton className={styles.commandButton} onClick={clearChat} disabled={!lastQuestionRef.current || isLoading} />
-                    {showUserUpload && <UploadFile className={styles.commandButton} disabled={!loggedIn} />}
-                    <SettingsButton className={styles.commandButton} onClick={() => setIsConfigPanelOpen(!isConfigPanelOpen)} />
-                </div>
-            </div> */}
             <div className={`${styles.chatRoot} ${isHistoryPanelOpen ? styles.chatRootHistoryOpen : ""}`}>
                 <div className={styles.chatContainer} ref={chatContainerRef}>
-                    <ChatbotDisclaimerBanner isLoggedIn={loggedIn} />
-                    {/* {!lastQuestionRef.current && answers.length === 1 && answers[0][0] === "" ? (
-                        <div className={styles.chatEmptyState}>
-                            <img src={appLogo} alt="App logo" width="120" height="120" />
-                            <h1 className={styles.chatEmptyStateTitle}>{t("chatEmptyStateTitle")}</h1>
-                            <h2 className={styles.chatEmptyStateSubtitle}>{t("chatEmptyStateSubtitle")}</h2>
-                            <ExampleList onExampleClicked={onExampleClicked} useMultimodalAnswering={showMultimodalOptions} />
-                        </div>
-                    ) : ( */}
                     <div className={styles.chatMessageStream}>
                         {isStreaming &&
                             streamedAnswers.map((streamedAnswer, index) => (
                                 <div key={index}>
-                                    {!isSyntheticInitialPair(streamedAnswer) && !isOptionSelectionTurn(streamedAnswers, index, optionTexts) && (
-                                        <UserChatMessage message={streamedAnswer[0]} />
-                                    )}
+                                    {!isSyntheticInitialPair(streamedAnswer) && <UserChatMessage message={streamedAnswer[0]} />}
                                     <div className={styles.chatMessageGpt}>
                                         <Answer
                                             isStreaming={true}
@@ -824,10 +756,6 @@ const Chat = () => {
                                             index={index}
                                             speechConfig={speechConfig}
                                             isSelected={false}
-                                            optionSelectedValue={getOptionSelectedValue(streamedAnswers, index)}
-                                            optionsLocked={true}
-                                            onOptionSelected={q => handleOptionSelected(index, q)}
-                                            onOptionOther={focusInput}
                                             onCitationClicked={c => onShowCitation(c, index)}
                                             onThoughtProcessClicked={() => onToggleTab(AnalysisPanelTabs.ThoughtProcessTab, index)}
                                             onSupportingContentClicked={() => onToggleTab(AnalysisPanelTabs.SupportingContentTab, index)}
@@ -842,9 +770,7 @@ const Chat = () => {
                         {!isStreaming &&
                             answers.map((answer, index) => (
                                 <div key={index}>
-                                    {!isSyntheticInitialPair(answer) && !isOptionSelectionTurn(answers, index, optionTexts) && (
-                                        <UserChatMessage message={answer[0]} />
-                                    )}
+                                    {!isSyntheticInitialPair(answer) && <UserChatMessage message={answer[0]} />}
                                     <div className={styles.chatMessageGpt}>
                                         <Answer
                                             isStreaming={false}
@@ -853,10 +779,6 @@ const Chat = () => {
                                             index={index}
                                             speechConfig={speechConfig}
                                             isSelected={selectedAnswer === index && activeAnalysisPanelTab !== undefined}
-                                            optionSelectedValue={getOptionSelectedValue(answers, index)}
-                                            optionsLocked={index !== answers.length - 1 || isLoading}
-                                            onOptionSelected={q => handleOptionSelected(index, q)}
-                                            onOptionOther={focusInput}
                                             onCitationClicked={c => onShowCitation(c, index)}
                                             onThoughtProcessClicked={() => onToggleTab(AnalysisPanelTabs.ThoughtProcessTab, index)}
                                             onSupportingContentClicked={() => onToggleTab(AnalysisPanelTabs.SupportingContentTab, index)}
@@ -870,9 +792,7 @@ const Chat = () => {
                             ))}
                         {isLoading && (
                             <>
-                                {!matchesChoiceValue(answers[answers.length - 1]?.[1]?.message?.content, lastQuestionRef.current, optionTexts) && (
-                                    <UserChatMessage message={lastQuestionRef.current} />
-                                )}
+                                <UserChatMessage message={lastQuestionRef.current} />
                                 <div className={styles.chatMessageGptMinWidth}>
                                     <AnswerLoading />
                                 </div>
@@ -880,9 +800,7 @@ const Chat = () => {
                         )}
                         {error ? (
                             <>
-                                {!matchesChoiceValue(answers[answers.length - 1]?.[1]?.message?.content, lastQuestionRef.current, optionTexts) && (
-                                    <UserChatMessage message={lastQuestionRef.current} />
-                                )}
+                                <UserChatMessage message={lastQuestionRef.current} />
                                 <div className={styles.chatMessageGptMinWidth}>
                                     <AnswerError error={error.toString()} onRetry={() => makeApiRequest(lastQuestionRef.current)} />
                                 </div>
@@ -890,14 +808,13 @@ const Chat = () => {
                         ) : null}
                         <div ref={chatMessageStreamEnd} />
                     </div>
-                    {/* )} */}
 
-                    <div className={styles.chatInput} ref={chatInputRef}>
+                    <div className={styles.chatInput}>
                         <ScrollToBottomButton containerRef={chatContainerRef} />
                         <QuestionInput
                             clearOnSend
                             placeholder={t("defaultExamples.placeholder")}
-                            disabled={optionPromptBlocksInput && !isLoading}
+                            disabled={isLoading}
                             onSend={question => makeApiRequest(question)}
                             showSpeechInput={showSpeechInput}
                             isStreaming={isStreaming}
@@ -905,6 +822,14 @@ const Chat = () => {
                             onStop={onStopClick}
                             initQuestion={restoredQuestion}
                         />
+                        <p className={styles.inputDisclaimer}>
+                            <Trans
+                                i18nKey="inputDisclaimer"
+                                components={{
+                                    nerilio: <a href="https://nerilio.ai" target="_blank" rel="noopener noreferrer" />
+                                }}
+                            />
+                        </p>
                     </div>
                 </div>
 

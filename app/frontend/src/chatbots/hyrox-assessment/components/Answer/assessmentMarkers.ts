@@ -22,9 +22,10 @@ const MODULE_FAIL_MARKER_RE = /\[\[\s*MODFAIL\b[^\]]*\]\]/i;
 // Lemon app (fired as lemon://save_progress?value=N — see lemonBridge.reportLemonProgress).
 const PROGRESS_MARKER_RE = /\[\[\s*PROGRESS\b[^\]]*\bvalue\s*=\s*(\d+)[^\]]*\]\]/i;
 
-// The backend joins end-of-assessment sections (final question's evaluation, cumulative
-// result, topic summary, motivational message, closing message) with [[BREAK]] so each
-// renders as its own chat bubble.
+// The backend joins end-of-assessment sections (final question's evaluation, the final
+// module's own result line, cumulative result, topic summary, motivational message, closing
+// message) with [[BREAK]] so each renders as its own chat bubble. The count is not fixed —
+// splitAssessmentBubbles renders one bubble per non-empty [[BREAK]] segment.
 const BUBBLE_BREAK_RE = /\[\[\s*BREAK\s*\]\]/i;
 
 // The backend emits this once, on ANY completion (pass OR fail), on the turn the final question is
