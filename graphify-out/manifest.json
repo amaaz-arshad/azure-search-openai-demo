@@ -5435,8 +5435,8 @@
     "semantic_hash": ""
   },
   "app/functions/moodle_auto_indexer/function_app.py": {
-    "mtime": 1783499769.887519,
-    "ast_hash": "efbe74c65428fab255dbf8e2d1d441e5",
+    "mtime": 1784803174.2062821,
+    "ast_hash": "33763942bd94e82310724811bd40b450",
     "semantic_hash": ""
   },
   "app/functions/moodle_auto_indexer/prepdocslib/blobautoindex.py": {
@@ -5800,8 +5800,8 @@
     "semantic_hash": "86411c3213bad4dfdf6a085231320412"
   },
   "scripts/setup_moodle_delete_event_subscription.py": {
-    "mtime": 1783499804.4272513,
-    "ast_hash": "4754565d44316f9fa3f7dbb79856923e",
+    "mtime": 1784803176.1755378,
+    "ast_hash": "5800908c285b29c8101a903c484041b4",
     "semantic_hash": ""
   },
   "scripts/verify_search_index_acls.py": {
@@ -5910,8 +5910,8 @@
     "semantic_hash": "b8678bf8aaf60ded531303bb7364f736"
   },
   "tests/test_function_apps.py": {
-    "mtime": 1783500211.2136564,
-    "ast_hash": "49987cbab677644654a0b53144440925",
+    "mtime": 1784803177.6204684,
+    "ast_hash": "56cd776b62d8b05369d045cce8adfcae",
     "semantic_hash": ""
   },
   "tests/test_htmlparser.py": {
@@ -6015,8 +6015,8 @@
     "semantic_hash": "77ec55ea90a84f95635bc9985e49b57a"
   },
   "CLAUDE.md": {
-    "mtime": 1784249300.7908258,
-    "ast_hash": "5c42f3398ce1036c7ce6f7f68b0db409",
+    "mtime": 1784803180.5871258,
+    "ast_hash": "5f35a80ac82b9757f7811df434e696d3",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -8410,8 +8410,8 @@
     "semantic_hash": "b7d811e41ee8cb385db724f4491957fb"
   },
   "CHANGES.md": {
-    "mtime": 1784249333.6431377,
-    "ast_hash": "7af4f5a47494bb185082e1d3161bb566",
+    "mtime": 1784803241.2216318,
+    "ast_hash": "a32f7fc99d1c68432b68fbcd358b0631",
     "semantic_hash": ""
   },
   "aci-openlit.example.yaml": {
