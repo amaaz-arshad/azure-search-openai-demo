@@ -15,6 +15,43 @@ Two categories per date:
 
 ---
 
+## 2026-07-24
+
+### Dynamic bots: tutor default model downgraded to gpt-5.4-mini, reasoning default lowered to medium
+
+#### Decisions
+
+- User request: for a provisioned tutor+Q&A bot created with no `llm` in the API payload, the
+  mode-aware fallback should be **`gpt-5.4-mini`** (was `gpt-5.4`) at **`reasoning_effort="medium"`**
+  (was `"high"`) by default. The Q&A-only fallback (`gpt-4.1`, non-reasoning) was already correct and
+  is unchanged.
+- **Single shared constant, not a tutor-only branch.** The reasoning-effort fallback in
+  `apply_saved_chatbot_prompt_override` (`app/backend/app.py`) is one line of code that fires whenever
+  the *effective* model (provisioned or defaulted) is reasoning-capable and neither the incoming
+  request override nor the provisioned `reasoning_effort` is valid — it isn't forked by mode. Flipping
+  the single `"high"` → `"medium"` fallback constant satisfies the request with no new branching,
+  consistent with the existing architecture (only tutor bots default to a reasoning-capable model
+  today, so this is the only place it fires in practice; a Q&A bot explicitly provisioned with a
+  reasoning model would also now default to `medium`, matching the existing one-fallback design).
+- Confirmed `gpt-5.4-mini` is already deployed in the active nerilio resource (several built-in tutor
+  bots — bensberg, hyrox_assessment, lemon — already run it) and supports `"medium"` in its
+  `GPT_REASONING_MODELS` effort list, so no infra change is needed.
+
+#### Changes
+
+- `app/backend/core/dynamic_bot_config.py`: `DEFAULT_DYNAMIC_TUTOR_MODEL` `"gpt-5.4"` → `"gpt-5.4-mini"`;
+  comment updated (high → medium effort).
+- `app/backend/app.py`: `apply_saved_chatbot_prompt_override` reasoning-effort fallback `"high"` →
+  `"medium"`; comment updated.
+- `tests/test_dynamic_resolution.py`: renamed and updated
+  `test_dynamic_tutor_empty_llm_uses_tutor_prompt_model_and_high_effort` → `..._and_medium_effort` and
+  `test_dynamic_tutor_invalid_provisioned_effort_defaults_high` → `..._defaults_medium`; both now
+  assert `"medium"`. Full run with `test_bot_config.py` + `test_dynamic_prompt_config.py`: 69 passed.
+- `docs/provisioning-api.md`: `llm`/`reasoning_effort` rows and the §8 model-deployment roadmap note
+  updated to `gpt-5.4-mini` / `medium`.
+- `CLAUDE.md`: dynamic-bot contract bullet updated (`DEFAULT_DYNAMIC_TUTOR_MODEL="gpt-5.4-mini"`,
+  `high` → `medium` reasoning default, deployed-model note).
+
 ## 2026-07-23
 
 ### Dynamic bots: fallback logo/avatar is now the nerilio robot (not the Azure stars mark)

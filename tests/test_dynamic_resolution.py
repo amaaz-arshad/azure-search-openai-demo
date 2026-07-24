@@ -176,7 +176,7 @@ async def test_dynamic_qna_empty_llm_falls_back_to_qna_model():
 
 
 @pytest.mark.asyncio
-async def test_dynamic_tutor_empty_llm_uses_tutor_prompt_model_and_high_effort():
+async def test_dynamic_tutor_empty_llm_uses_tutor_prompt_model_and_medium_effort():
     registry = FakeRegistry(
         {"bxa": make_record("bxa", prompt="", llm=None, active=True, modes={"tutor": True})}
     )
@@ -186,8 +186,8 @@ async def test_dynamic_tutor_empty_llm_uses_tutor_prompt_model_and_high_effort()
         await app_module.apply_saved_chatbot_prompt_override(request_json)
     overrides = request_json["context"]["overrides"]
     assert overrides["__saved_prompt_template"] == DEFAULT_DYNAMIC_TUTOR_PROMPT
-    assert overrides["chat_model"] == DEFAULT_DYNAMIC_TUTOR_MODEL  # gpt-5.4
-    assert overrides["reasoning_effort"] == "high"  # empty/invalid -> high on a reasoning model
+    assert overrides["chat_model"] == DEFAULT_DYNAMIC_TUTOR_MODEL  # gpt-5.4-mini
+    assert overrides["reasoning_effort"] == "medium"  # empty/invalid -> medium on a reasoning model
 
 
 @pytest.mark.asyncio
@@ -216,7 +216,7 @@ async def test_dynamic_tutor_valid_provisioned_effort_is_kept():
 
 
 @pytest.mark.asyncio
-async def test_dynamic_tutor_invalid_provisioned_effort_defaults_high():
+async def test_dynamic_tutor_invalid_provisioned_effort_defaults_medium():
     registry = FakeRegistry(
         {"bxa": make_record("bxa", llm="gpt-5.4", active=True, modes={"tutor": True}, reasoning_effort="bogus")}
     )
@@ -224,7 +224,7 @@ async def test_dynamic_tutor_invalid_provisioned_effort_defaults_high():
     async with quart_app.app_context():
         request_json = req("bxa", reasoning_effort="")
         await app_module.apply_saved_chatbot_prompt_override(request_json)
-    assert request_json["context"]["overrides"]["reasoning_effort"] == "high"
+    assert request_json["context"]["overrides"]["reasoning_effort"] == "medium"
 
 
 @pytest.mark.asyncio

@@ -18,10 +18,10 @@ from core.dynamic_tutor_prompt import DEFAULT_DYNAMIC_TUTOR_PROMPT
 SUPPORTED_LANGUAGE_CODES: tuple[str, ...] = ("de", "en", "nl")
 
 # Mode-aware default chat models for dynamic bots whose provisioned `llm` is empty, unknown, or not
-# deployed here. Tutor bots need a reasoning-capable model (run at high effort); Q&A bots use a
-# cheaper general model. These are model IDs from `DEVELOPER_CHAT_MODELS`; the matching Azure
-# deployments must exist (or `AZURE_OPENAI_CHAT_MODEL_DEPLOYMENTS` must map them) for them to serve.
-DEFAULT_DYNAMIC_TUTOR_MODEL = "gpt-5.4"
+# deployed here. Tutor bots need a reasoning-capable model (run at medium effort by default); Q&A
+# bots use a cheaper general model. These are model IDs from `DEVELOPER_CHAT_MODELS`; the matching
+# Azure deployments must exist (or `AZURE_OPENAI_CHAT_MODEL_DEPLOYMENTS` must map them) for them to serve.
+DEFAULT_DYNAMIC_TUTOR_MODEL = "gpt-5.4-mini"
 DEFAULT_DYNAMIC_QNA_MODEL = "gpt-4.1"
 
 # Control-panel language labels (and a few aliases) -> frontend locale code.

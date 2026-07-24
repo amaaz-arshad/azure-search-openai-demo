@@ -101,8 +101,8 @@ actually does with it today.
 | `number_sessions` | Session cap: Free 30 / Basic 5000 / Pro 10000 / Enterprise **-1 = unlimited**. | **Enforced** — see §6. |
 | `prompt` | System prompt. Empty → a **mode-aware** default: the generic tutor prompt for tutor bots, else a neutral Q&A RAG prompt. | **Applied.** |
 | `ansprache` | `informal` \| `formal` (aliases `du`/`sie`). Formal/informal addressing. | **Applied** — appended as a language-general directive to the system prompt (explicit German du/Sie and Dutch je/u forms, a generic rule for any other language with the distinction, a tone rule for languages without one such as English). |
-| `llm` | Model id (e.g. `gpt-5`). | **Applied** when the model is deployed here; otherwise a **mode-aware default** is used: `gpt-5.4` for tutor bots, `gpt-4.1` for Q&A bots (empty/unknown/undeployed all fall back this way). |
-| `reasoning_effort` | Reasoning effort for reasoning-capable models (`minimal`/`low`/`medium`/`high`/`xhigh`, model-dependent). | **Applied** — validated against the effective model. Missing or unsupported → defaults to `high`; ignored on non-reasoning models (e.g. `gpt-4.1`). |
+| `llm` | Model id (e.g. `gpt-5`). | **Applied** when the model is deployed here; otherwise a **mode-aware default** is used: `gpt-5.4-mini` for tutor bots, `gpt-4.1` for Q&A bots (empty/unknown/undeployed all fall back this way). |
+| `reasoning_effort` | Reasoning effort for reasoning-capable models (`minimal`/`low`/`medium`/`high`/`xhigh`, model-dependent). | **Applied** — validated against the effective model. Missing or unsupported → defaults to `medium`; ignored on non-reasoning models (e.g. `gpt-4.1`). |
 | `design.color_primary` | Hex theme color. | **Applied** (frontend theme). |
 | `design.logo` | Base64 data URI (e.g. `data:image/png;base64,…`). Header brand logo. | **Applied** — rendered in the header logo slot (round 35px); blank/absent → the neutral shared app mark. |
 | `design.icon` | Base64 data URI. Assistant-bubble avatar. | **Applied** — rendered as the assistant avatar in answers; blank/absent → the neutral shared app mark. |
@@ -253,10 +253,11 @@ curl -sS -X POST "https://chat.nerilio.ai/provisioning/chatbots" \
   and browser history are now wired.
 - **Fine-grained `qa.*` / `tutor.*` knobs** (confidence, fallback, pace, examples, summary, …) — stored but
   not yet mapped to prompt behavior.
-- **Model deployment note:** the `llm` fallbacks `gpt-5.4` (tutor) / `gpt-4.1` (Q&A) must have real Azure
-  OpenAI deployments (or an `AZURE_OPENAI_CHAT_MODEL_DEPLOYMENTS` mapping); otherwise the call fails at
-  runtime. Both are deployed in the current nerilio resource (`gpt-4.1` also backs several built-in Q&A bots),
-  so no action is needed there — this only matters if the backing resource changes.
+- **Model deployment note:** the `llm` fallbacks `gpt-5.4-mini` (tutor) / `gpt-4.1` (Q&A) must have real
+  Azure OpenAI deployments (or an `AZURE_OPENAI_CHAT_MODEL_DEPLOYMENTS` mapping); otherwise the call fails
+  at runtime. Both are deployed in the current nerilio resource (`gpt-5.4-mini` also backs several
+  built-in tutor bots, `gpt-4.1` several built-in Q&A bots), so no action is needed there — this only
+  matters if the backing resource changes.
 - **Quota: 120-min-inactivity** session re-counting (needs per-session last-activity storage).
 - **`qa.*` / `tutor.*`** behavior knobs → prompt parameters.
 - **`flagged`, `design.color_secondary`** — wire if/when needed.

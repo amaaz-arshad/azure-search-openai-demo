@@ -818,7 +818,7 @@ async def apply_saved_chatbot_prompt_override(request_json: dict[str, Any]) -> s
 
         # Reasoning-effort fallback: if the chosen model supports reasoning, use a valid incoming effort
         # (e.g. from Settings); otherwise use the provisioned `reasoning_effort` if valid, else default to
-        # "high". A non-reasoning model (e.g. gpt-4.1) is left untouched (normalize drops effort for it).
+        # "medium". A non-reasoning model (e.g. gpt-4.1) is left untouched (normalize drops effort for it).
         effective_model = overrides.get("chat_model")
         reasoning_support = (
             Approach.GPT_REASONING_MODELS.get(effective_model) if isinstance(effective_model, str) else None
@@ -828,7 +828,7 @@ async def apply_saved_chatbot_prompt_override(request_json: dict[str, Any]) -> s
             incoming_effort = str(overrides.get("reasoning_effort") or "").strip().lower()
             if incoming_effort not in supported_efforts:
                 provisioned_effort = (dynamic_record.reasoning_effort or "").strip().lower()
-                fallback_effort = "high" if "high" in supported_efforts else supported_efforts[-1]
+                fallback_effort = "medium" if "medium" in supported_efforts else supported_efforts[-1]
                 overrides["reasoning_effort"] = (
                     provisioned_effort if provisioned_effort in supported_efforts else fallback_effort
                 )
