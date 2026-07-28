@@ -15,6 +15,101 @@ Two categories per date:
 
 ---
 
+## 2026-07-28
+
+### HYROX assessment: log every session, not just completed ones
+
+#### Decisions
+
+- **Every assessment turn now writes a session log, keyed per session.** The
+  previous behaviour only wrote a log when the FINAL module was passed, so an
+  abandoned or in-progress run left **no server-side trace at all** — Cosmos
+  chat history is disabled in `agentic-retrieval-nerilio`
+  (`USE_CHAT_HISTORY_COSMOS=false`, `AZURE_COSMOSDB_ACCOUNT=""`, and no Cosmos
+  account exists in the resource group), so an unfinished transcript lived only
+  in the learner's own browser (IndexedDB) and was unrecoverable. This surfaced
+  when two learner ids (122898, 68278) were requested and neither had a log:
+  all 96 existing blobs are completions.
+- **Blob layout groups by learner:**
+  `hyrox-assessment-logs/<account_id>/<session_id>.json`, one blob per session
+  overwritten on each turn. Chosen over a flat `<session_id>.json` so every
+  session of one account — finished or abandoned — is listable with a single
+  prefix query, which is exactly what failed above. Sessions launched outside
+  the Lemon LMS carry no `account_id` and bucket under `anonymous/` (20 of the
+  96 existing logs are in that situation).
+- **The completion-only timestamped write is superseded, not kept alongside.**
+  The live blob's final write already contains everything the old
+  `<session_id>-<stamp>.json` snapshot held, plus `status`/`progress`, so
+  keeping both would store each completed transcript twice under two naming
+  conventions. The 96 existing blobs are left untouched; nothing migrates them.
+- **PII exposure left as-is (explicit user decision).** These blobs live in the
+  `content` container, which `/content/<path>` serves unauthenticated
+  (`AZURE_USE_AUTHENTICATION=false` → `check_path_auth` returns `True`), so a
+  learner's name plus full transcript is fetchable by anyone holding the exact
+  blob name; unguessable names are the only protection, and there is now one
+  per *started* session rather than per completion. A route guard rejecting the
+  log prefix, and a separate non-served container, were both offered and
+  declined. The storage account also has no lifecycle policy, so logs
+  accumulate indefinitely. Flagged, not fixed.
+- **A terminal/no-op turn deliberately writes nothing.**
+  `render_assessment_turn` returns empty scores once the run is complete (or
+  when there is nothing to grade), so writing on those turns would replace a
+  finished record with an empty one. Post-completion chatter is therefore not
+  captured in the log — preserving the completed record won over capturing it.
+- Not done: no `started_at` field. Preserving it across in-place overwrites
+  would need a read-modify-write on every turn; `updated_at` plus the blob's
+  own `lastModified` covers last-activity, which is what abandonment analysis
+  actually needs.
+
+#### Changes
+
+- `app/backend/approaches/chatbots/hyrox_assessment/results.py`: replaced
+  `record_assessment_result`/`_write_session_log` (completion-gated,
+  timestamped blob) with `record_assessment_session` (per-turn upsert) plus new
+  helpers `session_log_blob_name`, `run_scores_so_far`,
+  `build_session_log_record`, and a rewritten `_write_session_log` that takes a
+  blob name. Added `ASSESSMENT_LOG_PREFIX`, `ANONYMOUS_LOG_BUCKET`,
+  `BLOB_SEGMENT_UNSAFE_RE` (path segments are sanitised, so a crafted
+  `account_id`/`session_id` cannot escape the prefix). Record gained `status`,
+  `completed`, `updated_at`, and a `progress` block (current module + 1-based
+  position + attempt, modules passed/total, questions finalised in
+  module/total, `points_possible_total`); `passed` is now true only on
+  completion. `scores`/`module_breakdown` span the whole run mid-flight via
+  `run_scores_so_far`, which prepends `prior_module_results` because
+  `render_assessment_turn` returns only the current module attempt except on
+  the completion turn. Imported `TOTAL_MAX_POINTS`, `TOTAL_QUESTIONS`,
+  `module_index`; updated the module docstring. The no-blob-manager log branch
+  now prints a one-line summary instead of the whole record (it runs every turn
+  now, so dumping the transcript would flood the log).
+- `app/backend/approaches/chatreadretrieveread.py`: the hyrox branch of
+  `run_without_streaming` calls `record_assessment_session` on **every** turn
+  instead of calling `record_assessment_result` only when `just_completed`;
+  `completed=just_completed` still drives the LMS report.
+- `tests/test_hyrox_assessment.py`: replaced the single
+  `record_assessment_result` payload test with 7 tests covering blob-name
+  grouping/anonymous bucketing/path-traversal sanitising, per-turn upsert into
+  one blob, an abandoned mid-run log carrying cross-module progress and the
+  full transcript, anonymous runs, completion + exactly-one LMS report, the
+  post-completion no-clobber guard, and best-effort failure handling. Added a
+  `_FakeBlobManager` with overwrite semantics and a `_log_turn` helper mirroring
+  the production call. Added `import json`.
+- `CLAUDE.md`: documented the session-logging contract, the no-op-turn rule,
+  and the two accepted residuals in the `hyrox-assessment` bullet.
+
+#### Verification
+
+- `pytest tests/test_hyrox_assessment.py` — 54 passed.
+- `ty check` on the three changed files — clean; the only 3 diagnostics are
+  pre-existing `get_question(...)["key_points"]` subscripts at HEAD.
+- `pytest tests/test_chatapproach.py` — 46 passed, 2 failed; confirmed
+  identical at baseline by stashing the change (pre-existing, unrelated to the
+  hyrox path).
+- Smoke test drove a real 4-turn partial run through the engine: wrote
+  `hyrox-assessment-logs/122898/<uuid>.json` with `status=in_progress`,
+  3 of 4 M1 questions finalised, and all 8 transcript messages.
+
+---
+
 ## 2026-07-24
 
 ### Dynamic bots: tutor default model downgraded to gpt-5.4-mini, reasoning default lowered to medium

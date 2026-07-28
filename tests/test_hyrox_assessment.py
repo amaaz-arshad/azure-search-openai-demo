@@ -1,4 +1,5 @@
 import asyncio
+import json
 
 from approaches.chatbot_config_registry import (
     get_chatbot_config,
@@ -788,31 +789,199 @@ def test_strip_markers_removes_all_assessment_markers() -> None:
     assert "A" in out and "B" in out
 
 
-# --- record_assessment_result --------------------------------------------
+# --- session logging (every turn, completed or not) -----------------------
+#
+# A log used to be written ONLY when the final module was passed, so an abandoned run left no
+# server-side trace at all — its transcript lived only in the learner's browser. Now every turn
+# upserts one blob per session at hyrox-assessment-logs/<account_id>/<session_id>.json.
 
 
-def test_record_assessment_result_builds_payload_with_module_breakdown() -> None:
-    scores = [results.normalize_score(1, [1] * key_point_count(1)), results.normalize_score(5, [1] * key_point_count(5))]
-    tally = results.compute_tally(scores)
-    payload = asyncio.run(
-        results.record_assessment_result(
+class _FakeBlobManager:
+    """Records uploads with the real BlobManager's overwrite=True semantics."""
+
+    def __init__(self) -> None:
+        self.writes: list[tuple[str, dict]] = []
+
+    async def upload_blob_data(self, file, blob_name: str, content_type: str | None = None) -> str:
+        file.seek(0)
+        self.writes.append((blob_name, json.loads(file.read().decode("utf-8"))))
+        return f"https://example.invalid/{blob_name}"
+
+    @property
+    def blobs(self) -> dict[str, dict]:
+        """Surviving content per blob name — later writes replace earlier ones."""
+        return dict(self.writes)
+
+
+_LEARNER = {"language": "en", "account_id": "104477", "first_name": "Ada", "last_name": "Lovelace"}
+
+
+def _log_turn(blob_manager, messages: list, user: str, full_marks: bool = True, overrides: dict | None = None):
+    """One request/response cycle plus the session-log write, mirroring run_without_streaming."""
+    messages = messages + [{"role": "user", "content": user}]
+    state = results.derive_turn_state(messages)
+    content, scores, _tally, done = results.render_assessment_turn(_fake_model(state, full_marks), state, "en")
+    record = asyncio.run(
+        results.record_assessment_session(
+            state=state,
             scores=scores,
-            tally=tally,
-            messages=[{"role": "user", "content": "start"}],
-            final_content="done",
-            overrides={"language": "en", "account_id": "123", "first_name": "John", "last_name": "Doe"},
+            messages=messages,
+            final_content=content,
+            overrides=_LEARNER if overrides is None else overrides,
             auth_claims={},
             session_state="sess-123",
-            blob_manager=None,
+            blob_manager=blob_manager,
+            completed=done,
         )
     )
-    assert payload is not None
-    assert payload["passed"] is True
-    assert payload["session_id"] == "sess-123"
-    assert payload["user_id"] == "123"
-    assert payload["first_name"] == "John" and payload["last_name"] == "Doe"
-    assert payload["module_breakdown"]  # non-empty per-module breakdown
-    assert "M1" in payload["module_breakdown"]
+    return messages + [{"role": "assistant", "content": content}], record, done
+
+
+def test_session_log_blob_name_groups_by_account_and_buckets_anonymous_runs() -> None:
+    assert results.session_log_blob_name("sess-1", "104477") == "hyrox-assessment-logs/104477/sess-1.json"
+    # Launched outside the LMS: no account id to group by.
+    assert results.session_log_blob_name("sess-1", None) == "hyrox-assessment-logs/anonymous/sess-1.json"
+    assert results.session_log_blob_name("sess-1", "") == "hyrox-assessment-logs/anonymous/sess-1.json"
+    # Both chat-history modes disabled -> no session id.
+    assert results.session_log_blob_name(None, "7") == "hyrox-assessment-logs/7/unkeyed.json"
+    # Path traversal / separators in caller-supplied ids cannot escape the prefix.
+    name = results.session_log_blob_name("../../etc/passwd", "../admin")
+    assert name.startswith("hyrox-assessment-logs/") and name.count("/") == 2
+
+
+def test_session_log_is_upserted_on_every_turn_into_one_blob_per_session() -> None:
+    blob_manager = _FakeBlobManager()
+    # A run that dies right after the first question is still on record.
+    messages, first, done = _log_turn(blob_manager, [], "Start")
+    assert done is False
+    assert first is not None and first["status"] == "in_progress" and first["completed"] is False
+    assert first["passed"] is False
+    assert first["progress"]["current_module"] == "M1"
+    assert first["progress"]["questions_finalised_total"] == 0
+    assert first["progress"]["modules_total"] == len(MODULES)
+    assert first["progress"]["questions_total"] == TOTAL_QUESTIONS
+    assert len(blob_manager.writes) == 1
+    assert blob_manager.writes[0][0] == "hyrox-assessment-logs/104477/sess-123.json"
+
+    # The next turn overwrites the SAME blob, with a longer transcript and the first score recorded.
+    messages, second, done = _log_turn(blob_manager, messages, "my answer")
+    assert len(blob_manager.writes) == 2
+    assert blob_manager.writes[1][0] == blob_manager.writes[0][0]
+    assert len(blob_manager.blobs) == 1  # one blob per session, not one per turn
+    assert second is not None
+    assert len(second["transcript"]) > len(first["transcript"])
+    assert second["progress"]["questions_finalised_total"] == 1
+    assert second["transcript"][0] == {"role": "user", "content": "Start"}
+
+
+def test_abandoned_mid_run_log_carries_cross_module_progress_and_full_transcript() -> None:
+    blob_manager = _FakeBlobManager()
+    messages, _content, _state, _done = _turn([], "Start")
+    messages, content, done = _answer_module(messages, full_marks=True)  # M1 passed
+    assert done is False and "[[MODPASS" in content
+    messages, _content, _state, _done = _turn(messages, "Continue")  # first M2 question asked
+    messages, record, done = _log_turn(blob_manager, messages, "my answer")  # ... then the learner leaves
+
+    assert done is False and record is not None
+    assert record["status"] == "in_progress" and record["passed"] is False
+    assert record["progress"]["current_module"] == "M2"
+    assert record["progress"]["current_module_position"] == 2
+    assert record["progress"]["modules_passed"] == 1
+    assert record["progress"]["questions_finalised_in_module"] == 1
+    # Scores span the whole run, not just the current module attempt.
+    assert set(record["module_breakdown"]) == {"M1", "M2"}
+    assert record["progress"]["questions_finalised_total"] == len(module_questions("M1")) + 1
+    assert len(record["scores"]) == record["progress"]["questions_finalised_total"]
+    # The transcript is the entire conversation, including every question and answer so far.
+    assert record["transcript"][0]["content"] == "Start"
+    assert len([m for m in record["transcript"] if m["role"] == "user"]) >= len(module_questions("M1"))
+    assert record["account_id"] == "104477" and record["first_name"] == "Ada"
+
+
+def test_anonymous_run_without_lms_identity_is_still_logged() -> None:
+    blob_manager = _FakeBlobManager()
+    _messages, record, _done = _log_turn(blob_manager, [], "Start", overrides={"language": "en"})
+    assert record is not None and record["account_id"] is None
+    assert blob_manager.writes[0][0] == "hyrox-assessment-logs/anonymous/sess-123.json"
+
+
+def test_completed_run_is_logged_as_completed_and_reported_to_lms(monkeypatch) -> None:
+    blob_manager = _FakeBlobManager()
+    reported: list[dict] = []
+    monkeypatch.setattr(results, "report_result_to_lms", reported.append)
+
+    messages = _drive_to_module10(answered=4)  # final question asked, awaiting the answer
+    messages, record, done = _log_turn(blob_manager, messages, "my answer")
+
+    assert done is True and record is not None
+    assert record["status"] == "completed" and record["completed"] is True and record["passed"] is True
+    assert record["completed_at"] is not None
+    assert record["progress"]["modules_passed"] == len(MODULES)
+    assert record["progress"]["questions_finalised_total"] == TOTAL_QUESTIONS
+    assert len(record["scores"]) == TOTAL_QUESTIONS
+    assert set(record["module_breakdown"]) == set(MODULES)
+    assert record["max"] == TOTAL_MAX_POINTS
+    # Same blob as the in-progress writes of this session — the final write supersedes them.
+    assert blob_manager.writes[-1][0] == "hyrox-assessment-logs/104477/sess-123.json"
+    # The LMS is told exactly once, only on completion.
+    assert len(reported) == 1
+    assert reported[0]["passed"] is True and set(reported[0]["module_breakdown"]) == set(MODULES)
+
+
+def test_post_completion_turn_never_clobbers_the_completed_log(monkeypatch) -> None:
+    blob_manager = _FakeBlobManager()
+    monkeypatch.setattr(results, "report_result_to_lms", lambda payload: None)
+    messages = _drive_to_module10(answered=4)
+    messages, completed, done = _log_turn(blob_manager, messages, "my answer")
+    assert done is True and completed is not None and completed["status"] == "completed"
+    writes_at_completion = len(blob_manager.writes)
+    surviving = blob_manager.blobs["hyrox-assessment-logs/104477/sess-123.json"]
+
+    # The learner keeps chatting: derive_turn_state is terminal, so render_assessment_turn returns no
+    # scores. Writing then would replace the finished record with an empty one.
+    _messages, record, done = _log_turn(blob_manager, messages, "thanks!")
+    assert done is False and record is None
+    assert len(blob_manager.writes) == writes_at_completion
+    assert blob_manager.blobs["hyrox-assessment-logs/104477/sess-123.json"] == surviving
+
+
+def test_record_assessment_session_never_raises_into_the_chat_flow() -> None:
+    class _Boom:
+        async def upload_blob_data(self, file, blob_name, content_type=None):
+            raise RuntimeError("storage down")
+
+    messages = [{"role": "user", "content": "Start"}]
+    state = results.derive_turn_state(messages)
+    # A blob failure is swallowed by _write_session_log, so the record is still returned.
+    record = asyncio.run(
+        results.record_assessment_session(
+            state=state,
+            scores=[],
+            messages=messages,
+            final_content="[[ASK]]",
+            overrides=_LEARNER,
+            auth_claims={},
+            session_state="sess-123",
+            blob_manager=_Boom(),
+        )
+    )
+    assert record is not None and record["status"] == "in_progress"
+    # A missing state is a no-op rather than an error.
+    assert (
+        asyncio.run(
+            results.record_assessment_session(
+                state=None,
+                scores=[],
+                messages=messages,
+                final_content="x",
+                overrides=_LEARNER,
+                auth_claims={},
+                session_state="sess-123",
+                blob_manager=_FakeBlobManager(),
+            )
+        )
+        is None
+    )
 
 
 # --- model-faked control markers (the 2026-07 "stuck after Module 10 passed" bug) ------------------

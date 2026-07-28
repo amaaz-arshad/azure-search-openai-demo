@@ -24,8 +24,9 @@ replay into the next request):
 
 The backend owns the per-module question counter, the running module tally, the per-module pass/fail at
 an 80% threshold, and the module transitions — it renders all of these into the message itself
-(``render_*``) so the model can neither miscount nor mis-add. When the final module is passed,
-``record_assessment_result`` writes a session log and calls the LMS stub.
+(``render_*``) so the model can neither miscount nor mis-add. ``record_assessment_session`` upserts one
+session log blob per session on EVERY turn (so abandoned runs are recorded too) and calls the LMS stub
+when the final module is passed.
 
 Backend-authored markers the model fakes anyway are STRIPPED from its output before assembly
 (``strip_forbidden_model_markers``), and the model's ``[[SCORE]]`` is stored in canonical backend form
@@ -44,10 +45,13 @@ from typing import Any, Optional
 from approaches.chatbots.hyrox_assessment.questions import (
     MODULES,
     QUESTIONS,
+    TOTAL_MAX_POINTS,
+    TOTAL_QUESTIONS,
     get_question,
     is_last_module,
     key_point_count,
     max_points,
+    module_index,
     module_of,
     module_questions,
     next_module,
@@ -1417,7 +1421,22 @@ def render_assessment_turn(
     return assembled, module_scores, module_tally, just_completed
 
 
-# --- result recording + LMS stub ------------------------------------------------------
+# --- session logging + LMS stub -------------------------------------------------------
+#
+# EVERY assessment turn upserts ONE blob per session:
+#     hyrox-assessment-logs/<account_id>/<session_id>.json
+# rewritten in place as the run progresses. Because the whole conversation is replayed to the model on
+# each request, the latest write always holds the complete transcript — so a run that is abandoned
+# mid-module is still fully on record. (Until 2026-07-28 a log was written only when the FINAL module was
+# passed, which left every incomplete run with no server-side trace whatsoever: the transcript lived only
+# in the learner's own browser, so an abandoned session was unrecoverable.) Sessions launched outside the
+# Lemon LMS carry no account_id and bucket under `anonymous/`.
+ASSESSMENT_LOG_PREFIX = "hyrox-assessment-logs"
+ANONYMOUS_LOG_BUCKET = "anonymous"
+# Blob path segments are built from caller-supplied ids; keep them to characters that need no escaping.
+BLOB_SEGMENT_UNSAFE_RE = re.compile(r"[^A-Za-z0-9._-]")
+
+
 def build_result_payload(
     *,
     session_id: Optional[str],
@@ -1453,73 +1472,187 @@ def report_result_to_lms(payload: dict[str, Any]) -> None:
     logger.info("HYROX assessment result (LMS report stub): %s", json.dumps(payload, ensure_ascii=False))
 
 
-async def record_assessment_result(
+def session_log_blob_name(session_id: Optional[str], account_id: Any) -> str:
+    """``hyrox-assessment-logs/<account_id>/<session_id>.json`` — one blob per session, grouped by learner
+    so every session of one account (finished or abandoned) is listable with a single prefix query. The
+    name is stable for the life of the session: each turn overwrites it."""
+
+    def segment(value: Any, fallback: str) -> str:
+        text = str(value).strip() if value not in (None, "") else ""
+        return BLOB_SEGMENT_UNSAFE_RE.sub("_", text) or fallback
+
+    # A missing session_id means both chat-history modes are disabled, so nothing distinguishes two runs
+    # by the same learner; they share the `unkeyed` blob rather than being dropped.
+    return f"{ASSESSMENT_LOG_PREFIX}/{segment(account_id, ANONYMOUS_LOG_BUCKET)}/{segment(session_id, 'unkeyed')}.json"
+
+
+def run_scores_so_far(
+    state: dict[str, Any], turn_scores: list[dict[str, Any]], completed: bool
+) -> list[dict[str, Any]]:
+    """Cross-module scores for the whole run as of this turn. ``render_assessment_turn`` returns only the
+    CURRENT module attempt's scores on an ordinary turn (the completion turn already flattens across every
+    module), so the earlier modules are prepended from the derived state."""
+    if completed:
+        return list(turn_scores or [])
+    prior = list(state.get("prior_module_results") or [])
+    return [score for _, module_scores in prior for score in module_scores] + list(turn_scores or [])
+
+
+def build_session_log_record(
     *,
+    state: dict[str, Any],
+    run_scores: list[dict[str, Any]],
+    messages: list[dict[str, Any]],
+    final_content: Optional[str],
+    overrides: dict[str, Any],
+    auth_claims: dict[str, Any],
+    session_id: Optional[str],
+    completed: bool,
+) -> dict[str, Any]:
+    """The full session log for this turn: identity, run status, progress, per-question scores, and the
+    entire conversation. Written for in-progress runs too, so ``status`` is what distinguishes them."""
+    account_id = overrides.get("account_id")
+    now = datetime.now(timezone.utc).isoformat()
+    tally = compute_tally(run_scores)
+    current_module = state.get("current_module")
+    transcript = [
+        {"role": m.get("role"), "content": m.get("content")}
+        for m in (messages or [])
+        if isinstance(m, dict) and isinstance(m.get("content"), str)
+    ]
+    if isinstance(final_content, str):
+        transcript.append({"role": "assistant", "content": final_content})
+
+    return {
+        "session_id": session_id,
+        "user_id": auth_claims.get("oid") or account_id or overrides.get("user"),
+        "account_id": account_id,
+        "first_name": overrides.get("first_name"),
+        "last_name": overrides.get("last_name"),
+        "language": overrides.get("language"),
+        "status": "completed" if completed else "in_progress",
+        "completed": completed,
+        # A module is only ever left by passing it, so finishing the assessment means passing every
+        # module; an in-progress run is never reported as passed no matter how well it is scoring.
+        "passed": bool(completed and tally["passed"]),
+        "updated_at": now,
+        "completed_at": now if completed else None,
+        # Running totals over the questions finalised SO FAR — on an in-progress run `percent` is
+        # accuracy to date, NOT progress through the assessment (that lives under `progress`).
+        "score": tally["score"],
+        "max": tally["max"],
+        "percent": tally["pct"],
+        "pass_threshold_percent": PASS_THRESHOLD_PERCENT,
+        "progress": {
+            "current_module": current_module,
+            # 1-based for reading; `module_index` is 0-based and yields -1 for an unknown module.
+            "current_module_position": (module_index(current_module) + 1) if current_module else None,
+            "current_module_attempt": int(state.get("attempt") or 0),
+            "modules_passed": len(MODULES) if completed else len(list(state.get("prior_module_results") or [])),
+            "modules_total": len(MODULES),
+            "questions_finalised_in_module": len([s for s in run_scores if s.get("mod") == current_module]),
+            "questions_in_module": len(state.get("module_questions") or []),
+            "questions_finalised_total": len(run_scores),
+            "questions_total": TOTAL_QUESTIONS,
+            "points_possible_total": TOTAL_MAX_POINTS,
+        },
+        "module_breakdown": module_breakdown(run_scores),
+        "scores": run_scores,
+        "transcript": transcript,
+    }
+
+
+async def record_assessment_session(
+    *,
+    state: Optional[dict[str, Any]],
     scores: list[dict[str, Any]],
-    tally: dict[str, Any],
     messages: list[dict[str, Any]],
     final_content: Optional[str],
     overrides: dict[str, Any],
     auth_claims: dict[str, Any],
     session_state: Any,
     blob_manager: Any = None,
+    completed: bool = False,
 ) -> Optional[dict[str, Any]]:
-    """Write the session log and report to the LMS for a just-completed assessment (all modules passed).
-    Called by the chat approach only when the final module is passed this turn. Best-effort: never raises
-    into the chat flow."""
+    """Upsert this session's log after EVERY assessment turn; on the completion turn also hand the result
+    to the LMS. Called by the chat approach on every assessment turn. Best-effort: never raises into the
+    chat flow, and returns the record it wrote (or None when it wrote nothing)."""
     try:
+        if state is None:
+            return None
+        # Terminal / no-op turn: post-completion chatter, or a turn with nothing to grade.
+        # ``render_assessment_turn`` returns no scores for these, so writing would replace a finished
+        # record with an empty one — skip instead. The completed log already holds the whole run.
+        if not completed and (state.get("assessment_complete") or state.get("current_id") is None):
+            return None
+
         session_id = session_state if isinstance(session_state, str) else None
-        account_id = overrides.get("account_id")
-        user_id = auth_claims.get("oid") or account_id or overrides.get("user")
-        language = overrides.get("language")
-
-        payload = build_result_payload(
+        run_scores = run_scores_so_far(state, scores, completed)
+        record = build_session_log_record(
+            state=state,
+            run_scores=run_scores,
+            messages=messages,
+            final_content=final_content,
+            overrides=overrides,
+            auth_claims=auth_claims,
             session_id=session_id,
-            user_id=user_id,
-            language=language,
-            tally=tally,
-            scores=scores,
-            account_id=account_id,
-            first_name=overrides.get("first_name"),
-            last_name=overrides.get("last_name"),
+            completed=completed,
         )
-        log_record = {
-            **payload,
-            "scores": scores,
-            "transcript": [
-                {"role": m.get("role"), "content": m.get("content")}
-                for m in (messages or [])
-                if isinstance(m, dict) and isinstance(m.get("content"), str)
-            ]
-            + ([{"role": "assistant", "content": final_content}] if isinstance(final_content, str) else []),
-        }
+        await _write_session_log(blob_manager, session_log_blob_name(session_id, record["account_id"]), record)
 
-        await _write_session_log(blob_manager, session_id, log_record)
-        report_result_to_lms(payload)
-        logger.info(
-            "HYROX assessment finalised: session=%s passed=%s score=%s/%s (%s%%)",
-            session_id,
-            tally["passed"],
-            tally["score"],
-            tally["max"],
-            tally["pct"],
-        )
-        return payload
+        if completed:
+            tally = compute_tally(run_scores)
+            report_result_to_lms(
+                build_result_payload(
+                    session_id=session_id,
+                    user_id=record["user_id"],
+                    language=record["language"],
+                    tally=tally,
+                    scores=run_scores,
+                    account_id=record["account_id"],
+                    first_name=record["first_name"],
+                    last_name=record["last_name"],
+                )
+            )
+            logger.info(
+                "HYROX assessment finalised: session=%s passed=%s score=%s/%s (%s%%)",
+                session_id,
+                tally["passed"],
+                tally["score"],
+                tally["max"],
+                tally["pct"],
+            )
+        return record
     except Exception:  # logging must never break the chat response
-        logger.exception("Failed to record HYROX assessment result")
+        logger.exception("Failed to record HYROX assessment session")
         return None
 
 
-async def _write_session_log(blob_manager: Any, session_id: Optional[str], log_record: dict[str, Any]) -> None:
-    """Persist the session log to blob storage when a BlobManager is available."""
+async def _write_session_log(blob_manager: Any, blob_name: str, record: dict[str, Any]) -> None:
+    """Persist the session log to blob storage when a BlobManager is available. ``upload_blob_data``
+    uploads with ``overwrite=True``, so the stable per-session name keeps exactly one blob holding the
+    latest state of the run."""
+    progress = record.get("progress") or {}
     if blob_manager is None or not hasattr(blob_manager, "upload_blob_data"):
-        logger.info("HYROX assessment session log (no blob manager): %s", json.dumps(log_record, ensure_ascii=False))
+        # Summary only: this runs on every turn, so dumping the whole transcript here would flood the log.
+        logger.info(
+            "HYROX assessment session log (no blob manager) %s: status=%s module=%s questions=%s/%s",
+            blob_name,
+            record.get("status"),
+            progress.get("current_module"),
+            progress.get("questions_finalised_total"),
+            progress.get("questions_total"),
+        )
         return
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    blob_name = f"hyrox-assessment-logs/{session_id or 'session'}-{stamp}.json"
-    data = BytesIO(json.dumps(log_record, ensure_ascii=False, indent=2).encode("utf-8"))
+    data = BytesIO(json.dumps(record, ensure_ascii=False, indent=2).encode("utf-8"))
     try:
         await blob_manager.upload_blob_data(data, blob_name, content_type="application/json")
-        logger.info("HYROX assessment session log written: %s", blob_name)
+        logger.info(
+            "HYROX assessment session log written: %s (status=%s, %s/%s questions finalised)",
+            blob_name,
+            record.get("status"),
+            progress.get("questions_finalised_total"),
+            progress.get("questions_total"),
+        )
     except Exception:
         logger.exception("Failed to upload HYROX assessment session log to blob: %s", blob_name)

@@ -298,28 +298,32 @@ class ChatReadRetrieveReadApproach(Approach):
             # authoritative progress header / running total / final verdict into the
             # message and strip any numbers the model wrote. The hidden [[SCORE]]/[[PLAN]]
             # markers stay in the content so they replay into history (the frontend hides
-            # them at render). On completion this records the result + session log.
+            # them at render).
             from approaches.chatbots.hyrox_assessment.results import (
-                record_assessment_result,
+                record_assessment_session,
                 render_assessment_turn,
             )
 
-            content, all_scores, tally, just_completed = render_assessment_turn(
+            # The turn tally is discarded: mid-run it covers only the current module attempt, so
+            # record_assessment_session recomputes it across every module finished so far.
+            content, all_scores, _tally, just_completed = render_assessment_turn(
                 content if isinstance(content, str) else None,
                 extra_info.assessment_state,
                 overrides.get("language"),
             )
-            if just_completed:
-                await record_assessment_result(
-                    scores=all_scores,
-                    tally=tally,
-                    messages=cast(list[dict[str, Any]], messages),
-                    final_content=content,
-                    overrides=overrides,
-                    auth_claims=auth_claims,
-                    session_state=session_state,
-                    blob_manager=self.global_blob_manager,
-                )
+            # Upsert the session log on EVERY turn (not just completion), so an abandoned run is still
+            # recorded with its full transcript; on completion this also reports the result to the LMS.
+            await record_assessment_session(
+                state=extra_info.assessment_state,
+                scores=all_scores,
+                messages=cast(list[dict[str, Any]], messages),
+                final_content=content,
+                overrides=overrides,
+                auth_claims=auth_claims,
+                session_state=session_state,
+                blob_manager=self.global_blob_manager,
+                completed=just_completed,
+            )
         # Assume last thought is for generating answer
         # TODO: Update for agentic? This isn't still true?
         if self.include_token_usage and extra_info.thoughts and chat_completion_response.usage:
