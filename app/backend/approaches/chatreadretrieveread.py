@@ -561,6 +561,18 @@ class ChatReadRetrieveReadApproach(Approach):
                 if isinstance(system_template_variables.get(prompt_key), str):
                     system_template_variables[prompt_key] += injection
                     break
+        past_messages = messages[:-1]
+        if _is_hyrox_assessment_chatbot(overrides):
+            # Never replay the backend's own rendered numbers/markers back to the model: it imitates its
+            # own apparent prior output, which is what printed a per-question score line twice and faked
+            # module-boundary markers (see results.sanitize_history_for_model). State derivation above and
+            # the session log keep the untouched history.
+            from approaches.chatbots.hyrox_assessment.results import sanitize_history_for_model
+
+            past_messages = cast(
+                list[ChatCompletionMessageParam],
+                sanitize_history_for_model(cast(list[dict[str, Any]], past_messages)),
+            )
         messages = self.prompt_manager.build_conversation(
             system_template_path="chat_answer.system.jinja2",
             system_template_variables=system_template_variables
@@ -575,7 +587,7 @@ class ChatReadRetrieveReadApproach(Approach):
                 "text_sources": extra_info.data_points.text,
             },
             user_image_sources=extra_info.data_points.images,
-            past_messages=messages[:-1],
+            past_messages=past_messages,
         )
 
         chat_coroutine = cast(

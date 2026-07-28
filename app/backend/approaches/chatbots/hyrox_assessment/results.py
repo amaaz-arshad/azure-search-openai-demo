@@ -117,6 +117,26 @@ _HEADER_LINE_RE = re.compile(
     r"^\s*\*{0,2}\s*(?:Question|Frage|Vraag)\s+\d+\s+(?:of|von|van)\s+\d+\s*\*{0,2}\s*$",
     re.IGNORECASE | re.MULTILINE,
 )
+# The per-question score line the backend renders after grading ("**Question 2: 4/4**"). Until 2026-07-28
+# this was the ONE backend-rendered line shape with no strip rule — and it is the shape the model sees
+# replayed most often — so an imitation of it survived untouched and the backend then prepended its own
+# copy, printing "**Question 2: 4/4**" twice in the same bubble (confirmed in four production session
+# logs). Anchored to the WHOLE line, so ordinary feedback that mentions a fraction mid-sentence
+# ("you covered 2/3 of the factors") is never touched.
+_SCORE_FRACTION = r"\d+\s*(?:/|of|out of|von|aus|van|uit)\s*\d+"
+_QUESTION_SCORE_LINE_RE = re.compile(
+    rf"^\s*\*{{0,2}}\s*(?:Question|Frage|Vraag)\s*\d+\s*\*{{0,2}}\s*[:–—-]\s*\*{{0,2}}\s*"
+    rf"{_SCORE_FRACTION}\s*(?:points?|punkte|punten|pts?)?\s*\*{{0,2}}\s*[.!]?\s*$",
+    re.IGNORECASE | re.MULTILINE,
+)
+# A label-less score line ("**4/4**", "Score: 4 out of 4", "5/5 points"). The model is told to write no
+# numbers at all, so a line whose ENTIRE content is a score fraction can only be an imitation of a
+# backend-rendered number; a fraction inside a sentence is left alone.
+_BARE_SCORE_LINE_RE = re.compile(
+    rf"^\s*\*{{0,2}}\s*(?:score|punktestand|punkte|punten)?\s*:?\s*\*{{0,2}}\s*{_SCORE_FRACTION}"
+    rf"\s*(?:points?|punkte|punten|pts?)?\s*\*{{0,2}}\s*[.!]?\s*$",
+    re.IGNORECASE | re.MULTILINE,
+)
 _TOTAL_LINE_RE = re.compile(
     r"^\s*\*{0,2}\s*(?:Score so far|Punktestand|Stand|Gesamtpunkte|Totaal|Total)\b[^\n]*\d+\s*/\s*\d+[^\n]*$",
     re.IGNORECASE | re.MULTILINE,
@@ -132,6 +152,13 @@ _COMPLETE_LINE_RE = re.compile(
 # module number in _COMPLETE_LINE_RE covers the fraction-less variant "Module 10 complete — Passed.")
 _MODULE_RESULT_LINE_RE = re.compile(
     r"^\s*\*{0,2}\s*Modul(?:e)?\s+[\d.]+\b[^\n]*?\d+\s*/\s*\d+[^\n]*$",
+    re.IGNORECASE | re.MULTILINE,
+)
+# The bare module heading the backend renders above a module's first question ("**Module 7.1**"). Like the
+# score line, it is a backend-owned line the model has no reason to write, so a whole line consisting only
+# of it is an imitation; a module mentioned inside a sentence is ordinary prose and is left alone.
+_MODULE_HEADING_LINE_RE = re.compile(
+    r"^\s*\*{0,2}\s*Modul(?:e)?\s+[\d.]+\s*\*{0,2}\s*[:.]?\s*$",
     re.IGNORECASE | re.MULTILINE,
 )
 
@@ -897,7 +924,10 @@ def build_state_injection(state: dict[str, Any], language: Optional[str] = None)
             "- Award 1 for each key point the learner demonstrated and 0 otherwise. The system sums these values "
             "— your job is the per-point judgement only.",
             "- Write NO numbers anywhere (no question number, per-question score, module total, percentage, or "
-            "pass/fail). Place [[ASK]] ONLY on a message where you actually ask a not-yet-asked question — never on "
+            'pass/fail). In particular NEVER write the per-question score line (e.g. "**Question 2: 4/4**", or a '
+            "bare \"4/4\"): the system prints it immediately above your feedback, so writing it yourself shows the "
+            "learner the same line twice. Place [[ASK]] ONLY on a message where you actually ask a not-yet-asked "
+            "question — never on "
             "a feedback, correction-offer, or finalisation/score-only message. The system renders the module "
             "heading, the \"Question N of M\" header, each question's score, the module result, the module "
             "transition, and the final result. Never emit [[PLAN]], [[MODULE]], [[MODPASS]], [[MODFAIL]], "
@@ -956,16 +986,95 @@ def build_state_injection(state: dict[str, Any], language: Optional[str] = None)
 
 # --- rendering the authoritative numbers into the message -----------------------------
 def strip_rendered_numbers(text: Optional[str]) -> str:
-    """Remove any progress header / running total / completion line the model wrote (it is told not to;
-    this guarantees only the backend's numbers appear)."""
+    """Remove every backend-rendered structural line the model wrote (it is told not to; this guarantees
+    only the backend's numbers and headings appear): the "Question N of M" header, the per-question score
+    line, a bare score fraction, a running total, a module-result line, a completion line, and the bare
+    module heading. Each pattern is anchored to a whole line, so prose that merely contains a number or a
+    module reference is untouched."""
     if not text:
         return text or ""
     cleaned = _HEADER_LINE_RE.sub("", text)
+    cleaned = _QUESTION_SCORE_LINE_RE.sub("", cleaned)
+    cleaned = _BARE_SCORE_LINE_RE.sub("", cleaned)
     cleaned = _TOTAL_LINE_RE.sub("", cleaned)
     cleaned = _COMPLETE_LINE_RE.sub("", cleaned)
     cleaned = _MODULE_RESULT_LINE_RE.sub("", cleaned)
+    cleaned = _MODULE_HEADING_LINE_RE.sub("", cleaned)
     cleaned = re.sub(r"\n[ \t]*\n[ \t]*\n+", "\n\n", cleaned)
     return cleaned.strip()
+
+
+def _rendered_line_key(line: str) -> str:
+    """Normalised comparison key for one rendered line: case-folded with emphasis, whitespace, and
+    punctuation removed, so an imitation differing only in bold markers, spacing, or trailing punctuation
+    still counts as the same line."""
+    return re.sub(r"[^a-z0-9/%]+", "", line.lower())
+
+
+def drop_lines_duplicating(body: Optional[str], rendered: list[str]) -> str:
+    """Remove from the MODEL's text every line that repeats a line the backend renders into this same
+    message.
+
+    This is the structural guarantee behind the shape-based rules in ``strip_rendered_numbers``: the
+    backend knows exactly which lines it is about to render, so any copy of one of them in the model's text
+    is deleted before assembly — even in a shape no regex anticipated. That makes a visibly duplicated
+    backend line (the reported "**Question 2: 4/4**" printed twice) impossible by construction rather than
+    by pattern coverage. Lines carrying a control marker are never touched, so ``[[SCORE]]``/``[[SUMMARY]]``
+    always survive.
+    """
+    if not body:
+        return body or ""
+    targets = {
+        key
+        for block in rendered
+        for key in (_rendered_line_key(line) for line in (block or "").splitlines())
+        if key
+    }
+    if not targets:
+        return body
+    kept: list[str] = []
+    dropped: list[str] = []
+    for line in body.splitlines():
+        if not ANY_MARKER_RE.search(line) and _rendered_line_key(line) in targets:
+            dropped.append(line.strip())
+            continue
+        kept.append(line)
+    if not dropped:
+        return body
+    logger.warning("HYROX: dropped model line(s) duplicating a backend-rendered line: %s", dropped)
+    cleaned = re.sub(r"\n[ \t]*\n[ \t]*\n+", "\n\n", "\n".join(kept))
+    return cleaned.strip()
+
+
+def sanitize_history_for_model(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return ``messages`` with the backend's own artefacts removed from each prior ASSISTANT turn — for
+    the copy of the history that is sent to the LLM.
+
+    The model imitates what it sees itself having written. Because the backend renders its numbers INTO the
+    stored assistant message, every replayed turn showed the model a "**Question N: s/m**" score line, a
+    "Question N of M" header, and module-result lines and control markers over its own signature — and it
+    eventually copied them (four production sessions printed the per-question score line twice; roughly 8%
+    of module boundaries grew a faked ``[[MODPASS]]``). Removing the backend-owned lines and
+    backend-only markers from the LLM's view eliminates the imitation stimulus at the source, so the render
+    guards downstream act as a safety net instead of the only defence.
+
+    Only the model's copy is sanitized: ``derive_turn_state`` and ``record_assessment_session`` keep the
+    full marker-bearing history, so state reconstruction and the stored transcript are unchanged. The model
+    needs none of it — ``build_state_injection`` restates the module, the counter, the pinned question, and
+    its rubric authoritatively on every turn. The model's own channels (``[[SCORE]]``, ``[[ASK]]``,
+    ``[[SUMMARY]]``) are left in place, as is all visible prose.
+    """
+    sanitized: list[dict[str, Any]] = []
+    for message in messages or []:
+        content = message.get("content") if isinstance(message, dict) else None
+        if not isinstance(message, dict) or message.get("role") != "assistant" or not isinstance(content, str):
+            sanitized.append(message)
+            continue
+        cleaned = strip_rendered_numbers(FORBIDDEN_MODEL_MARKER_RE.sub("", content))
+        # A turn that sanitizes to nothing at all cannot happen in practice (every assistant turn carries
+        # question text or feedback); keep the original rather than send an empty assistant message.
+        sanitized.append({**message, "content": cleaned} if cleaned and cleaned != content else message)
+    return sanitized
 
 
 def strip_forbidden_model_markers(text: Optional[str]) -> str:
@@ -1194,11 +1303,6 @@ def render_completion_bubbles(
     feedback, *summary_rest = SUMMARY_TOKEN_RE.split(cleaned, maxsplit=1)
     feedback = feedback.strip()
     model_takeaways = SUMMARY_TOKEN_RE.sub("", summary_rest[0]).strip() if summary_rest else ""
-    # Backend owns the heading; the model authors only the strengths/worth-revisiting body. When the model
-    # omits [[SUMMARY]], fall back to the deterministic topic-wise summary so a summary always appears.
-    summary = f"{L['summary_heading']}\n\n{model_takeaways}" if model_takeaways else render_topic_summary(
-        module_results, language
-    )
 
     complete_line = L["complete_result"].format(s=overall_tally["score"], m=overall_tally["max"], p=overall_tally["pct"])
     # The FINAL module gets its own "Module N complete — s/m (p%). Passed." line before the cross-module
@@ -1210,6 +1314,24 @@ def render_completion_bubbles(
     if module_results:
         final_module_key, final_module_scores = module_results[-1]
         final_module_result = render_module_result(final_module_key, compute_tally(final_module_scores), language)
+
+    # No line the backend renders into this message may also appear in the model's own text — including the
+    # summary heading it must never write above its take-aways (see drop_lines_duplicating).
+    backend_lines = [
+        score_line,
+        final_module_result,
+        complete_line,
+        L["summary_heading"],
+        L["motivational_passed"],
+        L["closing_passed"],
+    ]
+    feedback = drop_lines_duplicating(feedback, backend_lines)
+    model_takeaways = drop_lines_duplicating(model_takeaways, backend_lines)
+    # Backend owns the heading; the model authors only the strengths/worth-revisiting body. When the model
+    # omits [[SUMMARY]], fall back to the deterministic topic-wise summary so a summary always appears.
+    summary = f"{L['summary_heading']}\n\n{model_takeaways}" if model_takeaways else render_topic_summary(
+        module_results, language
+    )
     bubbles = [
         "\n\n".join(part for part in (score_line, feedback) if part),
         final_module_result,
@@ -1245,10 +1367,14 @@ def render_module_end_bubbles(
         transition = render_module_pass_transition(module_key, language)
     else:
         transition = render_module_fail_transition(language)
+    module_result = render_module_result(module_key, module_tally, language)
+    # No line the backend renders into this message may also appear in the model's own text — the score
+    # line, the module result, and the transition text it is told never to write.
+    feedback = drop_lines_duplicating(feedback, [score_line, module_result, transition])
 
     bubbles = [
         "\n\n".join(part for part in (score_line, feedback) if part),
-        "\n\n".join(part for part in (render_module_result(module_key, module_tally, language), transition) if part),
+        "\n\n".join(part for part in (module_result, transition) if part),
     ]
     assembled = BUBBLE_BREAK_SEPARATOR.join(bubble for bubble in bubbles if bubble)
     if score_marker_text:
@@ -1298,7 +1424,9 @@ def render_assessment_turn(
         cut = ending_cut_index(body)
         if cut is not None:
             body = body[:cut]
-        body = re.sub(r"\n[ \t]*\n[ \t]*\n+", "\n\n", SCORE_MARKER_RE.sub("", body)).strip()
+        # Re-strip the rendered numbers after removing the marker: an imitated score line sharing its line
+        # with the [[SCORE]] marker is not a whole-line match until the marker is gone.
+        body = strip_rendered_numbers(SCORE_MARKER_RE.sub("", body))
         score_discarded_premature = True
 
     module_scores = list(state.get("scores", []))
@@ -1339,7 +1467,9 @@ def render_assessment_turn(
     if new_score is not None:
         canonical_score_marker = format_score_marker(new_score)
         if SCORE_MARKER_RE.search(body):
-            body = re.sub(r"\n[ \t]*\n[ \t]*\n+", "\n\n", SCORE_MARKER_RE.sub("", body)).strip()
+            # As above: re-strip so an imitated score line that shared its line with the marker is now a
+            # whole-line match and cannot survive into the assembled message beside the backend's own.
+            body = strip_rendered_numbers(SCORE_MARKER_RE.sub("", body))
 
     if should_backend_render_question:
         asked_question_id = state["current_id"]
@@ -1351,6 +1481,7 @@ def render_assessment_turn(
             with_module_heading=True,
             language=language,
         )
+        body = drop_lines_duplicating(body, [question_block])
         ask_match = ASK_TOKEN_RE.search(body)
         prefix = body[: ask_match.start()].strip() if ask_match else ""
         body = ASK_TOKEN_RE.sub("", body)
@@ -1377,26 +1508,32 @@ def render_assessment_turn(
             )
         else:
             # 3) Mid-module: grade-first feedback, or finalise + auto-chain the next question.
-            parts: list[str] = []
-            if new_score is not None:
-                parts.append(render_question_score(n_after, new_score["awarded"], new_score["max"], language))
-            if body:
-                parts.append(body)
-            if score_discarded_premature:
-                parts.append(_locale(language)["correction_offer"])
+            score_line = (
+                render_question_score(n_after, new_score["awarded"], new_score["max"], language)
+                if new_score is not None
+                else ""
+            )
+            next_question_block = ""
             if new_score is not None and n_after < module_total:
                 next_id = mod_qs[n_after]
                 asked_question_id = next_id
-                parts.append(
-                    render_question_block(
-                        position=n_after + 1,
-                        module_total=module_total,
-                        question_id=next_id,
-                        module_key=cur_mod,
-                        with_module_heading=False,
-                        language=language,
-                    )
+                next_question_block = render_question_block(
+                    position=n_after + 1,
+                    module_total=module_total,
+                    question_id=next_id,
+                    module_key=cur_mod,
+                    with_module_heading=False,
+                    language=language,
                 )
+            # This is the turn that produced the reported duplicate: the backend prepends its score line
+            # and the model had copied the same line into its feedback. Drop any copy of a line the backend
+            # renders here before assembling, so each appears exactly once.
+            body = drop_lines_duplicating(body, [score_line, next_question_block])
+            parts: list[str] = [p for p in (score_line, body) if p]
+            if score_discarded_premature:
+                parts.append(_locale(language)["correction_offer"])
+            if next_question_block:
+                parts.append(next_question_block)
             assembled = "\n\n".join(p for p in parts if p)
 
     # Trailing hidden markers (replay into history).

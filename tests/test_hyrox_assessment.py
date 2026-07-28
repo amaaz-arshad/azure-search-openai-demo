@@ -1,5 +1,6 @@
 import asyncio
 import json
+from typing import Any, cast
 
 from approaches.chatbot_config_registry import (
     get_chatbot_config,
@@ -1083,6 +1084,223 @@ def test_score_marker_is_stored_canonically_with_the_pinned_question_id() -> Non
     # And the run completes — the pre-fix behavior looped on "Question 5 of 5" indefinitely.
     messages, content, _state, done = _turn(messages, "my final answer", True)
     assert done is True and "[[PROGRESS value=100]]" in content
+
+
+def _score_line_count(text: str) -> int:
+    """How many rendered per-question score lines ("**Question N: s/m**") the message contains."""
+    return len(results._QUESTION_SCORE_LINE_RE.findall(results.strip_markers(text)))
+
+
+def test_question_score_line_imitations_are_stripped() -> None:
+    # The reported bug: the model copied the backend's own per-question score line into its feedback, and
+    # nothing stripped it — it was the one backend-rendered shape with no strip rule. All locales/variants.
+    text = (
+        "**Question 2: 4/4**\n\n"
+        "Frage 2: 4/4\n\n"
+        "**Vraag 12 — 5/5**\n\n"
+        "Question 7: 4 out of 6 points\n\n"
+        "**4/4**\n\n"
+        "Score: 5/5\n\n"
+        "That's complete — you covered the data sources and why monitoring matters."
+    )
+    cleaned = results.strip_rendered_numbers(text)
+    assert cleaned == "That's complete — you covered the data sources and why monitoring matters."
+
+
+def test_module_heading_imitation_is_stripped() -> None:
+    # The bare module heading is backend-owned too; on a module's first question the model writes only
+    # [[ASK]], so a heading in its text can only duplicate the one the backend renders.
+    cleaned = results.strip_rendered_numbers("**Module 7.1**\n\nLet's begin.\n\nModul 3:\n\n[[ASK]]")
+    assert cleaned == "Let's begin.\n\n[[ASK]]"
+
+
+def test_score_like_prose_is_never_stripped() -> None:
+    # False-positive guard: only a WHOLE line that is a score line goes; feedback that mentions a fraction,
+    # a question number, or a module in a sentence is ordinary content and must survive.
+    text = (
+        "You covered 2/3 of the factors, so revisit periodisation.\n\n"
+        "Question 2 asked for the three domains, and you named them all.\n\n"
+        "- 3 of 4 key areas were clear\n\n"
+        "Module 7.1 covers this in more depth, so review it before your retake.\n\n"
+        "Your split of 4/4 minutes per station is a good target."
+    )
+    assert results.strip_rendered_numbers(text) == text
+
+
+def test_chained_turn_renders_the_score_line_exactly_once() -> None:
+    # End-to-end reproduction of the screenshot: the model finalises Q1 with full marks AND imitates the
+    # score line. The rendered turn must show it once, keep the feedback, and still chain question 2.
+    messages = _grade_first_messages()
+    state = results.derive_turn_state(messages)
+    cid = state["current_id"]
+    imitation = (
+        f"**Question 1: {max_points(cid)}/{max_points(cid)}**\n\n"
+        "That's complete — you covered the data sources and why monitoring matters.\n\n"
+        f"{_score_marker(cid)}"
+    )
+    content, all_scores, _tally, done = results.render_assessment_turn(imitation, state, "en")
+    visible = results.strip_markers(content)
+    assert done is False and len(all_scores) == 1
+    assert _score_line_count(content) == 1
+    assert visible.count(f"**Question 1: {max_points(cid)}/{max_points(cid)}**") == 1
+    assert "That's complete — you covered the data sources" in visible
+    assert "**Question 2 of 4**" in visible
+
+
+def test_score_line_sharing_its_line_with_the_score_marker_is_still_stripped() -> None:
+    # Edge case: the imitation is not a whole-line match until the [[SCORE]] marker beside it is removed,
+    # so the rendered numbers are stripped again after the marker comes out.
+    messages = _grade_first_messages()
+    state = results.derive_turn_state(messages)
+    cid = state["current_id"]
+    full = max_points(cid)
+    content, _scores, _tally, _done = results.render_assessment_turn(
+        f"Nicely done.\n\n**Question 1: {full}/{full}** {_score_marker(cid)}", state, "en"
+    )
+    assert _score_line_count(content) == 1
+    assert "Nicely done." in results.strip_markers(content)
+
+
+def test_module_boundary_renders_backend_lines_exactly_once() -> None:
+    # Layer 3 (drop_lines_duplicating): at a module boundary the model imitates the score line, the module
+    # result, AND the continue prompt. Every one of them must appear exactly once.
+    messages, _content, _done = _answer_module(_turn([], "Start")[0], full_marks=True)
+    messages, _content, _state, _done = _turn(messages, "Continue")
+    m2 = module_questions("M2")
+    for _ in range(len(m2) - 1):
+        messages, _content, _state, _done = _turn(messages, "answer", True)
+    messages = messages + [{"role": "user", "content": "my last answer for this module"}]
+    state = results.derive_turn_state(messages)
+    cid = state["current_id"]
+    L = results._locale("en")
+    imitation = (
+        f"**Question {len(m2)}: {max_points(cid)}/{max_points(cid)}**\n\n"
+        "Strong finish.\n\n"
+        f"{L['continue_prompt']}\n\n"
+        f"{_score_marker(cid)}"
+    )
+    content, _scores, tally, done = results.render_assessment_turn(imitation, state, "en")
+    visible = results.strip_markers(content)
+    assert done is False and tally["passed"] and "[[MODPASS" in content
+    assert _score_line_count(content) == 1
+    assert visible.count(L["continue_prompt"]) == 1
+    assert visible.count("Passed.") == 1
+    assert "Strong finish." in visible
+
+
+def test_completion_renders_backend_lines_exactly_once() -> None:
+    # Same guarantee on the completion turn, where the model also owns the take-aways: an imitated score
+    # line and an imitated "Summary" heading must not double up on the backend's.
+    messages = _drive_to_final_question()
+    state = results.derive_turn_state(messages)
+    cid = state["current_id"]
+    L = results._locale("en")
+    imitation = (
+        f"**Question 5: {max_points(cid)}/{max_points(cid)}**\n\n"
+        "Excellent — a complete answer.\n\n"
+        "[[SUMMARY]]\n\n"
+        f"{L['summary_heading']}\n\n"
+        "You were consistently strong on monitoring and periodisation; pacing strategy is worth revisiting.\n\n"
+        f"{_score_marker(cid)}"
+    )
+    content, _scores, _tally, done = results.render_assessment_turn(imitation, state, "en")
+    visible = results.strip_markers(content)
+    assert done is True and "[[PROGRESS value=100]]" in content
+    assert _score_line_count(content) == 1
+    assert visible.count(L["summary_heading"]) == 1
+    assert "pacing strategy is worth revisiting" in visible
+
+
+def test_sanitize_history_hides_backend_artifacts_from_the_model_only() -> None:
+    # Root cause: the backend renders its numbers INTO the stored assistant message, so every replayed turn
+    # showed the model score lines/headers/markers over its own signature and it eventually copied them.
+    # The model's copy of the history drops those; state derivation still uses the untouched original.
+    messages, _content, _state, _done = _turn([], "Start")
+    messages, content, _state, _done = _turn(messages, "my answer", full_marks=True)
+    assert "**Question 1: " in content and "**Question 2 of 4**" in content  # stored copy keeps them
+
+    sanitized = results.sanitize_history_for_model(messages)
+    joined = "\n".join(m["content"] for m in sanitized if m["role"] == "assistant")
+    assert "of 4**" not in joined and _score_line_count(joined) == 0
+    for marker in ("[[PLAN", "[[MODULE ", "[[ASKED", "[[MODPASS", "[[MODFAIL", "[[PROGRESS", "[[DONE"):
+        assert marker not in joined
+    assert "[[SCORE" in joined  # the model's own channel stays
+    assert _question_text(module_questions("M1")[0]) in joined  # visible prose is untouched
+    # The original list is unchanged, so the state engine and the session log still see everything.
+    assert results.derive_turn_state(messages)["n_in_module"] == 1
+    assert "[[ASKED" in "\n".join(m["content"] for m in messages if m["role"] == "assistant")
+    # User turns are passed through untouched.
+    assert [m for m in sanitized if m["role"] == "user"] == [m for m in messages if m["role"] == "user"]
+
+
+def test_llm_receives_the_sanitized_history_not_the_rendered_one() -> None:
+    """Wiring check: run_until_final_call must hand the LLM the sanitized history.
+
+    Drives the real approach with the model call stubbed out, so it proves the sanitization is actually
+    on the request path (a correct helper wired nowhere would still let the model imitate its own
+    replayed score lines).
+    """
+    from azure.core.credentials import AzureKeyCredential
+    from azure.search.documents.aio import SearchClient
+
+    from approaches.chatreadretrieveread import ChatReadRetrieveReadApproach
+    from approaches.promptmanager import PromptManager
+
+    approach = ChatReadRetrieveReadApproach(
+        # The assessment bot skips retrieval and the model call is stubbed below, so these are unused.
+        search_client=SearchClient(endpoint="", index_name="", credential=AzureKeyCredential("")),
+        search_index_name="",
+        knowledgebase_model=None,
+        knowledgebase_deployment=None,
+        knowledgebase_client=None,
+        openai_client=cast(Any, None),
+        chatgpt_model="gpt-4.1",
+        chatgpt_deployment="chat",
+        embedding_deployment="embeddings",
+        embedding_model="text-embedding-3-large",
+        embedding_dimensions=3072,
+        embedding_field="embedding3",
+        sourcepage_field="",
+        content_field="",
+        query_language="en-us",
+        query_speller="lexicon",
+        prompt_manager=PromptManager(),
+    )
+    sent: dict = {}
+
+    def capture(deployment, model, messages, *args, **kwargs):
+        sent["messages"] = messages
+
+        async def noop():
+            return None
+
+        return noop()
+
+    setattr(approach, "create_chat_completion", capture)
+
+    # A realistic two-turn history: the stored assistant messages carry the backend's rendered numbers.
+    messages, _content, _state, _done = _turn([], "Start")
+    messages, content, _state, _done = _turn(messages, "my answer", full_marks=True)
+    assert _score_line_count(content) == 1  # the stored copy has the backend's score line
+    messages = messages + [{"role": "user", "content": "my next answer"}]
+
+    async def drive() -> None:
+        _extra_info, chat_coroutine = await approach.run_until_final_call(
+            messages, {"include_category": CHATBOT_NAME, "language": "en"}, {}
+        )
+        await chat_coroutine
+
+    asyncio.run(drive())
+
+    past = [m for m in sent["messages"] if m.get("role") == "assistant"]
+    joined = "\n".join(str(m.get("content", "")) for m in past)
+    assert past, "no history reached the model"
+    assert _score_line_count(joined) == 0 and "of 4**" not in joined
+    assert "[[ASKED" not in joined and "[[PLAN" not in joined
+    assert "[[SCORE" in joined  # the model's own channel survives
+    # The learner's own turns and the pinned question text still reach the model.
+    assert any(m.get("role") == "user" for m in sent["messages"])
+    assert _question_text(module_questions("M1")[0]) in joined
 
 
 def test_module_result_imitation_lines_are_stripped() -> None:

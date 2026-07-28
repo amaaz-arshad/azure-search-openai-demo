@@ -17,6 +17,96 @@ Two categories per date:
 
 ## 2026-07-28
 
+### HYROX assessment: a backend-rendered line can never be printed twice
+
+#### Decisions
+
+- **Root cause of the duplicated "Question 2: 4/4" bubble a customer saw: a
+  missing strip rule, not model randomness.** `strip_rendered_numbers` removed
+  four backend-rendered line shapes (the "Question N of M" header, a running
+  total, a completion line, a module-result line) but had **no rule for the
+  per-question score line** — the very shape the model sees replayed most
+  often. So when the model copied `**Question 2: 4/4**` into its feedback,
+  nothing removed it and the backend then prepended its own identical copy.
+  Confirmed empirically, not inferred: replaying all 462 assistant messages in
+  the local session logs found **4 real sessions** with the duplicate
+  (questions 6, 12, 13, 17 — always the model's copy sitting under the
+  backend's).
+- **The deeper cause is the same one behind the faked `[[MODPASS]]` markers:
+  the backend renders its numbers INTO the stored assistant message**, so on
+  every turn the model is shown score lines, headers, and control markers over
+  its own signature and eventually continues the pattern. Fixing only the
+  regex would have left that pressure in place for the next shape.
+- **Three layers, deliberately layered rather than one clever rule.** (1)
+  Remove the stimulus: the copy of the history sent to the LLM is sanitized, so
+  the model never sees a line it is forbidden to write. (2) Shape coverage:
+  every backend-rendered line shape now has a whole-line strip rule — this also
+  catches an imitation carrying the *wrong* numbers, which a duplicate check
+  cannot. (3) Structural invariant: the backend knows exactly which lines it is
+  about to render, so any copy of them in the model's text is deleted before
+  assembly — this catches shapes no regex anticipated. Layer 2 and layer 3 each
+  independently fix all four historical failures (verified by replaying them).
+- **Sanitizing only the model's copy of the history, never the stored one.**
+  `derive_turn_state` and `record_assessment_session` keep the full
+  marker-bearing history, so state reconstruction and the transcript are
+  unchanged. The model loses nothing: `build_state_injection` already restates
+  the module, the counter, the pinned question and its rubric authoritatively
+  every turn. Its own channels (`[[SCORE]]`, `[[ASK]]`, `[[SUMMARY]]`) and all
+  visible prose are left in place.
+- **Whole-line anchoring over keyword matching**, following the precedent set
+  when the prose-based summary matcher was rejected: every new rule requires
+  the ENTIRE line to be the backend's line, so ordinary feedback ("you covered
+  2/3 of the factors", "Module 7.1 covers this in more depth") is never
+  touched. Audited against all 462 real assistant messages: the new rules match
+  304 lines, **all 304 canonical backend lines, zero false positives**.
+- **The bare module heading got a rule too** (`**Module 7.1**`), the only other
+  backend-owned line shape that lacked one — a stray or duplicated heading was
+  the same bug waiting on a different line.
+- **The live canary now enforces the invariant.**
+  `tests/test_hyrox_live.py` asserts no backend-rendered line appears twice in
+  any turn, so a regression is caught against the real model, not just the
+  mocks. Run against real `gpt-5.4-mini`: the 4-turn smoke test plus an ad-hoc
+  7-turn probe through a module fail → retake → full-marks grading; every line
+  rendered exactly once and the model wrote no numbers at all.
+
+#### Changes
+
+- `app/backend/approaches/chatbots/hyrox_assessment/results.py`:
+  - added `_QUESTION_SCORE_LINE_RE`, `_BARE_SCORE_LINE_RE`, and
+    `_MODULE_HEADING_LINE_RE`; all wired into `strip_rendered_numbers`, which
+    now covers every backend-rendered line shape.
+  - added `drop_lines_duplicating` (+ `_rendered_line_key`): deletes from the
+    model's text any line the backend renders into the same message, ignoring
+    bold/spacing/punctuation differences and never touching marker-bearing
+    lines. Wired into all four assembly paths — the ask branch, the mid-module
+    chain, `render_module_end_bubbles`, and `render_completion_bubbles` (whose
+    target list includes the summary heading, so an imitated heading cannot
+    double the backend's).
+  - added `sanitize_history_for_model`: strips backend-owned lines and
+    backend-only markers from prior assistant turns for the LLM's copy only.
+  - `render_assessment_turn` re-applies `strip_rendered_numbers` after removing
+    a `[[SCORE]]` marker from the body (both the discard path and the canonical
+    path), so an imitation sharing that line becomes a whole-line match.
+  - `build_state_injection` now names the forbidden score line explicitly.
+- `app/backend/approaches/chatreadretrieveread.py`: `run_until_final_call`
+  passes the sanitized history as `past_messages` for the assessment bot
+  (identical value for every other bot).
+- `app/backend/approaches/chatbots/hyrox_assessment/sampleprompt.py`: P0 rule 5
+  now forbids the per-question score line by example and tells the model that
+  the lines it sees over its own name in history were inserted by the system
+  and are not a pattern to continue.
+- `tests/test_hyrox_assessment.py`: 9 new tests — imitation stripping across
+  locales/variants, the false-positive guard, the score-line-beside-the-marker
+  edge case, exactly-once rendering on the chained turn / module boundary /
+  completion turn, module-heading stripping, history sanitization, and a wiring
+  test that drives the real approach with the model call stubbed to prove the
+  sanitized history is what actually reaches the LLM.
+- `tests/test_hyrox_live.py`: added `assert_no_duplicated_rendered_lines` to
+  the per-turn invariants.
+- `CLAUDE.md`: documented the three-layer invariant in the `hyrox-assessment`
+  contract bullet, including the rule that any new backend-rendered line must
+  be added to layers 2 and/or 3.
+
 ### HYROX assessment: log every session, not just completed ones
 
 #### Decisions

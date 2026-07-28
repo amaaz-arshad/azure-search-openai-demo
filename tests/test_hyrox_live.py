@@ -99,6 +99,27 @@ def validate_score_markers(content: str) -> int:
     return count
 
 
+# The line shapes the backend renders itself. Each may appear at most ONCE in a message: a second copy
+# means a model imitation survived the strip/dedupe guards — the reported "**Question 2: 4/4**" shown twice.
+RENDERED_LINE_SHAPES = (
+    results._QUESTION_SCORE_LINE_RE,
+    results._HEADER_LINE_RE,
+    results._MODULE_HEADING_LINE_RE,
+    results._MODULE_RESULT_LINE_RE,
+    results._COMPLETE_LINE_RE,
+)
+
+
+def assert_no_duplicated_rendered_lines(visible: str) -> None:
+    keys = [
+        results._rendered_line_key(line)
+        for line in visible.splitlines()
+        if any(shape.match(line) for shape in RENDERED_LINE_SHAPES)
+    ]
+    duplicated = sorted({key for key in keys if keys.count(key) > 1})
+    assert not duplicated, f"a backend-rendered line appears more than once: {duplicated}\n---\n{visible}"
+
+
 def assert_turn_invariants(content: str) -> None:
     visible = results.strip_markers(content)
     assert visible.strip(), "empty learner-visible message"
@@ -106,6 +127,7 @@ def assert_turn_invariants(content: str) -> None:
         assert bad not in visible, f"leak in learner-visible text: {bad!r}\n---\n{visible}"
     headers = QUESTION_HEADER_RE.findall(visible)
     assert len(headers) <= 1, f"more than one question shown in a single turn: {headers}"
+    assert_no_duplicated_rendered_lines(visible)
     validate_score_markers(content)
 
 
