@@ -68,9 +68,18 @@ SCORE_MARKER_RE = re.compile(r"\[\[\s*SCORE\b([^\]]*)\]\]", re.IGNORECASE)
 ASKED_MARKER_RE = re.compile(r"\[\[\s*ASKED\b([^\]]*)\]\]", re.IGNORECASE)
 MODPASS_MARKER_RE = re.compile(r"\[\[\s*MODPASS\b([^\]]*)\]\]", re.IGNORECASE)
 MODFAIL_MARKER_RE = re.compile(r"\[\[\s*MODFAIL\b([^\]]*)\]\]", re.IGNORECASE)
+# The PINNED first-attempt verdict: backend-authored when the learner's first answer to a question is below
+# full marks and the single correction is offered. It records the model's own per-key-point judgement of that
+# answer WITHOUT finalising the question (the counter does not advance), so the judgement cannot drift on a
+# later turn. Before 2026-07-28 that verdict was simply discarded, and when the learner declined the
+# correction the model re-graded the same unchanged answer from scratch — in production it came back at FULL
+# marks one turn after stating a key part was missing, awarding points the learner never earned. Now the
+# decline path finalises from this marker and the model's fresh verdict is ignored; a genuine revision
+# finalises at the per-key-point best of the two (see merge_best_verdicts).
+PROV_MARKER_RE = re.compile(r"\[\[\s*PROV\b([^\]]*)\]\]", re.IGNORECASE)
 # ASKED before ASK, MODPASS/MODFAIL before MODULE, so the `\b` boundary matches the longer name first.
 ANY_MARKER_RE = re.compile(
-    r"\[\[\s*(?:PLAN|MODULE|SCORE|ASKED|ASK|MODPASS|MODFAIL|SUMMARY|BREAK|PROGRESS|DONE)\b[^\]]*\]\]",
+    r"\[\[\s*(?:PLAN|MODULE|SCORE|PROV|ASKED|ASK|MODPASS|MODFAIL|SUMMARY|BREAK|PROGRESS|DONE)\b[^\]]*\]\]",
     re.IGNORECASE,
 )
 # Markers only the BACKEND may author. The prompt forbids the model from writing them, but a drifting
@@ -83,7 +92,7 @@ ANY_MARKER_RE = re.compile(
 # strips them from the model's output before assembly so stored history stays backend-authored-only.
 # [[SCORE]]/[[ASK]]/[[SUMMARY]] are the model's own channels and are handled separately.
 FORBIDDEN_MODEL_MARKER_RE = re.compile(
-    r"\[\[\s*(?:PLAN|MODULE|MODPASS|MODFAIL|PROGRESS|DONE|ASKED|BREAK)\b[^\]]*\]\]",
+    r"\[\[\s*(?:PLAN|MODULE|MODPASS|MODFAIL|PROGRESS|DONE|ASKED|BREAK|PROV)\b[^\]]*\]\]",
     re.IGNORECASE,
 )
 # Backend-authored, hidden: emitted once on the FINAL module's pass to hand the result back to the
@@ -229,6 +238,15 @@ _GIVE_UP_CORE = (
     r"already answered(?: it| this)?|answered (?:it|this)(?: already)?|"
     r"why (?:are|do) you ask(?:ing)?(?: me)?(?: this)?(?: again)?|"
     r"same question(?: again)?|asking again|"
+    # Bare refusals / "nothing to add". NOT valid answers: every pool question is open-ended
+    # ("What…", "Describe…", "Why…", "Name…") — none is yes/no-shaped, so a whole message of "no" can only
+    # be a refusal. A production learner answered "no" and was awarded FULL marks; a refusal must never earn
+    # a point, and it must not be mistaken for a revision either.
+    r"no|nope|nah|naw|no thanks|no thank you|not really|"
+    r"nothing(?: else| more| to add)?|no more|thats all|thats it|im good|im done|done|"
+    r"cant remember|dont remember|cannot remember|do not remember|"
+    r"nein|nichts(?: mehr)?|keine(?: ergänzung| ergänzungen| angabe)?|fertig|"
+    r"nee|niets(?: meer)?|geen|klaar|"
     r"ich weiss(?: es)? nicht|ich weiß(?: es)? nicht|keine ahnung|überspringen|weiter|nächste(?: frage)?|"
     r"ik weet het niet|geen idee|overslaan|volgende(?: vraag)?"
 )
@@ -295,6 +313,15 @@ _LOCALES: dict[str, dict[str, Any]] = {
         "summary_strengths": "**Strengths:**",
         "summary_revisit": "**Worth revisiting:**",
         "correction_offer": "You have one opportunity to add to or revise your answer — go ahead if you'd like.",
+        # Backend-owned feedback for the two paths where the model has nothing new to judge, so its own
+        # wording cannot be trusted not to contradict the score (a production learner answered "no" and was
+        # told "Good answer — you covered the whole-body postural demand well").
+        "answer_offer_no_attempt": (
+            "You haven't answered this question yet. Take a moment and answer it now if you'd like — this is "
+            "your one opportunity before it is scored."
+        ),
+        "no_answer_zero": "No answer was given for this question, so no points were awarded.",
+        "decline_keeps_answer": "Understood — we'll go with your original answer for this question.",
         "motivational_passed": (
             "Great job. This wasn't a formality. You worked through the material module by module, you "
             "answered the questions, and you passed every one.\n\n"
@@ -343,6 +370,12 @@ _LOCALES: dict[str, dict[str, Any]] = {
         "summary_strengths": "**Stärken:**",
         "summary_revisit": "**Lohnt sich zu wiederholen:**",
         "correction_offer": "Du hast jetzt die Möglichkeit, deine Antwort zu ergänzen oder zu überarbeiten.",
+        "answer_offer_no_attempt": (
+            "Du hast diese Frage noch nicht beantwortet. Nimm dir einen Moment und beantworte sie jetzt, wenn "
+            "du möchtest — das ist deine einzige Gelegenheit, bevor sie bewertet wird."
+        ),
+        "no_answer_zero": "Zu dieser Frage wurde keine Antwort gegeben, daher gab es keine Punkte.",
+        "decline_keeps_answer": "Verstanden — wir bleiben bei deiner ursprünglichen Antwort auf diese Frage.",
         "motivational_passed": (
             "Stark gemacht. Das war keine Formalität: Du hast das Material Modul für Modul durchgearbeitet, "
             "die Fragen beantwortet und jedes Modul bestanden.\n\n"
@@ -393,6 +426,12 @@ _LOCALES: dict[str, dict[str, Any]] = {
         "summary_strengths": "**Sterke punten:**",
         "summary_revisit": "**De moeite waard om te herhalen:**",
         "correction_offer": "Je hebt nu de mogelijkheid om je antwoord aan te vullen of te herzien.",
+        "answer_offer_no_attempt": (
+            "Je hebt deze vraag nog niet beantwoord. Neem even de tijd en beantwoord hem nu als je wilt — dit "
+            "is je enige kans voordat de vraag wordt beoordeeld."
+        ),
+        "no_answer_zero": "Op deze vraag is geen antwoord gegeven, dus zijn er geen punten toegekend.",
+        "decline_keeps_answer": "Begrepen — we houden je oorspronkelijke antwoord voor deze vraag aan.",
         "motivational_passed": (
             "Goed gedaan. Dit was geen formaliteit: je hebt de stof module voor module doorgewerkt, de "
             "vragen beantwoord en bent voor elke module geslaagd.\n\n"
@@ -444,6 +483,33 @@ def format_score_marker(score: dict[str, Any]) -> str:
     never be finalised)."""
     pts = ",".join(str(1 if p else 0) for p in score.get("points", []))
     return f'[[SCORE q={score["q"]} points="{pts}" max={score["max"]} mod="{score["mod"]}"]]'
+
+
+def format_prov_marker(score: dict[str, Any]) -> str:
+    """Canonical ``[[PROV]]`` marker: the PINNED per-key-point verdict of the learner's first answer to a
+    question, written when the single correction is offered. It does not finalise the question (no ``max``/
+    ``mod``, and ``_scores_in_window`` ignores it), it only makes the model's judgement of that answer
+    immutable so a later turn cannot silently upgrade it."""
+    pts = ",".join(str(1 if p else 0) for p in score.get("points", []))
+    return f'[[PROV q={score["q"]} points="{pts}"]]'
+
+
+def zero_verdict(question_id: Any) -> dict[str, Any]:
+    """An all-zero verdict for ``question_id`` — the only defensible score when the learner produced no
+    substantive answer at all."""
+    return normalize_score(question_id, [0] * (key_point_count(question_id) if isinstance(question_id, int) else 0))
+
+
+def merge_best_verdicts(first: dict[str, Any], second: dict[str, Any]) -> dict[str, Any]:
+    """Per-key-point best of two verdicts for the same question — the "better of the two attempts" rule,
+    computed by the backend instead of trusted to the model. A key point earned in either attempt counts,
+    and one earned in the first attempt can never be lost by revising."""
+    a = list(first.get("points", []))
+    b = list(second.get("points", []))
+    width = max(len(a), len(b))
+    a += [0] * (width - len(a))
+    b += [0] * (width - len(b))
+    return normalize_score(first.get("q"), [1 if (a[i] or b[i]) else 0 for i in range(width)])
 
 
 def _parse_attrs(body: str) -> dict[str, Any]:
@@ -597,6 +663,26 @@ def _scores_in_window(window: str, allowed_ids: list[int]) -> list[dict[str, Any
     return [by_q[q] for q in allowed_ids if q in by_q]
 
 
+def provisional_in_window(window: str, question_id: Optional[int]) -> Optional[dict[str, Any]]:
+    """The pinned first-attempt verdict for ``question_id`` in this attempt window, or None. The LAST
+    ``[[PROV]]`` for that question wins (the backend only ever writes one per question per attempt)."""
+    if question_id is None:
+        return None
+    found: Optional[dict[str, Any]] = None
+    for m in PROV_MARKER_RE.finditer(window or ""):
+        attrs = _parse_attrs(m.group(1))
+        q_raw = attrs.get("q")
+        if q_raw is None:
+            continue
+        try:
+            qid = int(q_raw)
+        except (TypeError, ValueError):
+            continue
+        if qid == question_id:
+            found = normalize_score(qid, parse_points(attrs.get("points")))
+    return found
+
+
 def _segment_window(window: str) -> list[dict[str, Any]]:
     """Split a run window into per-module-attempt segments at ``[[MODULE]]`` markers. Each segment is
     ``{"module": key, "attempt": n, "text": <text up to the next MODULE marker>}``."""
@@ -662,15 +748,26 @@ def _current_question_interaction(
     module_message_index: Optional[int],
     current_id: Optional[int],
     asked_ids: set[int],
+    provisional: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
-    """Infer the current question phase from replayed roles + the backend's ``[[ASKED]]``/``[[SCORE]]``
-    markers, scoped to the current module attempt (everything after its ``[[MODULE]]`` marker)."""
+    """Infer the current question phase from replayed roles + the backend's ``[[ASKED]]``/``[[SCORE]]``/
+    ``[[PROV]]`` markers, scoped to the current module attempt (everything after its ``[[MODULE]]`` marker).
+
+    ``substantive_attempts_for_current`` counts only real answer attempts — a refusal ("no", "skip", "I don't
+    know") is NOT one, so ``render_assessment_turn`` can hold the score at zero when the learner never
+    actually answered. ``must_finalize_current`` means "the single correction has already been offered, so
+    this turn ends the question", and the correction is now considered offered when the backend pinned a
+    ``[[PROV]]`` verdict for it (falling back to "any assistant message after the ask" for histories written
+    before provisional verdicts existed).
+    """
     asked = current_id is not None and current_id in asked_ids
     if not asked:
         return {
             "current_question_asked": False,
             "latest_user_answer_pending": False,
             "answer_attempts_for_current": 0,
+            "substantive_attempts_for_current": 0,
+            "latest_answer_is_decline": False,
             "correction_or_repeat_already_sent": False,
             "must_finalize_current": False,
         }
@@ -679,26 +776,30 @@ def _current_question_interaction(
     ask_idx = _assistant_index_that_asked(messages, start_idx, current_id)
     after = (messages or [])[(ask_idx + 1):] if ask_idx is not None else []
 
-    answer_attempt_count = sum(1 for m in after if isinstance(m, dict) and m.get("role") == "user")
-    correction_or_repeat_already_sent = any(
-        isinstance(m, dict) and m.get("role") == "assistant" for m in after
+    user_messages = [m for m in after if isinstance(m, dict) and m.get("role") == "user"]
+    answer_attempt_count = len(user_messages)
+    substantive_attempts = sum(
+        1 for m in user_messages if _message_text(m).strip() and not is_give_up_or_meta(_message_text(m))
     )
+    assistant_replied_after_ask = any(isinstance(m, dict) and m.get("role") == "assistant" for m in after)
+    correction_or_repeat_already_sent = provisional is not None or assistant_replied_after_ask
 
     latest = messages[-1] if messages else None
     latest_user_text = _message_text(latest) if isinstance(latest, dict) and latest.get("role") == "user" else ""
     latest_user_answer_pending = answer_attempt_count >= 1 and bool(latest_user_text)
+    # A give-up no longer forces finalisation on its own: the learner gets the one correction opportunity
+    # either way (a bare "no" to a not-yet-answered question used to be graded on the spot — and the model
+    # graded it at full marks). Two learner messages in a row with no assistant turn between them still
+    # finalise, so nothing can loop.
     must_finalize = bool(
-        latest_user_answer_pending
-        and (
-            answer_attempt_count >= 2
-            or correction_or_repeat_already_sent
-            or is_give_up_or_meta(latest_user_text)
-        )
+        latest_user_answer_pending and (answer_attempt_count >= 2 or correction_or_repeat_already_sent)
     )
     return {
         "current_question_asked": True,
         "latest_user_answer_pending": latest_user_answer_pending,
         "answer_attempts_for_current": answer_attempt_count,
+        "substantive_attempts_for_current": substantive_attempts,
+        "latest_answer_is_decline": bool(latest_user_text) and is_give_up_or_meta(latest_user_text),
         "correction_or_repeat_already_sent": correction_or_repeat_already_sent,
         "must_finalize_current": must_finalize,
     }
@@ -723,9 +824,12 @@ def _start_module_state(module_key: str, attempt: int, plan_is_new: bool) -> dic
         "is_last_in_module": len(mod_qs) <= 1,
         "is_final_module": is_last_module(module_key),
         "prior_module_results": [],
+        "provisional": None,
         "current_question_asked": False,
         "latest_user_answer_pending": False,
         "answer_attempts_for_current": 0,
+        "substantive_attempts_for_current": 0,
+        "latest_answer_is_decline": False,
         "correction_or_repeat_already_sent": False,
         "must_finalize_current": False,
     }
@@ -746,9 +850,12 @@ def _completed_state() -> dict[str, Any]:
         "is_last_in_module": False,
         "is_final_module": False,
         "prior_module_results": [],
+        "provisional": None,
         "current_question_asked": False,
         "latest_user_answer_pending": False,
         "answer_attempts_for_current": 0,
+        "substantive_attempts_for_current": 0,
+        "latest_answer_is_decline": False,
         "correction_or_repeat_already_sent": False,
         "must_finalize_current": False,
     }
@@ -823,13 +930,18 @@ def derive_turn_state(messages: list[dict[str, Any]], final_content: Optional[st
     n = len(scores)
     current_id = mod_qs[n] if n < len(mod_qs) else None
     module_message_index = _latest_module_message_index(messages)
-    interaction = _current_question_interaction(messages, module_message_index, current_id, asked_ids)
+    # The pinned first-attempt verdict for the question now in play, if the correction was already offered.
+    provisional = provisional_in_window(after_module, current_id)
+    interaction = _current_question_interaction(
+        messages, module_message_index, current_id, asked_ids, provisional
+    )
     return {
         "current_module": cur_mod,
         "attempt": cur_attempt,
         "module_is_new": False,
         "plan_is_new": False,
         "assessment_complete": False,
+        "provisional": provisional,
         "scores": scores,
         "n_in_module": n,
         "module_questions": mod_qs,
@@ -870,6 +982,17 @@ def build_state_injection(state: dict[str, Any], language: Optional[str] = None)
     is_final_module = bool(state.get("is_final_module"))
     module_is_new = bool(state.get("module_is_new"))
 
+    question = get_question(current_id) or {}
+    key_points = list(question.get("key_points") or [])
+    # A grading turn is one where the learner actually produced something new to judge. The two other
+    # answer-pending shapes — a refusal with no answer at all, and a declined correction (whose verdict is
+    # already pinned) — are decided entirely by the backend, so the model grades nothing and writes nothing.
+    is_grading_turn = bool(
+        state.get("latest_user_answer_pending")
+        and int(state.get("substantive_attempts_for_current", 0) or 0) > 0
+        and not (state.get("latest_answer_is_decline") and state.get("provisional") is not None)
+    )
+
     lines = [
         "\n\n## CURRENT TURN STATE (system-controlled — authoritative; overrides any conflicting instruction)",
         f"- Current module: {cur_mod} (attempt {state.get('attempt', 1)}). Questions finalised in this "
@@ -878,6 +1001,22 @@ def build_state_injection(state: dict[str, Any], language: Optional[str] = None)
         f"has {kpc} required key points and a maximum of {cap} points.",
         f"- Authoritative visible question text for this pool question: {question_text}",
     ]
+    # The rubric for the pinned question is restated HERE rather than left to be located among all 52
+    # questions in the pool: grading the wrong question's key points is a silent accuracy failure, and the
+    # verdict array is positional, so the model must be looking at exactly this list in exactly this order.
+    if key_points:
+        lines.append(
+            f"- Authoritative REQUIRED KEY POINTS for pool question #{current_id} — grade against exactly "
+            "these, in this order, one 0/1 verdict per point:"
+        )
+        lines.extend(f"    {i}. {kp}" for i, kp in enumerate(key_points, 1))
+        lines.append(
+            "- Award 1 for a key point ONLY if the learner's own words actually demonstrate it (equivalent "
+            "wording, examples, or phrasing is fine — the rubric's exact words are not required). If the "
+            "learner did not express it, award 0: never infer it, never give the benefit of the doubt, never "
+            "credit a point the question itself already states, and never treat an overall impression of a "
+            "good answer as evidence for a specific point you cannot point to in their text."
+        )
     if not state.get("current_question_asked"):
         lines.append(
             f"- CURRENT ACTION: ASK question #{current_id} now (the first question of this module attempt). "
@@ -888,41 +1027,78 @@ def build_state_injection(state: dict[str, Any], language: Optional[str] = None)
         )
     elif state.get("latest_user_answer_pending"):
         attempts = int(state.get("answer_attempts_for_current", 0) or 0)
-        lines.extend(
-            [
-                f"- CURRENT ACTION: GRADE the learner's latest message for question #{current_id}. This question "
-                "has already been asked; you MUST NOT repeat it, MUST NOT ask it again, and MUST NOT use [[ASK]].",
-                "- Use all learner attempts for this current question that appear after it was asked; if they "
-                "revised, keep the better per-key-point verdict across attempts.",
-            ]
-        )
-        if state.get("must_finalize_current"):
+        substantive = int(state.get("substantive_attempts_for_current", 0) or 0)
+        declined = bool(state.get("latest_answer_is_decline"))
+        provisional = state.get("provisional")
+        if substantive == 0:
+            # The learner has refused/skipped without ever answering. Nothing is gradeable, and the system
+            # writes both the score (zero) and the message, so the model must not invent an assessment of an
+            # answer that does not exist ("Good answer — you covered the postural demand well" for "no").
             lines.append(
-                "- FINALISE NOW: the learner has already had a correction turn or has declined/given up. End this "
-                "response with EXACTLY one [[SCORE]] marker for the current question. Ask no question of any kind."
+                f"- CURRENT ACTION: NONE. The learner has not answered question #{current_id} at all — their "
+                "message is a refusal or a skip, not an answer. Do NOT grade it, do NOT emit any marker, do NOT "
+                "praise or describe an answer, and do NOT claim any key point was covered. The system writes the "
+                "entire message for this turn. Reply with nothing at all."
+            )
+        elif declined and provisional is not None:
+            # The learner declined the correction, so no new content exists. The verdict was pinned when the
+            # correction was offered and the system finalises from it; a fresh re-grade here is exactly how a
+            # production learner went from "one key part is missing" to full marks in one turn.
+            lines.append(
+                f"- CURRENT ACTION: NONE. The learner has declined to revise their answer to question "
+                f"#{current_id}, so there is nothing new to judge. The verdict for this question was already "
+                "recorded and the system finalises from that record and writes the entire message for this turn. "
+                "Do NOT re-grade, do NOT emit any marker, and do NOT restate or revise your earlier assessment. "
+                "Reply with nothing at all."
             )
         else:
-            lines.append(
-                "- DECISION: if this first attempt earns FULL marks, finalise now with the [[SCORE]] marker. If it "
-                "is NOT full marks, you MUST offer the single correction opportunity and MUST NOT finalise this turn: "
-                "do NOT emit a [[SCORE]] marker. Phrase it only as a short statement telling them they may add to or "
-                "revise their answer now; do NOT ask a yes/no question, do NOT repeat the original question, and do "
-                "NOT use [[ASK]]. The system finalises automatically on the next turn once this one correction is used "
-                "or declined."
+            lines.extend(
+                [
+                    f"- CURRENT ACTION: GRADE the learner's answer to question #{current_id}. This question has "
+                    "already been asked; you MUST NOT repeat it, MUST NOT ask it again, and MUST NOT use [[ASK]].",
+                    "- Judge only the learner's own answer attempts for this question that appear after it was "
+                    "asked. Ignore refusals/skips — they contain no answer and earn nothing.",
+                    "- ALWAYS end this response with EXACTLY one [[SCORE]] marker carrying your per-key-point "
+                    "verdict, whether the answer is complete or not. You do NOT decide whether the question is "
+                    "finished: the system compares your verdict against the maximum and either finalises the "
+                    "question or offers the learner their single correction opportunity, and it writes that offer "
+                    "itself.",
+                    "- So write ONLY brief, encouraging feedback on how complete the answer was (no score, no "
+                    "numbers, no missing-key-point reveal) plus the marker. Do NOT tell the learner they may "
+                    "revise or add to their answer — the system adds that line when it applies — and do NOT ask a "
+                    "question of any kind.",
+                    "- Your feedback must match your verdict: if you are awarding less than every key point, do "
+                    "not call the answer complete, strong, or fully correct.",
+                ]
             )
-        lines.append(f"- Learner answer attempts seen for this current question: {attempts}.")
+            if state.get("must_finalize_current"):
+                lines.append(
+                    "- This answer is the learner's revision after their one correction opportunity, so your "
+                    "verdict finalises the question. The system keeps the better per-key-point result across "
+                    "their attempts, so a point they already earned cannot be lost here."
+                )
+        lines.append(
+            f"- Learner messages seen for this current question: {attempts} (of which {substantive} contain an "
+            f"actual answer attempt)."
+        )
     else:
         lines.append(
             f"- CURRENT ACTION: continue the in-progress handling of question #{current_id}. It has already been "
             "asked, so do NOT repeat it and do NOT use [[ASK]]."
         )
+    if is_grading_turn:
+        lines.extend(
+            [
+                "- End your message with EXACTLY one marker on its own line, on every turn where you grade:",
+                f'  [[SCORE q={current_id} points="<{kpc} comma-separated values, one 0 or 1 per key point in '
+                f'listed order>" max={cap} mod="{cur_mod}"]]',
+                "- Award 1 for each key point the learner demonstrated and 0 otherwise. The system sums these "
+                "values, decides whether the question is finished, and shows every number — your job is the "
+                "per-point judgement only.",
+            ]
+        )
     lines.extend(
         [
-            "- When the question is finalised, end your message with EXACTLY one marker on its own line:",
-            f'  [[SCORE q={current_id} points="<{kpc} comma-separated values, one 0 or 1 per key point in listed '
-            f'order>" max={cap} mod="{cur_mod}"]]',
-            "- Award 1 for each key point the learner demonstrated and 0 otherwise. The system sums these values "
-            "— your job is the per-point judgement only.",
             "- Write NO numbers anywhere (no question number, per-question score, module total, percentage, or "
             'pass/fail). In particular NEVER write the per-question score line (e.g. "**Question 2: 4/4**", or a '
             "bare \"4/4\"): the system prints it immediately above your feedback, so writing it yourself shows the "
@@ -942,16 +1118,17 @@ def build_state_injection(state: dict[str, Any], language: Optional[str] = None)
         )
     if not is_last_in_module:
         lines.append(
-            "- AUTO-NEXT: after you finalise (emit the [[SCORE]] marker), the system AUTOMATICALLY presents the "
-            "next question of this module in the SAME message. So on a finalisation message do NOT write the next "
-            "question and do NOT use [[ASK]]; you may add at most one short, natural lead-in sentence."
+            "- AUTO-NEXT: when your verdict finishes this question, the system AUTOMATICALLY presents the next "
+            "question of this module in the SAME message. So never write the next question and never use "
+            "[[ASK]] on a grading message; you may add at most one short, natural lead-in sentence."
         )
     elif is_final_module:
         lines.append(
-            "- This is the LAST question of the FINAL module; finalising it (emitting [[SCORE]]) completes the "
-            "whole assessment. Follow the DECISION/FINALISE rule above: only finalise on a full-marks first "
-            "answer or after the single correction. If you are only offering the correction this turn, do NOT "
-            "emit [[SCORE]] and do NOT write any summary or take-aways. WHEN you finalise, write in this order: "
+            "- This is the LAST question of the FINAL module, so the verdict that finishes it completes the whole "
+            "assessment. That happens on exactly one turn: the one where you award EVERY key point on the "
+            "learner's first answer, or the one where you grade their revision after the single correction (the "
+            "CURRENT ACTION above says so). On any other turn write NO summary and NO take-aways. On that one "
+            "finalising turn, write in this order: "
             "(1) your brief feedback on this final answer; (2) a line containing exactly [[SUMMARY]]; (3) general "
             "end-of-assessment take-aways spanning ALL modules — in plain language, name 2-4 topics that were "
             "clear strengths and 2-4 worth revisiting, specific to what the learner showed, framed as guidance, "
@@ -1405,29 +1582,79 @@ def render_assessment_turn(
     mod_qs = state.get("module_questions") or module_questions(cur_mod)
     module_total = len(mod_qs)
 
-    new_score = parse_new_score(content, state.get("current_id"))
+    current_id = state.get("current_id")
+    model_verdict = parse_new_score(content, current_id)
+    provisional = state.get("provisional") if isinstance(state.get("provisional"), dict) else None
+    answer_pending = bool(state.get("latest_user_answer_pending"))
+    substantive_attempts = int(state.get("substantive_attempts_for_current", 0) or 0)
+    latest_is_decline = bool(state.get("latest_answer_is_decline"))
+    correction_already_offered = bool(state.get("correction_or_repeat_already_sent"))
 
-    # Backend guard against premature finalisation (defence in depth). On a genuine first attempt the
-    # model may finalise ONLY on full marks; otherwise the single correction must be offered first.
-    score_discarded_premature = False
-    is_grade_first = bool(state.get("latest_user_answer_pending") and not state.get("must_finalize_current"))
-    if (
-        new_score is not None
-        and is_grade_first
-        and int(new_score.get("awarded", 0) or 0) < int(new_score.get("max", 0) or 0)
-    ):
-        new_score = None
-        # Only a correction is due, so the model must NOT write the ending yet (it may author take-aways
-        # only on the finalising turn). If it bracketed one anyway on this below-full first answer with the
-        # [[SUMMARY]] token, cut from there so nothing leaks beside the correction offer; the score is
-        # discarded regardless.
-        cut = ending_cut_index(body)
-        if cut is not None:
-            body = body[:cut]
-        # Re-strip the rendered numbers after removing the marker: an imitated score line sharing its line
-        # with the [[SCORE]] marker is not a whole-line match until the marker is gone.
-        body = strip_rendered_numbers(SCORE_MARKER_RE.sub("", body))
-        score_discarded_premature = True
+    # --- Resolve the verdict for the current question -------------------------------------------------
+    # The BACKEND owns every decision here: what the answer scored, whether that finalises the question or
+    # triggers the learner's single correction, and — on the two paths where the model has nothing new to
+    # judge — the visible message as well. The model only ever contributes a per-key-point judgement of an
+    # actual answer; it no longer decides whether to finalise, and its judgement of a given answer is pinned
+    # the first time it is made so it cannot drift upward on a later turn.
+    new_score: Optional[dict[str, Any]] = None  # set only when THIS turn finalises the question
+    pending_provisional: Optional[dict[str, Any]] = None  # set only when the correction is offered now
+    correction_offer_text = ""
+    backend_feedback = ""  # replaces the model's body where the model had nothing to judge
+    if answer_pending and current_id is not None:
+        if substantive_attempts == 0:
+            # A refusal or skip is not an answer, so it can never earn a point no matter what the model
+            # claims. In production a learner replied "no" and was awarded FULL marks together with the
+            # invented praise "you covered the whole-body postural demand well". The learner still gets
+            # their one opportunity: the first refusal offers it, a second finalises at zero.
+            verdict = zero_verdict(current_id)
+            if model_verdict is not None and int(model_verdict.get("awarded", 0) or 0) > 0:
+                logger.warning(
+                    "HYROX q=%s: model awarded %s point(s) for a non-answer; forcing 0",
+                    current_id,
+                    model_verdict.get("awarded"),
+                )
+            backend_feedback = _locale(language)[
+                "no_answer_zero" if correction_already_offered else "answer_offer_no_attempt"
+            ]
+            if correction_already_offered:
+                new_score = verdict
+            else:
+                pending_provisional = verdict
+        elif latest_is_decline and provisional is not None:
+            # The learner declined to revise, so there is nothing new to grade and the verdict pinned when
+            # the correction was offered is final. Re-grading the same unchanged answer here is exactly how a
+            # production learner went from "one key part is still missing" to FULL marks in a single turn.
+            if model_verdict is not None and model_verdict.get("points") != provisional.get("points"):
+                logger.warning(
+                    "HYROX q=%s: model re-graded a declined correction as %s vs the pinned %s; keeping the pinned "
+                    "verdict",
+                    current_id,
+                    model_verdict.get("points"),
+                    provisional.get("points"),
+                )
+            new_score = provisional
+            backend_feedback = _locale(language)["decline_keeps_answer"]
+        elif model_verdict is not None:
+            # A real answer was graded. A key point the first attempt already earned can never be lost by
+            # revising (the "better of the two attempts" rule, computed here rather than trusted to the model).
+            verdict = merge_best_verdicts(provisional, model_verdict) if provisional else model_verdict
+            if (
+                int(verdict.get("awarded", 0) or 0) >= int(verdict.get("max", 0) or 0)
+                or correction_already_offered
+            ):
+                new_score = verdict
+            else:
+                # Below full marks with the correction unused: pin this verdict and offer the correction.
+                pending_provisional = verdict
+                correction_offer_text = _locale(language)["correction_offer"]
+        else:
+            # The model graded nothing on a turn where it was told to. The question simply stays open; the
+            # counter cannot advance on an unscored answer.
+            logger.warning("HYROX q=%s: no [[SCORE]] verdict in a grading turn; question stays open", current_id)
+    if backend_feedback:
+        # The model's own text is discarded on these paths: it had no answer to assess, so anything it wrote
+        # about one is invented and would contradict the score the backend just decided.
+        body = backend_feedback
 
     module_scores = list(state.get("scores", []))
     if new_score is not None:
@@ -1459,17 +1686,15 @@ def render_assessment_turn(
     if not is_completion_turn:
         body = cut_premature_ending(body)
 
-    # Store the backend's CANONICAL score marker, never the model's own text: a verbatim-stored wrong
-    # ``q`` attribute replays under the wrong question and desyncs the module counter permanently (see
-    # format_score_marker). Remove the model's marker(s) from the body here; each branch below appends
-    # the canonical form instead.
-    canonical_score_marker = ""
-    if new_score is not None:
-        canonical_score_marker = format_score_marker(new_score)
-        if SCORE_MARKER_RE.search(body):
-            # As above: re-strip so an imitated score line that shared its line with the marker is now a
-            # whole-line match and cannot survive into the assembled message beside the backend's own.
-            body = strip_rendered_numbers(SCORE_MARKER_RE.sub("", body))
+    # The model's own [[SCORE]] text NEVER survives into the stored message. The backend re-appends either
+    # its canonical finalised marker or a [[PROV]] pin, according to what it decided above — a verbatim model
+    # marker could carry a wrong ``q`` (permanently desyncing the module counter, see format_score_marker) or
+    # finalise a question the backend deliberately kept open for the correction.
+    if SCORE_MARKER_RE.search(body):
+        # Re-strip the rendered numbers afterwards: an imitated score line sharing its line with the marker
+        # is not a whole-line match until the marker is gone.
+        body = strip_rendered_numbers(SCORE_MARKER_RE.sub("", body))
+    canonical_score_marker = format_score_marker(new_score) if new_score is not None else ""
 
     if should_backend_render_question:
         asked_question_id = state["current_id"]
@@ -1528,10 +1753,10 @@ def render_assessment_turn(
             # This is the turn that produced the reported duplicate: the backend prepends its score line
             # and the model had copied the same line into its feedback. Drop any copy of a line the backend
             # renders here before assembling, so each appears exactly once.
-            body = drop_lines_duplicating(body, [score_line, next_question_block])
+            body = drop_lines_duplicating(body, [score_line, next_question_block, correction_offer_text])
             parts: list[str] = [p for p in (score_line, body) if p]
-            if score_discarded_premature:
-                parts.append(_locale(language)["correction_offer"])
+            if correction_offer_text:
+                parts.append(correction_offer_text)
             if next_question_block:
                 parts.append(next_question_block)
             assembled = "\n\n".join(p for p in parts if p)
@@ -1544,6 +1769,10 @@ def render_assessment_turn(
         trailing.append(format_module_marker(cur_mod, int(state.get("attempt", 1))))
     if asked_question_id is not None:
         trailing.append(format_asked_marker(asked_question_id))
+    if pending_provisional is not None:
+        # Pin the verdict for the answer the correction was just offered on, so the decline path finalises
+        # from this record instead of re-grading (and so a revision can only improve on it).
+        trailing.append(format_prov_marker(pending_provisional))
     if new_score is not None and n_after < module_total:
         # Mid-module finalisation: replay the canonical score marker here (module-boundary and completion
         # messages embed it via render_module_end_bubbles / render_completion_bubbles instead).

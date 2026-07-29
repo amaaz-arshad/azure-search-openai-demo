@@ -1,15 +1,17 @@
 // Hidden control markers in an assessment message ([[PLAN ...]] run anchor, [[MODULE m=.. attempt=..]]
-// module-attempt anchor, [[SCORE ...]], the model's [[ASK]] placement token, the backend's [[ASKED q=K]]
-// record, the backend's [[MODPASS m=..]] / [[MODFAIL m=..]] module-boundary signals, the model's
-// final-turn [[SUMMARY]] separator, the backend's [[BREAK]] bubble split point, the backend's
-// [[PROGRESS value=N]] final-pass signal, and the backend's [[DONE]] completion signal). They must stay
-// in the stored message so they replay into the next request's history (the backend reconstructs the
-// authoritative per-module tally + which question was already presented + which module boundary the
-// learner is at from them), but they must never be shown to the learner. This strips them for display
-// only — see ChatbotAnswer's `preprocessAnswerText`. ASKED is listed before ASK, and MODPASS/MODFAIL
-// before MODULE, so the `\b` boundary matches the longer name as a whole.
+// module-attempt anchor, [[SCORE ...]], [[PROV ...]] (the backend's pinned first-attempt verdict, written
+// when the single correction is offered so a declined correction cannot be re-graded upward), the model's
+// [[ASK]] placement token, the backend's [[ASKED q=K]] record, the backend's [[MODPASS m=..]] /
+// [[MODFAIL m=..]] module-boundary signals, the model's final-turn [[SUMMARY]] separator, the backend's
+// [[BREAK]] bubble split point, the backend's [[PROGRESS value=N]] final-pass signal, and the backend's
+// [[DONE]] completion signal). They must stay in the stored message so they replay into the next request's
+// history (the backend reconstructs the authoritative per-module tally + which question was already
+// presented + the pinned verdict + which module boundary the learner is at from them), but they must never
+// be shown to the learner. This strips them for display only — see ChatbotAnswer's `preprocessAnswerText`.
+// ASKED is listed before ASK, and MODPASS/MODFAIL before MODULE, so the `\b` boundary matches the longer
+// name as a whole.
 const ASSESSMENT_MARKER_RE =
-    /\[\[\s*(?:PLAN|MODULE|SCORE|ASKED|ASK|MODPASS|MODFAIL|SUMMARY|BREAK|PROGRESS|DONE)\b[^\]]*\]\]/gi;
+    /\[\[\s*(?:PLAN|MODULE|SCORE|PROV|ASKED|ASK|MODPASS|MODFAIL|SUMMARY|BREAK|PROGRESS|DONE)\b[^\]]*\]\]/gi;
 
 // The backend emits these once at a module boundary (not the final module): MODPASS when the learner
 // passed the module (the frontend shows a "Continue to next module" button) and MODFAIL when they did

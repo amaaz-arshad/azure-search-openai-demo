@@ -468,7 +468,7 @@ def test_state_injection_final_question_requests_model_authored_summary() -> Non
     assert "take-aways" in injection.lower()
     assert "LAST question of the FINAL module" in injection
     assert "WITHOUT any numbers" in injection  # backend still owns every number
-    assert "only offering the correction" in injection  # suppressed on a partial first answer
+    assert "On any other turn write NO summary" in injection  # suppressed on a partial first answer
 
 
 def test_final_question_partial_first_answer_offers_correction_without_summary() -> None:
@@ -1231,6 +1231,191 @@ def test_sanitize_history_hides_backend_artifacts_from_the_model_only() -> None:
     assert "[[ASKED" in "\n".join(m["content"] for m in messages if m["role"] == "assistant")
     # User turns are passed through untouched.
     assert [m for m in sanitized if m["role"] == "user"] == [m for m in messages if m["role"] == "user"]
+
+
+# --- grading integrity: a score must be earned ----------------------------
+#
+# Two production failures, both from the model owning decisions the backend should own:
+#   1. A partial answer, the correction offered ("one key part is missing"), the learner replied "no" —
+#      and the model re-graded the same unchanged answer at FULL marks.
+#   2. A learner answered "no" and was awarded FULL marks with invented praise ("Good answer — you
+#      covered the whole-body postural demand well"), with no correction offer at all.
+
+
+def test_declined_correction_finalises_at_the_pinned_verdict_not_a_regrade() -> None:
+    """Reported bug 1: declining the correction must keep the verdict the answer actually earned."""
+    messages = _grade_first_messages()
+    state = results.derive_turn_state(messages)
+    cid = state["current_id"]
+    kpc = key_point_count(cid)
+
+    # Turn 1 — a partial first answer. The verdict is pinned and the correction offered; nothing is scored.
+    content, all_scores, _tally, _done = results.render_assessment_turn(
+        f"Good start — one key part is still missing.\n{_partial_score_marker(cid)}", state, "en"
+    )
+    assert all_scores == [] and "[[SCORE" not in content
+    assert f'[[PROV q={cid} points="{",".join(["1"] + ["0"] * (kpc - 1))}"]]' in content
+    assert "add to or revise your answer" in content
+    assert results._locale("en")["correction_offer"] not in results.strip_markers(content).split("\n")[0]
+    messages = messages + [{"role": "assistant", "content": content}]
+
+    # Turn 2 — the learner declines. The model tries to award full marks anyway (the production failure).
+    messages = messages + [{"role": "user", "content": "no"}]
+    state = results.derive_turn_state(messages)
+    assert state["provisional"]["awarded"] == 1 and state["latest_answer_is_decline"] is True
+    content, all_scores, _tally, _done = results.render_assessment_turn(
+        f"That's a strong answer — you covered the key comparison.\n{_score_marker(cid)}", state, "en"
+    )
+    visible = results.strip_markers(content)
+    assert len(all_scores) == 1
+    assert all_scores[0]["awarded"] == 1 and all_scores[0]["points"] == [1] + [0] * (kpc - 1)
+    assert f"**Question 1: 1/{max_points(cid)}**" in visible
+    # The model's contradictory praise is discarded along with its re-grade.
+    assert "strong answer" not in visible
+    assert results._locale("en")["decline_keeps_answer"] in visible
+
+
+def test_a_refusal_is_never_an_answer_and_never_earns_points() -> None:
+    """Reported bug 2: "no" as the first answer must earn nothing, and must not be praised."""
+    messages = _grade_first_messages()  # M1-Q1 asked, a first message pending
+    messages = messages[:-1] + [{"role": "user", "content": "no"}]
+    state = results.derive_turn_state(messages)
+    cid = state["current_id"]
+    assert state["substantive_attempts_for_current"] == 0 and state["latest_answer_is_decline"] is True
+
+    # The model invents an assessment of an answer that does not exist, at full marks.
+    content, all_scores, _tally, _done = results.render_assessment_turn(
+        f"Good answer — you covered the whole-body postural demand well.\n{_score_marker(cid)}", state, "en"
+    )
+    visible = results.strip_markers(content)
+    assert all_scores == [] and "[[SCORE" not in content  # nothing finalised, nothing awarded
+    assert "Good answer" not in visible and "postural" not in visible  # invented praise dropped
+    assert results._locale("en")["answer_offer_no_attempt"] in visible  # one chance to answer, as asked for
+    assert f'[[PROV q={cid} points="{",".join(["0"] * key_point_count(cid))}"]]' in content
+
+    # A second refusal finalises at zero, with feedback that matches the score.
+    messages = messages + [{"role": "assistant", "content": content}, {"role": "user", "content": "no"}]
+    state = results.derive_turn_state(messages)
+    content, all_scores, _tally, _done = results.render_assessment_turn(
+        f"Excellent work.\n{_score_marker(cid)}", state, "en"
+    )
+    visible = results.strip_markers(content)
+    assert len(all_scores) == 1 and all_scores[0]["awarded"] == 0
+    assert f"**Question 1: 0/{max_points(cid)}**" in visible
+    assert results._locale("en")["no_answer_zero"] in visible
+    assert "Excellent" not in visible
+
+
+def test_answering_after_an_initial_refusal_is_graded_normally() -> None:
+    # The zero pin must not cap a learner who refuses first and then actually answers.
+    messages = _grade_first_messages()
+    messages = messages[:-1] + [{"role": "user", "content": "skip"}]
+    state = results.derive_turn_state(messages)
+    cid = state["current_id"]
+    content, _scores, _tally, _done = results.render_assessment_turn("", state, "en")
+    messages = messages + [
+        {"role": "assistant", "content": content},
+        {"role": "user", "content": "actually, here is my full answer with every point covered"},
+    ]
+    state = results.derive_turn_state(messages)
+    assert state["substantive_attempts_for_current"] == 1 and state["latest_answer_is_decline"] is False
+    content, all_scores, _tally, _done = results.render_assessment_turn(
+        f"That's complete.\n{_score_marker(cid)}", state, "en"
+    )
+    assert len(all_scores) == 1 and all_scores[0]["awarded"] == max_points(cid)
+    assert "That's complete." in results.strip_markers(content)
+
+
+def test_revision_keeps_the_better_verdict_per_key_point() -> None:
+    # The "better of the two attempts" rule is computed by the backend, so a point earned in the first
+    # attempt cannot be lost, and one earned only in the revision is still credited.
+    messages = _grade_first_messages()
+    state = results.derive_turn_state(messages)
+    cid = state["current_id"]
+    kpc = key_point_count(cid)
+    first = ",".join(["1"] + ["0"] * (kpc - 1))
+    content, _scores, _tally, _done = results.render_assessment_turn(
+        f'Partly there.\n[[SCORE q={cid} points="{first}" max={max_points(cid)} mod="M1"]]', state, "en"
+    )
+    messages = messages + [
+        {"role": "assistant", "content": content},
+        {"role": "user", "content": "here is my revised answer covering the remaining ground"},
+    ]
+    state = results.derive_turn_state(messages)
+    # The revision earns the OTHER points but drops the first one the learner had already earned.
+    revised = ",".join(["0"] + ["1"] * (kpc - 1))
+    content, all_scores, _tally, _done = results.render_assessment_turn(
+        f'Better.\n[[SCORE q={cid} points="{revised}" max={max_points(cid)} mod="M1"]]', state, "en"
+    )
+    assert len(all_scores) == 1
+    assert all_scores[0]["points"] == [1] * kpc  # union of both attempts, nothing lost
+    assert all_scores[0]["awarded"] == max_points(cid)
+
+
+def test_provisional_marker_never_advances_the_counter_and_is_hidden() -> None:
+    messages = _grade_first_messages()
+    state = results.derive_turn_state(messages)
+    cid = state["current_id"]
+    content, _scores, _tally, _done = results.render_assessment_turn(
+        f"Partly there.\n{_partial_score_marker(cid)}", state, "en"
+    )
+    messages = messages + [{"role": "assistant", "content": content}]
+    after = results.derive_turn_state(messages)
+    assert after["n_in_module"] == 0 and after["current_id"] == cid  # question still open
+    assert after["provisional"] is not None
+    assert "[[PROV" not in results.strip_markers(content)  # display-hidden like every control marker
+    assert results.strip_markers(content).count("**Question 1 of 4**") == 0
+
+
+def test_bare_refusals_are_recognised_but_real_answers_are_not() -> None:
+    for text in ("no", "No.", "nope", "nah", "nothing", "nothing else", "no thanks", "im good", "done",
+                 "nein", "nichts mehr", "nee", "niets", "geen idee", "skip", "I don't know"):
+        assert results.is_give_up_or_meta(text) is True, text
+    for text in (
+        "No, because reflection in action happens during the session while reflection on action is after it",
+        "Nothing works better than a growth mindset for an emerging sport, because the standards keep moving",
+        "no idea is a bad answer so instead I will say the coach adapts the plan as the athlete responds",
+    ):
+        assert results.is_give_up_or_meta(text) is False, text
+
+
+def test_state_injection_pins_the_rubric_and_blocks_grading_a_non_answer() -> None:
+    messages = _grade_first_messages()
+    state = results.derive_turn_state(messages)
+    cid = state["current_id"]
+    injection = results.build_state_injection(state, "en")
+    question = get_question(cid)
+    assert question is not None
+    # The rubric for the pinned question is restated in the turn state, numbered and in verdict order.
+    for i, kp in enumerate(question["key_points"], 1):
+        assert f"    {i}. {kp}" in injection
+    assert "never give the benefit of the doubt" in injection
+    assert "ALWAYS end this response with EXACTLY one [[SCORE]] marker" in injection
+    assert "Do NOT tell the learner they may" in injection  # the backend owns the correction offer
+
+    # On a refusal there is nothing to grade and the model is told to write nothing at all.
+    refusal_state = results.derive_turn_state(messages[:-1] + [{"role": "user", "content": "no"}])
+    refusal_injection = results.build_state_injection(refusal_state, "en")
+    assert "CURRENT ACTION: NONE" in refusal_injection
+    assert "not answered" in refusal_injection and "Reply with nothing at all" in refusal_injection
+    assert "[[SCORE" not in refusal_injection
+
+
+def test_a_fully_declined_module_scores_zero_and_fails() -> None:
+    # End-to-end: refusing everything can never pass a module, whatever the model claims per question.
+    messages, _content, _state, _done = _turn([], "Start")
+    for _ in range(2 * len(module_questions("M1"))):  # one offer + one finalising refusal per question
+        messages = messages + [{"role": "user", "content": "no"}]
+        state = results.derive_turn_state(messages)
+        cid = state["current_id"]
+        model_says_full = f"Great answer.\n{_score_marker(cid)}" if cid else "ok"
+        content, _scores, tally, done = results.render_assessment_turn(model_says_full, state, "en")
+        messages = messages + [{"role": "assistant", "content": content}]
+        if "[[MODFAIL" in content or "[[MODPASS" in content:
+            break
+    assert "[[MODFAIL m=M1]]" in content and "[[MODPASS" not in content
+    assert tally["score"] == 0 and tally["passed"] is False
+    assert "Below the 80% needed" in results.strip_markers(content)
 
 
 def test_llm_receives_the_sanitized_history_not_the_rendered_one() -> None:

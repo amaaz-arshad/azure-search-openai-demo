@@ -17,6 +17,176 @@ Two categories per date:
 
 ## 2026-07-28
 
+### azd envs: `agentic-retrieval-nerilio` is prod, `agentic-retrieval-test` mirrors it
+
+#### Decisions
+
+- **`agentic-retrieval-nerilio` is now the production environment and
+  `agentic-retrieval-test` the dev/test environment.** The test `.env` had drifted
+  badly (old `gpt-5-mini`, its own `gptkbindex-lemon` index, no speech, no
+  secrets), so it could not reproduce prod behaviour. It is now a verbatim copy of
+  prod's `.env` except for the six values that identify the **backend container**,
+  so `azd deploy backend -e agentic-retrieval-test` builds into the test ACR and
+  updates the test Container App instead of overwriting prod's.
+- **Test-specific (not copied from prod):** `AZURE_ENV_NAME`,
+  `AZURE_RESOURCE_GROUP` (`rg-agentic-retrieval-test`),
+  `AZURE_CONTAINER_REGISTRY_ENDPOINT`, `SERVICE_BACKEND_IMAGE_NAME`, `BACKEND_URI`.
+  `SERVICE_BACKEND_RESOURCE_EXISTS=true` stays on both.
+- **`AZURE_CONTAINER_APP_CUSTOM_DOMAIN` / `..._CERTIFICATE_ID` are deliberately
+  omitted from test.** `main.bicep` feeds them straight into the
+  `container-app-upsert` `customDomains` param, so copying them would try to bind
+  `chat.nerilio.ai` (and a managed certificate scoped to the *nerilio* ACA managed
+  environment) onto the test Container App — a provision failure at best, a fight
+  over the live prod hostname at worst.
+- **Everything else is shared on purpose, and that has consequences.** Test and
+  prod now use the same OpenAI account and deployments, the same search service +
+  index (`gptkbindex-nerilio`) and knowledge base, the same storage account
+  (`stbfmtryd6z3arm` / `content`), and the same speech account (which lives in
+  prod's RG, so `azd provision -e agentic-retrieval-test` writes an idempotent
+  speech upsert + a role assignment for the test identity into
+  `rg-agentic-retrieval-nerilio`). Consequences: `/admin/prompts`, `/admin/uploads`,
+  `/admin/embed`, the dynamic-bot registry, and HYROX session logs are all blob-backed
+  in that shared container, so editing them in test changes prod behaviour;
+  `delete_category_data.py` run against test deletes prod data.
+- **Known hazard, not fixed here: `azd up` / `azd deploy moodle-auto-indexer` on
+  test steals prod's Event Grid subscriptions.** `SUBSCRIPTIONS` in
+  `scripts/setup_moodle_delete_event_subscription.py` uses **static** names
+  (`moodle-auto-indexer-create-sync`, …) on the storage account resolved from
+  `AZURE_STORAGE_ACCOUNT`/`AZURE_STORAGE_RESOURCE_GROUP` — now identical in both
+  envs — and the postdeploy hook `update`s a subscription that already exists. It
+  would repoint all eight subscriptions at the **test** Functions app, silently
+  ending prod's feed auto-indexing. Prefer `azd deploy backend -e
+  agentic-retrieval-test`; recover by re-running `azd deploy moodle-auto-indexer -e
+  agentic-retrieval-nerilio`. Not addressed because a per-env subscription name (or
+  a separate test storage account) is a broader change than this env sync.
+- **`.azure/config.json` `defaultEnvironment` left at `agentic-retrieval-nerilio`.**
+  Not touched because it silently changes the target of every bare `azd` command;
+  use `-e <env>` or `azd env select` explicitly. Note `vite.config.ts` bakes
+  `AZURE_SPEECH_SERVICE_LOCATION`/`_VOICE`/`_API_KEY` into the bundle at build time
+  from `AZD_ENV_NAME`/`AZURE_ENV_NAME` **or, when neither is set (a bare
+  `npm run build`), from `defaultEnvironment`** — harmless while both envs share one
+  speech account, but it would bake prod's key into a test bundle if test ever gets
+  its own.
+
+#### Changes
+
+- `.azure/agentic-retrieval-test/.env` — replaced with prod's values except the six
+  container-identity variables above; the two custom-domain variables are omitted.
+  (Gitignored, so this edit does not appear in any diff.) Verified with
+  `azd env get-values -e agentic-retrieval-test`; previous file backed up to the
+  session scratchpad only.
+
+### HYROX assessment: a score must be earned — the backend owns grading decisions
+
+#### Decisions
+
+- **Two reported failures, one root cause: the model owned decisions the backend
+  should own, and its verdict was trusted unconditionally.**
+  (1) A partial answer → the bot offered the correction ("one key part is still
+  missing") → the learner replied "no" → the model re-graded the same unchanged
+  text and returned **FULL marks**. (2) A learner answered "no" to a question
+  and was awarded **FULL marks** plus invented praise ("Good answer — you
+  covered the whole-body postural demand well"), with no correction offer at
+  all. On an assessment product, an unearned score is the worst possible defect,
+  so both are now impossible by construction rather than by prompt compliance.
+- **The first-attempt verdict is pinned instead of discarded (`[[PROV]]`).** The
+  old flow told the model to withhold `[[SCORE]]` on a partial answer, so its
+  judgement existed only as prose and was gone by the next turn — the decline
+  turn re-graded from scratch, with nothing to enforce consistency against. Now
+  the model emits its per-key-point verdict on **every** grading turn and the
+  backend pins it as `[[PROV q=K points="…"]]` when it offers the correction.
+  A decline finalises from the pin (the model's fresh verdict is discarded and
+  logged); a genuine revision finalises at the per-key-point **union** of the
+  two attempts, so a point already earned can never be lost by revising.
+- **The model no longer decides whether to finalise.** It contributes one thing:
+  a per-key-point judgement of an actual answer. The backend compares that
+  against the maximum and either finishes the question or offers the single
+  correction in its own words. Removing that decision from the model removes the
+  whole class of "it finalised when it should have corrected" drift, and matches
+  how the rest of this bot already works (the backend owns the counter, the
+  tally, the thresholds, the transitions).
+- **A refusal is not an answer and can never earn a point.** Enforced by the
+  backend (`substantive_attempts_for_current == 0` → forced zero verdict), not
+  by asking the model nicely. The learner still gets one genuine opportunity —
+  the first refusal invites them to answer, a second scores zero — which is a
+  strict improvement on the old behaviour, where a give-up finalised on the spot
+  at whatever the model claimed.
+- **`is_give_up_or_meta` now recognises bare refusals** ("no", "nope", "nah",
+  "nothing", "nein", "nee", …). It previously did not match a bare "no" at all,
+  which is why the second failure got graded as if "no" were an answer. This is
+  safe **only** because no pool question is yes/no-shaped — verified
+  programmatically: 0 of the 52 questions begin with is/are/does/can/should. If
+  the pool ever gains a yes/no question, this must be revisited.
+- **Feedback is backend-written on the two paths where the model has nothing to
+  judge**, so a review can never contradict the score it sits above. Everywhere
+  the model *does* have a real answer in front of it, its own wording is kept —
+  the fix is scoped to where it was inventing.
+- **The rubric is now pinned into the turn state.** The model previously had to
+  locate the right question's key points among all 52 in the prompt pool, while
+  emitting a *positional* verdict array — a silent accuracy failure mode.
+  `build_state_injection` now restates the pinned question's numbered key points
+  in verdict order, plus an explicit "award 1 only if the learner's own words
+  demonstrate it; never infer, never give the benefit of the doubt". In live
+  testing this visibly tightened grading: an answer that addressed a different
+  question scored 0/3 where the old flow had awarded full marks.
+- **Verified against the real model, both directions.** Ad-hoc live probes
+  reproduced each reported scenario end-to-end (partial → decline finalises at
+  the pinned score, not full marks; "no" → one chance, then 0/3 with matching
+  feedback) and confirmed no under-awarding was introduced (a genuine revision
+  went 1/3 → 3/3; a complete first answer still scores 3/3 and chains the next
+  question in one turn).
+- **Measurement caveat, stated honestly:** the 102 session logs in blob storage
+  are all from the earlier 20-question version (only *completed* runs were
+  logged until today's change, and the 13-module version has none). Replaying
+  them found 1 of 100 decline-finalisations awarded full marks — the same
+  mechanism — but the current version's rate cannot be measured from logs that
+  do not exist yet. From now on every turn is logged, so it can be.
+- **Residual (documented, logged):** if the model emits no `[[SCORE]]` on the
+  offer turn, or an in-flight session predates `[[PROV]]`, a decline has no pin
+  to finalise from and falls back to the model's fresh verdict. It logs
+  `correction declined with no pinned verdict`. Denying an arbitrary key point
+  in that case was rejected as indefensible if a learner challenged it.
+
+#### Changes
+
+- `app/backend/approaches/chatbots/hyrox_assessment/results.py`:
+  - new `[[PROV]]` marker (`PROV_MARKER_RE`, `format_prov_marker`,
+    `provisional_in_window`), added to `ANY_MARKER_RE` (display-hidden) and to
+    `FORBIDDEN_MODEL_MARKER_RE` (backend-authored only).
+  - new `zero_verdict` and `merge_best_verdicts` helpers.
+  - `_current_question_interaction` now reports
+    `substantive_attempts_for_current` and `latest_answer_is_decline`, treats a
+    pinned `[[PROV]]` as proof the correction was offered, and no longer lets a
+    give-up force finalisation on its own.
+  - `derive_turn_state` exposes `provisional`; both start/completed states carry
+    the new keys.
+  - `render_assessment_turn` replaces the old "discard a below-full first score"
+    guard with the full verdict resolution described above, and always strips the
+    model's own `[[SCORE]]` text from the body (it previously only did so when
+    finalising, so a non-finalising turn could have replayed it as a finalised
+    score).
+  - `build_state_injection` pins the numbered key points, forbids grading a
+    non-answer or a declined correction ("CURRENT ACTION: NONE … reply with
+    nothing at all"), requires the verdict on every grading turn, forbids the
+    model from writing the correction offer, and requires feedback to match the
+    verdict.
+  - `is_give_up_or_meta` extended; three new locale strings per language
+    (`answer_offer_no_attempt`, `no_answer_zero`, `decline_keeps_answer`).
+- `app/backend/approaches/chatbots/hyrox_assessment/sampleprompt.py`: the
+  per-question protocol, the `[[SCORE]]` section, and the "I don't know" section
+  rewritten for the new contract.
+- `app/frontend/src/chatbots/hyrox-assessment/components/Answer/assessmentMarkers.ts`:
+  `PROV` added to `ASSESSMENT_MARKER_RE` so the pin is display-hidden.
+- `tests/test_hyrox_assessment.py`: 8 new tests covering both reported failures
+  and the paths around them (declined correction finalises at the pin; a refusal
+  earns nothing and is never praised; answering after an initial refusal is
+  graded normally; a revision keeps the better per-point result; `[[PROV]]` never
+  advances the counter; bare refusals vs. real answers that merely start with
+  "No,"; the injection pins the rubric and blocks grading a non-answer; a fully
+  declined module scores zero and fails).
+- `CLAUDE.md`: grading-integrity contract documented in the `hyrox-assessment`
+  bullet.
+
 ### HYROX assessment: a backend-rendered line can never be printed twice
 
 #### Decisions
