@@ -14,6 +14,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
 from email.utils import formataddr
+from math import ceil, floor
 from pathlib import Path
 
 from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
@@ -39,6 +40,10 @@ FREE_VERIFICATION_MAX_ATTEMPTS = 5
 FREE_PASSWORD_MIN_LENGTH = 8
 FREE_EMAIL_BRAND_NAME = "nerilio"
 FREE_EMAIL_LOGO_CID = "nerilio-logo"
+# Free Bot access is a 30-day trial. Accounts are never auto-deleted: past the window they are
+# blocked everywhere (login, live sessions, password reset, re-registration) and surface in the
+# admin archive, where "Reactivate" grants another window.
+FREE_ACCOUNT_LIFETIME_DAYS = 30
 
 
 @dataclass(frozen=True)
@@ -49,6 +54,9 @@ class FreeAccount:
     password_hash: str
     created_at: str
     updated_at: str
+    # Written on signup and rewritten by an admin reactivation. Accounts registered before the
+    # trial window existed have no stored value; their expiry derives from created_at instead.
+    expires_at: str = ""
 
 
 @dataclass(frozen=True)
@@ -84,6 +92,16 @@ class PendingFreePasswordReset:
 class FreeSession:
     display_name: str
     email: str
+    expires_at: str = ""
+    days_remaining: int = 0
+
+
+@dataclass(frozen=True)
+class FreeAccountExpiry:
+    expires_at: str
+    is_expired: bool
+    days_remaining: int
+    days_expired: int
 
 
 @dataclass(frozen=True)
@@ -118,6 +136,66 @@ def format_utc(dt: datetime) -> str:
 
 def parse_utc(value: str) -> datetime:
     return datetime.fromisoformat(value).astimezone(timezone.utc)
+
+
+def parse_utc_or_none(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        return parse_utc(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def resolve_account_expires_at(*, created_at: str, expires_at: str | None) -> datetime | None:
+    """The moment a Free Bot account loses access.
+
+    A stored ``expires_at`` always wins, so an admin reactivation survives every later account
+    rewrite (password resets included). Accounts predating the trial window fall back to
+    ``created_at`` + 30 days, which means an account older than that is already expired.
+    Returns None when neither timestamp parses; callers treat that as expired so the record shows
+    up in the admin archive, where reactivating it writes a valid ``expires_at`` and heals it.
+    """
+    stored_expires_at = parse_utc_or_none(expires_at)
+    if stored_expires_at is not None:
+        return stored_expires_at
+
+    parsed_created_at = parse_utc_or_none(created_at)
+    if parsed_created_at is None:
+        return None
+    return parsed_created_at + timedelta(days=FREE_ACCOUNT_LIFETIME_DAYS)
+
+
+def describe_account_expiry(account, *, now: datetime | None = None) -> FreeAccountExpiry:
+    """Expiry state for an account-shaped object (anything with created_at/expires_at)."""
+    reference_time = now or datetime.now(timezone.utc)
+    expires_at = resolve_account_expires_at(
+        created_at=str(getattr(account, "created_at", "") or ""),
+        expires_at=str(getattr(account, "expires_at", "") or ""),
+    )
+    if expires_at is None:
+        return FreeAccountExpiry(expires_at="", is_expired=True, days_remaining=0, days_expired=0)
+
+    remaining_seconds = (expires_at - reference_time).total_seconds()
+    if remaining_seconds > 0:
+        # Round up so a partial final day still reads as "1 day left" rather than "0".
+        return FreeAccountExpiry(
+            expires_at=format_utc(expires_at),
+            is_expired=False,
+            days_remaining=max(1, ceil(remaining_seconds / 86400)),
+            days_expired=0,
+        )
+
+    return FreeAccountExpiry(
+        expires_at=format_utc(expires_at),
+        is_expired=True,
+        days_remaining=0,
+        days_expired=max(0, floor(-remaining_seconds / 86400)),
+    )
+
+
+def is_account_expired(account, *, now: datetime | None = None) -> bool:
+    return describe_account_expiry(account, now=now).is_expired
 
 
 class FreeAuthStore:
@@ -189,6 +267,32 @@ class FreeAuthStore:
     def validate_password_requirements(password: str) -> None:
         if len(password) < FREE_PASSWORD_MIN_LENGTH:
             raise FreeAuthError("authErrors.passwordTooShort")
+
+    @staticmethod
+    def raise_for_existing_signup_account(account: FreeAccount) -> None:
+        """Refuse a signup for an email that already has an account.
+
+        An expired account keeps its blob precisely so its email cannot be recycled into a fresh
+        30-day window, so it needs its own message: "already registered" would read as a mistake.
+        """
+        if is_account_expired(account):
+            raise FreeAuthError("authErrors.accountExpiredSignup", status_code=403)
+        raise FreeAuthError("authErrors.accountExists")
+
+    @staticmethod
+    def raise_if_account_expired(account: FreeAccount) -> None:
+        if is_account_expired(account):
+            raise FreeAuthError("authErrors.accountExpired", status_code=403)
+
+    @staticmethod
+    def build_session(account: FreeAccount) -> FreeSession:
+        expiry = describe_account_expiry(account)
+        return FreeSession(
+            display_name=account.display_name,
+            email=account.email,
+            expires_at=expiry.expires_at,
+            days_remaining=expiry.days_remaining,
+        )
 
     def get_account_blob_name(self, email: str) -> str:
         return f"accounts/{self.hash_email(email)}.json"
@@ -311,6 +415,7 @@ class FreeAuthStore:
             password_hash=str(payload["password_hash"]),
             created_at=str(payload["created_at"]),
             updated_at=str(payload["updated_at"]),
+            expires_at=str(payload.get("expires_at", "") or ""),
         )
 
     async def load_pending_signup(self, email: str) -> PendingFreeSignup | None:
@@ -455,6 +560,7 @@ class FreeAuthStore:
                     password_hash=str(payload["password_hash"]),
                     created_at=str(payload["created_at"]),
                     updated_at=str(payload["updated_at"]),
+                    expires_at=str(payload.get("expires_at", "") or ""),
                 )
             )
 
@@ -501,9 +607,38 @@ class FreeAuthStore:
             password_hash=password_hash,
             created_at=account.created_at,
             updated_at=format_utc(datetime.now(timezone.utc)),
+            expires_at=account.expires_at,
         )
         await self.save_json_blob(self.get_account_blob_name(updated_account.email), asdict(updated_account))
         await self.delete_pending_password_reset(updated_account.email)
+        return updated_account
+
+    async def reactivate_account(
+        self,
+        *,
+        email: str,
+        lifetime_days: int = FREE_ACCOUNT_LIFETIME_DAYS,
+    ) -> FreeAccount:
+        """Grant an archived (expired) account another access window, counted from now."""
+        normalized_email = normalize_free_email(email)
+        if normalized_email is None:
+            raise FreeAuthError("authErrors.invalidEmail")
+
+        account = await self.load_account(normalized_email)
+        if account is None:
+            raise FreeAuthError("authErrors.accountNotFound", status_code=404)
+
+        now = datetime.now(timezone.utc)
+        updated_account = FreeAccount(
+            display_name=account.display_name,
+            email=account.email,
+            password_salt=account.password_salt,
+            password_hash=account.password_hash,
+            created_at=account.created_at,
+            updated_at=format_utc(now),
+            expires_at=format_utc(now + timedelta(days=lifetime_days)),
+        )
+        await self.save_json_blob(self.get_account_blob_name(updated_account.email), asdict(updated_account))
         return updated_account
 
     def generate_verification_code(self) -> str:
@@ -755,8 +890,9 @@ class FreeAuthStore:
             raise FreeAuthError("authErrors.confirmPasswordRequired")
         if password != confirm_password:
             raise FreeAuthError("authErrors.passwordMismatch")
-        if await self.load_account(normalized_email):
-            raise FreeAuthError("authErrors.accountExists")
+        existing_account = await self.load_account(normalized_email)
+        if existing_account is not None:
+            self.raise_for_existing_signup_account(existing_account)
 
         verification_code = self.generate_verification_code()
         password_salt, password_hash = self.build_secret_hash(password)
@@ -788,9 +924,10 @@ class FreeAuthStore:
         pending_signup = await self.load_pending_signup(normalized_email)
         if pending_signup is None:
             raise FreeAuthError("authErrors.verificationSessionNotFound", status_code=404)
-        if await self.load_account(normalized_email):
+        existing_account = await self.load_account(normalized_email)
+        if existing_account is not None:
             await self.delete_pending_signup(normalized_email)
-            raise FreeAuthError("authErrors.accountExists")
+            self.raise_for_existing_signup_account(existing_account)
 
         now = datetime.now(timezone.utc)
         if (
@@ -830,9 +967,10 @@ class FreeAuthStore:
         pending_signup = await self.load_pending_signup(normalized_email)
         if pending_signup is None:
             raise FreeAuthError("authErrors.verificationSessionNotFound", status_code=404)
-        if await self.load_account(normalized_email):
+        existing_account = await self.load_account(normalized_email)
+        if existing_account is not None:
             await self.delete_pending_signup(normalized_email)
-            raise FreeAuthError("authErrors.accountExists")
+            self.raise_for_existing_signup_account(existing_account)
 
         now = datetime.now(timezone.utc)
         if parse_utc(pending_signup.expires_at) < now:
@@ -872,10 +1010,11 @@ class FreeAuthStore:
             password_hash=pending_signup.password_hash,
             created_at=format_utc(now),
             updated_at=format_utc(now),
+            expires_at=format_utc(now + timedelta(days=FREE_ACCOUNT_LIFETIME_DAYS)),
         )
         await self.save_account(account)
         await self.delete_pending_signup(account.email)
-        return FreeSession(display_name=account.display_name, email=account.email)
+        return self.build_session(account)
 
     async def start_password_reset(self, *, email: str) -> FreeVerificationChallenge:
         normalized_email = normalize_free_email(email)
@@ -887,6 +1026,7 @@ class FreeAuthStore:
         account = await self.load_account(normalized_email)
         if account is None:
             raise FreeAuthError("authErrors.accountNotFound", status_code=404)
+        self.raise_if_account_expired(account)
 
         now = datetime.now(timezone.utc)
         existing_pending_password_reset = await self.load_pending_password_reset(normalized_email)
@@ -930,6 +1070,7 @@ class FreeAuthStore:
         if account is None:
             await self.delete_pending_password_reset(normalized_email)
             raise FreeAuthError("authErrors.accountNotFound", status_code=404)
+        self.raise_if_account_expired(account)
 
         now = datetime.now(timezone.utc)
         if (
@@ -988,6 +1129,7 @@ class FreeAuthStore:
         if account is None:
             await self.delete_pending_password_reset(normalized_email)
             raise FreeAuthError("authErrors.accountNotFound", status_code=404)
+        self.raise_if_account_expired(account)
 
         now = datetime.now(timezone.utc)
         if parse_utc(pending_password_reset.expires_at) < now:
@@ -1025,10 +1167,11 @@ class FreeAuthStore:
             password_hash=password_hash,
             created_at=account.created_at,
             updated_at=format_utc(now),
+            expires_at=account.expires_at,
         )
         await self.save_json_blob(self.get_account_blob_name(updated_account.email), asdict(updated_account))
         await self.delete_pending_password_reset(updated_account.email)
-        return FreeSession(display_name=updated_account.display_name, email=updated_account.email)
+        return self.build_session(updated_account)
 
     async def login_user(self, *, email: str, password: str) -> FreeSession:
         normalized_email = normalize_free_email(email)
@@ -1042,7 +1185,11 @@ class FreeAuthStore:
         if not self.verify_secret_value(password, account.password_salt, account.password_hash):
             raise FreeAuthError("authErrors.invalidCredentials", status_code=401)
 
-        return FreeSession(display_name=account.display_name, email=account.email)
+        # Only told to a caller who proved they own the account, so this leaks nothing about
+        # which emails are registered.
+        self.raise_if_account_expired(account)
+
+        return self.build_session(account)
 
     def create_session_token(self, session: FreeSession) -> str:
         return self.get_session_serializer().dumps({"email": session.email})
@@ -1067,7 +1214,14 @@ class FreeAuthStore:
         if account is None:
             return None
 
-        return FreeSession(display_name=account.display_name, email=account.email)
+        # Single choke point for every authenticated Free Bot request (chat, uploads, history), so
+        # an account that expires mid-session loses access on its next request, not at cookie
+        # expiry. The caller sees an unauthenticated visitor and re-renders the login screen, where
+        # a login attempt explains why with authErrors.accountExpired.
+        if is_account_expired(account):
+            return None
+
+        return self.build_session(account)
 
     def set_session_cookie(self, response, session: FreeSession, *, secure: bool) -> None:
         response.set_cookie(

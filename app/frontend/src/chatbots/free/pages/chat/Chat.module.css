@@ -3,7 +3,11 @@
     display: flex;
     flex-direction: column;
     /* Remove margin-top: 1rem; */
-    height: calc(100vh - 56px); /* Subtract navbar height (56px from layout.css) */
+    /* Subtract navbar height (56px from layout.css) and, when it is showing, the trial-expiry
+       banner the Layout measures into --free-expiry-notice-height. Without that term the chat
+       stays a full viewport tall, the document overflows, and the chat's auto-scroll drags the
+       banner up behind the sticky navbar. */
+    height: calc(100vh - 56px - var(--free-expiry-notice-height, 0px));
 }
 
 .chatRoot {
@@ -124,7 +128,7 @@
 @media (min-width: 992px) {
     .container {
         /* Remove margin-top: 1.25rem; */
-        height: calc(100vh - 56px); /* Keep consistent height */
+        height: calc(100vh - 56px - var(--free-expiry-notice-height, 0px)); /* Keep consistent height */
     }
 
     .chatEmptyState {

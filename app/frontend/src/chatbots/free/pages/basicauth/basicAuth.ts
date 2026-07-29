@@ -1,12 +1,19 @@
+// Free Bot access is a 30-day window owned by the backend (core/freeauth.py). Every session and
+// profile response carries the countdown so the UI never computes an expiry date itself.
 export type FreeSession = {
     displayName: string;
     email: string;
+    expiresAt: string;
+    daysRemaining: number;
 };
 
 export type FreeProfile = FreeSession & {
     createdAt: string;
     updatedAt: string;
 };
+
+// Days of notice before access ends; mirrors the admin page's warning highlight.
+export const FREE_EXPIRY_WARNING_DAYS = 7;
 
 type AuthResult =
     | {
@@ -45,6 +52,13 @@ const isEmailValid = (email: string) => emailPattern.test(normalizeEmail(email))
 
 let cachedSession: FreeSession | null | undefined = undefined;
 
+// Tolerant on purpose: an older backend (or a cached response) without the expiry fields still
+// yields a usable session, it just shows no countdown.
+const parseExpiry = (payload: object) => ({
+    expiresAt: typeof (payload as { expiresAt?: unknown }).expiresAt === "string" ? (payload as { expiresAt: string }).expiresAt : "",
+    daysRemaining: typeof (payload as { daysRemaining?: unknown }).daysRemaining === "number" ? (payload as { daysRemaining: number }).daysRemaining : 0
+});
+
 const parseSession = (payload: unknown): FreeSession | null => {
     if (
         !payload ||
@@ -57,7 +71,8 @@ const parseSession = (payload: unknown): FreeSession | null => {
 
     return {
         displayName: (payload as { displayName: string }).displayName.trim(),
-        email: normalizeEmail((payload as { email: string }).email)
+        email: normalizeEmail((payload as { email: string }).email),
+        ...parseExpiry(payload)
     };
 };
 
@@ -77,7 +92,8 @@ const parseProfile = (payload: unknown): FreeProfile | null => {
         displayName: (payload as { displayName: string }).displayName.trim(),
         email: normalizeEmail((payload as { email: string }).email),
         createdAt: (payload as { createdAt: string }).createdAt,
-        updatedAt: (payload as { updatedAt: string }).updatedAt
+        updatedAt: (payload as { updatedAt: string }).updatedAt,
+        ...parseExpiry(payload)
     };
 };
 

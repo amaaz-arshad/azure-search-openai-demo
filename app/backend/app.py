@@ -197,7 +197,14 @@ from core.internaladminauth import (
     INTERNAL_ADMIN_PASSWORD_MISSING_MESSAGE,
     InternalAdminAuthStore,
 )
-from core.freeauth import FreeAuthError, FreeAuthStore, FreeSession, normalize_free_email
+from core.freeauth import (
+    FREE_ACCOUNT_LIFETIME_DAYS,
+    FreeAuthError,
+    FreeAuthStore,
+    FreeSession,
+    describe_account_expiry,
+    normalize_free_email,
+)
 from core.sessionhelper import create_session_id
 from core.simplechatbotauth import (
     SIMPLE_CHATBOT_AUTH_INVALID_CREDENTIALS_MESSAGE,
@@ -676,6 +683,17 @@ async def enforce_dynamic_chatbot_gate(
 async def get_authenticated_free_user() -> FreeSession | None:
     auth_service = get_free_auth_service()
     return await auth_service.load_session(request.cookies.get(auth_service.session_cookie_name))
+
+
+def build_free_session_payload(session: FreeSession) -> dict[str, Any]:
+    # expiresAt/daysRemaining ride along on every session response so the Free Bot can show the
+    # trial countdown (profile row + expiry banner) without a second round trip.
+    return {
+        "displayName": session.display_name,
+        "email": session.email,
+        "expiresAt": session.expires_at,
+        "daysRemaining": session.days_remaining,
+    }
 
 
 async def get_authenticated_internal_admin():
@@ -1333,7 +1351,7 @@ async def free_signup_verify():
     except FreeAuthError as auth_error:
         return jsonify({"errorKey": auth_error.error_key}), auth_error.status_code
 
-    response = jsonify({"session": {"displayName": session.display_name, "email": session.email}})
+    response = jsonify({"session": build_free_session_payload(session)})
     auth_service.set_session_cookie(response, session, secure=should_set_secure_session_cookie())
     return response, 200
 
@@ -1445,7 +1463,7 @@ async def free_password_reset_verify():
     except FreeAuthError as auth_error:
         return jsonify({"errorKey": auth_error.error_key}), auth_error.status_code
 
-    response = jsonify({"session": {"displayName": session.display_name, "email": session.email}})
+    response = jsonify({"session": build_free_session_payload(session)})
     auth_service.set_session_cookie(response, session, secure=should_set_secure_session_cookie())
     return response, 200
 
@@ -1468,7 +1486,7 @@ async def free_login():
     except FreeAuthError as auth_error:
         return jsonify({"errorKey": auth_error.error_key}), auth_error.status_code
 
-    response = jsonify({"session": {"displayName": session.display_name, "email": session.email}})
+    response = jsonify({"session": build_free_session_payload(session)})
     auth_service.set_session_cookie(response, session, secure=should_set_secure_session_cookie())
     return response, 200
 
@@ -1483,7 +1501,7 @@ async def free_session():
         auth_service.clear_session_cookie(response)
         return response, 401
 
-    return jsonify({"session": {"displayName": session.display_name, "email": session.email}}), 200
+    return jsonify({"session": build_free_session_payload(session)}), 200
 
 
 @bp.get("/free-auth/profile")
@@ -1502,6 +1520,7 @@ async def free_profile():
         auth_service.clear_session_cookie(response)
         return response, 404
 
+    account_expiry = describe_account_expiry(account)
     return (
         jsonify(
             {
@@ -1510,6 +1529,8 @@ async def free_profile():
                     "email": account.email,
                     "createdAt": account.created_at,
                     "updatedAt": account.updated_at,
+                    "expiresAt": account_expiry.expires_at,
+                    "daysRemaining": account_expiry.days_remaining,
                 }
             }
         ),
@@ -1703,6 +1724,7 @@ async def list_free_admin_users():
 
     for account in await auth_service.list_accounts():
         uploaded_files = await upload_manager.list_files(user_identifier=account.email)
+        account_expiry = describe_account_expiry(account)
         users_payload.append(
             {
                 "displayName": account.display_name,
@@ -1711,6 +1733,12 @@ async def list_free_admin_users():
                 "updatedAt": account.updated_at,
                 "uploadCount": len(uploaded_files),
                 "uploadedFiles": uploaded_files,
+                # Expired accounts stay in this list; the admin page splits them into its archive
+                # tab instead of hiding them, because their email can no longer be re-registered.
+                "expiresAt": account_expiry.expires_at,
+                "isExpired": account_expiry.is_expired,
+                "daysRemaining": account_expiry.days_remaining,
+                "daysExpired": account_expiry.days_expired,
             }
         )
 
@@ -1777,6 +1805,34 @@ async def reset_free_admin_user_password(email: str):
                 "message": "nerilio user password updated successfully.",
                 "email": updated_account.email,
                 "updatedAt": updated_account.updated_at,
+            }
+        ),
+        200,
+    )
+
+
+@bp.post("/free-admin/users/<path:email>/reactivate")
+@bp.post("/public-test-admin/users/<path:email>/reactivate")
+@internal_admin_required
+async def reactivate_free_admin_user(email: str):
+    """Grant an archived account another access window, counted from now."""
+    auth_service = get_free_auth_service()
+    try:
+        updated_account = await auth_service.reactivate_account(email=email)
+    except FreeAuthError as auth_error:
+        return jsonify({"message": auth_error.error_key}), auth_error.status_code
+
+    account_expiry = describe_account_expiry(updated_account)
+    return (
+        jsonify(
+            {
+                "message": f"nerilio user reactivated for {FREE_ACCOUNT_LIFETIME_DAYS} days.",
+                "email": updated_account.email,
+                "updatedAt": updated_account.updated_at,
+                "expiresAt": account_expiry.expires_at,
+                "isExpired": account_expiry.is_expired,
+                "daysRemaining": account_expiry.days_remaining,
+                "daysExpired": account_expiry.days_expired,
             }
         ),
         200,

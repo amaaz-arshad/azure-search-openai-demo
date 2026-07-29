@@ -279,7 +279,9 @@
         "verificationSessionNotFound": "Für diese E-Mail wurde keine aktive Registrierungsbestätigung gefunden.",
         "accountNotFound": "Für diese E-Mail-Adresse wurde kein Konto gefunden.",
         "passwordResetSessionNotFound": "Für diese E-Mail-Adresse wurde keine aktive Passwort-Zurücksetzung gefunden.",
-        "passwordTooShort": "Das Passwort muss mindestens 8 Zeichen lang sein."
+        "passwordTooShort": "Das Passwort muss mindestens 8 Zeichen lang sein.",
+        "accountExpired": "Dein 30-tägiger nerilio-Zugang ist abgelaufen. Melde dich bei uns, wenn du mehr Zeit brauchst.",
+        "accountExpiredSignup": "Diese E-Mail-Adresse hat ihren 30-tägigen nerilio-Zugang bereits genutzt und kann nicht erneut registriert werden. Melde dich bei uns, wenn du mehr Zeit brauchst."
     },
     "passwordResetPage": {
         "title": "Passwort zurücksetzen",
@@ -310,8 +312,16 @@
         "email": "E-Mail",
         "createdAt": "Mitglied seit",
         "updatedAt": "Letzte Passwort-Änderung",
+        "expiresAt": "Zugang bis",
+        "daysLeft_one": "1 Tag übrig",
+        "daysLeft_other": "{{count}} Tage übrig",
         "loading": "Profil wird geladen...",
         "loadError": "Dein Profil konnte gerade nicht geladen werden."
+    },
+    "expiryNotice": {
+        "text_one": "Dein nerilio-Zugang endet in 1 Tag.",
+        "text_other": "Dein nerilio-Zugang endet in {{count}} Tagen.",
+        "dismiss": "Hinweis ausblenden"
     }
 }
 

@@ -277,7 +277,9 @@
         "verificationSessionNotFound": "No active signup verification was found for this email.",
         "accountNotFound": "No account was found for this email.",
         "passwordResetSessionNotFound": "No active password reset was found for this email.",
-        "passwordTooShort": "Password must be at least 8 characters."
+        "passwordTooShort": "Password must be at least 8 characters.",
+        "accountExpired": "Your 30-day nerilio access has ended. Contact us if you need more time.",
+        "accountExpiredSignup": "This email address has already used its 30-day nerilio access, so it cannot be registered again. Contact us if you need more time."
     },
     "passwordResetPage": {
         "title": "Reset your password",
@@ -308,8 +310,16 @@
         "email": "Email",
         "createdAt": "Member since",
         "updatedAt": "Last password update",
+        "expiresAt": "Access until",
+        "daysLeft_one": "1 day left",
+        "daysLeft_other": "{{count}} days left",
         "loading": "Loading profile...",
         "loadError": "Could not load your profile right now."
+    },
+    "expiryNotice": {
+        "text_one": "Your nerilio access ends in 1 day.",
+        "text_other": "Your nerilio access ends in {{count}} days.",
+        "dismiss": "Hide this notice"
     }
 }
 

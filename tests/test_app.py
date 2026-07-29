@@ -1,6 +1,7 @@
 import json
 import os
 import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -13,6 +14,7 @@ from openai import BadRequestError
 from quart import Response as QuartResponse
 
 import app
+from core import freeauth as free_auth
 from core.internaladminauth import (
     INTERNAL_ADMIN_AUTH_COOKIE,
     INTERNAL_ADMIN_INVALID_PASSWORD_MESSAGE,
@@ -446,7 +448,12 @@ async def test_free_signup_verify_sets_session_cookie(client, monkeypatch):
 
     payload = await response.get_json()
     assert response.status_code == 200
-    assert payload["session"] == {"displayName": "Test User", "email": "user@example.com"}
+    assert payload["session"] == {
+        "displayName": "Test User",
+        "email": "user@example.com",
+        "expiresAt": "",
+        "daysRemaining": 0,
+    }
     assert auth_service.session_cookie_name in response.headers["Set-Cookie"]
 
 
@@ -501,7 +508,12 @@ async def test_free_password_reset_verify_sets_session_cookie(client, monkeypatc
 
     payload = await response.get_json()
     assert response.status_code == 200
-    assert payload["session"] == {"displayName": "Test User", "email": "user@example.com"}
+    assert payload["session"] == {
+        "displayName": "Test User",
+        "email": "user@example.com",
+        "expiresAt": "",
+        "daysRemaining": 0,
+    }
     assert auth_service.session_cookie_name in response.headers["Set-Cookie"]
 
 
@@ -551,7 +563,12 @@ async def test_free_login_returns_error_key(client, monkeypatch):
 @pytest.mark.asyncio
 async def test_free_session_returns_authenticated_user(client, monkeypatch):
     async def mock_get_authenticated_free_user():
-        return app.FreeSession(display_name="Stored User", email="stored@example.com")
+        return app.FreeSession(
+            display_name="Stored User",
+            email="stored@example.com",
+            expires_at="2026-04-30T10:00:00+00:00",
+            days_remaining=12,
+        )
 
     monkeypatch.setattr(app, "get_authenticated_free_user", mock_get_authenticated_free_user)
 
@@ -559,7 +576,12 @@ async def test_free_session_returns_authenticated_user(client, monkeypatch):
 
     payload = await response.get_json()
     assert response.status_code == 200
-    assert payload["session"] == {"displayName": "Stored User", "email": "stored@example.com"}
+    assert payload["session"] == {
+        "displayName": "Stored User",
+        "email": "stored@example.com",
+        "expiresAt": "2026-04-30T10:00:00+00:00",
+        "daysRemaining": 12,
+    }
 
 
 @pytest.mark.asyncio
@@ -574,7 +596,7 @@ async def test_free_profile_returns_account_details(client, monkeypatch):
         return SimpleNamespace(
             display_name="Stored User",
             email="stored@example.com",
-            created_at="2026-03-31T10:00:00+00:00",
+            created_at=free_auth.format_utc(datetime.now(timezone.utc) - timedelta(days=4)),
             updated_at="2026-03-31T11:00:00+00:00",
         )
 
@@ -585,14 +607,13 @@ async def test_free_profile_returns_account_details(client, monkeypatch):
 
     payload = await response.get_json()
     assert response.status_code == 200
-    assert payload == {
-        "profile": {
-            "displayName": "Stored User",
-            "email": "stored@example.com",
-            "createdAt": "2026-03-31T10:00:00+00:00",
-            "updatedAt": "2026-03-31T11:00:00+00:00",
-        }
-    }
+    profile_payload = payload["profile"]
+    assert profile_payload["displayName"] == "Stored User"
+    assert profile_payload["email"] == "stored@example.com"
+    assert profile_payload["updatedAt"] == "2026-03-31T11:00:00+00:00"
+    # The 30-day trial countdown drives the Free Bot's expiry banner and profile row.
+    assert profile_payload["daysRemaining"] == free_auth.FREE_ACCOUNT_LIFETIME_DAYS - 4
+    assert profile_payload["expiresAt"]
 
 
 @pytest.mark.asyncio
@@ -1017,14 +1038,25 @@ async def test_free_admin_users_lists_accounts(client, monkeypatch):
     await login_internal_admin(client)
     auth_service = client.app.config[app.CONFIG_FREE_AUTH_SERVICE]
 
+    active_created_at = free_auth.format_utc(datetime.now(timezone.utc) - timedelta(days=2))
+    expired_created_at = free_auth.format_utc(
+        datetime.now(timezone.utc) - timedelta(days=free_auth.FREE_ACCOUNT_LIFETIME_DAYS + 5)
+    )
+
     async def mock_list_accounts():
         return [
             SimpleNamespace(
                 display_name="Test User",
                 email="user@example.com",
-                created_at="2026-03-31T10:00:00+00:00",
+                created_at=active_created_at,
                 updated_at="2026-03-31T11:00:00+00:00",
-            )
+            ),
+            SimpleNamespace(
+                display_name="Lapsed User",
+                email="lapsed@example.com",
+                created_at=expired_created_at,
+                updated_at="2026-03-31T11:00:00+00:00",
+            ),
         ]
 
     upload_manager = mock.AsyncMock()
@@ -1037,18 +1069,25 @@ async def test_free_admin_users_lists_accounts(client, monkeypatch):
 
     payload = await response.get_json()
     assert response.status_code == 200
-    assert payload == {
-        "users": [
-            {
-                "displayName": "Test User",
-                "email": "user@example.com",
-                "createdAt": "2026-03-31T10:00:00+00:00",
-                "updatedAt": "2026-03-31T11:00:00+00:00",
-                "uploadCount": 1,
-                "uploadedFiles": ["sample.pdf"],
-            }
-        ]
+    # Expired accounts stay in the listing (the admin page splits them into its archive tab)
+    # and every row carries the expiry state the tab bar and countdown are rendered from.
+    active_user, expired_user = payload["users"]
+    assert active_user == {
+        "displayName": "Test User",
+        "email": "user@example.com",
+        "createdAt": active_created_at,
+        "updatedAt": "2026-03-31T11:00:00+00:00",
+        "uploadCount": 1,
+        "uploadedFiles": ["sample.pdf"],
+        "expiresAt": active_user["expiresAt"],
+        "isExpired": False,
+        "daysRemaining": free_auth.FREE_ACCOUNT_LIFETIME_DAYS - 2,
+        "daysExpired": 0,
     }
+    assert expired_user["email"] == "lapsed@example.com"
+    assert expired_user["isExpired"] is True
+    assert expired_user["daysRemaining"] == 0
+    assert expired_user["daysExpired"] == 5
 
 
 @pytest.mark.asyncio
@@ -1101,6 +1140,41 @@ async def test_free_admin_user_password_reset_updates_account(client, monkeypatc
         "email": "user@example.com",
         "updatedAt": "2026-03-31T12:00:00+00:00",
     }
+
+
+@pytest.mark.asyncio
+async def test_free_admin_user_reactivate_opens_a_new_window(client, monkeypatch):
+    await login_internal_admin(client)
+    auth_service = client.app.config[app.CONFIG_FREE_AUTH_SERVICE]
+    now = datetime.now(timezone.utc)
+
+    async def mock_reactivate_account(**kwargs):
+        assert kwargs["email"] == "user@example.com"
+        return SimpleNamespace(
+            display_name="Test User",
+            email="user@example.com",
+            created_at=free_auth.format_utc(now - timedelta(days=90)),
+            updated_at=free_auth.format_utc(now),
+            expires_at=free_auth.format_utc(now + timedelta(days=free_auth.FREE_ACCOUNT_LIFETIME_DAYS)),
+        )
+
+    monkeypatch.setattr(auth_service, "reactivate_account", mock_reactivate_account)
+
+    response = await client.post("/free-admin/users/user%40example.com/reactivate")
+
+    payload = await response.get_json()
+    assert response.status_code == 200
+    assert payload["email"] == "user@example.com"
+    assert payload["isExpired"] is False
+    assert payload["daysRemaining"] == free_auth.FREE_ACCOUNT_LIFETIME_DAYS
+    assert payload["daysExpired"] == 0
+
+
+@pytest.mark.asyncio
+async def test_free_admin_user_reactivate_requires_admin_session(client):
+    response = await client.post("/free-admin/users/user%40example.com/reactivate")
+
+    assert response.status_code == 401
 
 
 @pytest.mark.asyncio

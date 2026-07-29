@@ -278,7 +278,9 @@
         "verificationSessionNotFound": "Er is geen actieve verificatiesessie gevonden voor dit e-mailadres.",
         "accountNotFound": "Er is geen account gevonden voor dit e-mailadres.",
         "passwordResetSessionNotFound": "Er is geen actieve wachtwoordreset gevonden voor dit e-mailadres.",
-        "passwordTooShort": "Het wachtwoord moet minimaal 8 tekens bevatten."
+        "passwordTooShort": "Het wachtwoord moet minimaal 8 tekens bevatten.",
+        "accountExpired": "Je nerilio-toegang van 30 dagen is verlopen. Neem contact met ons op als je meer tijd nodig hebt.",
+        "accountExpiredSignup": "Dit e-mailadres heeft zijn nerilio-toegang van 30 dagen al gebruikt en kan niet opnieuw worden geregistreerd. Neem contact met ons op als je meer tijd nodig hebt."
     },
     "passwordResetPage": {
         "title": "Wachtwoord opnieuw instellen",
@@ -309,8 +311,16 @@
         "email": "E-mail",
         "createdAt": "Lid sinds",
         "updatedAt": "Laatste wachtwoordwijziging",
+        "expiresAt": "Toegang tot",
+        "daysLeft_one": "1 dag over",
+        "daysLeft_other": "{{count}} dagen over",
         "loading": "Profiel wordt geladen...",
         "loadError": "Je profiel kon nu niet worden geladen."
+    },
+    "expiryNotice": {
+        "text_one": "Je nerilio-toegang eindigt over 1 dag.",
+        "text_other": "Je nerilio-toegang eindigt over {{count}} dagen.",
+        "dismiss": "Melding verbergen"
     }
 }
 

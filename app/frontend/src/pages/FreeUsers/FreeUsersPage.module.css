@@ -278,6 +278,64 @@
     grid-template-columns: minmax(0, 1fr) auto;
 }
 
+.tabBar {
+    display: inline-flex;
+    align-self: start;
+    gap: 6px;
+    padding: 6px;
+    border: 1px solid rgba(172, 68, 198, 0.14);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.54);
+}
+
+.tab {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+    padding: 0 18px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+        background-color 160ms ease,
+        color 160ms ease;
+}
+
+.tab:hover {
+    color: var(--text-strong);
+}
+
+.tabActive {
+    background: linear-gradient(135deg, var(--accent) 0%, #c46bd9 100%);
+    color: #fffaff;
+    box-shadow: 0 12px 22px rgba(172, 68, 198, 0.22);
+}
+
+.tabCount {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent-dark);
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.tabActive .tabCount {
+    background: rgba(255, 255, 255, 0.28);
+    color: #fffaff;
+}
+
 .list {
     display: grid;
     gap: 16px;
@@ -317,11 +375,46 @@
     color: var(--text-muted);
 }
 
+.userCardExpired {
+    border-color: rgba(196, 72, 102, 0.2);
+    background: rgba(255, 255, 255, 0.6);
+}
+
+.expiryPill {
+    display: inline-flex;
+    align-items: center;
+    margin-top: 10px;
+    border-radius: 999px;
+    padding: 5px 12px;
+    background: var(--accent-soft);
+    color: var(--accent-dark);
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.expiryPillWarning {
+    background: rgba(214, 138, 32, 0.14);
+    color: #8a5a08;
+}
+
+.expiryPillExpired {
+    background: var(--danger-soft);
+    color: var(--danger);
+}
+
 .metaGrid {
     display: grid;
     gap: 12px;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
     margin: 0;
+}
+
+.metaHint {
+    display: block;
+    margin-top: 4px;
+    color: var(--text-muted);
+    font-size: 0.82rem;
 }
 
 .metaItem {

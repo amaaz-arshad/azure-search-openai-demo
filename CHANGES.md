@@ -17,6 +17,100 @@ Two categories per date:
 
 ## 2026-07-29
 
+### Free Bot: access expires after 30 days, expired accounts move to an admin archive
+
+#### Decisions
+
+- **The clock applies retroactively, from `created_at`** (user's explicit choice over
+  grandfathering from rollout): effective expiry is the account blob's stored
+  `expires_at`, else `created_at + 30 days`. So on deploy, every account registered
+  more than 30 days ago is expired at once and lands in the archive. The stored
+  field exists for reactivation — a value there always wins, which is also why
+  every account rewrite (`reset_account_password`, `verify_password_reset`) now
+  carries `expires_at` through: without that a password reset would silently drop a
+  reactivated account back to the `created_at` fallback and re-expire it.
+- **Expiry blocks, it never deletes.** Uploads and indexed docs are untouched and
+  still leave only through the existing delete flow, so a reactivated user keeps
+  their data. The account blob is also deliberately kept: that is what makes the
+  email un-recyclable (see below), and it is what the archive tab lists.
+- **`load_session` is the enforcement point**, not a scheduled job. Every
+  authenticated Free Bot request (chat, uploads, history) already funnels through
+  it, so returning None for an expired account blocks access on the user's next
+  request instead of waiting out the 7-day session cookie. No background sweep, no
+  new state to keep consistent.
+- **Login reports the expiry only after the password check.** Order matters: telling
+  an unauthenticated caller "this account expired" would turn the login form into an
+  oracle for which emails are registered.
+- **Re-registration gets its own message, not "account already exists".** The
+  expired blob is kept precisely so the email cannot start a fresh 30-day window;
+  `authErrors.accountExpiredSignup` says that, where "already exists" would read as
+  a mistake the user could fix. Requested behaviour, and it closes the obvious
+  bypass (delete-free re-signup).
+- **Reactivate (+30 days) is admin-only, and only on archive cards.** Without a
+  recovery path an expired user is locked out permanently (re-registration is
+  blocked too), so the archive is not read-only. It keeps `created_at` and the
+  password hash and only moves the window. Password reset stays an active-card
+  action.
+- **Days-left is shown in all three places the user asked for**, from one source:
+  `describe_account_expiry` in the backend. `daysRemaining` rounds **up** so a
+  partial final day reads as "1 day left" rather than "0"; `daysExpired` rounds
+  down. The countdown rides along on every session response, so the bot's banner
+  and profile row need no extra request.
+- **Unparseable timestamps count as expired.** A corrupt record then surfaces in the
+  archive, where reactivating it writes a valid `expires_at` and heals it — a
+  lenient fallback would instead re-grant 30 days on every request, forever.
+- **The banner needed a layout fix, not just markup.** Rendered between navbar and
+  chat it was invisible in the browser: the chat is sized `calc(100vh - 56px)`, so
+  the banner pushed the document 47px past the viewport and the chat's auto-scroll
+  immediately slid it up behind the opaque sticky navbar (`z-index: 1000`). The chat
+  now subtracts `var(--free-expiry-notice-height, 0px)`, which `Layout.tsx` measures
+  off the rendered banner with a ResizeObserver (so a wrapped two-line banner on a
+  narrow screen is also accounted for) — chosen over pinning the banner sticky under
+  the navbar, which would have hardcoded the 56px offset again and covered the top of
+  the chat. `.header` also got `flex: none` so the sticky navbar cannot be
+  flex-shrunk. With no banner the variable is `0px` and the chat's height is
+  byte-for-byte what it was.
+- Not done: no azd/env knob for the window length (a module constant matches the
+  existing `FREE_SESSION_MAX_AGE_SECONDS` style), and no expiry notification email
+  (not requested; the in-app banner covers the final 7 days).
+
+#### Changes
+
+- `app/backend/core/freeauth.py`: added `FREE_ACCOUNT_LIFETIME_DAYS = 30`, the
+  `expires_at` field on `FreeAccount` (optional, so legacy blobs still load) and
+  `expires_at`/`days_remaining` on `FreeSession`; new `FreeAccountExpiry`,
+  `parse_utc_or_none`, `resolve_account_expires_at`, `describe_account_expiry`,
+  `is_account_expired`, plus the `raise_for_existing_signup_account`,
+  `raise_if_account_expired` and `build_session` helpers. Gated `load_session`,
+  `login_user`, `start_signup`, `resend_signup_code`, `verify_signup`,
+  `start_password_reset`, `resend_password_reset_code` and
+  `verify_password_reset`; `verify_signup` now stamps `expires_at`; added
+  `reactivate_account`; `load_account`/`list_accounts` read `expires_at` and the
+  two account-rewrite paths preserve it.
+- `app/backend/app.py`: `build_free_session_payload` (used by all four session
+  responses), expiry fields on `/free-auth/profile` and `/free-admin/users`, and the
+  new admin-gated `POST /free-admin/users/<email>/reactivate` (+ `public-test-admin`
+  alias).
+- `app/frontend/src/pages/FreeUsers/`: `freeUsersApi.ts` gained the expiry fields and
+  `reactivateFreeUserApi`; `FreeUsersPage.tsx` gained Active/Archive tabs with counts,
+  a per-card expiry pill and Expires/Expired meta cell, the Reactivate action, and
+  per-tab empty states; `FreeUsersPage.module.css` gained the tab bar, expiry pills
+  and an auto-fit meta grid (now four cells).
+- `app/frontend/src/chatbots/free/`: `pages/basicauth/basicAuth.ts` exports
+  `FREE_EXPIRY_WARNING_DAYS = 7` and parses the expiry fields tolerantly;
+  `pages/layout/Layout.tsx` renders the dismissible expiry banner and the "Access
+  until … (N days left)" profile row; `Layout.module.css` styles both (fixed px, per
+  the shrinking html root); de/en/nl locales gained `authErrors.accountExpired`,
+  `authErrors.accountExpiredSignup`, `profile.expiresAt`,
+  `profile.daysLeft_one`/`_other` and the `expiryNotice` block.
+- `tests/test_freeauth.py`: 12 new tests covering the created_at fallback, stored-window
+  precedence, partial-day rounding, corrupt timestamps, login/session/signup/reset
+  gating, the credentials-before-expiry order, reactivation, and expiry surviving a
+  password reset.
+- `tests/test_app.py`: session/profile/user-list payload assertions updated for the new
+  fields (plus an expired row in the list) and two tests for the reactivate route.
+- `CLAUDE.md`: new "Free Bot access is a 30-day trial" contract bullet.
+
 ### HYROX assessment: a question is capped at two learner messages
 
 #### Decisions

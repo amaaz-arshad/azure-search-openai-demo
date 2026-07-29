@@ -1,4 +1,4 @@
-import { useContext, useEffect, useRef, useState } from "react";
+import { CSSProperties, useContext, useEffect, useRef, useState } from "react";
 import { Link, Outlet } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { IconButton } from "@fluentui/react";
@@ -9,7 +9,7 @@ import { UploadManagerModal } from "../../components/UploadManagerModal/UploadMa
 import { LoginButton } from "../../components/LoginButton";
 import nerilioLogo from "../../../nerilio/assets/robo1.png";
 import { LoginContext } from "../../loginContext";
-import { getCurrentProfile, logout, FreeProfile } from "../basicauth/basicAuth";
+import { getCurrentProfile, logout, FreeProfile, FREE_EXPIRY_WARNING_DAYS } from "../basicauth/basicAuth";
 import styles from "./Layout.module.css";
 
 let globalClearChat: () => void = () => {};
@@ -29,6 +29,39 @@ const Layout = () => {
     const [profileError, setProfileError] = useState("");
     const [profile, setProfile] = useState<FreeProfile | null>(null);
     const [recentChatsAction, setRecentChatsAction] = useState<{ run: () => void } | null>(null);
+    const [isExpiryNoticeDismissed, setIsExpiryNoticeDismissed] = useState(false);
+    const expiryNoticeRef = useRef<HTMLDivElement | null>(null);
+    const [expiryNoticeHeight, setExpiryNoticeHeight] = useState(0);
+
+    // Trial countdown comes from the session payload, so no extra request is needed. The backend
+    // blocks the account the moment the window closes, so this only ever warns ahead of time.
+    const daysRemaining = profile?.daysRemaining ?? currentUser?.daysRemaining ?? 0;
+    const isExpiryNoticeVisible = !isExpiryNoticeDismissed && daysRemaining > 0 && daysRemaining <= FREE_EXPIRY_WARNING_DAYS;
+
+    // The chat sizes itself off the viewport minus the navbar, so it has to know how much room the
+    // banner takes (one line on desktop, two when it wraps) or the page would overflow and the
+    // chat's auto-scroll would hide the banner behind the sticky navbar.
+    useEffect(() => {
+        const noticeElement = expiryNoticeRef.current;
+        if (!isExpiryNoticeVisible || !noticeElement) {
+            setExpiryNoticeHeight(0);
+            return;
+        }
+
+        const measure = () => {
+            setExpiryNoticeHeight(noticeElement.offsetHeight);
+        };
+        measure();
+
+        if (typeof ResizeObserver === "undefined") {
+            return;
+        }
+        const observer = new ResizeObserver(measure);
+        observer.observe(noticeElement);
+        return () => {
+            observer.disconnect();
+        };
+    }, [isExpiryNoticeVisible, daysRemaining, i18n.language]);
 
     useEffect(() => {
         if (!dropdownOpen) {
@@ -117,7 +150,7 @@ const Layout = () => {
     };
 
     return (
-        <div className={styles.layout}>
+        <div className={styles.layout} style={{ "--free-expiry-notice-height": `${expiryNoticeHeight}px` } as CSSProperties}>
             <header className={styles.header} role="banner">
                 <div className={styles.headerContainer}>
                     <Link className={styles.logoContainer} to="/free">
@@ -176,6 +209,20 @@ const Layout = () => {
                 </div>
             </header>
 
+            {isExpiryNoticeVisible && (
+                <div className={styles.expiryNotice} ref={expiryNoticeRef} role="status">
+                    <span className={styles.expiryNoticeText}>{t("expiryNotice.text", { count: daysRemaining })}</span>
+                    <button
+                        aria-label={t("expiryNotice.dismiss")}
+                        className={styles.expiryNoticeDismiss}
+                        onClick={() => setIsExpiryNoticeDismissed(true)}
+                        type="button"
+                    >
+                        ✕
+                    </button>
+                </div>
+            )}
+
             <main className={styles.main} id="main-content">
                 <Outlet context={{ setRecentChatsAction }} />
             </main>
@@ -218,6 +265,19 @@ const Layout = () => {
                                 <div className={styles.profileRow}>
                                     <dt>{t("profile.updatedAt")}</dt>
                                     <dd>{profile?.updatedAt ? formatProfileDate(profile.updatedAt) : "-"}</dd>
+                                </div>
+                                <div className={styles.profileRow}>
+                                    <dt>{t("profile.expiresAt")}</dt>
+                                    <dd>
+                                        {profile?.expiresAt ? (
+                                            <>
+                                                {formatProfileDate(profile.expiresAt)}
+                                                <span className={styles.profileHint}>{t("profile.daysLeft", { count: profile.daysRemaining })}</span>
+                                            </>
+                                        ) : (
+                                            "-"
+                                        )}
+                                    </dd>
                                 </div>
                             </dl>
                         )}

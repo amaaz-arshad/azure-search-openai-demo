@@ -10,8 +10,8 @@
     "semantic_hash": "c8206d7e25a79e5a4ed79f965d38d672"
   },
   "app/backend/app.py": {
-    "mtime": 1784886967.8547888,
-    "ast_hash": "bf1c615a48ec4635c340430cb64b6827",
+    "mtime": 1785349628.106469,
+    "ast_hash": "d613dfff7a7e68d58700db05a45fa9f7",
     "semantic_hash": ""
   },
   "app/backend/config.py": {
@@ -5835,8 +5835,8 @@
     "semantic_hash": "0c40d7d633948374cd2d34c7f5d6dc63"
   },
   "tests/test_app.py": {
-    "mtime": 1783097357.8845816,
-    "ast_hash": "32cf591a5725e3ad96ef9bcdc0907045",
+    "mtime": 1785349628.1165752,
+    "ast_hash": "db99cfaeccd81dc3ac24ac1eeb922de7",
     "semantic_hash": ""
   },
   "tests/test_app_config.py": {
@@ -6015,8 +6015,8 @@
     "semantic_hash": "77ec55ea90a84f95635bc9985e49b57a"
   },
   "CLAUDE.md": {
-    "mtime": 1785339490.3025365,
-    "ast_hash": "987507e1882f211ab2532da419a3b1b0",
+    "mtime": 1785350755.9592135,
+    "ast_hash": "2553dc26bd6ae4281731257289322e05",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -6610,9 +6610,9 @@
     "semantic_hash": "93ea9f08ac03d923822a4b649c85b563"
   },
   "app/backend/core/freeauth.py": {
-    "mtime": 1781801467.7238803,
-    "ast_hash": "765d4bd25b9374ecb05305ab590fee31",
-    "semantic_hash": "765d4bd25b9374ecb05305ab590fee31"
+    "mtime": 1785349628.108484,
+    "ast_hash": "c14a25fc2c58779383b3671876762fa7",
+    "semantic_hash": ""
   },
   "app/backend/core/simplechatbotauth.py": {
     "mtime": 1781009167.3975866,
@@ -7160,19 +7160,19 @@
     "semantic_hash": "9f294c9f584b7470f127de3d91635736"
   },
   "app/frontend/src/chatbots/free/locales/de/translation.json": {
-    "mtime": 1781799994.8362186,
-    "ast_hash": "43ea72cdfe25cd2dbfafc5ecbfd98ec0",
-    "semantic_hash": "43ea72cdfe25cd2dbfafc5ecbfd98ec0"
+    "mtime": 1785349628.1094627,
+    "ast_hash": "4d814a40ac18bbfab0c2c1173a98310a",
+    "semantic_hash": ""
   },
   "app/frontend/src/chatbots/free/locales/en/translation.json": {
-    "mtime": 1781799994.8382335,
-    "ast_hash": "00d4a1c04f5c894df7c4e36d87647caa",
-    "semantic_hash": "00d4a1c04f5c894df7c4e36d87647caa"
+    "mtime": 1785349628.1094627,
+    "ast_hash": "d915709af5e08877982fa10eaf00df2d",
+    "semantic_hash": ""
   },
   "app/frontend/src/chatbots/free/locales/nl/translation.json": {
-    "mtime": 1781799994.840248,
-    "ast_hash": "a2125d8641e98249133f5fd857b01a75",
-    "semantic_hash": "a2125d8641e98249133f5fd857b01a75"
+    "mtime": 1785349628.1109674,
+    "ast_hash": "eaa675e08eaffffb07f862841370c813",
+    "semantic_hash": ""
   },
   "app/frontend/src/chatbots/free/loginContext.tsx": {
     "mtime": 1781801890.741225,
@@ -7190,9 +7190,9 @@
     "semantic_hash": "b3d342ea9fc383b66a6e078594d6836a"
   },
   "app/frontend/src/chatbots/free/pages/basicauth/basicAuth.ts": {
-    "mtime": 1781801890.798727,
-    "ast_hash": "b87be87950e46b2808039d4bc351acaf",
-    "semantic_hash": "b87be87950e46b2808039d4bc351acaf"
+    "mtime": 1785349881.079646,
+    "ast_hash": "27ee77c13f247a60d32a85f3054a64a1",
+    "semantic_hash": ""
   },
   "app/frontend/src/chatbots/free/pages/chat/Chat.tsx": {
     "mtime": 1783624867.4683757,
@@ -7200,9 +7200,9 @@
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/free/pages/layout/Layout.tsx": {
-    "mtime": 1781801890.9262621,
-    "ast_hash": "54828532cf2066933e8672c415abf7c4",
-    "semantic_hash": "54828532cf2066933e8672c415abf7c4"
+    "mtime": 1785350551.0405061,
+    "ast_hash": "fd7f9b97ec2c5f740719d77363e9b96b",
+    "semantic_hash": ""
   },
   "app/frontend/src/chatbots/free/vite-env.d.ts": {
     "mtime": 1781799994.8563552,
@@ -8280,9 +8280,9 @@
     "semantic_hash": "839d3b88cd755f250d7e5ed2a17d6ca2"
   },
   "tests/test_freeauth.py": {
-    "mtime": 1781801689.113349,
-    "ast_hash": "96bd94c2836a564e1887238b48c43f36",
-    "semantic_hash": "96bd94c2836a564e1887238b48c43f36"
+    "mtime": 1785349628.1165752,
+    "ast_hash": "0f5f82e475741ab8274bcd3ca7d94b72",
+    "semantic_hash": ""
   },
   "tests/test_hyrox_assessment.py": {
     "mtime": 1785339453.3701518,
@@ -8410,8 +8410,8 @@
     "semantic_hash": "b7d811e41ee8cb385db724f4491957fb"
   },
   "CHANGES.md": {
-    "mtime": 1785339517.7527514,
-    "ast_hash": "c43c3831836a14d1c8cf9db3c055e271",
+    "mtime": 1785350766.9761698,
+    "ast_hash": "96685fb49f34e2759bae89ec66e1d929",
     "semantic_hash": ""
   },
   "aci-openlit.example.yaml": {
@@ -8915,13 +8915,13 @@
     "semantic_hash": ""
   },
   "app/frontend/src/pages/FreeUsers/FreeUsersPage.tsx": {
-    "mtime": 1783096916.8368623,
-    "ast_hash": "cf0e67f34dc46f1010490ed09fc33b92",
+    "mtime": 1785349838.879229,
+    "ast_hash": "b9f611f4b138696fde19dccc021b8b7c",
     "semantic_hash": ""
   },
   "app/frontend/src/pages/FreeUsers/freeUsersApi.ts": {
-    "mtime": 1781801631.0368717,
-    "ast_hash": "0a86768c6fa88358169387b61e8b4736",
+    "mtime": 1785349881.0958495,
+    "ast_hash": "0ccda00c77acad9d5431f38c4a81a150",
     "semantic_hash": ""
   },
   "app/frontend/src/pages/FreeUsers/index.ts": {

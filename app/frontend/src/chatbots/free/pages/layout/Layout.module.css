@@ -17,6 +17,9 @@
     position: sticky;
     top: 0;
     z-index: 1000;
+    /* The chat area sets its own height, so this column overflows and flex-shrink squeezed the
+       header's flow box — which slid the expiry banner underneath the opaque sticky navbar. */
+    flex: none;
 }
 
 .headerContainer {
@@ -225,6 +228,56 @@
     font-size: 0.96rem;
     font-weight: 600;
     word-break: break-word;
+}
+
+.profileHint {
+    display: block;
+    margin-top: 4px;
+    color: #4f617a;
+    /* Fixed px, not rem: the html root shrinks to 12px on phones. */
+    font-size: 13px;
+    font-weight: 500;
+}
+
+/* Trial countdown warning, shown under the navbar in the final days before access ends. */
+.expiryNotice {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 10px 16px;
+    border-bottom: 1px solid rgba(180, 118, 8, 0.22);
+    background: #fff6e5;
+    color: #7a5205;
+}
+
+.expiryNoticeText {
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.4;
+    text-align: center;
+}
+
+.expiryNoticeDismiss {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(122, 82, 5, 0.1);
+    color: inherit;
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.expiryNoticeDismiss:hover {
+    background: rgba(122, 82, 5, 0.18);
 }
 
 /* Remove old navbar styles */
