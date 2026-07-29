@@ -6015,8 +6015,8 @@
     "semantic_hash": "77ec55ea90a84f95635bc9985e49b57a"
   },
   "CLAUDE.md": {
-    "mtime": 1785251070.35424,
-    "ast_hash": "ac1beb576de2f41f7acee943f08a4231",
+    "mtime": 1785334845.767984,
+    "ast_hash": "f0ffe55a997735351253c3dd2a18e56c",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -6590,8 +6590,8 @@
     "semantic_hash": ""
   },
   "app/backend/approaches/chatbots/hyrox_assessment/results.py": {
-    "mtime": 1785250849.2614975,
-    "ast_hash": "d46ac37149000986d9e7032ef0edeca6",
+    "mtime": 1785334803.6939974,
+    "ast_hash": "5792b19f2239e62c49b3b449c7b6a866",
     "semantic_hash": ""
   },
   "app/backend/approaches/chatbots/hyrox_assessment/sampleprompt.py": {
@@ -8285,8 +8285,8 @@
     "semantic_hash": "96bd94c2836a564e1887238b48c43f36"
   },
   "tests/test_hyrox_assessment.py": {
-    "mtime": 1785250704.0110035,
-    "ast_hash": "6b951a2df1a2c1dd99542d792a5d51d2",
+    "mtime": 1785334803.771122,
+    "ast_hash": "f5a8b21896d0642007cdc0aa460bcfe3",
     "semantic_hash": ""
   },
   "tests/test_hyrox_live.py": {
@@ -8410,8 +8410,8 @@
     "semantic_hash": "b7d811e41ee8cb385db724f4491957fb"
   },
   "CHANGES.md": {
-    "mtime": 1785251108.1686962,
-    "ast_hash": "1af1e2090d26e8f7e7e9ceab9121a305",
+    "mtime": 1785334878.6864538,
+    "ast_hash": "fcd1e51f93b6ada4bc70a38cfe09899d",
     "semantic_hash": ""
   },
   "aci-openlit.example.yaml": {
@@ -9477,16 +9477,6 @@
   "app/frontend/src/chatbots/cbtx/vite-env.d.ts": {
     "mtime": 1783019787.575367,
     "ast_hash": "8f68c27c3fc38817b2726b20e2d4f1ee",
-    "semantic_hash": ""
-  },
-  "data/snap.json": {
-    "mtime": 1783047078.7118795,
-    "ast_hash": "3ebc272c613110a1236c196921ceb17e",
-    "semantic_hash": ""
-  },
-  "data/snap.state.json": {
-    "mtime": 1783047113.5460448,
-    "ast_hash": "80a9489b8d703f75ce48961bad878b60",
     "semantic_hash": ""
   },
   "tests/test_scrape_snap.py": {

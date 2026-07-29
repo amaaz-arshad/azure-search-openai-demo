@@ -1379,6 +1379,85 @@ def test_bare_refusals_are_recognised_but_real_answers_are_not() -> None:
         assert results.is_give_up_or_meta(text) is False, text
 
 
+def test_idk_is_a_refusal_and_never_renders_a_blank_bubble() -> None:
+    """Reported 2026-07-29: answering "idk" produced an empty assistant bubble, on every retry.
+
+    "idk" was absent from the give-up vocabulary, so the backend counted it as a real answer attempt and
+    waited for a verdict, while the model — correctly reading it as a refusal — wrote nothing at all, as
+    the prompt instructs for a refusal. Neither side authored the turn.
+    """
+    for text in ("idk", "IDK", "idk sorry", "dunno", "i dunno", "no answer", "beats me", "i have no idea",
+                 "cant answer", "weiss nicht", "weet ik niet"):
+        assert results.is_give_up_or_meta(text) is True, text
+    # Still not a give-up when the trigger words merely appear inside a real answer.
+    assert results.is_give_up_or_meta("The pacing plan beats me into shape and no answer is ever final") is False
+
+    messages = _grade_first_messages()
+    messages = messages[:-1] + [{"role": "user", "content": "idk"}]
+    state = results.derive_turn_state(messages)
+    cid = state["current_id"]
+    assert state["substantive_attempts_for_current"] == 0 and state["latest_answer_is_decline"] is True
+
+    # The model writes nothing at all for a refusal — exactly what it is told to do.
+    content, all_scores, _tally, _done = results.render_assessment_turn("", state, "en")
+    visible = results.strip_markers(content).strip()
+    assert visible  # the reported bug: this was ""
+    assert results._locale("en")["answer_offer_no_attempt"] in visible
+    assert all_scores == [] and "[[SCORE" not in content  # one chance to answer first, nothing scored yet
+    assert f"[[PROV q={cid}" in content
+
+    # A second "idk" finalises at zero and moves the run on, instead of blanking again.
+    messages = messages + [{"role": "assistant", "content": content}, {"role": "user", "content": "idk"}]
+    state = results.derive_turn_state(messages)
+    content, all_scores, _tally, _done = results.render_assessment_turn("", state, "en")
+    visible = results.strip_markers(content)
+    assert len(all_scores) == 1 and all_scores[0]["awarded"] == 0
+    assert results._locale("en")["no_answer_zero"] in visible
+    assert "**Question 2 of 4**" in visible
+
+
+def test_a_grading_turn_with_no_model_verdict_never_renders_empty() -> None:
+    """The structural half of the fix: a turn always has visible text, whatever the model does.
+
+    Covers any refusal wording the vocabulary still misses, plus a model that simply returns nothing (a
+    content filter, an empty completion). The question stays open and NOTHING is scored — an answer the
+    model never judged must not be finalised by guesswork.
+    """
+    messages = _grade_first_messages()
+    messages = messages[:-1] + [{"role": "user", "content": "meh whatever"}]
+    state = results.derive_turn_state(messages)
+    assert state["substantive_attempts_for_current"] == 1  # the backend counts it as a real attempt
+    content, all_scores, _tally, done = results.render_assessment_turn("", state, "en")
+    assert results.strip_markers(content).strip() == results._locale("en")["answer_not_assessed"]
+    assert all_scores == [] and done is False
+    assert "[[SCORE" not in content and "[[PROV" not in content  # no unearned score, no pinned verdict
+    # The question is still in play, so simply answering it works.
+    after = results.derive_turn_state(messages + [{"role": "assistant", "content": content}])
+    assert after["current_id"] == state["current_id"] and after["n_in_module"] == 0
+
+
+def test_model_feedback_without_a_score_marker_is_still_shown() -> None:
+    # The never-empty fallback must not replace real model text: steering an off-topic question back to the
+    # current one is a legitimate no-verdict turn, and the learner has to see that reply.
+    messages = _grade_first_messages()
+    messages = messages[:-1] + [{"role": "user", "content": "what is this"}]
+    state = results.derive_turn_state(messages)
+    steer = "I can only handle the current assessment question. Please answer it directly."
+    content, all_scores, _tally, _done = results.render_assessment_turn(steer, state, "en")
+    assert results.strip_markers(content).strip() == steer
+    assert all_scores == []
+
+
+def test_terminal_turn_never_renders_empty() -> None:
+    # Post-completion chatter: the model tends to echo the backend's closing/certificate text, which is
+    # stripped as backend-owned prose — leaving nothing at all to show without the fallback.
+    content, _scores, _tally, done = results.render_assessment_turn(
+        results._locale("en")["closing_passed"], {"assessment_complete": True}, "en"
+    )
+    assert results.strip_markers(content).strip() == results._locale("en")["already_complete_note"]
+    assert done is False
+
+
 def test_state_injection_pins_the_rubric_and_blocks_grading_a_non_answer() -> None:
     messages = _grade_first_messages()
     state = results.derive_turn_state(messages)
@@ -1502,3 +1581,187 @@ def test_module_result_imitation_lines_are_stripped() -> None:
     assert "Module 7.4" not in cleaned
     # Mid-sentence module references are ordinary feedback and must be kept.
     assert "In Module 3 you covered 2/3" in cleaned
+
+
+# --- boundary recovery: a fully graded module always gets its result -------
+#
+# Reported 2026-07-29 with a screenshot: a learner passed Module 10, saw a "Module 10 complete — 25/25
+# (100%). Passed." bubble, and then nothing — no summary, no motivational or certificate message. Every
+# further message drew an improvised "You're done — the assessment has been completed." while the input
+# stayed live, and no LMS completion or certificate was ever triggered.
+#
+# Root cause: the boundary was rendered by an EVENT (the turn that finalises the last question) with no
+# state-driven fallback. Whenever the module's questions all carried a [[SCORE]] but no
+# [[MODPASS]]/[[MODFAIL]]/[[DONE]] closed the attempt — a legacy faked [[MODPASS]] for the final module is
+# one documented way in — derive_turn_state returned current_id None with the run not complete, and
+# render_assessment_turn rendered NOTHING, on that turn and every turn after it. The learner's screen was
+# showing the model's own imitation of a boundary bubble (the screenshot's second line, "Well done — you
+# passed this module.", is Module 1's pass line, which the backend cannot render at Module 10).
+#
+# The boundary is now derived, so it is idempotent: whatever happened on the finalising turn, the next
+# learner message renders the module result the attempt is owed — or the genuine end of the assessment.
+
+
+def _strand_after_last_score(messages: list, content: str, extra: str = "") -> list:
+    """Store the finalising turn with its [[SCORE]] but WITHOUT the boundary/completion markers."""
+    stranded = content.replace("[[DONE]]", "").replace("[[PROGRESS value=100]]", "")
+    stranded = results.MODPASS_MARKER_RE.sub("", results.MODFAIL_MARKER_RE.sub("", stranded))
+    return messages[:-1] + [{"role": "assistant", "content": (stranded + "\n" + extra).strip()}]
+
+
+def test_stranded_final_module_recovers_the_whole_ending_on_the_next_message() -> None:
+    messages = _drive_to_module10(answered=4)
+    messages, content, _state, done = _turn(messages, "my final answer", True)
+    assert done is True and "[[DONE]]" in content
+    # A legacy fake [[MODPASS m=M10]] in history is the documented route into this state.
+    messages = _strand_after_last_score(messages, content, "[[MODPASS m=M10]]")
+
+    state = results.derive_turn_state(messages)
+    assert state["assessment_complete"] is False and state["current_id"] is None
+    assert state["module_attempt_complete"] is True and state["current_module"] == "M10"
+    # The model is told to write nothing on this turn.
+    injection = results.build_state_injection(state, "en")
+    assert "Reply with nothing at all." in injection and "[[ASK]]" not in injection
+
+    # It improvises the screenshot's text anyway; the backend discards it and renders the real ending.
+    content, all_scores, tally, done = results.render_assessment_turn(
+        "**Module 10 complete — 25/25 (100%). Passed.**\n\nWell done — you passed this module.\n\n"
+        "You're done — the assessment has been completed.",
+        state,
+        "en",
+    )
+    L = results._locale("en")
+    visible = results.strip_markers(content)
+    assert done is True
+    assert "[[DONE]]" in content and "[[PROGRESS value=100]]" in content
+    assert visible.count(results.render_module_result("M10", results.compute_tally(state["scores"]), "en")) == 1
+    assert L["complete_result"].format(s=tally["score"], m=tally["max"], p=tally["pct"]) in visible
+    assert L["summary_heading"] in visible and L["motivational_passed"] in visible
+    assert L["closing_passed"] in visible
+    assert "You're done" not in visible
+    assert L["module_pass_lines"][0] not in visible  # the imitated Module 1 pass line is gone
+    # Cross-module totals, so the LMS report and the completed session log cover the whole run.
+    assert len(all_scores) == TOTAL_QUESTIONS and tally["max"] == TOTAL_MAX_POINTS and tally["passed"]
+    # And it is terminal: the recovery renders exactly once.
+    messages = messages + [{"role": "assistant", "content": content}]
+    assert results.derive_turn_state(messages)["assessment_complete"] is True
+
+
+def test_stranded_non_final_module_recovers_its_result_and_continue_button() -> None:
+    messages, _content, _state, _done = _turn([], "Start")
+    m1 = module_questions("M1")
+    for _ in range(len(m1)):
+        messages, content, _state, _done = _turn(messages, "my answer", True)
+    assert "[[MODPASS m=M1]]" in content
+    messages = _strand_after_last_score(messages, content)
+
+    state = results.derive_turn_state(messages)
+    assert state["module_attempt_complete"] is True and state["current_id"] is None
+    content, module_scores, tally, done = results.render_assessment_turn("Anything at all.", state, "en")
+    visible = results.strip_markers(content)
+    assert done is False and tally["passed"]
+    assert "[[MODPASS m=M1]]" in content  # the frontend's Continue button comes back
+    assert results.render_module_result("M1", tally, "en") in visible
+    assert results._locale("en")["continue_prompt"] in visible
+    assert "Anything at all." not in visible
+    assert len(module_scores) == len(m1)
+    # Continue now advances normally instead of looping.
+    messages = messages + [{"role": "assistant", "content": content}]
+    messages, content, state, _done = _turn(messages, "Continue")
+    assert state["current_module"] == "M2" and "[[MODULE m=M2 attempt=1]]" in content
+
+
+def test_stranded_failed_module_recovers_the_retake_prompt() -> None:
+    messages, _content, _state, _done = _turn([], "Start")
+    messages, content, _done = _answer_module(messages, full_marks=False)
+    assert "[[MODFAIL m=M1]]" in content
+    messages = _strand_after_last_score(messages, content)
+
+    state = results.derive_turn_state(messages)
+    assert state["module_attempt_complete"] is True
+    content, _scores, tally, done = results.render_assessment_turn("", state, "en")
+    assert done is False and tally["passed"] is False
+    assert "[[MODFAIL m=M1]]" in content and "[[MODPASS" not in content
+    assert results._locale("en")["module_fail_text"] in results.strip_markers(content)
+    messages = messages + [{"role": "assistant", "content": content}]
+    messages, content, state, _done = _turn(messages, "Retry")
+    assert state["current_module"] == "M1" and state["attempt"] == 2
+
+
+def test_recovered_completion_is_logged_and_reported_to_lms(monkeypatch) -> None:
+    reported: list[dict] = []
+    monkeypatch.setattr(results, "report_result_to_lms", lambda payload: reported.append(payload))
+    messages = _drive_to_module10(answered=4)
+    messages, content, _state, done = _turn(messages, "my final answer", True)
+    assert done is True
+    messages = _strand_after_last_score(messages, content, "[[MODPASS m=M10]]")
+
+    blob_manager = _FakeBlobManager()
+    _messages, record, done = _log_turn(blob_manager, messages, "whats next?")
+    assert done is True and record is not None
+    assert record["status"] == "completed" and record["passed"] is True
+    assert record["score"] == TOTAL_MAX_POINTS and record["percent"] == 100
+    assert len(record["scores"]) == TOTAL_QUESTIONS
+    assert len(reported) == 1 and reported[0]["passed"] is True
+    assert list(blob_manager.blobs) == ["hyrox-assessment-logs/104477/sess-123.json"]
+
+
+def test_module_start_turn_keeps_the_modules_already_finished_in_the_log() -> None:
+    # A module-start turn (Continue/Retry) reported a run with zero questions finalised and overwrote the
+    # session log for that session — visible in production as interleaved "0/52 questions finalised"
+    # writes, which erased the record of an abandoned run right at a module boundary.
+    blob_manager = _FakeBlobManager()
+    messages, _record, _done = _log_turn(blob_manager, [], "Start")
+    m1 = module_questions("M1")
+    record = None
+    for _ in range(len(m1)):
+        messages, record, _done = _log_turn(blob_manager, messages, "my answer", True)
+    assert record is not None and len(record["scores"]) == len(m1)
+
+    messages, record, _done = _log_turn(blob_manager, messages, "Continue")
+    assert record is not None
+    assert record["progress"]["current_module"] == "M2"
+    assert record["progress"]["modules_passed"] == 1
+    assert len(record["scores"]) == len(m1), "the finished module must survive the module-start turn"
+    assert record["module_breakdown"]["M1"]["max"] == sum(max_points(q) for q in m1)
+
+
+def test_decorated_backend_line_imitations_are_stripped() -> None:
+    # A single decorative character used to defeat every whole-line anchor, which is how a fabricated
+    # "Module 10 complete" line reached a learner's screen.
+    text = (
+        "Good work.\n\n"
+        "### Module 10 complete — 25/25 (100%). Passed.\n\n"
+        "- **Module 7.4 — 13/17 (76%). Below the 80% needed.**\n\n"
+        "✅ **Module 2 complete — 12/12 (100%). Passed.**\n\n"
+        "> **Question 3: 4/4**\n\n"
+        "#### Module 5\n\n"
+        "You linked the testing battery to the coaching decision well."
+    )
+    cleaned = results.strip_rendered_numbers(text)
+    assert "Module 10 complete" not in cleaned and "Module 7.4" not in cleaned
+    assert "Module 2 complete" not in cleaned and "Question 3" not in cleaned
+    assert "Module 5" not in cleaned
+    assert "Good work." in cleaned
+    assert "You linked the testing battery to the coaching decision well." in cleaned
+
+
+def test_backend_owned_prose_imitations_are_stripped_in_every_locale() -> None:
+    # The shape rules catch a fabricated NUMBER; these catch a fabricated SENTENCE. The model imitates the
+    # whole boundary bubble, and a "Ready to continue to the next module?" with no Continue button behind
+    # it is exactly the dead end that was reported.
+    L, DE, NL = results._locale("en"), results._locale("de"), results._locale("nl")
+    text = (
+        f"{L['module_pass_lines'][0]}\n\n"
+        f"{L['continue_prompt']}\n\n"
+        f"{DE['module_pass_lines'][2]}\n\n"
+        f"{NL['continue_prompt']}\n\n"
+        f"{L['correction_offer']}\n\n"
+        f"{L['closing_passed']}\n\n"
+        "Your answer covered the physiological demands and the coaching response."
+    )
+    cleaned = results.strip_rendered_numbers(text)
+    assert cleaned == "Your answer covered the physiological demands and the coaching response."
+    # The model still authors the take-aways body under the backend's heading, so those labels stay.
+    keeps = f"{L['summary_strengths']}\n- Monitoring\n{L['summary_revisit']}\n- Pacing"
+    assert results.strip_rendered_numbers(keeps) == keeps

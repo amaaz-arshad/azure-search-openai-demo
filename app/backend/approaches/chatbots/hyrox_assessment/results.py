@@ -122,8 +122,16 @@ ASK_TOKEN_RE = re.compile(r"\[\[\s*ASK\s*\]\]", re.IGNORECASE)
 
 # Lines the model is told NOT to write (the backend renders them) — stripped as defense in depth so a
 # stray model-written header/total can never duplicate or contradict ours.
+#
+# Every pattern below allows a leading "noise" prefix before the line's real content: a markdown list
+# bullet, a heading marker, a blockquote arrow, an emoji, or any run of such symbols. Without it a single
+# decorative character defeated the whole-line anchor — "### Module 10 complete — 25/25 (100%). Passed."
+# and "✅ **Module 10 complete — …**" both sailed through untouched, which is how a learner came to see a
+# model-fabricated "Module 10 complete" bubble while the backend rendered nothing (reported 2026-07-29).
+# `*` is excluded from the noise class so the explicit `\*{0,2}` bold handling still applies after it.
+_LEAD = r"[ \t]*(?:[^\w\s*][ \t]*)*"
 _HEADER_LINE_RE = re.compile(
-    r"^\s*\*{0,2}\s*(?:Question|Frage|Vraag)\s+\d+\s+(?:of|von|van)\s+\d+\s*\*{0,2}\s*$",
+    rf"^{_LEAD}\*{{0,2}}\s*(?:Question|Frage|Vraag)\s+\d+\s+(?:of|von|van)\s+\d+\s*\*{{0,2}}\s*$",
     re.IGNORECASE | re.MULTILINE,
 )
 # The per-question score line the backend renders after grading ("**Question 2: 4/4**"). Until 2026-07-28
@@ -134,7 +142,7 @@ _HEADER_LINE_RE = re.compile(
 # ("you covered 2/3 of the factors") is never touched.
 _SCORE_FRACTION = r"\d+\s*(?:/|of|out of|von|aus|van|uit)\s*\d+"
 _QUESTION_SCORE_LINE_RE = re.compile(
-    rf"^\s*\*{{0,2}}\s*(?:Question|Frage|Vraag)\s*\d+\s*\*{{0,2}}\s*[:–—-]\s*\*{{0,2}}\s*"
+    rf"^{_LEAD}\*{{0,2}}\s*(?:Question|Frage|Vraag)\s*\d+\s*\*{{0,2}}\s*[:–—-]\s*\*{{0,2}}\s*"
     rf"{_SCORE_FRACTION}\s*(?:points?|punkte|punten|pts?)?\s*\*{{0,2}}\s*[.!]?\s*$",
     re.IGNORECASE | re.MULTILINE,
 )
@@ -142,16 +150,16 @@ _QUESTION_SCORE_LINE_RE = re.compile(
 # numbers at all, so a line whose ENTIRE content is a score fraction can only be an imitation of a
 # backend-rendered number; a fraction inside a sentence is left alone.
 _BARE_SCORE_LINE_RE = re.compile(
-    rf"^\s*\*{{0,2}}\s*(?:score|punktestand|punkte|punten)?\s*:?\s*\*{{0,2}}\s*{_SCORE_FRACTION}"
+    rf"^{_LEAD}\*{{0,2}}\s*(?:score|punktestand|punkte|punten)?\s*:?\s*\*{{0,2}}\s*{_SCORE_FRACTION}"
     rf"\s*(?:points?|punkte|punten|pts?)?\s*\*{{0,2}}\s*[.!]?\s*$",
     re.IGNORECASE | re.MULTILINE,
 )
 _TOTAL_LINE_RE = re.compile(
-    r"^\s*\*{0,2}\s*(?:Score so far|Punktestand|Stand|Gesamtpunkte|Totaal|Total)\b[^\n]*\d+\s*/\s*\d+[^\n]*$",
+    rf"^{_LEAD}\*{{0,2}}\s*(?:Score so far|Punktestand|Stand|Gesamtpunkte|Totaal|Total)\b[^\n]*\d+\s*/\s*\d+[^\n]*$",
     re.IGNORECASE | re.MULTILINE,
 )
 _COMPLETE_LINE_RE = re.compile(
-    r"^\s*\*{0,2}\s*(?:Assessment complete|Module(?:\s+[\d.]+)?\s+complete|Modul(?:\s+[\d.]+)?\s+abgeschlossen"
+    rf"^{_LEAD}\*{{0,2}}\s*(?:Assessment complete|Module(?:\s+[\d.]+)?\s+complete|Modul(?:\s+[\d.]+)?\s+abgeschlossen"
     r"|Bewertung abgeschlossen|Module(?:\s+[\d.]+)?\s+voltooid|Beoordeling voltooid)\b[^\n]*$",
     re.IGNORECASE | re.MULTILINE,
 )
@@ -160,14 +168,14 @@ _COMPLETE_LINE_RE = re.compile(
 # the backend renders its own result line after stripping, so it can never be caught here. (The optional
 # module number in _COMPLETE_LINE_RE covers the fraction-less variant "Module 10 complete — Passed.")
 _MODULE_RESULT_LINE_RE = re.compile(
-    r"^\s*\*{0,2}\s*Modul(?:e)?\s+[\d.]+\b[^\n]*?\d+\s*/\s*\d+[^\n]*$",
+    rf"^{_LEAD}\*{{0,2}}\s*Modul(?:e)?\s+[\d.]+\b[^\n]*?\d+\s*/\s*\d+[^\n]*$",
     re.IGNORECASE | re.MULTILINE,
 )
 # The bare module heading the backend renders above a module's first question ("**Module 7.1**"). Like the
 # score line, it is a backend-owned line the model has no reason to write, so a whole line consisting only
 # of it is an imitation; a module mentioned inside a sentence is ordinary prose and is left alone.
 _MODULE_HEADING_LINE_RE = re.compile(
-    r"^\s*\*{0,2}\s*Modul(?:e)?\s+[\d.]+\s*\*{0,2}\s*[:.]?\s*$",
+    rf"^{_LEAD}\*{{0,2}}\s*Modul(?:e)?\s+[\d.]+\s*\*{{0,2}}\s*[:.]?\s*$",
     re.IGNORECASE | re.MULTILINE,
 )
 
@@ -233,6 +241,12 @@ _GIVE_UP_CORE = (
     r"i dont know(?: it| this| that| the answer| this one| that one)?|"
     r"i do not know(?: it| this| that| the answer| this one| that one)?|"
     r"dont know|do not know|no idea|no clue|not sure|"
+    # Short/colloquial "I don't know" forms. "idk" was missing until 2026-07-29, and that single gap is
+    # what produced the reported blank bubble: the backend counted it as a real answer attempt, while the
+    # model correctly read it as a refusal and — as the prompt instructs for a refusal — wrote nothing at
+    # all, so NEITHER side authored the turn. Any spelling the learner actually uses has to be here.
+    r"idk|idc|dunno|i dunno|no answer|cant answer|cannot answer|"
+    r"(?:i )?(?:have|got) no (?:idea|clue)|(?:i )?havent (?:a|any) (?:idea|clue)|not a clue|beats me|"
     r"skip(?: it| this| this one| the question)?|"
     r"move on|next(?: question| one)?|i pass|ill pass|pass|"
     r"already answered(?: it| this)?|answered (?:it|this)(?: already)?|"
@@ -247,8 +261,9 @@ _GIVE_UP_CORE = (
     r"cant remember|dont remember|cannot remember|do not remember|"
     r"nein|nichts(?: mehr)?|keine(?: ergänzung| ergänzungen| angabe)?|fertig|"
     r"nee|niets(?: meer)?|geen|klaar|"
-    r"ich weiss(?: es)? nicht|ich weiß(?: es)? nicht|keine ahnung|überspringen|weiter|nächste(?: frage)?|"
-    r"ik weet het niet|geen idee|overslaan|volgende(?: vraag)?"
+    r"ich weiss(?: es)? nicht|ich weiß(?: es)? nicht|weiss nicht|weiß nicht|keine ahnung|keine idee|"
+    r"überspringen|weiter|nächste(?: frage)?|"
+    r"ik weet het niet|weet ik niet|weet niet|geen idee|geen flauw idee|overslaan|volgende(?: vraag)?"
 )
 _GIVE_UP_OR_META_FULL_RE = re.compile(
     rf"^(?:(?:{_GIVE_UP_FILLER})\s+)*(?:{_GIVE_UP_CORE})(?:\s+(?:{_GIVE_UP_FILLER}))*$",
@@ -322,6 +337,15 @@ _LOCALES: dict[str, dict[str, Any]] = {
         ),
         "no_answer_zero": "No answer was given for this question, so no points were awarded.",
         "decline_keeps_answer": "Understood — we'll go with your original answer for this question.",
+        # Last-resort text so a turn can NEVER render an empty bubble (see ensure_non_empty). Reached when
+        # the model wrote nothing — or nothing that survived the strip guards — and the backend had no line
+        # of its own to render. It nudges without scoring anything: an answer the model never graded must
+        # not be finalised from here.
+        "answer_not_assessed": (
+            "I wasn't able to assess a response there. Please write your answer to the question in your own "
+            "words."
+        ),
+        "already_complete_note": "This assessment is already complete — there is nothing left to answer.",
         "motivational_passed": (
             "Great job. This wasn't a formality. You worked through the material module by module, you "
             "answered the questions, and you passed every one.\n\n"
@@ -376,6 +400,11 @@ _LOCALES: dict[str, dict[str, Any]] = {
         ),
         "no_answer_zero": "Zu dieser Frage wurde keine Antwort gegeben, daher gab es keine Punkte.",
         "decline_keeps_answer": "Verstanden — wir bleiben bei deiner ursprünglichen Antwort auf diese Frage.",
+        "answer_not_assessed": (
+            "Ich konnte dazu keine Antwort auswerten. Bitte schreibe deine Antwort auf die Frage in eigenen "
+            "Worten."
+        ),
+        "already_complete_note": "Dieses Assessment ist bereits abgeschlossen — es ist nichts mehr zu beantworten.",
         "motivational_passed": (
             "Stark gemacht. Das war keine Formalität: Du hast das Material Modul für Modul durchgearbeitet, "
             "die Fragen beantwortet und jedes Modul bestanden.\n\n"
@@ -432,6 +461,10 @@ _LOCALES: dict[str, dict[str, Any]] = {
         ),
         "no_answer_zero": "Op deze vraag is geen antwoord gegeven, dus zijn er geen punten toegekend.",
         "decline_keeps_answer": "Begrepen — we houden je oorspronkelijke antwoord voor deze vraag aan.",
+        "answer_not_assessed": (
+            "Ik kon daar geen antwoord beoordelen. Schrijf je antwoord op de vraag in je eigen woorden."
+        ),
+        "already_complete_note": "Deze beoordeling is al afgerond — er is niets meer te beantwoorden.",
         "motivational_passed": (
             "Goed gedaan. Dit was geen formaliteit: je hebt de stof module voor module doorgewerkt, de "
             "vragen beantwoord en bent voor elke module geslaagd.\n\n"
@@ -806,9 +839,17 @@ def _current_question_interaction(
 
 
 # --- per-turn state machine -----------------------------------------------------------
-def _start_module_state(module_key: str, attempt: int, plan_is_new: bool) -> dict[str, Any]:
+def _start_module_state(
+    module_key: str,
+    attempt: int,
+    plan_is_new: bool,
+    prior_results: Optional[list[tuple[str, list[dict[str, Any]]]]] = None,
+) -> dict[str, Any]:
     """State for a turn that begins a module attempt (run start, advance, or retry): the first question
-    of ``module_key`` will be asked."""
+    of ``module_key`` will be asked. ``prior_results`` carries the modules already finished — without it
+    the session log written on this turn reported a run with zero questions finalised and overwrote the
+    record of everything that came before it (visible in production logs as interleaved
+    "0/52 questions finalised" writes)."""
     mod_qs = module_questions(module_key)
     return {
         "current_module": module_key,
@@ -816,6 +857,7 @@ def _start_module_state(module_key: str, attempt: int, plan_is_new: bool) -> dic
         "module_is_new": True,
         "plan_is_new": plan_is_new,
         "assessment_complete": False,
+        "module_attempt_complete": False,
         "scores": [],
         "n_in_module": 0,
         "module_questions": mod_qs,
@@ -823,7 +865,7 @@ def _start_module_state(module_key: str, attempt: int, plan_is_new: bool) -> dic
         "is_first_in_module": True,
         "is_last_in_module": len(mod_qs) <= 1,
         "is_final_module": is_last_module(module_key),
-        "prior_module_results": [],
+        "prior_module_results": list(prior_results or []),
         "provisional": None,
         "current_question_asked": False,
         "latest_user_answer_pending": False,
@@ -842,6 +884,7 @@ def _completed_state() -> dict[str, Any]:
         "module_is_new": False,
         "plan_is_new": False,
         "assessment_complete": True,
+        "module_attempt_complete": False,
         "scores": [],
         "n_in_module": 0,
         "module_questions": [],
@@ -884,6 +927,7 @@ def derive_turn_state(messages: list[dict[str, Any]], final_content: Optional[st
     if DONE_MARKER_RE.search(window):
         return _completed_state()
 
+    segments = _segment_window(window)
     module_markers = list(MODULE_MARKER_RE.finditer(window))
     if not module_markers:
         # PLAN exists but no module started yet (defensive) — begin the first module.
@@ -910,10 +954,17 @@ def derive_turn_state(messages: list[dict[str, Any]], final_content: Optional[st
     if boundary_events:
         _, boundary_kind = max(boundary_events)
         if boundary_kind == "fail":
-            return _start_module_state(cur_mod, attempt=cur_attempt + 1, plan_is_new=False)
+            return _start_module_state(
+                cur_mod,
+                attempt=cur_attempt + 1,
+                plan_is_new=False,
+                prior_results=prior_module_results(segments, cur_mod),
+            )
         nxt = next_module(cur_mod)
         if nxt is not None:
-            return _start_module_state(nxt, attempt=1, plan_is_new=False)
+            return _start_module_state(
+                nxt, attempt=1, plan_is_new=False, prior_results=prior_module_results(segments, nxt)
+            )
         # A MODPASS for the FINAL module can only be model-faked noise replaying from a legacy session:
         # the backend never writes one there (passing the final module renders the completion sequence
         # with [[DONE]] + [[PROGRESS]] instead). Returning _completed_state() here — as this code did
@@ -929,6 +980,24 @@ def derive_turn_state(messages: list[dict[str, Any]], final_content: Optional[st
     asked_ids = parse_asked_ids(after_module, mod_qs)
     n = len(scores)
     current_id = mod_qs[n] if n < len(mod_qs) else None
+    # Every question of this attempt is graded but no boundary marker closed it. The boundary is therefore
+    # OWED, and this state says so instead of leaving nothing to do: before 2026-07-29 `current_id is None`
+    # with the run not complete was a dead end — `render_assessment_turn` returned the model's improvised
+    # text and rendered nothing, on that turn and every turn after it. A learner who passed Module 10 that
+    # way saw no completion sequence, got no [[DONE]] (so the input stayed live), no [[PROGRESS]] (no LMS
+    # completion, no certificate), and no session-log write, and every further message drew an invented
+    # "You're done" from a model whose only instruction was to wait. Rendering the boundary from the
+    # derived state makes it idempotent: whatever went wrong on the finalising turn, the next learner
+    # message converges to the correct module result — or to the genuine end of the assessment.
+    module_attempt_complete = current_id is None and n > 0
+    if module_attempt_complete:
+        logger.warning(
+            "HYROX: module %s attempt %s is fully graded with no boundary marker; rendering the owed "
+            "%s now",
+            cur_mod,
+            cur_attempt,
+            "completion sequence" if is_last_module(cur_mod) else "module result",
+        )
     module_message_index = _latest_module_message_index(messages)
     # The pinned first-attempt verdict for the question now in play, if the correction was already offered.
     provisional = provisional_in_window(after_module, current_id)
@@ -941,6 +1010,7 @@ def derive_turn_state(messages: list[dict[str, Any]], final_content: Optional[st
         "module_is_new": False,
         "plan_is_new": False,
         "assessment_complete": False,
+        "module_attempt_complete": module_attempt_complete,
         "provisional": provisional,
         "scores": scores,
         "n_in_module": n,
@@ -949,7 +1019,7 @@ def derive_turn_state(messages: list[dict[str, Any]], final_content: Optional[st
         "is_first_in_module": n == 0,
         "is_last_in_module": current_id is not None and n == len(mod_qs) - 1,
         "is_final_module": is_last_module(cur_mod),
-        "prior_module_results": prior_module_results(_segment_window(window), cur_mod),
+        "prior_module_results": prior_module_results(segments, cur_mod),
         **interaction,
     }
 
@@ -966,6 +1036,18 @@ def build_state_injection(state: dict[str, Any], language: Optional[str] = None)
         )
 
     current_id = state.get("current_id")
+    if state.get("module_attempt_complete"):
+        # The backend is rendering the owed module result (or the whole end-of-assessment sequence) itself
+        # on this turn and discards whatever the model writes, so asking it for anything only invites the
+        # fabricated boundary bubble this state exists to repair.
+        return (
+            "\n\n## CURRENT TURN STATE (system-controlled — obey exactly)\n"
+            "- Every question of this module has already been graded. The system writes the entire message "
+            "for this turn (the module result, the transition, and — if this was the last module — the whole "
+            "end-of-assessment sequence). Do NOT grade anything, do NOT ask a question, do NOT write a "
+            "module result, score, percentage, pass/fail, transition, summary, or closing text, and do NOT "
+            "emit any marker. Reply with nothing at all.\n"
+        )
     if current_id is None:
         return (
             "\n\n## CURRENT TURN STATE (system-controlled — obey exactly)\n"
@@ -1165,9 +1247,10 @@ def build_state_injection(state: dict[str, Any], language: Optional[str] = None)
 def strip_rendered_numbers(text: Optional[str]) -> str:
     """Remove every backend-rendered structural line the model wrote (it is told not to; this guarantees
     only the backend's numbers and headings appear): the "Question N of M" header, the per-question score
-    line, a bare score fraction, a running total, a module-result line, a completion line, and the bare
-    module heading. Each pattern is anchored to a whole line, so prose that merely contains a number or a
-    module reference is untouched."""
+    line, a bare score fraction, a running total, a module-result line, a completion line, the bare
+    module heading, and any of the backend's own fixed prose (module pass/fail transition, continue prompt,
+    correction offer, motivational and closing/certificate text). Each pattern is anchored to a whole line,
+    so prose that merely contains a number or a module reference is untouched."""
     if not text:
         return text or ""
     cleaned = _HEADER_LINE_RE.sub("", text)
@@ -1177,6 +1260,7 @@ def strip_rendered_numbers(text: Optional[str]) -> str:
     cleaned = _COMPLETE_LINE_RE.sub("", cleaned)
     cleaned = _MODULE_RESULT_LINE_RE.sub("", cleaned)
     cleaned = _MODULE_HEADING_LINE_RE.sub("", cleaned)
+    cleaned = _strip_backend_owned_prose(cleaned)
     cleaned = re.sub(r"\n[ \t]*\n[ \t]*\n+", "\n\n", cleaned)
     return cleaned.strip()
 
@@ -1186,6 +1270,62 @@ def _rendered_line_key(line: str) -> str:
     punctuation removed, so an imitation differing only in bold markers, spacing, or trailing punctuation
     still counts as the same line."""
     return re.sub(r"[^a-z0-9/%]+", "", line.lower())
+
+
+# Every fixed line the BACKEND authors, across all locales, keyed for whole-line comparison. The shape
+# rules above catch a fabricated *number*; these catch a fabricated *sentence*. The model imitates the
+# module-boundary bubble it sees replayed (production logs: a faked [[MODPASS]] at ~8% of boundaries,
+# three of them at the final module in five days), and until 2026-07-29 nothing removed the prose beside
+# the marker — so a learner could be shown "Well done — you passed this module." plus
+# "Ready to continue to the next module?" with no Continue button and no completion sequence behind it.
+# Only whole lines match (bold/case/punctuation-insensitive), and these are long fixed sentences, so
+# ordinary feedback is never touched. The summary strengths/revisit LABELS are deliberately absent: the
+# model legitimately authors the take-aways body under the backend's heading.
+_BACKEND_OWNED_PROSE_KEYS: Optional[set[str]] = None
+
+
+def _backend_owned_prose_keys() -> set[str]:
+    global _BACKEND_OWNED_PROSE_KEYS
+    if _BACKEND_OWNED_PROSE_KEYS is None:
+        blocks: list[str] = []
+        for locale in _LOCALES.values():
+            blocks.extend(locale["module_pass_lines"])
+            blocks.extend(
+                str(locale[key])
+                for key in (
+                    "continue_prompt",
+                    "module_fail_text",
+                    "summary_heading",
+                    "correction_offer",
+                    "answer_offer_no_attempt",
+                    "no_answer_zero",
+                    "decline_keeps_answer",
+                    "answer_not_assessed",
+                    "already_complete_note",
+                    "motivational_passed",
+                    "closing_passed",
+                )
+            )
+        _BACKEND_OWNED_PROSE_KEYS = {
+            key for block in blocks for key in (_rendered_line_key(line) for line in block.splitlines()) if key
+        }
+    return _BACKEND_OWNED_PROSE_KEYS
+
+
+def _strip_backend_owned_prose(text: str) -> str:
+    """Drop whole lines reproducing the backend's own fixed prose. Marker-bearing lines are never touched."""
+    keys = _backend_owned_prose_keys()
+    kept: list[str] = []
+    dropped: list[str] = []
+    for line in text.splitlines():
+        if not ANY_MARKER_RE.search(line) and _rendered_line_key(line) in keys:
+            dropped.append(line.strip())
+            continue
+        kept.append(line)
+    if not dropped:
+        return text
+    logger.warning("HYROX: stripped model line(s) imitating backend-owned text: %s", dropped)
+    return "\n".join(kept)
 
 
 def drop_lines_duplicating(body: Optional[str], rendered: list[str]) -> str:
@@ -1269,6 +1409,24 @@ def strip_forbidden_model_markers(text: Optional[str]) -> str:
     cleaned = FORBIDDEN_MODEL_MARKER_RE.sub("", text)
     cleaned = re.sub(r"\n[ \t]*\n[ \t]*\n+", "\n\n", cleaned)
     return cleaned.strip()
+
+
+def ensure_non_empty(assembled: str, fallback: str) -> str:
+    """Guarantee the turn has visible text, prepending ``fallback`` when it does not.
+
+    A rendered turn must NEVER be empty. Every hidden marker is display-stripped by the frontend, so an
+    assembled message of markers-only — or of nothing at all — reaches the learner as a blank chat bubble
+    with no way forward. That happened whenever the model and the backend both concluded the other side
+    was writing the turn: the model writes nothing for a message it judges a refusal (as instructed), so a
+    refusal the backend did not recognise ("idk", reported 2026-07-29) left neither side authoring
+    anything, on that turn and on every retry.
+
+    Markers are preserved — the fallback is prepended, never substituted — so state still replays.
+    """
+    if strip_markers(assembled).strip():
+        return assembled
+    logger.warning("HYROX: turn rendered no visible text; substituting the fallback line")
+    return ((fallback + "\n\n" + assembled) if assembled.strip() else fallback).strip()
 
 
 def strip_markers(text: Optional[str]) -> str:
@@ -1559,6 +1717,39 @@ def render_module_end_bubbles(
     return assembled
 
 
+def _render_owed_module_boundary(
+    state: dict[str, Any], language: Optional[str] = None
+) -> tuple[str, list[dict[str, Any]], dict[str, Any], bool]:
+    """Render the module boundary a fully-graded module attempt is owed but never got.
+
+    This is the recovery half of the state-driven boundary: ``derive_turn_state`` detects that every
+    question of the current attempt carries a ``[[SCORE]]`` while no ``[[MODPASS]]``/``[[MODFAIL]]``/
+    ``[[DONE]]`` closed it, and this produces exactly what the finalising turn should have produced —
+    the module result plus its transition, or, for a passed FINAL module, the complete end-of-assessment
+    sequence with ``[[DONE]]`` + ``[[PROGRESS]]`` so the LMS hand-off and certificate still happen.
+
+    The model's text for the turn is discarded: it had nothing to grade, it was told to write nothing, and
+    anything it did write about a result is invented (this state is reached precisely when a fabricated
+    boundary bubble is what the learner is looking at). The per-question score line is omitted too — the
+    question it belongs to was already finalised and shown on an earlier turn.
+    """
+    cur_mod = state["current_module"]
+    module_scores = list(state.get("scores") or [])
+    module_tally = compute_tally(module_scores)
+
+    if module_tally["passed"] and state.get("is_final_module"):
+        all_results = list(state.get("prior_module_results") or []) + [(cur_mod, module_scores)]
+        flat_scores = [s for _, scores in all_results for s in scores]
+        overall_tally = compute_tally(flat_scores)
+        assembled = render_completion_bubbles("", "", all_results, overall_tally, language)
+        assembled = (assembled + "\n\n" + "\n".join([DONE_MARKER, PROGRESS_MARKER])).strip()
+        return assembled, flat_scores, overall_tally, True
+
+    assembled = render_module_end_bubbles("", "", cur_mod, module_tally, language)
+    boundary = format_modpass_marker(cur_mod) if module_tally["passed"] else format_modfail_marker(cur_mod)
+    return (assembled + "\n\n" + boundary).strip(), module_scores, module_tally, False
+
+
 def render_assessment_turn(
     content: Optional[str],
     state: dict[str, Any],
@@ -1574,9 +1765,23 @@ def render_assessment_turn(
     body = strip_forbidden_model_markers(body)
     body = strip_leaked_question_text(body)
 
-    if state.get("assessment_complete") or state.get("current_id") is None:
-        # Terminal / no-op turn: nothing to render, no markers.
-        return strip_rendered_numbers(body), [], compute_tally([]), False
+    if state.get("assessment_complete"):
+        # Terminal turn (post-completion chatter): nothing to render, no markers. The model's whole reply
+        # can still be stripped away here (it likes to repeat the closing/certificate text, which is
+        # backend-owned prose), so fall back rather than show a blank bubble.
+        terminal = ensure_non_empty(strip_rendered_numbers(body), _locale(language)["already_complete_note"])
+        return terminal, [], compute_tally([]), False
+
+    if state.get("module_attempt_complete"):
+        # The boundary this module attempt is owed was never written (see derive_turn_state). Render it now
+        # from the scores already in history — the same output the finalising turn should have produced,
+        # minus the per-question score line and the model's feedback, both of which the learner already saw.
+        return _render_owed_module_boundary(state, language)
+
+    if state.get("current_id") is None:
+        # No question in play and no boundary owed (a module with no questions — defensive only).
+        idle = ensure_non_empty(strip_rendered_numbers(body), _locale(language)["answer_not_assessed"])
+        return idle, [], compute_tally([]), False
 
     cur_mod = state["current_module"]
     mod_qs = state.get("module_questions") or module_questions(cur_mod)
@@ -1649,7 +1854,13 @@ def render_assessment_turn(
                 correction_offer_text = _locale(language)["correction_offer"]
         else:
             # The model graded nothing on a turn where it was told to. The question simply stays open; the
-            # counter cannot advance on an unscored answer.
+            # counter cannot advance on an unscored answer, and nothing is finalised from here — an answer
+            # the model never judged must never be scored by guesswork.
+            #
+            # The model's own text is deliberately NOT replaced on this path: it legitimately lands here
+            # when it declines an off-topic question and steers the learner back ("I can only handle the
+            # current assessment question"), and that reply must still reach them. When it wrote nothing at
+            # all, ensure_non_empty below supplies the fallback line — that is the blank bubble's fix.
             logger.warning("HYROX q=%s: no [[SCORE]] verdict in a grading turn; question stays open", current_id)
     if backend_feedback:
         # The model's own text is discarded on these paths: it had no answer to assess, so anything it wrote
@@ -1760,6 +1971,10 @@ def render_assessment_turn(
             if next_question_block:
                 parts.append(next_question_block)
             assembled = "\n\n".join(p for p in parts if p)
+
+    # Never ship a blank bubble. Applied before the trailing markers so the fallback is visible text rather
+    # than a message that only looks non-empty because a hidden marker was appended to it.
+    assembled = ensure_non_empty(assembled, _locale(language)["answer_not_assessed"])
 
     # Trailing hidden markers (replay into history).
     trailing: list[str] = []
@@ -1948,8 +2163,13 @@ async def record_assessment_session(
             return None
         # Terminal / no-op turn: post-completion chatter, or a turn with nothing to grade.
         # ``render_assessment_turn`` returns no scores for these, so writing would replace a finished
-        # record with an empty one — skip instead. The completed log already holds the whole run.
-        if not completed and (state.get("assessment_complete") or state.get("current_id") is None):
+        # record with an empty one — skip instead. The completed log already holds the whole run. A turn
+        # that renders an owed module boundary is NOT one of these: it carries the attempt's real scores.
+        if (
+            not completed
+            and not state.get("module_attempt_complete")
+            and (state.get("assessment_complete") or state.get("current_id") is None)
+        ):
             return None
 
         session_id = session_state if isinstance(session_state, str) else None

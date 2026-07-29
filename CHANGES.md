@@ -15,6 +15,169 @@ Two categories per date:
 
 ---
 
+## 2026-07-29
+
+### HYROX assessment: "idk" returned a blank bubble — a turn may never render empty
+
+#### Decisions
+
+- **Reported failure:** answering an assessment question with `idk` produced an
+  empty assistant bubble. Repeating it (`idk`, `i dont know`, `no`) produced more
+  empty bubbles; the question never advanced. A meta message ("what is this")
+  *did* get a reply, which is what made it look random.
+- **Root cause (reproduced deterministically), two parts.**
+  1. *`idk` was missing from the give-up vocabulary.* `_GIVE_UP_CORE` listed
+     `i dont know`, `no idea`, `not sure`, `no`, `skip`… but not `idk` (nor
+     `dunno`, `no answer`, `beats me`, `have no idea`). So the backend counted
+     `idk` as a **substantive answer attempt** and never entered the no-attempt
+     path that renders `answer_offer_no_attempt`.
+  2. *Both sides then stayed silent.* `sampleprompt.py` tells the model a refusal
+     "contains nothing to grade… do not emit a marker… you write nothing at all",
+     and the model reads `idk` as a refusal correctly. With no `[[SCORE]]`,
+     `render_assessment_turn` fell into its no-verdict branch, which logs
+     "question stays open" and renders **nothing of its own** — so the assembled
+     message was the model's empty body. Blank bubble, no `[[PROV]]` pinned,
+     nothing scored: identical on every retry.
+  Later refusals in the same question then could not recover either — once one
+  unrecognised refusal had bumped `substantive_attempts_for_current` above zero,
+  a genuine `no` hit `latest_answer_is_decline` with `provisional is None`, fell
+  past both backend-owned branches, and blanked again.
+- **Fix, in two layers** (the vocabulary alone would only close today's gap):
+  1. Vocabulary: `idk`, `idc`, `dunno`, `i dunno`, `no answer`, `cant answer`,
+     `beats me`, `have/got no idea|clue`, `havent a clue`, `not a clue`, plus the
+     short German/Dutch forms (`weiss nicht`, `weet ik niet`, `keine idee`, …).
+     The whole-message anchor and the 8-word cap are unchanged, so a real answer
+     containing one of these words is still never a refusal.
+  2. Structural: `ensure_non_empty(assembled, fallback)` guarantees visible text
+     at every exit of `render_assessment_turn` that can produce none. Applied to
+     the terminal path (fallback `already_complete_note` — the model tends to echo
+     `closing_passed`, which is stripped as backend-owned prose, leaving nothing),
+     the defensive no-question path, and the main assembly path (fallback
+     `answer_not_assessed`), before the trailing markers so the fallback is
+     genuine visible text. Markers are prepended-to, never replaced, so state
+     still replays.
+- **Deliberately NOT done: no auto-scoring on model silence.** The no-verdict
+  branch still finalises nothing. An unrecognised refusal now nudges forever
+  rather than zeroing out, because the same branch is reached when the model
+  fails transiently (content filter, empty completion) on a *real* answer — an
+  unearned zero is unrecoverable for the learner, a nudge is not. It is also the
+  path the model legitimately uses to decline an off-topic question and steer
+  back ("I can only handle the current assessment question"), so the fallback
+  fires only when the model's body is visibly empty; real model text is never
+  replaced.
+- The two new `_LOCALES` lines are registered in `_backend_owned_prose_keys()`,
+  so the model cannot imitate them and they are stripped from its view of history
+  like every other backend-authored line.
+
+#### Changes
+
+- `app/backend/approaches/chatbots/hyrox_assessment/results.py`
+  - `_GIVE_UP_CORE`: added the colloquial/short refusal forms listed above.
+  - `_LOCALES`: new `answer_not_assessed` and `already_complete_note` in en/de/nl;
+    both keys added to `_backend_owned_prose_keys()`.
+  - New `ensure_non_empty()`; wired into the `assessment_complete` return, the
+    `current_id is None` return, and the main assembly path.
+  - Extended the no-verdict branch comment to record why the model's body is not
+    replaced there.
+- `tests/test_hyrox_assessment.py` — four new tests:
+  `test_idk_is_a_refusal_and_never_renders_a_blank_bubble` (the reported bug
+  end-to-end, offer → zero → next question),
+  `test_a_grading_turn_with_no_model_verdict_never_renders_empty` (nudge, nothing
+  scored, question still in play), `test_model_feedback_without_a_score_marker_is_still_shown`
+  (the fallback must not eat the steer-back reply), and
+  `test_terminal_turn_never_renders_empty`.
+- `CLAUDE.md` — new "A turn may never render an empty bubble" invariant in the
+  `hyrox-assessment` contract bullet.
+
+### HYROX assessment: the module boundary is rendered from state, so a stranded run always recovers
+
+#### Decisions
+
+- **Reported failure:** a learner passed Module 10, saw a
+  `Module 10 complete — 25/25 (100%). Passed.` bubble followed by
+  `Well done — you passed this module.`, and then **nothing** — no summary, no
+  motivational message, no certificate notice. Asking "whats next?" drew an
+  improvised "You're done — the assessment has been completed."; the input box
+  stayed live; no LMS completion fired.
+- **Root cause (reproduced deterministically), two parts.**
+  1. *The ending was event-driven with no fallback.* The completion sequence and the
+     module result were emitted only on the turn that finalises a module's last
+     question. Whenever a module attempt ended up with a `[[SCORE]]` for every
+     question but no `[[MODPASS]]`/`[[MODFAIL]]`/`[[DONE]]` closing it,
+     `derive_turn_state` returned `current_id is None` with `assessment_complete
+     False` and `render_assessment_turn` rendered **nothing** — on that turn and
+     every turn after it. Permanently: no completion bubbles, no `[[DONE]]` (hence
+     the live input in the screenshot), no `[[PROGRESS]]` (no LMS completion, no
+     certificate), and no session-log write. The learner then talked to a model
+     whose entire instruction was "Wait for the system", which is where
+     "You're done" came from. `results.py:917` already fell through to this dead end
+     on purpose for any history carrying a fake `[[MODPASS]]` for the final module,
+     with a comment claiming "the genuine completion" would still render — true only
+     while a question was still unscored.
+  2. *The learner was looking at the model's imitation, not our render.*
+     `Well done — you passed this module.` is **Module 1's** pass line
+     (`module_pass_lines[0]`); the backend renders `module_index % 5`, i.e.
+     `Nice job — …`, at Module 10, so it cannot have written that bubble. The model
+     copies the boundary bubble it sees replayed (production logs: a faked
+     `[[MODPASS]]` at ~8% of boundaries, three of them at the final module between
+     07-23 and 07-26), and nothing removed the prose beside the stripped marker:
+     `strip_rendered_numbers` had no rule for the pass/fail transition, the continue
+     prompt, the correction offer, or the motivational/closing text, and a single
+     decorative character (a heading marker, a list bullet, an emoji, a blockquote
+     arrow) defeated every whole-line anchor it did have.
+- **Fix — make the boundary idempotent instead of one-shot.** A fully graded module
+  attempt with no boundary marker is now a first-class state
+  (`module_attempt_complete`), and the next learner message renders exactly what the
+  finalising turn should have: the module result plus its transition and
+  `[[MODPASS]]`/`[[MODFAIL]]`, or, for a passed final module, the entire
+  end-of-assessment sequence with `[[DONE]]` + `[[PROGRESS]]` and the LMS report.
+  Whatever goes wrong on a single turn — model drift, a legacy marker, a future bug
+  — the run converges on the next message rather than stranding.
+- **The model's text is discarded on that turn**, and `build_state_injection` tells
+  it to write nothing: it has nothing to grade, and anything it writes about a
+  result is invented — this state is reached precisely when a fabricated boundary
+  bubble is what the learner is staring at.
+- **Deliberately kept:** the fake-marker stripping, the "act on the LAST boundary
+  marker" rule, and the `[[MODPASS]]`-for-the-final-module warning. They remain the
+  first line of defence; the recovery is the safety net under them.
+- **Secondary bug fixed:** `_start_module_state` reported `prior_module_results: []`,
+  so the session log written on every module-start turn (Continue/Retry) described a
+  run with **zero** questions finalised and overwrote the good record — the
+  interleaved `0/52 questions finalised` writes in the production logs. A run
+  abandoned right after tapping Continue was on record as having done nothing.
+
+#### Changes
+
+- `app/backend/approaches/chatbots/hyrox_assessment/results.py`
+  - `derive_turn_state`: sets `module_attempt_complete` when every question of the
+    current attempt is graded and no boundary marker closed it (warns with the module
+    and what is owed); passes the real `prior_results` into `_start_module_state` on
+    the advance and retry paths; reuses one `_segment_window` result.
+  - `_render_owed_module_boundary` (new): renders the owed module result, its
+    transition, and `[[MODPASS]]`/`[[MODFAIL]]`, or the full completion sequence with
+    `[[DONE]]`/`[[PROGRESS]]`, cross-module totals, and `just_completed=True`.
+  - `render_assessment_turn`: splits the old combined terminal/no-op early return —
+    `assessment_complete` still returns early, `module_attempt_complete` renders the
+    boundary, and a `current_id is None` with nothing owed stays a no-op.
+  - `build_state_injection`: a "the system writes this entire message, reply with
+    nothing at all" block for the boundary-recovery turn.
+  - `strip_rendered_numbers`: every whole-line pattern now tolerates a leading list
+    bullet, heading marker, blockquote arrow, or emoji (`_LEAD`), and
+    `_strip_backend_owned_prose` drops any line reproducing the backend's own fixed
+    prose in **any** locale (pass lines, continue prompt, fail text, correction
+    offer, no-answer/decline lines, motivational, closing, summary heading). The
+    strengths/worth-revisiting labels are deliberately excluded — the model
+    legitimately authors the take-aways body. This also removes those lines from
+    `sanitize_history_for_model`'s copy, so the imitation stimulus is gone at source.
+  - `record_assessment_session`: the boundary-recovery turn is not a no-op turn, so
+    its write (and, at the end, the LMS report) is no longer skipped.
+- `tests/test_hyrox_assessment.py` — new `# --- boundary recovery` block: stranded
+  final module recovers the whole ending, stranded non-final module recovers its
+  result and Continue button, stranded failed module recovers the retake prompt, the
+  recovered completion is logged and reported to the LMS, a module-start turn keeps
+  the finished modules in the log, decorated line imitations are stripped, and
+  backend-owned prose is stripped in every locale. 78 pass.
+
 ## 2026-07-28
 
 ### azd envs: `agentic-retrieval-nerilio` is prod, `agentic-retrieval-test` mirrors it
