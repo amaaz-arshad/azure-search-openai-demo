@@ -1416,35 +1416,127 @@ def test_idk_is_a_refusal_and_never_renders_a_blank_bubble() -> None:
     assert "**Question 2 of 4**" in visible
 
 
-def test_a_grading_turn_with_no_model_verdict_never_renders_empty() -> None:
-    """The structural half of the fix: a turn always has visible text, whatever the model does.
+def test_every_question_closes_within_two_learner_messages() -> None:
+    """Hard cap: a question takes at most two learner messages, whatever they contain.
 
-    Covers any refusal wording the vocabulary still misses, plus a model that simply returns nothing (a
-    content filter, an empty completion). The question stays open and NOTHING is scored — an answer the
-    model never judged must not be finalised by guesswork.
+    Full marks on the first close it immediately (covered elsewhere); anything else — incomplete, wrong, a
+    refusal, or plain nonsense — gets exactly one revision offer and then closes on the second message.
+    That has to hold even when the model withholds its verdict, which it does for any message it reads as
+    unanswerable and which no fixed vocabulary can enumerate.
+    """
+    silent = ""  # what the model writes for a message it judges unanswerable
+    graded = None  # sentinel: the model returns a real verdict for this message
+    for first, second, model_first, model_second in [
+        ("yo mate", "blah blah", silent, silent),  # nonsense, twice
+        ("idk", "still nope sorry", silent, silent),  # refusal, then an unrecognised refusal
+        ("a partial first answer", "no", graded, silent),  # graded, then declined
+        ("whats up dude", "here is the real answer", silent, graded),  # nonsense, then a real answer
+    ]:
+        messages = _grade_first_messages()
+        messages = messages[:-1] + [{"role": "user", "content": first}]
+        state = results.derive_turn_state(messages)
+        cid = state["current_id"]
+        content, all_scores, _tally, _done = results.render_assessment_turn(
+            _partial_score_marker(cid) if model_first is graded else model_first, state, "en"
+        )
+        visible = results.strip_markers(content)
+        assert all_scores == [], first  # round 1 below full marks never finalises
+        assert visible.strip(), first  # and never renders a blank bubble
+        offer = results._locale("en")["correction_offer"] in visible
+        no_attempt = results._locale("en")["answer_offer_no_attempt"] in visible
+        assert offer or no_attempt, first  # the single revision is always offered
+
+        messages = messages + [
+            {"role": "assistant", "content": content},
+            {"role": "user", "content": second},
+        ]
+        state = results.derive_turn_state(messages)
+        content, all_scores, _tally, _done = results.render_assessment_turn(
+            _score_marker(cid) if model_second is graded else model_second, state, "en"
+        )
+        visible = results.strip_markers(content)
+        assert len(all_scores) == 1, (first, second)  # closed on the second message, always
+        assert f"**Question 1: {all_scores[0]['awarded']}/{max_points(cid)}**" in visible
+        assert "**Question 2 of 4**" in visible  # and the run has already moved on
+        # No third round is ever invited.
+        assert results._locale("en")["correction_offer"] not in visible
+        assert results._locale("en")["answer_offer_no_attempt"] not in visible
+
+
+def test_the_two_message_cap_holds_for_any_input_and_any_model_behaviour() -> None:
+    """Exhaustive version of the cap: learners type whatever they like and the model may or may not grade
+    it, so the guarantee cannot rest on recognising either side's wording."""
+    import itertools
+
+    def model_says(kind: str, cid: int) -> str:
+        if kind == "silent":
+            return ""
+        if kind == "prose":  # a reply with no verdict, e.g. steering an off-topic message back
+            return "Let's stay with the current question."
+        marker = _score_marker(cid) if kind == "full" else _partial_score_marker(cid)
+        return f"Noted.\n{marker}"
+
+    base = _grade_first_messages()[:-1]  # M1-Q1 asked, nothing answered yet
+    for text, kinds in itertools.product(
+        ["a partial first answer", "wrong answer about swimming", "no", "idk", "yo mate", "🤷"],
+        itertools.product(["silent", "prose", "full", "partial"], repeat=2),
+    ):
+        messages = base
+        closed_after = None
+        for turn, kind in enumerate(kinds + ("silent", "silent"), start=1):  # keep going past the cap
+            messages = messages + [{"role": "user", "content": text}]
+            state = results.derive_turn_state(messages)
+            cid = state["current_id"]
+            if cid is None:  # module finished
+                break
+            content, scores, _tally, _done = results.render_assessment_turn(model_says(kind, cid), state, "en")
+            assert results.strip_markers(content).strip(), (text, kinds, turn)  # never a blank bubble
+            messages = messages + [{"role": "assistant", "content": content}]
+            if scores:
+                closed_after = turn
+                break
+        assert closed_after is not None and closed_after <= 2, (text, kinds, closed_after)
+
+
+def test_no_model_verdict_offers_the_revision_and_the_zero_pin_never_caps_the_learner() -> None:
+    """A withheld verdict must move the question along, not stall it — and must not cost the learner.
+
+    The backend pins an all-zero verdict so the two-message cap has something to finalise from, but
+    merge_best_verdicts unions it with the revision, so a complete second answer still earns full marks.
     """
     messages = _grade_first_messages()
     messages = messages[:-1] + [{"role": "user", "content": "meh whatever"}]
     state = results.derive_turn_state(messages)
+    cid = state["current_id"]
     assert state["substantive_attempts_for_current"] == 1  # the backend counts it as a real attempt
     content, all_scores, _tally, done = results.render_assessment_turn("", state, "en")
-    assert results.strip_markers(content).strip() == results._locale("en")["answer_not_assessed"]
-    assert all_scores == [] and done is False
-    assert "[[SCORE" not in content and "[[PROV" not in content  # no unearned score, no pinned verdict
-    # The question is still in play, so simply answering it works.
-    after = results.derive_turn_state(messages + [{"role": "assistant", "content": content}])
-    assert after["current_id"] == state["current_id"] and after["n_in_module"] == 0
+    assert results.strip_markers(content).strip() == results._locale("en")["correction_offer"]
+    assert all_scores == [] and done is False and "[[SCORE" not in content
+    assert f'[[PROV q={cid} points="{",".join(["0"] * key_point_count(cid))}"]]' in content
+
+    messages = messages + [
+        {"role": "assistant", "content": content},
+        {"role": "user", "content": "here is the complete answer covering every point"},
+    ]
+    state = results.derive_turn_state(messages)
+    content, all_scores, _tally, _done = results.render_assessment_turn(
+        f"That covers it.\n{_score_marker(cid)}", state, "en"
+    )
+    assert len(all_scores) == 1 and all_scores[0]["awarded"] == max_points(cid)
 
 
 def test_model_feedback_without_a_score_marker_is_still_shown() -> None:
-    # The never-empty fallback must not replace real model text: steering an off-topic question back to the
-    # current one is a legitimate no-verdict turn, and the learner has to see that reply.
+    # The backend's own lines must not replace real model text: steering an off-topic question back to the
+    # current one is a legitimate no-verdict turn, and the learner has to see that reply — with the single
+    # revision offer added underneath it, not instead of it.
     messages = _grade_first_messages()
     messages = messages[:-1] + [{"role": "user", "content": "what is this"}]
     state = results.derive_turn_state(messages)
     steer = "I can only handle the current assessment question. Please answer it directly."
     content, all_scores, _tally, _done = results.render_assessment_turn(steer, state, "en")
-    assert results.strip_markers(content).strip() == steer
+    visible = results.strip_markers(content)
+    assert steer in visible
+    assert results._locale("en")["correction_offer"] in visible
     assert all_scores == []
 
 

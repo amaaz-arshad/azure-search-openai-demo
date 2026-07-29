@@ -345,6 +345,10 @@ _LOCALES: dict[str, dict[str, Any]] = {
             "I wasn't able to assess a response there. Please write your answer to the question in your own "
             "words."
         ),
+        # The two-message cap closed the question at zero. Deliberately makes no claim about WHY (unlike
+        # no_answer_zero, which asserts the learner never answered): it also covers nonsense the model
+        # would not grade and a wrong answer the learner declined to revise.
+        "answer_not_scored": "No points were awarded for this question.",
         "already_complete_note": "This assessment is already complete — there is nothing left to answer.",
         "motivational_passed": (
             "Great job. This wasn't a formality. You worked through the material module by module, you "
@@ -404,6 +408,7 @@ _LOCALES: dict[str, dict[str, Any]] = {
             "Ich konnte dazu keine Antwort auswerten. Bitte schreibe deine Antwort auf die Frage in eigenen "
             "Worten."
         ),
+        "answer_not_scored": "Für diese Frage gab es keine Punkte.",
         "already_complete_note": "Dieses Assessment ist bereits abgeschlossen — es ist nichts mehr zu beantworten.",
         "motivational_passed": (
             "Stark gemacht. Das war keine Formalität: Du hast das Material Modul für Modul durchgearbeitet, "
@@ -464,6 +469,7 @@ _LOCALES: dict[str, dict[str, Any]] = {
         "answer_not_assessed": (
             "Ik kon daar geen antwoord beoordelen. Schrijf je antwoord op de vraag in je eigen woorden."
         ),
+        "answer_not_scored": "Voor deze vraag zijn geen punten toegekend.",
         "already_complete_note": "Deze beoordeling is al afgerond — er is niets meer te beantwoorden.",
         "motivational_passed": (
             "Goed gedaan. Dit was geen formaliteit: je hebt de stof module voor module doorgewerkt, de "
@@ -1140,6 +1146,10 @@ def build_state_injection(state: dict[str, Any], language: Optional[str] = None)
                     "already been asked; you MUST NOT repeat it, MUST NOT ask it again, and MUST NOT use [[ASK]].",
                     "- Judge only the learner's own answer attempts for this question that appear after it was "
                     "asked. Ignore refusals/skips — they contain no answer and earn nothing.",
+                    "- If their message is off-topic, absurd, or contains nothing that answers the question "
+                    '("yo mate", "blah blah", a question back at you), do NOT stay silent: react to what they '
+                    "actually wrote in one short, respectful sentence and STILL emit the marker with every "
+                    "value 0. Never describe, praise, or invent an answer they did not give.",
                     "- ALWAYS end this response with EXACTLY one [[SCORE]] marker carrying your per-key-point "
                     "verdict, whether the answer is complete or not. You do NOT decide whether the question is "
                     "finished: the system compares your verdict against the maximum and either finalises the "
@@ -1155,9 +1165,10 @@ def build_state_injection(state: dict[str, Any], language: Optional[str] = None)
             )
             if state.get("must_finalize_current"):
                 lines.append(
-                    "- This answer is the learner's revision after their one correction opportunity, so your "
-                    "verdict finalises the question. The system keeps the better per-key-point result across "
-                    "their attempts, so a point they already earned cannot be lost here."
+                    "- This is the learner's second message on this question, so it is the LAST one: the "
+                    "question closes now whatever they wrote. Grade it, and the system finalises the score. "
+                    "It keeps the better per-key-point result across their attempts, so a point they already "
+                    "earned cannot be lost here. Do NOT offer another attempt and do NOT ask them to try again."
                 )
         lines.append(
             f"- Learner messages seen for this current question: {attempts} (of which {substantive} contain an "
@@ -1179,6 +1190,12 @@ def build_state_injection(state: dict[str, Any], language: Optional[str] = None)
                 "per-point judgement only.",
             ]
         )
+    lines.append(
+        "- TWO-MESSAGE CAP: a question takes at most two learner messages — their answer, and one revision if "
+        "the first was not complete. The system closes the question on the second message whatever it "
+        "contains, and it closes it on the FIRST when every key point is already there. So never invite a "
+        "further attempt, never ask them to try again, and never carry a question past its second message."
+    )
     lines.extend(
         [
             "- Write NO numbers anywhere (no question number, per-question score, module total, percentage, or "
@@ -1301,6 +1318,7 @@ def _backend_owned_prose_keys() -> set[str]:
                     "no_answer_zero",
                     "decline_keeps_answer",
                     "answer_not_assessed",
+                    "answer_not_scored",
                     "already_complete_note",
                     "motivational_passed",
                     "closing_passed",
@@ -1793,7 +1811,10 @@ def render_assessment_turn(
     answer_pending = bool(state.get("latest_user_answer_pending"))
     substantive_attempts = int(state.get("substantive_attempts_for_current", 0) or 0)
     latest_is_decline = bool(state.get("latest_answer_is_decline"))
-    correction_already_offered = bool(state.get("correction_or_repeat_already_sent"))
+    # "This is the learner's LAST message on this question" — the two-message cap. True once the single
+    # correction has been offered, and also when a second learner message arrives with no assistant turn
+    # between (a double-send must not buy a third round; both messages are graded together instead).
+    is_final_message_for_question = bool(state.get("must_finalize_current"))
 
     # --- Resolve the verdict for the current question -------------------------------------------------
     # The BACKEND owns every decision here: what the answer scored, whether that finalises the question or
@@ -1801,6 +1822,10 @@ def render_assessment_turn(
     # judge — the visible message as well. The model only ever contributes a per-key-point judgement of an
     # actual answer; it no longer decides whether to finalise, and its judgement of a given answer is pinned
     # the first time it is made so it cannot drift upward on a later turn.
+    #
+    # THE TWO-MESSAGE CAP holds across every branch below, whatever the learner typed and whatever (or
+    # whether) the model answered: message 1 either finalises at full marks or pins a verdict and offers the
+    # single revision; message 2 always finalises. No branch may leave the question open for a third.
     new_score: Optional[dict[str, Any]] = None  # set only when THIS turn finalises the question
     pending_provisional: Optional[dict[str, Any]] = None  # set only when the correction is offered now
     correction_offer_text = ""
@@ -1819,9 +1844,9 @@ def render_assessment_turn(
                     model_verdict.get("awarded"),
                 )
             backend_feedback = _locale(language)[
-                "no_answer_zero" if correction_already_offered else "answer_offer_no_attempt"
+                "no_answer_zero" if is_final_message_for_question else "answer_offer_no_attempt"
             ]
-            if correction_already_offered:
+            if is_final_message_for_question:
                 new_score = verdict
             else:
                 pending_provisional = verdict
@@ -1838,14 +1863,18 @@ def render_assessment_turn(
                     provisional.get("points"),
                 )
             new_score = provisional
-            backend_feedback = _locale(language)["decline_keeps_answer"]
+            # "We'll go with your original answer" only makes sense if that answer actually earned
+            # something; the pin can also be the backend's own zero for a message that was never an answer.
+            backend_feedback = _locale(language)[
+                "decline_keeps_answer" if int(provisional.get("awarded", 0) or 0) > 0 else "answer_not_scored"
+            ]
         elif model_verdict is not None:
             # A real answer was graded. A key point the first attempt already earned can never be lost by
             # revising (the "better of the two attempts" rule, computed here rather than trusted to the model).
             verdict = merge_best_verdicts(provisional, model_verdict) if provisional else model_verdict
             if (
                 int(verdict.get("awarded", 0) or 0) >= int(verdict.get("max", 0) or 0)
-                or correction_already_offered
+                or is_final_message_for_question
             ):
                 new_score = verdict
             else:
@@ -1853,15 +1882,34 @@ def render_assessment_turn(
                 pending_provisional = verdict
                 correction_offer_text = _locale(language)["correction_offer"]
         else:
-            # The model graded nothing on a turn where it was told to. The question simply stays open; the
-            # counter cannot advance on an unscored answer, and nothing is finalised from here — an answer
-            # the model never judged must never be scored by guesswork.
-            #
-            # The model's own text is deliberately NOT replaced on this path: it legitimately lands here
-            # when it declines an off-topic question and steers the learner back ("I can only handle the
-            # current assessment question"), and that reply must still reach them. When it wrote nothing at
-            # all, ensure_non_empty below supplies the fallback line — that is the blank bubble's fix.
-            logger.warning("HYROX q=%s: no [[SCORE]] verdict in a grading turn; question stays open", current_id)
+            # The model returned no verdict on a turn where it was told to grade. It does that for any
+            # message it reads as unanswerable — a refusal it recognises, an off-topic aside, or plain
+            # nonsense ("yo mate", "blah blah") — and no fixed vocabulary can enumerate what a learner
+            # might type. The question MUST still progress: every question is capped at two learner
+            # messages, so the backend makes the decision the model withheld rather than leaving the
+            # question open for a third, fourth, … turn (which is what a learner answering "idk" hit).
+            logger.warning(
+                "HYROX q=%s: no [[SCORE]] verdict in a grading turn; backend %s",
+                current_id,
+                "finalises from the pinned verdict" if is_final_message_for_question else "offers the one revision",
+            )
+            # The model credited nothing, so nothing is credited. A zero pin can never cap the learner:
+            # merge_best_verdicts unions it with whatever their revision earns.
+            verdict = provisional or zero_verdict(current_id)
+            if is_final_message_for_question:
+                new_score = verdict
+            else:
+                pending_provisional = verdict
+                correction_offer_text = _locale(language)["correction_offer"]
+            if is_final_message_for_question and not strip_markers(body).strip():
+                # Round 2 has no offer line to carry the message, so the backend supplies one when the
+                # model wrote nothing at all. Its own text is otherwise kept — this is also the path it
+                # legitimately takes to decline an off-topic question and steer the learner back ("I can
+                # only handle the current assessment question"), and that reply must still reach them.
+                # On round 1 the correction offer above is already the visible message.
+                backend_feedback = _locale(language)[
+                    "decline_keeps_answer" if int(verdict.get("awarded", 0) or 0) > 0 else "answer_not_scored"
+                ]
     if backend_feedback:
         # The model's own text is discarded on these paths: it had no answer to assess, so anything it wrote
         # about one is invented and would contradict the score the backend just decided.

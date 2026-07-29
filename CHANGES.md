@@ -17,6 +17,71 @@ Two categories per date:
 
 ## 2026-07-29
 
+### HYROX assessment: a question is capped at two learner messages
+
+#### Decisions
+
+- **Requested after the blank-bubble report below:** a question must take **at most
+  two rounds**. Message 1: full marks → score it and move on; anything else
+  (incomplete, wrong, a refusal, or nonsense) → a response that fits what they
+  wrote, plus the single revision offer. Message 2: always scored, with feedback
+  matching whatever they sent — never a third round.
+- **What actually broke the cap** was the no-verdict branch, and only that branch.
+  Full marks, below-full, recognised refusal and declined-correction all already
+  closed within two messages. But the model returns no `[[SCORE]]` for anything it
+  reads as unanswerable — a refusal, an off-topic aside, plain nonsense — and no
+  fixed vocabulary can enumerate what a learner might type, so that branch could
+  repeat forever. It now makes the decision the model withheld: on message 1 it
+  pins `provisional or zero_verdict` and renders the correction offer; on message 2
+  it finalises from that pin.
+- **The zero pin cannot cost the learner.** `merge_best_verdicts` unions it with
+  the revision, so a complete second answer still earns full marks. This is why
+  pinning zero is safe where auto-scoring zero would not be — and it replaces the
+  "nudge forever" behaviour added earlier in this session, which satisfied
+  "never blank" but not "never a third round".
+- **The cap is enforced by learner-message count, not by "was an offer sent".**
+  `render_assessment_turn` now branches on `must_finalize_current`
+  (`is_final_message_for_question`), which is also true for two back-to-back
+  learner messages — so a double-send cannot buy an extra round; both messages are
+  graded together and the question closes.
+- **Backend copy keys on the awarded points, not on the branch.** On a message-2
+  turn where the model wrote nothing: >0 points → `decline_keeps_answer`, 0 points
+  → the new `answer_not_scored` ("No points were awarded for this question."),
+  which deliberately claims nothing about *why* — unlike `no_answer_zero`, it also
+  has to cover nonsense the model would not grade and a wrong answer the learner
+  declined to revise. Saying "we'll go with your original answer" when there never
+  was one was the wording this replaced.
+- **The model owns the reaction, the backend owns the decision.** The prompt and
+  every turn-state injection now tell it the two-message cap and instruct it to
+  react briefly + emit an all-zero marker for absurd/off-topic input rather than
+  going silent. That is what makes the visible reply fit what the learner typed;
+  the backend paths are the guarantee, not the copy. Its text is never replaced
+  when it wrote something — steering an off-topic message back is legitimate, and
+  the offer/score is appended below it.
+
+#### Changes
+
+- `app/backend/approaches/chatbots/hyrox_assessment/results.py`
+  - `render_assessment_turn`: no-verdict branch now pins+offers (message 1) or
+    finalises (message 2); the finalisation flag is `is_final_message_for_question`
+    (`must_finalize_current`) across all four branches; message-2 backend copy
+    chosen by awarded points.
+  - `_LOCALES`: new `answer_not_scored` (en/de/nl), registered in
+    `_backend_owned_prose_keys()`.
+  - `build_state_injection`: TWO-MESSAGE CAP bullet on every in-play turn, a
+    react-and-zero rule for absurd/off-topic input, and a firmer "this is their
+    last message" bullet on the finalising turn.
+- `app/backend/approaches/chatbots/hyrox_assessment/sampleprompt.py` — new
+  "Two messages per question" section, PER-QUESTION PROTOCOL item 5, the
+  refusal-vs-nonsense split in the "I don't know" section, and the marker rule.
+- `tests/test_hyrox_assessment.py` —
+  `test_the_two_message_cap_holds_for_any_input_and_any_model_behaviour`
+  (brute-forces 6 learner inputs × 16 model-behaviour pairs; asserts every question
+  closes in ≤2 messages and never renders blank),
+  `test_every_question_closes_within_two_learner_messages` (the four categories
+  end-to-end), and `test_no_model_verdict_offers_the_revision_and_the_zero_pin_never_caps_the_learner`.
+- `CLAUDE.md` — the two-message cap invariant.
+
 ### HYROX assessment: "idk" returned a blank bubble — a turn may never render empty
 
 #### Decisions
