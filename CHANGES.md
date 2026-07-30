@@ -15,6 +15,71 @@ Two categories per date:
 
 ---
 
+## 2026-07-30
+
+### HYROX assessment: support address switched to `hyrox@lemon-systems.com`
+
+#### Decisions
+
+- **Both learner-visible email surfaces of the HYROX bot were switched, not just one.**
+  The bot showed two different addresses, neither of them HYROX's: the in-chat support
+  address (`{{SUPPORT_EMAIL}}` → `info@lemon-systems.de`, rendered by
+  `render_chatbot_prompt` from `config.py` when a learner asks for help beyond the
+  assessment) and the 404 / wrong-URL page's `noPage.contactLine`
+  (`hallo@nerilio.ai`). The request named one address without saying which surface, so
+  both were changed — every file involved is hyrox-only, so no other bot is affected.
+  The surrounding nerilio branding on that 404 page ("You landed on chat.nerilio.ai",
+  "Go to nerilio website") was deliberately left alone: only the address was asked for,
+  and that page's *reason for existing* is a nerilio-platform URL problem.
+- **The de/nl locales were changed alongside en for parity**, even though the bot runs
+  English-only (`Chat.tsx` hardcodes `HYROX_ASSESSMENT_LANGUAGE="en"`).
+
+#### Changes
+
+- `app/backend/approaches/chatbots/hyrox_assessment/config.py`: `support_email`
+  `info@lemon-systems.de` → `hyrox@lemon-systems.com`.
+- `app/frontend/src/chatbots/hyrox-assessment/locales/{en,de,nl}/translation.json`:
+  `noPage.contactLine` address `hallo@nerilio.ai` → `hyrox@lemon-systems.com`.
+
+### Investigation: which learners are affected by the missing completion message
+
+No code changed. Findings, so the next session does not redo the work:
+
+- **Session logs exist in three incompatible generations** under
+  `content/hyrox-assessment-logs/`, which matters for any future audit:
+  (1) `<session_id>-<ts>.json` with a `category_breakdown` of 8 CATEGORY buckets and
+  `max` 102 — the superseded pre-July assessment (17 blobs, June, `user_id` mostly
+  null); (2) the same flat name but the 13-module/52-question schema — written **only
+  on the completion turn** (80 blobs, 2026-06-30 → 2026-07-28, `user_id` populated);
+  (3) `<account_id>/<session_id>.json` written every turn with `status` — only from
+  2026-07-28, when in-progress logging was added (40 blobs).
+- **A definitive "affected" list is not derivable for anything before 2026-07-28.**
+  A stranded run rendered nothing, so `render_assessment_turn` returned no scores and
+  `record_assessment_session` skipped the write — and before 2026-07-28 an unfinished
+  run had no blob at all. Cosmos chat history is off in this env
+  (`USE_CHAT_HISTORY_COSMOS="false"`), so the transcript existed only in the learner's
+  browser. Both azd envs point at the same storage account (`stbfmtryd6z3arm`), so
+  there is no second log store to check.
+- **Nothing on record shows a completion that failed to render.** All 86 completed runs
+  carry `[[DONE]]` *and* `[[PROGRESS value=100]]` in the same assistant message as the
+  final `[[SCORE]]` (no boundary-recovery gap), and no in-progress run ever reached
+  M8/M9/M10 — the deepest is 32/52 at M7.2. The transcript scan did surface the
+  *other* 2026-07-29 bug (blank bubbles: 8 sessions with genuinely empty assistant
+  messages after "idk" / "下一題是？"), which confirms the scan works.
+- **Container Apps access logs are the way to enumerate learners.** The LMS launch URL
+  is logged verbatim — `GET /hyrox-assessment?account_id=…&email=…&first_name=…` — so
+  Log Analytics (workspace `log-ylubdsyknmmcc`, customerId
+  `8d8a1844-391e-4e22-ac8f-6fb1f45a1f4e`, **30-day** retention) yields the *launched*
+  set to diff against the *completed* set. Note `hyrox_assessment` info-level lines
+  (`finalised`, `LMS report stub`, `session log written`) only exist from 2026-07-17,
+  when that logger was wired to APP_LOG_LEVEL. Four completions have no matching
+  log line at all: all four were run outside the production container app (two
+  `anonymous/`, two internal ids with no launch row), which is the expected signature
+  of a local dev run against the shared blob container.
+- Result handed over: 76 UserIDs completed, 29 launched without completing (11 of those
+  with a session log showing where they stalled). The bot has never logged a run that
+  reached the final module without finishing it.
+
 ## 2026-07-29
 
 ### Free Bot: access expires after 30 days, expired accounts move to an admin archive

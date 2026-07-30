@@ -9,5 +9,5 @@ config = ChatbotConfig(
     chatgpt_deployment="gpt-5.4-mini",
     reasoning_effort="high",
     prompt_mode="override",
-    support_email="info@lemon-systems.de",
+    support_email="hyrox@lemon-systems.com",
 )
