@@ -340,6 +340,36 @@
         adminContent.hidden = false;
         startDemo();
         loadWhitelist();
+        loadProvisionedOptions();
+      }
+
+      // Built-in bots are rendered into the picker server-side (they are known at build time).
+      // Provisioned (dynamic) bots live in the backend registry, so they are fetched here — which
+      // also means a bot created through the provisioning API shows up with no redeploy. Stopped
+      // bots are skipped: their route redirects home, so their embed would be a broken iframe.
+      async function loadProvisionedOptions() {
+        try {
+          var res = await fetch("/internal-admin/dynamic-chatbots", { method: "GET" });
+          if (!res.ok) { return; }
+          var data = await res.json();
+          var bots = (data && data.chatbots) || [];
+          var embeddable = bots.filter(function (bot) { return bot.active && bot.publicId; });
+          if (!embeddable.length) { return; }
+
+          var group = document.createElement("optgroup");
+          group.label = "Provisioned";
+          embeddable.forEach(function (bot) {
+            var option = document.createElement("option");
+            option.value = bot.publicId;
+            // The label must stay the route name: the whitelist editor reads it back out of the
+            // selected option (see currentBotName) to key /internal-admin/embed-config/<name>.
+            option.textContent = bot.botName;
+            group.appendChild(option);
+          });
+          select.appendChild(group);
+        } catch (e) {
+          // Non-fatal: the built-in options are already rendered and fully usable.
+        }
       }
 
       loginForm.addEventListener("submit", async function (event) {

@@ -191,7 +191,7 @@ from core.dynamic_bot_config import (
     derive_chatbot_mode,
 )
 from core.chatbotwikistore import ChatbotWikiStore
-from provisioning import provisioning_bp
+from provisioning import ensure_embed_public_id, provisioning_bp
 from core.internaladminauth import (
     INTERNAL_ADMIN_INVALID_PASSWORD_MESSAGE,
     INTERNAL_ADMIN_PASSWORD_MISSING_MESSAGE,
@@ -214,7 +214,14 @@ from core.simplechatbotauth import (
     SimpleChatbotSession,
 )
 from decorators import authenticated, authenticated_path, internal_admin_required
-from embed_public_ids import get_public_id, is_embeddable, resolve_public_id
+from embed_public_ids import (
+    generate_public_id,
+    get_public_id,
+    get_record_public_id,
+    is_embeddable,
+    resolve_public_id,
+    resolve_public_id_async,
+)
 from embed_rules import match_url, rules_to_frame_ancestors
 from error import ErrorContext, error_dict, error_response, get_request_error_context
 from prepdocs import (
@@ -608,7 +615,14 @@ async def ensure_example_dynamic_bot_seeded() -> None:
     store = get_chatbot_registry_store()
     if await store.load_record(EXAMPLE_DYNAMIC_BOT_NAME) is not None:
         return
-    await store.save_record(EXAMPLE_DYNAMIC_BOT_NAME, fields=EXAMPLE_DYNAMIC_BOT_DEFAULTS)
+    # Seeded outside the provisioning API, so mint its widget identity here too — otherwise the
+    # shipped example is the one dynamic bot that cannot be embedded. Deliberately generate_public_id
+    # rather than mint_public_id: the latter LISTS the registry to check for collisions, and a blob
+    # listing during app startup would push cold starts past the startup timeout. Excluding only the
+    # committed built-in IDs is enough here (a collision with another dynamic bot is ~1 in 36^9, and
+    # this runs at most once per deployment).
+    fields = {**EXAMPLE_DYNAMIC_BOT_DEFAULTS, "embed_public_id": generate_public_id()}
+    await store.save_record(EXAMPLE_DYNAMIC_BOT_NAME, fields=fields)
     current_app.logger.info("Seeded example dynamic chatbot at /example")
 
 
@@ -638,6 +652,64 @@ async def resolve_active_dynamic_record(chatbot_name: str | None) -> ChatbotRegi
     if record is None or not record.active:
         return None
     return record
+
+
+async def resolve_dynamic_record_any_state(chatbot_name: str | None) -> ChatbotRegistryRecord | None:
+    """Like resolve_active_dynamic_record, but STOPPED bots resolve too.
+
+    For admin surfaces that must see a provisioned bot regardless of its start/stop flag (the
+    directory listing, the embed whitelist editor). The isolation short-circuit on built-in names
+    is identical, so this never returns a built-in either. Serving paths must keep using
+    resolve_active_dynamic_record — a stopped bot is not servable.
+    """
+    normalized = normalize_chatbot_name(chatbot_name)
+    if normalized is None or normalized in KNOWN_CHATBOT_NAMES:
+        return None
+    return await get_chatbot_registry_store().load_record(normalized)
+
+
+async def is_embeddable_chatbot(chatbot_name: str | None) -> bool:
+    """True if a bot has an embed identity: a committed public ID (built-in) or a registry record.
+
+    Dynamic bots are embeddable purely by existing — provisioning mints their public ID at create,
+    and a record without one (created before that) is backfilled on first admin access. Stopped
+    bots count as embeddable so an admin can prepare the whitelist before starting the bot; the
+    admin UI is what declines to hand out a snippet for a bot that is not currently servable.
+    """
+    if is_embeddable(chatbot_name):
+        return True
+    return await resolve_dynamic_record_any_state(chatbot_name) is not None
+
+
+def resolve_dynamic_chat_model(record: ChatbotRegistryRecord, deployed_models: dict[str, Any] | None) -> str:
+    """The chat model a dynamic bot actually runs on.
+
+    Honors the provisioned `llm` only if it maps to a model deployed here; otherwise falls back to
+    the mode-aware default (tutor -> reasoning model, Q&A -> general model), so a wrong, undeployed,
+    or empty `llm` self-heals instead of 404ing at call time. Shared by the chat path and the admin
+    directory so the directory shows what will really serve.
+    """
+    is_tutor = derive_chatbot_mode(record.modes) == "tutor-qna"
+    default_model = DEFAULT_DYNAMIC_TUTOR_MODEL if is_tutor else DEFAULT_DYNAMIC_QNA_MODEL
+    provisioned_llm = record.llm.strip() if isinstance(record.llm, str) else ""
+    return provisioned_llm if provisioned_llm in (deployed_models or {}) else default_model
+
+
+def resolve_dynamic_reasoning_effort(record: ChatbotRegistryRecord, chat_model: str | None) -> str | None:
+    """The reasoning effort a dynamic bot actually runs at, or None if its model has no reasoning.
+
+    A missing or unsupported provisioned `reasoning_effort` falls back to "medium" (or the model's
+    last supported tier). Non-reasoning models (e.g. gpt-4.1) return None — effort is dropped for
+    them downstream.
+    """
+    reasoning_support = Approach.GPT_REASONING_MODELS.get(chat_model) if isinstance(chat_model, str) else None
+    if reasoning_support is None:
+        return None
+    supported_efforts = reasoning_support.supported_efforts
+    provisioned_effort = (record.reasoning_effort or "").strip().lower()
+    if provisioned_effort in supported_efforts:
+        return provisioned_effort
+    return "medium" if "medium" in supported_efforts else supported_efforts[-1]
 
 
 async def enforce_dynamic_chatbot_gate(
@@ -817,39 +889,29 @@ async def apply_saved_chatbot_prompt_override(request_json: dict[str, Any]) -> s
     # so their prompt/model resolution is completely unchanged.
     dynamic_record = await resolve_active_dynamic_record(requested_chatbot_name)
     if dynamic_record is not None:
-        is_tutor = derive_chatbot_mode(dynamic_record.modes) == "tutor-qna"
         # Effective prompt = the bot's custom prompt, or the mode-aware default (tutor vs neutral Q&A)
         # when empty, + its configured `ansprache` (formal/informal) addressing directive.
         overrides["__saved_prompt_template"] = build_dynamic_system_prompt(dynamic_record, DEFAULT_DYNAMIC_PROMPT)
 
-        # Model fallback: honor a provisioned `llm` only if it maps to a deployed model; otherwise use
-        # the mode-aware default (tutor -> reasoning model, Q&A -> general model). A wrong/undeployed/empty
-        # `llm` self-heals to the default instead of the single global default. An explicit non-empty
-        # client `chat_model` (if the frontend ever sends one) is respected.
+        # Model fallback: resolve_dynamic_chat_model owns the rule (provisioned `llm` if deployed,
+        # else the mode-aware default). An explicit non-empty client `chat_model` (if the frontend
+        # ever sends one) is respected.
         deployed_models = current_app.config.get(CONFIG_CHAT_MODEL_DEPLOYMENTS) or {}
-        default_model = DEFAULT_DYNAMIC_TUTOR_MODEL if is_tutor else DEFAULT_DYNAMIC_QNA_MODEL
-        provisioned_llm = dynamic_record.llm.strip() if isinstance(dynamic_record.llm, str) else ""
-        chosen_model = provisioned_llm if provisioned_llm in deployed_models else default_model
         incoming_model = overrides.get("chat_model")
         if not (isinstance(incoming_model, str) and incoming_model.strip()):
-            overrides["chat_model"] = chosen_model
+            overrides["chat_model"] = resolve_dynamic_chat_model(dynamic_record, deployed_models)
 
-        # Reasoning-effort fallback: if the chosen model supports reasoning, use a valid incoming effort
-        # (e.g. from Settings); otherwise use the provisioned `reasoning_effort` if valid, else default to
-        # "medium". A non-reasoning model (e.g. gpt-4.1) is left untouched (normalize drops effort for it).
+        # Reasoning-effort fallback: if the chosen model supports reasoning, keep a valid incoming
+        # effort (e.g. from Settings); otherwise fall back to the bot's provisioned effort. A
+        # non-reasoning model (e.g. gpt-4.1) is left untouched (normalize drops effort for it).
         effective_model = overrides.get("chat_model")
         reasoning_support = (
             Approach.GPT_REASONING_MODELS.get(effective_model) if isinstance(effective_model, str) else None
         )
         if reasoning_support is not None:
-            supported_efforts = reasoning_support.supported_efforts
             incoming_effort = str(overrides.get("reasoning_effort") or "").strip().lower()
-            if incoming_effort not in supported_efforts:
-                provisioned_effort = (dynamic_record.reasoning_effort or "").strip().lower()
-                fallback_effort = "medium" if "medium" in supported_efforts else supported_efforts[-1]
-                overrides["reasoning_effort"] = (
-                    provisioned_effort if provisioned_effort in supported_efforts else fallback_effort
-                )
+            if incoming_effort not in reasoning_support.supported_efforts:
+                overrides["reasoning_effort"] = resolve_dynamic_reasoning_effort(dynamic_record, effective_model)
         return requested_chatbot_name
 
     prompt_override = await get_chatbot_prompt_store().load_prompt(requested_chatbot_name)
@@ -1017,23 +1079,57 @@ EMBED_LAUNCHER_ICON_COLORS = {
 }
 
 
+async def resolve_servable_embed_target(public_id: str) -> tuple[str | None, ChatbotRegistryRecord | None]:
+    """Resolve a widget public ID to a bot that may actually be served in an iframe.
+
+    Returns ``(chatbot_name, dynamic_record)`` — the record is None for built-in bots. Built-in IDs
+    resolve from the committed map with no I/O; dynamic IDs come from the registry and must be
+    ACTIVE, so a stopped bot's live embeds go dark exactly like its `/<botName>` route does. The
+    registry store is read defensively (None when unconfigured) because this is a public path.
+    """
+    registry_store = current_app.config.get(CONFIG_CHATBOT_REGISTRY_STORE)
+    chatbot_name = await resolve_public_id_async(public_id, registry_store)
+    if chatbot_name is None:
+        return None, None
+    if chatbot_name in KNOWN_CHATBOT_NAMES:
+        return chatbot_name, None
+    dynamic_record = await resolve_active_dynamic_record(chatbot_name)
+    if dynamic_record is None:
+        return None, None
+    return chatbot_name, dynamic_record
+
+
+def embed_launcher_colors(chatbot_name: str, dynamic_record: ChatbotRegistryRecord | None) -> tuple[str, str | None]:
+    """The (bubble, icon) launcher colors for a bot. Dynamic bots use their provisioned primary."""
+    if dynamic_record is not None:
+        design = dynamic_record.design if isinstance(dynamic_record.design, dict) else {}
+        provisioned_color = design.get("color_primary")
+        color = provisioned_color if isinstance(provisioned_color, str) and provisioned_color.strip() else None
+        return color or EMBED_LAUNCHER_DEFAULT_COLOR, None
+    return (
+        EMBED_LAUNCHER_COLORS.get(chatbot_name, EMBED_LAUNCHER_DEFAULT_COLOR),
+        EMBED_LAUNCHER_ICON_COLORS.get(chatbot_name),
+    )
+
+
 @bp.route("/embed/<public_id>/config")
 async def embed_widget_config(public_id: str):
     # Public, CORS-enabled config the widget fetches cross-origin from the host page before it
     # renders anything. Returns only non-secret data (launcher color + whitelist rules) and never
     # the chatbot name, so the host page cannot recover the bot identity from this response.
-    chatbot_name = resolve_public_id(public_id)
+    chatbot_name, dynamic_record = await resolve_servable_embed_target(public_id)
     if chatbot_name is None:
         response = jsonify({"ok": False})
         response.status_code = 404
     else:
         embed_config_store = current_app.config.get(CONFIG_CHATBOT_EMBED_CONFIG_STORE)
         allowed_rules = await embed_config_store.load_allowed_rules(chatbot_name) if embed_config_store else []
+        primary_color, launcher_icon_color = embed_launcher_colors(chatbot_name, dynamic_record)
         response = jsonify(
             {
                 "ok": True,
-                "primaryColor": EMBED_LAUNCHER_COLORS.get(chatbot_name, EMBED_LAUNCHER_DEFAULT_COLOR),
-                "launcherIconColor": EMBED_LAUNCHER_ICON_COLORS.get(chatbot_name),
+                "primaryColor": primary_color,
+                "launcherIconColor": launcher_icon_color,
                 "allowAll": len(allowed_rules) == 0,
                 "rules": allowed_rules,
             }
@@ -1047,8 +1143,9 @@ async def embed_widget_config(public_id: str):
 async def embed_chatbot_entry(public_id: str):
     # Anonymized iframe target. Resolves the public ID server-side and serves the SPA with the
     # resolved bot injected, so the readable chatbot name never appears in the host page DOM or the
-    # iframe `src`. Per-bot `frame-ancestors` is applied via serve_spa_index.
-    chatbot_name = resolve_public_id(public_id)
+    # iframe `src`. Per-bot `frame-ancestors` is applied via serve_spa_index. Dynamic (provisioned)
+    # bots resolve here too; the SPA mounts them through the generic bot route.
+    chatbot_name, _dynamic_record = await resolve_servable_embed_target(public_id)
     if chatbot_name is None:
         return quart_redirect("/")
     return await serve_spa_index(chatbot_name=chatbot_name, embed_public_id=public_id)
@@ -1665,23 +1762,94 @@ async def delete_internal_admin_prompt(chatbot_name: str):
     )
 
 
-def build_embed_admin_payload(chatbot_name: str, config) -> dict[str, Any]:
+def build_embed_admin_payload(chatbot_name: str, config, *, public_id: str | None = None) -> dict[str, Any]:
+    """Embed panel payload. ``public_id`` carries a dynamic bot's minted ID; built-ins fall back to
+    the committed map."""
     return {
         "chatbotName": chatbot_name,
-        "publicId": get_public_id(chatbot_name),
+        "publicId": public_id if public_id is not None else get_public_id(chatbot_name),
         "allowedRules": list(config.allowed_rules) if config is not None else [],
         "updatedAt": config.updated_at if config is not None else None,
     }
+
+
+async def resolve_embed_admin_public_id(chatbot_name: str) -> str | None:
+    """The public ID the admin surfaces should show for a bot, minting one if a dynamic bot lacks it.
+
+    Built-in bots read straight from the committed map. A dynamic bot normally has its ID from
+    create; one provisioned before dynamic embedding existed is backfilled here, on an
+    admin-triggered (i.e. rare, human-paced) request rather than on a hot path.
+    """
+    builtin_public_id = get_public_id(chatbot_name)
+    if builtin_public_id is not None:
+        return builtin_public_id
+    record = await resolve_dynamic_record_any_state(chatbot_name)
+    if record is None:
+        return None
+    record = await ensure_embed_public_id(get_chatbot_registry_store(), record)
+    return get_record_public_id(record)
+
+
+def build_dynamic_chatbot_admin_payload(
+    record: ChatbotRegistryRecord, deployed_models: dict[str, Any] | None
+) -> dict[str, Any]:
+    """One provisioned bot as the admin directory shows it.
+
+    `llm`/`reasoningEffort` are the EFFECTIVE values (what a chat call would really use), not the
+    raw provisioned strings, so a bot whose control panel sent an undeployed model does not display
+    a model that cannot serve. `publicId` may be None only for a record whose backfill has not run
+    yet; the frontend hides the Embed action in that case.
+    """
+    chat_model = resolve_dynamic_chat_model(record, deployed_models)
+    return {
+        "botName": record.bot_name,
+        "displayName": record.display_name,
+        "active": record.active,
+        "publicId": get_record_public_id(record),
+        "llm": chat_model,
+        "reasoningEffort": resolve_dynamic_reasoning_effort(record, chat_model),
+        "mode": derive_chatbot_mode(record.modes),
+        "plan": record.plan,
+        "numberSessions": record.number_sessions,
+        "createdAt": record.created_at,
+        "updatedAt": record.updated_at,
+    }
+
+
+@bp.get("/internal-admin/dynamic-chatbots")
+@internal_admin_required
+async def list_internal_admin_dynamic_chatbots():
+    """Every provisioned (dynamic) bot, for the admin directory and the embed-demo picker.
+
+    Built-in bots are NOT included — the frontend already has them compiled in, and mixing the two
+    sources here would blur the isolation invariant. Stopped bots ARE included (flagged by
+    `active`) so the directory shows the full estate; consumers that hand out embed snippets filter
+    to active ones themselves. Any record missing a public ID is backfilled so the whole listing is
+    immediately embeddable.
+    """
+    registry_store = get_chatbot_registry_store()
+    records = await registry_store.list_records()
+    deployed_models = current_app.config.get(CONFIG_CHAT_MODEL_DEPLOYMENTS) or {}
+    chatbots: list[dict[str, Any]] = []
+    for record in records.values():
+        healed_record = await ensure_embed_public_id(registry_store, record)
+        chatbots.append(build_dynamic_chatbot_admin_payload(healed_record, deployed_models))
+    chatbots.sort(key=lambda entry: entry["botName"])
+    return jsonify({"chatbots": chatbots}), 200
 
 
 @bp.get("/internal-admin/embed-config/<chatbot_name>")
 @internal_admin_required
 async def get_internal_admin_embed_config(chatbot_name: str):
     normalized_chatbot_name = normalize_chatbot_name(chatbot_name)
-    if not normalized_chatbot_name or not is_embeddable(normalized_chatbot_name):
+    if not normalized_chatbot_name or not await is_embeddable_chatbot(normalized_chatbot_name):
         return jsonify({"message": "Unknown or non-embeddable chatbot."}), 404
+    public_id = await resolve_embed_admin_public_id(normalized_chatbot_name)
     config = await get_chatbot_embed_config_store().load_config(normalized_chatbot_name)
-    return jsonify({"embedConfig": build_embed_admin_payload(normalized_chatbot_name, config)}), 200
+    return (
+        jsonify({"embedConfig": build_embed_admin_payload(normalized_chatbot_name, config, public_id=public_id)}),
+        200,
+    )
 
 
 @bp.put("/internal-admin/embed-config/<chatbot_name>")
@@ -1695,19 +1863,20 @@ async def save_internal_admin_embed_config(chatbot_name: str):
         return jsonify({"message": "Request payload must be an object."}), 400
 
     normalized_chatbot_name = normalize_chatbot_name(chatbot_name)
-    if not normalized_chatbot_name or not is_embeddable(normalized_chatbot_name):
+    if not normalized_chatbot_name or not await is_embeddable_chatbot(normalized_chatbot_name):
         return jsonify({"message": "Unknown or non-embeddable chatbot."}), 404
 
     raw_rules = request_json.get("allowedRules")
     if not isinstance(raw_rules, list) or not all(isinstance(rule, str) for rule in raw_rules):
         return jsonify({"message": "allowedRules must be a list of strings."}), 400
 
+    public_id = await resolve_embed_admin_public_id(normalized_chatbot_name)
     config = await get_chatbot_embed_config_store().save_rules(normalized_chatbot_name, raw_rules)
     return (
         jsonify(
             {
                 "message": "Embed whitelist saved.",
-                "embedConfig": build_embed_admin_payload(normalized_chatbot_name, config),
+                "embedConfig": build_embed_admin_payload(normalized_chatbot_name, config, public_id=public_id),
             }
         ),
         200,

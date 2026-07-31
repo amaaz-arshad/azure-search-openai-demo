@@ -41,6 +41,12 @@ class ChatbotRegistryRecord:
     objects (modes/design/qa/tutor/assessment/features/login and the per-language string
     maps) are stored verbatim as received; their precise schema is finalized with the
     upstream contract before they drive prompt/frontend behavior.
+
+    ``embed_public_id`` is the bot's anonymous widget identity, minted once at create time and
+    then immutable — it is baked into every embed snippet already handed out, so changing it
+    breaks live embeds. It is the dynamic-bot counterpart of the committed EMBED_PUBLIC_IDS map
+    that covers built-in bots; None only for records created before embedding was extended to
+    dynamic bots (those are backfilled lazily from the admin surfaces).
     """
 
     bot_name: str
@@ -48,6 +54,7 @@ class ChatbotRegistryRecord:
     active: bool
     created_at: str
     updated_at: str
+    embed_public_id: Optional[str] = None
     plan: Optional[str] = None
     number_sessions: int = UNLIMITED_SESSIONS
     ansprache: Optional[str] = None
@@ -133,6 +140,7 @@ class ChatbotRegistryStore:
             "botName": record.bot_name,
             "displayName": record.display_name,
             "active": record.active,
+            "embedPublicId": record.embed_public_id,
             "plan": record.plan,
             "numberSessions": record.number_sessions,
             "ansprache": record.ansprache,
@@ -185,6 +193,7 @@ class ChatbotRegistryStore:
             return [item for item in value if isinstance(item, str)] if isinstance(value, list) else []
 
         display_name = payload.get("displayName")
+        embed_public_id = payload.get("embedPublicId")
         plan = payload.get("plan")
         ansprache = payload.get("ansprache")
         llm = payload.get("llm")
@@ -197,6 +206,7 @@ class ChatbotRegistryStore:
             active=bool(payload.get("active", False)),
             created_at=created_at,
             updated_at=updated_at,
+            embed_public_id=embed_public_id if isinstance(embed_public_id, str) and embed_public_id else None,
             plan=plan if isinstance(plan, str) else None,
             number_sessions=number_sessions,
             ansprache=ansprache if isinstance(ansprache, str) else None,
@@ -255,6 +265,11 @@ class ChatbotRegistryStore:
             active=bool(fields["active"]) if "active" in fields else (existing.active if existing else False),
             created_at=existing.created_at if existing is not None else now,
             updated_at=now,
+            # Write-once: a stored public ID always wins over an incoming one, so no update can
+            # rotate the identity that live embed snippets already point at. Only a record that
+            # has none (fresh create, or a pre-embedding record being backfilled) takes the field.
+            embed_public_id=(existing.embed_public_id if existing and existing.embed_public_id else None)
+            or fields.get("embed_public_id"),
             plan=fields.get("plan", existing.plan if existing else None),
             number_sessions=fields.get(
                 "number_sessions", existing.number_sessions if existing else UNLIMITED_SESSIONS

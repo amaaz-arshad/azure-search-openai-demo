@@ -29,8 +29,19 @@ from typing import Any, TypeVar, cast
 from quart import Blueprint, current_app, jsonify, request
 
 from approaches.chatbot_prompt_registry import normalize_chatbot_name
-from config import CONFIG_CHATBOT_REGISTRY_STORE, CONFIG_PROVISIONING_API_KEY, CONFIG_RESERVED_BOT_NAMES
+from config import (
+    CONFIG_CHATBOT_EMBED_CONFIG_STORE,
+    CONFIG_CHATBOT_REGISTRY_STORE,
+    CONFIG_PROVISIONING_API_KEY,
+    CONFIG_RESERVED_BOT_NAMES,
+)
 from core.chatbotregistrystore import UNLIMITED_SESSIONS, ChatbotRegistryRecord, ChatbotRegistryStore
+from embed_public_ids import (
+    DYNAMIC_PUBLIC_ID_INDEX,
+    build_embed_snippet,
+    get_record_public_id,
+    mint_public_id,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -167,10 +178,32 @@ def record_summary(record: ChatbotRegistryRecord) -> dict[str, Any]:
         "botName": record.bot_name,
         "displayName": record.display_name,
         "active": record.active,
+        # The bot's widget identity. The control panel can show the customer their embed code
+        # straight from this response; `embedSnippet` is added by the dispatcher, which knows the
+        # request origin. Minted once at create and immutable thereafter.
+        "publicId": get_record_public_id(record),
         "plan": record.plan,
         "numberSessions": record.number_sessions,
         "updatedAt": record.updated_at,
     }
+
+
+async def ensure_embed_public_id(
+    store: ChatbotRegistryStore, record: ChatbotRegistryRecord
+) -> ChatbotRegistryRecord:
+    """Backfill a public ID onto a record created before dynamic bots became embeddable.
+
+    New bots get theirs in ``handle_create``; this only heals older records, so any provisioning
+    call on such a bot makes it embeddable. ``save_record`` is write-once for this field, so a
+    concurrent backfill on another replica cannot rotate an ID that already exists.
+    """
+    if get_record_public_id(record) is not None:
+        return record
+    public_id = await mint_public_id(store)
+    healed = await store.save_record(record.bot_name, fields={"embed_public_id": public_id})
+    DYNAMIC_PUBLIC_ID_INDEX.remember(get_record_public_id(healed), healed.bot_name)
+    logger.info("Backfilled embed public ID for dynamic bot %s", record.bot_name)
+    return healed
 
 
 async def handle_create(payload: dict[str, Any], bot_name: str) -> tuple[dict[str, Any], int]:
@@ -184,17 +217,25 @@ async def handle_create(payload: dict[str, Any], bot_name: str) -> tuple[dict[st
     fields["active"] = True
     fields.setdefault("number_sessions", UNLIMITED_SESSIONS)
     fields["last_session_id"] = payload.get("sessionId")
+    # Mint the widget identity at create, so a provisioned bot is embeddable from the moment it
+    # exists — it shows up in the admin directory and the embed picker with no further step.
+    fields["embed_public_id"] = await mint_public_id(store)
     record = await store.save_record(bot_name, fields=fields)
+    DYNAMIC_PUBLIC_ID_INDEX.remember(get_record_public_id(record), record.bot_name)
     return {"ok": True, "operation": "create", **record_summary(record)}, 201
 
 
 async def handle_update(payload: dict[str, Any], bot_name: str) -> tuple[dict[str, Any], int]:
     store = get_chatbot_registry_store()
-    if await store.load_record(bot_name) is None:
+    existing = await store.load_record(bot_name)
+    if existing is None:
         raise ProvisioningError(f"botName '{bot_name}' does not exist.", 404)
     fields = build_fields_from_payload(payload)  # active intentionally preserved (not in fields)
     fields["last_session_id"] = payload.get("sessionId")
+    if get_record_public_id(existing) is None:
+        fields["embed_public_id"] = await mint_public_id(store)
     record = await store.save_record(bot_name, fields=fields)
+    DYNAMIC_PUBLIC_ID_INDEX.remember(get_record_public_id(record), record.bot_name)
     return {"ok": True, "operation": "update", **record_summary(record)}, 200
 
 
@@ -203,6 +244,7 @@ async def handle_set_active(payload: dict[str, Any], bot_name: str, *, active: b
     record = await store.set_active(bot_name, active)
     if record is None:
         raise ProvisioningError(f"botName '{bot_name}' does not exist.", 404)
+    record = await ensure_embed_public_id(store, record)
     return {"ok": True, "operation": "start" if active else "stop", **record_summary(record)}, 200
 
 
@@ -211,8 +253,18 @@ async def handle_delete(payload: dict[str, Any], bot_name: str) -> tuple[dict[st
     deleted = await store.delete_record(bot_name)
     if not deleted:
         raise ProvisioningError(f"botName '{bot_name}' does not exist.", 404)
-    # TODO(Phase 4): cascade cleanup — prompt blob, embed config, per-bot Cosmos chat history,
-    # and content category (reuse delete_category_data.py). Destructive; gate carefully.
+    DYNAMIC_PUBLIC_ID_INDEX.forget_bot(bot_name)
+    # The embed whitelist is keyed by bot NAME, so leaving it behind would silently apply the old
+    # customer's allowed domains to any future bot provisioned under the same name. The record is
+    # already gone at this point, so a failure here must not fail the delete.
+    embed_config_store = current_app.config.get(CONFIG_CHATBOT_EMBED_CONFIG_STORE)
+    if embed_config_store is not None:
+        try:
+            await embed_config_store.delete_config(bot_name)
+        except Exception:
+            logger.exception("Could not delete the embed whitelist for deleted bot %s", bot_name)
+    # TODO(Phase 4): remaining cascade cleanup — prompt blob, per-bot Cosmos chat history, and
+    # content category (reuse delete_category_data.py). Destructive; gate carefully.
     return {"ok": True, "operation": "delete", "botName": bot_name}, 200
 
 
@@ -256,6 +308,12 @@ async def provision_chatbot():
     except Exception:
         logger.exception("Provisioning operation %s failed for botName=%s", operation, payload.get("botName"))
         return jsonify({"ok": False, "operation": operation, "error": "Internal error."}), 500
+
+    # Hand the caller a ready-to-paste embed snippet whenever the operation resolved a public ID,
+    # built here because only the request knows this deployment's public origin.
+    public_id = body.get("publicId")
+    if isinstance(public_id, str) and public_id:
+        body["embedSnippet"] = build_embed_snippet(request.host_url, public_id)
 
     # Echo the correlation id back for the caller.
     session_id = payload.get("sessionId")

@@ -5,6 +5,7 @@ import { I18nextProvider } from "react-i18next";
 import { botConfigApi } from "../../api";
 import type { BotConfig } from "../../api/models";
 import { ChatbotThemeRoot } from "../shared/theme/ChatbotThemeRoot";
+import { EmbedBridge } from "../shared/embed/EmbedBridge";
 import { createGenericI18n } from "./createGenericI18n";
 import { BotConfigContext } from "./botConfigContext";
 import Layout from "./pages/layout/Layout";
@@ -20,9 +21,13 @@ type Status = "loading" | "ready" | "notfound";
  * provisioned color, i18n from lemon's bundles overlaid with the provisioned greeting/disclaimer/title,
  * and identity (category, welcome, history) via BotConfigContext. Built-in / inactive / unknown names
  * 404 and redirect home. Built-in bots never reach here — their static routes rank higher.
+ *
+ * `botName` overrides the route param, for the anonymized embed route (`/embed/<publicId>`) where the
+ * bot is named by the backend-injected `window.__EMBED_CHATBOT_NAME__` and never appears in the URL.
  */
-export function GenericChatbotRoute({ embedMode }: { embedMode?: boolean }) {
-    const { botName } = useParams();
+export function GenericChatbotRoute({ embedMode, botName: botNameOverride }: { embedMode?: boolean; botName?: string }) {
+    const { botName: routeBotName } = useParams();
+    const botName = botNameOverride ?? routeBotName;
     const [status, setStatus] = useState<Status>("loading");
     const [config, setConfig] = useState<BotConfig | null>(null);
 
@@ -73,6 +78,9 @@ export function GenericChatbotRoute({ embedMode }: { embedMode?: boolean }) {
                     </Layout>
                 </BotConfigContext.Provider>
             </I18nextProvider>
+            {/* Same host handshake the built-in bots mount, so an embedded dynamic bot announces
+                readiness (chatbot:ready) exactly like they do. */}
+            {embedMode && <EmbedBridge />}
         </ChatbotThemeRoot>
     );
 }

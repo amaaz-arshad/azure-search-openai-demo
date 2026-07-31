@@ -16,6 +16,7 @@ from quart import Quart
 
 from approaches.chatbot_prompt_registry import normalize_chatbot_name
 from config import (
+    CONFIG_CHATBOT_EMBED_CONFIG_STORE,
     CONFIG_CHATBOT_REGISTRY_STORE,
     CONFIG_PROVISIONING_API_KEY,
     CONFIG_RESERVED_BOT_NAMES,
@@ -26,6 +27,7 @@ from core.chatbotregistrystore import (
     ChatbotRegistryStore,
     format_utc,
 )
+from embed_public_ids import DYNAMIC_PUBLIC_ID_INDEX, EMBED_PUBLIC_IDS, PUBLIC_ID_RE
 from provisioning import build_fields_from_payload, provisioning_bp
 
 API_KEY = "test-key"
@@ -42,6 +44,9 @@ class FakeRegistryStore:
     async def load_record(self, bot_name):
         return self.records.get(normalize_chatbot_name(bot_name))
 
+    async def list_records(self):
+        return dict(self.records)
+
     async def save_record(self, bot_name, *, fields):
         name = normalize_chatbot_name(bot_name)
         assert name is not None
@@ -57,10 +62,14 @@ class FakeRegistryStore:
             active=bool(fields["active"]) if "active" in fields else (existing.active if existing else False),
             created_at=existing.created_at if existing is not None else now,
             updated_at=now,
+            # Write-once, like the real store: a stored ID can never be rotated by an update.
+            embed_public_id=(existing.embed_public_id if existing and existing.embed_public_id else None)
+            or fields.get("embed_public_id"),
             plan=merged("plan", "plan", None),
             number_sessions=merged("number_sessions", "number_sessions", UNLIMITED_SESSIONS),
             ansprache=merged("ansprache", "ansprache", None),
             llm=merged("llm", "llm", None),
+            reasoning_effort=merged("reasoning_effort", "reasoning_effort", None),
             prompt=merged("prompt", "prompt", ""),
             modes=merged("modes", "modes", {}),
             design=merged("design", "design", {}),
@@ -87,11 +96,34 @@ class FakeRegistryStore:
         return self.records.pop(normalize_chatbot_name(bot_name), None) is not None
 
 
+class FakeEmbedConfigStore:
+    """Tracks the embed-whitelist cascade on delete."""
+
+    def __init__(self):
+        self.deleted: list[str] = []
+
+    async def delete_config(self, chatbot_name):
+        self.deleted.append(chatbot_name)
+        return True
+
+
+@pytest.fixture(autouse=True)
+def clear_public_id_index():
+    # The publicId -> botName index is a module-level cache; leaking entries across tests would let
+    # one test's minted ID satisfy another's assertions.
+    DYNAMIC_PUBLIC_ID_INDEX.by_public_id.clear()
+    DYNAMIC_PUBLIC_ID_INDEX.last_refresh = None
+    yield
+    DYNAMIC_PUBLIC_ID_INDEX.by_public_id.clear()
+    DYNAMIC_PUBLIC_ID_INDEX.last_refresh = None
+
+
 def make_app(*, api_key: str | None = API_KEY):
     app = Quart(__name__)
     app.register_blueprint(provisioning_bp)
     store = FakeRegistryStore()
     app.config[CONFIG_CHATBOT_REGISTRY_STORE] = store
+    app.config[CONFIG_CHATBOT_EMBED_CONFIG_STORE] = FakeEmbedConfigStore()
     app.config[CONFIG_RESERVED_BOT_NAMES] = set(RESERVED)
     app.config[CONFIG_PROVISIONING_API_KEY] = api_key
     return app, store
@@ -283,6 +315,118 @@ async def test_delete():
 
     resp, _ = await post(client, {"sessionId": "s", "botName": "bxa", "operation": "delete"})
     assert resp.status_code == 404
+
+
+# --- embed identity -----------------------------------------------------------------------
+#
+# A provisioned bot must be embeddable from the moment it exists: create mints its anonymous public
+# ID, so it shows up in the admin directory and the embed picker with no extra step.
+
+
+@pytest.mark.asyncio
+async def test_create_mints_a_public_id_and_returns_a_ready_snippet():
+    app, store = make_app()
+    resp, body = await post(app.test_client(), create_payload())
+    assert resp.status_code == 201
+
+    public_id = body["publicId"]
+    assert PUBLIC_ID_RE.match(public_id), public_id
+    assert public_id not in EMBED_PUBLIC_IDS.values()  # never collides with a built-in
+    assert store.records["bxa"].embed_public_id == public_id  # persisted on the record
+    # The panel can show the customer their embed code straight from the response.
+    assert body["embedSnippet"].endswith(f'data-chatbot-id="{public_id}"></script>')
+    assert "/widget.js" in body["embedSnippet"]
+    # The readable route name must never leak into the snippet.
+    assert "bxa" not in body["embedSnippet"]
+
+
+@pytest.mark.asyncio
+async def test_created_bots_get_distinct_public_ids():
+    app, _ = make_app()
+    client = app.test_client()
+    _, first = await post(client, create_payload(botName="bxa"))
+    _, second = await post(client, create_payload(botName="other"))
+    assert first["publicId"] != second["publicId"]
+
+
+@pytest.mark.asyncio
+async def test_update_never_rotates_the_public_id():
+    # Rotating it would silently break every embed snippet already pasted on a customer's site.
+    app, store = make_app()
+    client = app.test_client()
+    _, created = await post(client, create_payload())
+    _, updated = await post(client, create_payload(operation="update", name="ABX2"))
+    assert updated["publicId"] == created["publicId"]
+    assert store.records["bxa"].embed_public_id == created["publicId"]
+
+
+@pytest.mark.asyncio
+async def test_start_and_stop_preserve_the_public_id():
+    app, _ = make_app()
+    client = app.test_client()
+    _, created = await post(client, create_payload())
+    _, stopped = await post(client, {"sessionId": "s", "botName": "bxa", "operation": "stop"})
+    _, started = await post(client, {"sessionId": "s", "botName": "bxa", "operation": "start"})
+    assert stopped["publicId"] == created["publicId"]
+    assert started["publicId"] == created["publicId"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("operation", ["update", "start", "stop"])
+async def test_legacy_record_without_a_public_id_is_backfilled(operation):
+    # Bots provisioned before dynamic embedding existed have no ID; any later operation heals them.
+    app, store = make_app()
+    await store.save_record("bxa", fields={"active": True})
+    assert store.records["bxa"].embed_public_id is None
+
+    payload = create_payload(operation=operation) if operation == "update" else {"botName": "bxa", "operation": operation}
+    resp, body = await post(app.test_client(), payload)
+    assert resp.status_code == 200
+    assert PUBLIC_ID_RE.match(body["publicId"])
+    assert store.records["bxa"].embed_public_id == body["publicId"]
+
+
+@pytest.mark.asyncio
+async def test_delete_removes_the_embed_whitelist_and_forgets_the_id():
+    # The whitelist is keyed by bot NAME, so leaving it behind would apply one customer's allowed
+    # domains to the next bot provisioned under the same name.
+    app, _ = make_app()
+    client = app.test_client()
+    _, created = await post(client, create_payload())
+    assert DYNAMIC_PUBLIC_ID_INDEX.by_public_id.get(created["publicId"]) == "bxa"
+
+    resp, _ = await post(client, {"sessionId": "s", "botName": "bxa", "operation": "delete"})
+    assert resp.status_code == 200
+    assert app.config[CONFIG_CHATBOT_EMBED_CONFIG_STORE].deleted == ["bxa"]
+    assert created["publicId"] not in DYNAMIC_PUBLIC_ID_INDEX.by_public_id
+
+
+@pytest.mark.asyncio
+async def test_delete_still_succeeds_when_the_whitelist_cleanup_fails():
+    app, store = make_app()
+    client = app.test_client()
+    await post(client, create_payload())
+
+    class ExplodingEmbedStore:
+        async def delete_config(self, chatbot_name):
+            raise RuntimeError("blob storage is down")
+
+    app.config[CONFIG_CHATBOT_EMBED_CONFIG_STORE] = ExplodingEmbedStore()
+    resp, body = await post(client, {"sessionId": "s", "botName": "bxa", "operation": "delete"})
+    # The record is already gone at that point, so a cascade failure must not fail the operation.
+    assert resp.status_code == 200
+    assert body["ok"] is True
+    assert "bxa" not in store.records
+
+
+@pytest.mark.asyncio
+async def test_delete_works_without_an_embed_store_configured():
+    app, _ = make_app()
+    client = app.test_client()
+    await post(client, create_payload())
+    app.config[CONFIG_CHATBOT_EMBED_CONFIG_STORE] = None
+    resp, _ = await post(client, {"sessionId": "s", "botName": "bxa", "operation": "delete"})
+    assert resp.status_code == 200
 
 
 # --- pure helpers -------------------------------------------------------------------------

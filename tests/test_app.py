@@ -15,12 +15,14 @@ from quart import Response as QuartResponse
 
 import app
 from core import freeauth as free_auth
+from core.dynamic_bot_config import DEFAULT_DYNAMIC_QNA_MODEL, DEFAULT_DYNAMIC_TUTOR_MODEL
 from core.internaladminauth import (
     INTERNAL_ADMIN_AUTH_COOKIE,
     INTERNAL_ADMIN_INVALID_PASSWORD_MESSAGE,
     INTERNAL_ADMIN_REQUIRED_MESSAGE,
 )
 from core.simplechatbotauth import SIMPLE_CHATBOT_AUTH_COOKIE_PREFIX
+from embed_public_ids import DYNAMIC_PUBLIC_ID_INDEX, PUBLIC_ID_RE
 
 
 def fake_response(http_code):
@@ -894,6 +896,262 @@ async def test_internal_admin_embed_config_rejects_non_embeddable_bot(client):
 async def test_internal_admin_embed_config_requires_auth(client):
     response = await client.get("/internal-admin/embed-config/publishone")
     assert response.status_code == 401
+
+
+# --- embedding provisioned (dynamic) bots --------------------------------------------------
+#
+# Dynamic bots have no committed public ID: theirs is minted at create time and stored on the
+# registry record, so the /embed routes have to resolve through the registry. Everything below runs
+# against an in-memory registry so no blob I/O is involved.
+
+DYNAMIC_PUBLIC_ID = "dyn1234567"
+
+
+def make_dynamic_record(
+    bot_name="acme",
+    *,
+    active=True,
+    public_id=DYNAMIC_PUBLIC_ID,
+    display_name="ACME Support",
+    llm=None,
+    reasoning_effort=None,
+    modes=None,
+    design=None,
+):
+    return app.ChatbotRegistryRecord(
+        bot_name=bot_name,
+        display_name=display_name,
+        active=active,
+        created_at="2026-07-01T00:00:00+00:00",
+        updated_at="2026-07-01T00:00:00+00:00",
+        embed_public_id=public_id,
+        llm=llm,
+        reasoning_effort=reasoning_effort,
+        modes=modes if modes is not None else {},
+        design=design if design is not None else {},
+    )
+
+
+@pytest.fixture
+def dynamic_registry(client, monkeypatch):
+    """Replace the registry + embed-config stores with in-memory fakes.
+
+    Yields the record dict, so a test can populate it with provisioned bots. The module-level
+    publicId index is a cache, so it is cleared around each test.
+    """
+    records: dict[str, Any] = {}
+    registry_store = client.app.config[app.CONFIG_CHATBOT_REGISTRY_STORE]
+    embed_store = client.app.config[app.CONFIG_CHATBOT_EMBED_CONFIG_STORE]
+    saved_rules: dict[str, list[str]] = {}
+
+    async def load_record(bot_name):
+        return records.get(bot_name)
+
+    async def list_records():
+        return dict(records)
+
+    async def save_record(bot_name, *, fields):
+        existing = records[bot_name]
+        records[bot_name] = make_dynamic_record(
+            bot_name,
+            active=existing.active,
+            public_id=existing.embed_public_id or fields.get("embed_public_id"),
+            display_name=existing.display_name,
+            llm=existing.llm,
+            reasoning_effort=existing.reasoning_effort,
+            modes=existing.modes,
+            design=existing.design,
+        )
+        return records[bot_name]
+
+    async def load_allowed_rules(chatbot_name):
+        return list(saved_rules.get(chatbot_name, []))
+
+    async def load_config(chatbot_name):
+        return app.ChatbotEmbedConfig(chatbot_name=chatbot_name, allowed_rules=list(saved_rules.get(chatbot_name, [])))
+
+    async def save_rules(chatbot_name, rules):
+        saved_rules[chatbot_name] = [rule.strip() for rule in rules if rule.strip()]
+        return app.ChatbotEmbedConfig(chatbot_name=chatbot_name, allowed_rules=saved_rules[chatbot_name])
+
+    monkeypatch.setattr(registry_store, "load_record", load_record)
+    monkeypatch.setattr(registry_store, "list_records", list_records)
+    monkeypatch.setattr(registry_store, "save_record", save_record)
+    monkeypatch.setattr(embed_store, "load_allowed_rules", load_allowed_rules)
+    monkeypatch.setattr(embed_store, "load_config", load_config)
+    monkeypatch.setattr(embed_store, "save_rules", save_rules)
+
+    DYNAMIC_PUBLIC_ID_INDEX.by_public_id.clear()
+    DYNAMIC_PUBLIC_ID_INDEX.last_refresh = None
+    yield records
+    DYNAMIC_PUBLIC_ID_INDEX.by_public_id.clear()
+    DYNAMIC_PUBLIC_ID_INDEX.last_refresh = None
+
+
+@pytest.mark.asyncio
+async def test_embed_route_serves_a_provisioned_bot(client, dynamic_registry):
+    dynamic_registry["acme"] = make_dynamic_record()
+
+    response = await client.get(f"/embed/{DYNAMIC_PUBLIC_ID}")
+    assert response.status_code == 200
+    assert response.content_type.startswith("text/html")
+    body = (await response.get_data()).decode()
+    # The SPA mounts the bot from the injected name; the URL only ever carries the opaque ID.
+    assert 'window.__EMBED_CHATBOT_NAME__="acme"' in body
+    assert f'window.__EMBED_PUBLIC_ID__="{DYNAMIC_PUBLIC_ID}"' in body
+
+
+@pytest.mark.asyncio
+async def test_embed_widget_config_uses_the_provisioned_primary_color(client, dynamic_registry):
+    dynamic_registry["acme"] = make_dynamic_record(design={"color_primary": "#123456"})
+
+    response = await client.get(f"/embed/{DYNAMIC_PUBLIC_ID}/config")
+    assert response.status_code == 200
+    payload = await response.get_json()
+    assert payload["ok"] is True
+    assert payload["primaryColor"] == "#123456"
+    assert payload["launcherIconColor"] is None
+    assert payload["allowAll"] is True
+    # The readable name must never appear in the widget config response.
+    assert "acme" not in (await response.get_data()).decode()
+
+
+@pytest.mark.asyncio
+async def test_embed_widget_config_falls_back_when_no_color_is_provisioned(client, dynamic_registry):
+    dynamic_registry["acme"] = make_dynamic_record(design={})
+    response = await client.get(f"/embed/{DYNAMIC_PUBLIC_ID}/config")
+    assert (await response.get_json())["primaryColor"] == app.EMBED_LAUNCHER_DEFAULT_COLOR
+
+
+@pytest.mark.asyncio
+async def test_stopped_provisioned_bot_is_not_embeddable(client, dynamic_registry):
+    # A stopped bot's own route redirects home, so its live embeds must go dark the same way.
+    dynamic_registry["acme"] = make_dynamic_record(active=False)
+
+    entry_response = await client.get(f"/embed/{DYNAMIC_PUBLIC_ID}")
+    assert entry_response.status_code == 302
+    assert entry_response.headers["Location"].endswith("/")
+
+    config_response = await client.get(f"/embed/{DYNAMIC_PUBLIC_ID}/config")
+    assert config_response.status_code == 404
+    assert (await config_response.get_json())["ok"] is False
+
+
+@pytest.mark.asyncio
+async def test_embed_route_locks_framing_to_a_provisioned_bots_whitelist(client, dynamic_registry, monkeypatch):
+    dynamic_registry["acme"] = make_dynamic_record()
+    embed_store = client.app.config[app.CONFIG_CHATBOT_EMBED_CONFIG_STORE]
+
+    async def load_allowed_rules(chatbot_name):
+        assert chatbot_name == "acme"
+        return ["*.acme.example"]
+
+    monkeypatch.setattr(embed_store, "load_allowed_rules", load_allowed_rules)
+
+    response = await client.get(f"/embed/{DYNAMIC_PUBLIC_ID}")
+    assert response.headers.get("Content-Security-Policy") == "frame-ancestors 'self' *.acme.example"
+    assert "X-Frame-Options" not in response.headers
+
+
+@pytest.mark.asyncio
+async def test_internal_admin_embed_config_serves_a_provisioned_bot(client, dynamic_registry):
+    dynamic_registry["acme"] = make_dynamic_record()
+    await login_internal_admin(client)
+
+    get_response = await client.get("/internal-admin/embed-config/acme")
+    assert get_response.status_code == 200
+    assert (await get_response.get_json())["embedConfig"]["publicId"] == DYNAMIC_PUBLIC_ID
+
+    put_response = await client.put("/internal-admin/embed-config/acme", json={"allowedRules": ["*.acme.example", ""]})
+    assert put_response.status_code == 200
+    put_payload = await put_response.get_json()
+    assert put_payload["embedConfig"]["allowedRules"] == ["*.acme.example"]
+    assert put_payload["embedConfig"]["publicId"] == DYNAMIC_PUBLIC_ID
+
+
+@pytest.mark.asyncio
+async def test_internal_admin_embed_config_serves_a_stopped_provisioned_bot(client, dynamic_registry):
+    # Editing the whitelist before starting a bot is allowed; only handing out a snippet is not.
+    dynamic_registry["acme"] = make_dynamic_record(active=False)
+    await login_internal_admin(client)
+    response = await client.get("/internal-admin/embed-config/acme")
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_internal_admin_embed_config_still_rejects_an_unknown_bot(client, dynamic_registry):
+    await login_internal_admin(client)
+    response = await client.get("/internal-admin/embed-config/ghost")
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_dynamic_chatbots_listing_includes_stopped_bots_and_effective_models(client, dynamic_registry):
+    dynamic_registry["acme"] = make_dynamic_record(llm="not-deployed-model")
+    dynamic_registry["zeta"] = make_dynamic_record(
+        "zeta", active=False, public_id="zet1234567", display_name="Zeta", modes={"tutor": True}
+    )
+    await login_internal_admin(client)
+
+    response = await client.get("/internal-admin/dynamic-chatbots")
+    assert response.status_code == 200
+    chatbots = (await response.get_json())["chatbots"]
+    assert [entry["botName"] for entry in chatbots] == ["acme", "zeta"]  # sorted
+
+    acme, zeta = chatbots
+    assert acme["publicId"] == DYNAMIC_PUBLIC_ID
+    assert acme["active"] is True
+    assert acme["mode"] == "qna"
+    # An undeployed provisioned model must display the model that will really serve, not the bad one.
+    assert acme["llm"] == DEFAULT_DYNAMIC_QNA_MODEL
+    assert acme["reasoningEffort"] is None  # gpt-4.1 has no reasoning
+
+    # Stopped bots are listed (flagged), so the directory shows the whole estate.
+    assert zeta["active"] is False
+    assert zeta["displayName"] == "Zeta"
+    assert zeta["mode"] == "tutor-qna"
+    assert zeta["llm"] == DEFAULT_DYNAMIC_TUTOR_MODEL
+    assert zeta["reasoningEffort"] == "medium"
+
+
+@pytest.mark.asyncio
+async def test_dynamic_chatbots_listing_honors_a_deployed_provisioned_model(client, dynamic_registry, monkeypatch):
+    monkeypatch.setitem(client.app.config, app.CONFIG_CHAT_MODEL_DEPLOYMENTS, {"gpt-5.4": "gpt-5.4"})
+    dynamic_registry["acme"] = make_dynamic_record(llm="gpt-5.4", reasoning_effort="high")
+    await login_internal_admin(client)
+
+    response = await client.get("/internal-admin/dynamic-chatbots")
+    entry = (await response.get_json())["chatbots"][0]
+    assert entry["llm"] == "gpt-5.4"
+    assert entry["reasoningEffort"] == "high"
+
+
+@pytest.mark.asyncio
+async def test_dynamic_chatbots_listing_backfills_a_missing_public_id(client, dynamic_registry):
+    # A bot provisioned before dynamic embedding existed is healed on first admin access, so the
+    # whole listing is immediately embeddable.
+    dynamic_registry["legacy"] = make_dynamic_record("legacy", public_id=None)
+    await login_internal_admin(client)
+
+    response = await client.get("/internal-admin/dynamic-chatbots")
+    entry = (await response.get_json())["chatbots"][0]
+    assert PUBLIC_ID_RE.match(entry["publicId"])
+    assert dynamic_registry["legacy"].embed_public_id == entry["publicId"]  # persisted, not just returned
+
+
+@pytest.mark.asyncio
+async def test_dynamic_chatbots_listing_requires_auth(client):
+    response = await client.get("/internal-admin/dynamic-chatbots")
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_embed_demo_page_fetches_provisioned_chatbots(client):
+    # Built-in options are server-rendered; provisioned bots are fetched so a newly created bot
+    # appears in the picker with no redeploy.
+    response = await client.get("/embed-demo")
+    body = (await response.get_data()).decode()
+    assert "/internal-admin/dynamic-chatbots" in body
 
 
 @pytest.mark.asyncio

@@ -15,6 +15,112 @@ Two categories per date:
 
 ---
 
+## 2026-07-31
+
+### Provisioned (dynamic) bots are now listed in the admin directory and embeddable
+
+#### Decisions
+
+- **Embedding was a built-in-only feature by construction; four independent gates each
+  hard-coded the built-in set.** A bot created through `POST /provisioning/chatbots` was
+  invisible to the whole embed surface: (1) `is_embeddable` means "has an entry in the
+  committed `EMBED_PUBLIC_IDS` map", which nothing writes at runtime; (2) the `/embed-demo`
+  picker iterated `KNOWN_CHATBOT_NAMES`, which dynamic bots are deliberately excluded from;
+  (3) both `/internal-admin/embed-config/<name>` endpoints 404'd on `not is_embeddable(...)`;
+  (4) the `/embed/:publicId` SPA route resolved the injected name against the compiled
+  `chatbotDefinitions`, so a dynamic bot would have redirected home even with an ID. The
+  `/admin/chatbots` directory was likewise built purely from `chatbotDefinitions`. All four
+  were fixed rather than papering over one.
+- **A dynamic bot's public ID lives on its registry record, minted at `create`.** There is no
+  source file to commit for a bot the control panel invents at runtime, so the committed map
+  cannot cover it. Both sources share one 1:1 ID space (minting checks both), and resolution
+  tries the committed map first with **zero I/O** so built-in embeds never depend on the
+  registry being reachable.
+- **The ID is write-once, enforced in `save_record` rather than by convention.** A stored
+  `embed_public_id` always beats an incoming one, so no update/start/stop/backfill — on any
+  replica — can rotate an identity that customer sites already have pasted into their HTML.
+- **Resolution is cached in-process, and the cache cannot drift.** `DYNAMIC_PUBLIC_ID_INDEX`
+  is a publicId→botName map that rebuilds from the registry on a miss (records stay the source
+  of truth) with the rebuild rate-limited, so a flood of unknown IDs cannot become a flood of
+  blob listings. A `PUBLIC_ID_RE` shape check runs *before* any registry access, so malformed
+  probes cost nothing — this also keeps the existing `not-a-real-id` tests I/O-free.
+- **Startup must never list the registry.** The first implementation minted the seeded
+  `/example` bot's ID via `mint_public_id`, which lists blobs; that pushed app startup past
+  Quart's timeout and made **every** `test_app.py` test error at fixture setup. The seed now
+  uses bare `generate_public_id()`. Documented in `CLAUDE.md` so it is not reintroduced.
+- **Stopped bots: listed in the directory, absent from the embed surfaces** (chosen with the
+  user). A stopped bot's route redirects home, so handing out its snippet would produce a
+  broken iframe; but hiding it entirely would make provisioned bots vanish from admin view.
+  So the directory shows them tagged `STOPPED` with no **Embed** button, and
+  `resolve_servable_embed_target` refuses them on `/embed/<publicId>` and its config endpoint.
+  Existing embeds of a bot that is later stopped go dark and recover on `start` with the same
+  ID. The whitelist editor deliberately *does* accept a stopped bot, so domains can be
+  prepared before starting it.
+- **Default whitelist stays "empty = any site"** (chosen with the user), identical to the 18
+  built-in bots. A "provisioned-but-empty = deny" state was considered and rejected: it needs
+  new semantics (empty currently means allow-all) and turns a missing config into a silent
+  render-nothing support case.
+- **`create`/`update`/`start`/`stop` responses now carry `publicId` + `embedSnippet`** (chosen
+  with the user) so the PHP control panel can show a customer their embed code without anyone
+  opening `/admin`. Additive fields only; `delete` has no ID to report.
+- **`delete` now also deletes the bot's embed whitelist.** That store is keyed by bot *name*,
+  so leaving it behind meant a future bot provisioned under the same `botName` would silently
+  inherit the previous customer's allowed domains. A cascade failure is logged and does not
+  fail the delete (the record is already gone by then). The rest of the Phase-4 cascade
+  (prompt blob, chat history, content category) is still an open TODO.
+- **The directory reports EFFECTIVE model and effort, not the raw provisioned strings.** The
+  model/effort fallback logic was extracted from the chat path into
+  `resolve_dynamic_chat_model`/`resolve_dynamic_reasoning_effort` and shared, so a bot whose
+  panel sent an undeployed `llm` cannot display a model that would never serve.
+- **The new admin endpoint returns dynamic bots only.** Built-ins are already compiled into
+  the frontend; serving both from one endpoint would blur the isolation invariant. The
+  directory merges the two lists client-side, and `/embed-demo` appends the provisioned ones
+  as an optgroup — deliberately client-side, because adding a blob listing to that HTML route
+  would break it in the (backend-less) test environment.
+- **Test scope: the `test_app.py` integration tests could not be executed here.** The
+  `client` fixture times out in app startup in this environment — verified as **pre-existing**
+  by running the same tests against an unmodified `HEAD` worktree, not caused by this change.
+  The new backend logic is therefore covered by fast, offline-runnable tests
+  (`test_dynamic_resolution.py`, `test_provisioning.py`, `test_embed_public_ids.py` — all
+  green), with the integration tests written for CI. The directory UI was verified manually
+  with Playwright route-mocks against a vite dev server (14 assertions incl. badge rendering
+  and Embed-button gating). No new test was added to `tests/e2e.py`, whose live-server
+  fixture needs Azure.
+
+#### Changes
+
+- `app/backend/core/chatbotregistrystore.py`: new `embed_public_id` field on
+  `ChatbotRegistryRecord` (+ `embedPublicId` serialize/deserialize) and write-once merge in
+  `save_record`.
+- `app/backend/embed_public_ids.py`: `PUBLIC_ID_RE` + `looks_like_public_id`,
+  `build_embed_snippet`, `generate_public_id(taken)`, `get_record_public_id`,
+  `DynamicPublicIdIndex` + `DYNAMIC_PUBLIC_ID_INDEX`, `resolve_public_id_async`,
+  `mint_public_id`, and `RegistryRecordLike`/`RegistryStoreLike` protocols (Mapping return so
+  a concrete `dict[str, ChatbotRegistryRecord]` satisfies it).
+- `app/backend/provisioning.py`: mint on `create`, backfill via `ensure_embed_public_id` on
+  `update`/`start`/`stop`, `publicId` in `record_summary`, `embedSnippet` in the dispatcher,
+  embed-config cascade + index eviction on `delete`.
+- `app/backend/app.py`: `resolve_dynamic_record_any_state`, `is_embeddable_chatbot`,
+  `resolve_dynamic_chat_model`, `resolve_dynamic_reasoning_effort` (chat path refactored onto
+  the last two), `resolve_servable_embed_target` + `embed_launcher_colors` used by both
+  `/embed` routes, dynamic-aware embed-config endpoints via `resolve_embed_admin_public_id`,
+  new `GET /internal-admin/dynamic-chatbots` + `build_dynamic_chatbot_admin_payload`, and the
+  seeded `/example` bot now gets an ID without listing blobs.
+- `app/backend/embed_demo.html`: `loadProvisionedOptions()` appends a `Provisioned` optgroup.
+- `app/frontend/src/pages/ChatbotDirectory/dynamicChatbotsApi.ts` (new) and
+  `ChatbotDirectory.tsx` / `.module.css`: merged directory entries, `PROVISIONED`/`STOPPED`
+  tags, Embed gating, and a "built-in only" warning when the fetch fails.
+- `app/frontend/src/index.tsx` + `chatbots/generic/GenericChatbotRoute.tsx`: `/embed/:publicId`
+  falls back to the generic route via a new `botName` prop; generic mounts `EmbedBridge` in
+  embed mode.
+- Tests: `tests/test_embed_public_ids.py` (+17), `tests/test_provisioning.py` (+8, fake store
+  extended with `list_records`/`embed_public_id`/`reasoning_effort`),
+  `tests/test_dynamic_resolution.py` (+11), `tests/test_app.py` (+13 integration tests and a
+  `dynamic_registry` fixture, for CI).
+- Docs: `docs/embedding.md` (two-source ID model + "Provisioned (dynamic) bots" section),
+  `docs/provisioning-api.md` (response fields, "Embedding a provisioned bot", delete
+  cascade), `CLAUDE.md` (embed + dynamic-bot contracts, admin tab description).
+
 ## 2026-07-30
 
 ### HYROX assessment: support address switched to `hyrox@lemon-systems.com`

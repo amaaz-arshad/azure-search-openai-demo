@@ -106,8 +106,16 @@ const router = createBrowserRouter([
             ...chatbotRoutes,
             {
                 // Anonymized embed target. The bot is chosen from the backend-injected name, never the URL.
+                // A name with no built-in definition is a dynamic (provisioned) bot: mount it through the
+                // generic route, which resolves it from /bot-config exactly as `/:botName` does.
                 path: "/embed/:publicId",
-                element: embedChatbot ? wrapChatbotElement(embedChatbot, <embedChatbot.LayoutWrapper />) : <Navigate to="/" replace />,
+                element: embedChatbot ? (
+                    wrapChatbotElement(embedChatbot, <embedChatbot.LayoutWrapper />)
+                ) : embedChatbotName ? (
+                    <GenericChatbotRoute embedMode={embedMode} botName={embedChatbotName} />
+                ) : (
+                    <Navigate to="/" replace />
+                ),
                 children: embedChatbot ? [{ index: true, element: <embedChatbot.Chat /> }] : undefined
             },
             {

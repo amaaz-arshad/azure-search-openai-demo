@@ -53,7 +53,7 @@ The bot is reachable at `https://chat.nerilio.ai/<botName>` once created (and ac
 | `update` | envelope + `defaults` | **200** | Updates config of an existing bot. Display name and any provided `defaults` change; the active/stopped state is preserved. 404 if it doesn't exist. |
 | `start` | envelope (no `defaults`) | **200** | Marks the bot active → route + chat available. 404 if it doesn't exist. |
 | `stop` | envelope (no `defaults`) | **200** | Marks the bot inactive → route redirects home and chat is refused (`403 chatbot_inactive`). 404 if it doesn't exist. |
-| `delete` | envelope (no `defaults`) | **200** | Removes the bot from the registry. 404 if it doesn't exist. |
+| `delete` | envelope (no `defaults`) | **200** | Removes the bot from the registry, along with its embed allowed-domains whitelist. 404 if it doesn't exist. |
 
 ### Success response
 
@@ -67,6 +67,8 @@ The bot is reachable at `https://chat.nerilio.ai/<botName>` once created (and ac
   "active": true,
   "plan": null,            // reserved; tier is conveyed via number_sessions, not a "plan" field
   "numberSessions": 10000,
+  "publicId": "muw0oowcw3",  // anonymous widget id, minted on create and never changed
+  "embedSnippet": "<script async src=\"https://chat.nerilio.ai/widget.js\" data-chatbot-id=\"muw0oowcw3\"></script>",
   "updatedAt": "2026-06-30T12:34:56.789Z",
   "sessionId": "<echoed if sent>"
 }
@@ -74,6 +76,22 @@ The bot is reachable at `https://chat.nerilio.ai/<botName>` once created (and ac
 // delete
 { "ok": true, "operation": "delete", "botName": "bxa", "sessionId": "<echoed if sent>" }
 ```
+
+#### Embedding a provisioned bot
+
+`create` mints the bot's **anonymous public ID** and returns it as `publicId`, together with a
+ready-to-paste `embedSnippet` (built against the origin the request arrived on). Show or store these
+and the customer can embed the bot immediately — no admin step, no redeploy. `update`, `start`, and
+`stop` return the same `publicId`; `delete` does not (the bot is gone).
+
+The ID is **write-once**: nothing rotates it, because live snippets on customer sites already point
+at it. `botName` never appears in the snippet, and the iframe URL carries only the ID. A **stopped**
+bot's embeds go dark (the iframe redirects home and the widget renders nothing) and come back on
+`start` with the same ID. `delete` also removes the bot's allowed-domains whitelist, so a future bot
+provisioned under the same `botName` does not inherit it. Bots created before this field existed get
+an ID minted the first time an admin page lists them, or on their next operation here.
+
+Full details, including the domain whitelist: [embedding.md](embedding.md).
 
 ### Error response
 
@@ -131,7 +149,11 @@ actually does with it today.
   `403 {"error":"quota_exceeded"}`. `-1` = unlimited. (The "120-min inactivity = new session" half of
   the definition is not yet implemented; this only under-counts, never over-charges.)
 - **Start/stop is immediate.** `stop` makes the route redirect home and chat return
-  `403 {"error":"chatbot_inactive"}`; `start` re-enables both.
+  `403 {"error":"chatbot_inactive"}`; `start` re-enables both. It covers embeds too: a stopped bot's
+  `/embed/<publicId>` iframe redirects home and its widget renders nothing.
+- **Embeddable on creation.** Every bot gets an anonymous `publicId` at `create` and appears in the
+  internal chatbot directory and embed picker with no further step. See
+  [Embedding a provisioned bot](#embedding-a-provisioned-bot).
 - **Content/knowledge is out of scope.** This API only configures a bot. Documents the bot retrieves
   from are loaded via the separate ingestion flow (content category = `botName`). A bot with no ingested
   content answers from the model + prompt only.

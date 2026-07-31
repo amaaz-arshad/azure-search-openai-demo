@@ -17,6 +17,7 @@ from config import CONFIG_CHAT_MODEL_DEPLOYMENTS, CONFIG_CHATBOT_PROMPT_STORE, C
 from core.chatbotregistrystore import ChatbotRegistryRecord
 from core.dynamic_bot_config import DEFAULT_DYNAMIC_QNA_MODEL, DEFAULT_DYNAMIC_TUTOR_MODEL
 from core.dynamic_tutor_prompt import DEFAULT_DYNAMIC_TUTOR_PROMPT
+from embed_public_ids import DYNAMIC_PUBLIC_ID_INDEX, EMBED_PUBLIC_IDS, PUBLIC_ID_RE, get_public_id
 
 # Deployed chat models available in the test app (mirrors what build_chat_model_deployments produces).
 DEPLOYED_MODELS = {"gpt-5": "gpt-5", "gpt-5.4": "gpt-5.4", "gpt-5.4-mini": "gpt-5.4-mini", "gpt-4.1": "gpt-4.1"}
@@ -32,15 +33,22 @@ class FakeRegistry:
         self.load_calls.append(normalize_chatbot_name(name))
         return self.records.get(normalize_chatbot_name(name))
 
+    async def list_records(self):
+        return dict(self.records)
+
     async def save_record(self, bot_name, *, fields):
         normalized = normalize_chatbot_name(bot_name)
         self.save_calls.append((normalized, dict(fields)))
+        existing = self.records.get(normalized)
         self.records[normalized] = make_record(
             normalized,
             prompt=fields.get("prompt", ""),
             llm=fields.get("llm"),
-            active=bool(fields.get("active", False)),
+            active=bool(fields.get("active", existing.active if existing else False)),
             modes=fields.get("modes"),
+            # Write-once, like the real store.
+            embed_public_id=(existing.embed_public_id if existing and existing.embed_public_id else None)
+            or fields.get("embed_public_id"),
         )
         return self.records[normalized]
 
@@ -54,17 +62,30 @@ class FakePromptStore:
         return None
 
 
-def make_record(name, *, prompt="", llm=None, active=True, modes=None, reasoning_effort=None):
+def make_record(
+    name,
+    *,
+    prompt="",
+    llm=None,
+    active=True,
+    modes=None,
+    reasoning_effort=None,
+    embed_public_id=None,
+    design=None,
+    display_name=None,
+):
     return ChatbotRegistryRecord(
         bot_name=name,
-        display_name=name,
+        display_name=display_name or name,
         active=active,
         created_at="2026-06-30T00:00:00+00:00",
         updated_at="2026-06-30T00:00:00+00:00",
+        embed_public_id=embed_public_id,
         prompt=prompt,
         llm=llm,
         reasoning_effort=reasoning_effort,
         modes=modes if modes is not None else {},
+        design=design if design is not None else {},
     )
 
 
@@ -144,6 +165,199 @@ async def test_example_dynamic_bot_seed_skips_existing_record():
 
     assert registry.load_calls == ["example"]
     assert registry.save_calls == []
+
+
+@pytest.mark.asyncio
+async def test_example_dynamic_bot_is_seeded_with_an_embed_public_id():
+    registry = FakeRegistry({})
+    quart_app = make_ctx(registry)
+    async with quart_app.app_context():
+        await app_module.ensure_example_dynamic_bot_seeded()
+
+    _bot_name, fields = registry.save_calls[0]
+    # Minted inline (never by listing the registry) so app startup performs no blob listing.
+    assert PUBLIC_ID_RE.match(fields["embed_public_id"])
+    assert fields["embed_public_id"] not in EMBED_PUBLIC_IDS.values()
+
+
+# --- embed identity for dynamic bots ------------------------------------------------------
+#
+# A provisioned bot is embeddable by existing: its public ID is minted at create and stored on the
+# record, so the /embed routes and the admin surfaces resolve through the registry. Built-in bots
+# keep resolving from the committed map with no registry access at all (isolation invariant).
+
+
+@pytest.fixture(autouse=True)
+def clear_public_id_index():
+    DYNAMIC_PUBLIC_ID_INDEX.by_public_id.clear()
+    DYNAMIC_PUBLIC_ID_INDEX.last_refresh = None
+    yield
+    DYNAMIC_PUBLIC_ID_INDEX.by_public_id.clear()
+    DYNAMIC_PUBLIC_ID_INDEX.last_refresh = None
+
+
+@pytest.mark.asyncio
+async def test_resolve_any_state_returns_stopped_bots_but_never_builtins():
+    registry = FakeRegistry(
+        {"bxa": make_record("bxa", active=False), "demo": make_record("demo", active=True)}
+    )
+    quart_app = make_ctx(registry)
+    async with quart_app.app_context():
+        stopped = await app_module.resolve_dynamic_record_any_state("bxa")
+        assert stopped is not None and stopped.active is False
+        assert await app_module.resolve_dynamic_record_any_state("ghost") is None
+        # A built-in name must never resolve out of the registry, even if a record exists.
+        assert await app_module.resolve_dynamic_record_any_state("demo") is None
+
+
+@pytest.mark.asyncio
+async def test_is_embeddable_chatbot_spans_both_worlds():
+    registry = FakeRegistry({"bxa": make_record("bxa", active=True), "halted": make_record("halted", active=False)})
+    quart_app = make_ctx(registry)
+    async with quart_app.app_context():
+        assert await app_module.is_embeddable_chatbot("publishone") is True  # built-in, committed ID
+        assert await app_module.is_embeddable_chatbot("bxa") is True  # dynamic, active
+        # Stopped bots count as embeddable so an admin can prepare the whitelist before starting.
+        assert await app_module.is_embeddable_chatbot("halted") is True
+        assert await app_module.is_embeddable_chatbot("ghost") is False
+        # "internal" is a built-in router shell with no committed ID: it must NOT become embeddable
+        # just because the registry is now consulted.
+        assert await app_module.is_embeddable_chatbot("internal") is False
+
+
+@pytest.mark.asyncio
+async def test_servable_embed_target_resolves_builtin_without_registry_access():
+    registry = FakeRegistry({})
+    quart_app = make_ctx(registry)
+    async with quart_app.app_context():
+        name, record = await app_module.resolve_servable_embed_target(get_public_id("publishone"))
+    assert (name, record) == ("publishone", None)
+    assert registry.load_calls == []
+
+
+@pytest.mark.asyncio
+async def test_servable_embed_target_resolves_an_active_dynamic_bot():
+    registry = FakeRegistry({"bxa": make_record("bxa", active=True, embed_public_id="dyn1234567")})
+    quart_app = make_ctx(registry)
+    async with quart_app.app_context():
+        name, record = await app_module.resolve_servable_embed_target("dyn1234567")
+    assert name == "bxa"
+    assert record is not None and record.bot_name == "bxa"
+
+
+@pytest.mark.asyncio
+async def test_servable_embed_target_refuses_a_stopped_dynamic_bot():
+    # The bot's own route redirects home when stopped; its live embeds must go dark the same way.
+    registry = FakeRegistry({"bxa": make_record("bxa", active=False, embed_public_id="dyn1234567")})
+    quart_app = make_ctx(registry)
+    async with quart_app.app_context():
+        assert await app_module.resolve_servable_embed_target("dyn1234567") == (None, None)
+
+
+@pytest.mark.asyncio
+async def test_servable_embed_target_refuses_unknown_and_malformed_ids():
+    registry = FakeRegistry({"bxa": make_record("bxa", active=True, embed_public_id="dyn1234567")})
+    quart_app = make_ctx(registry)
+    async with quart_app.app_context():
+        assert await app_module.resolve_servable_embed_target("zzz9999999") == (None, None)
+        assert await app_module.resolve_servable_embed_target("not-a-real-id") == (None, None)
+
+
+@pytest.mark.asyncio
+async def test_launcher_colors_use_the_provisioned_primary():
+    record = make_record("bxa", design={"color_primary": "#123456"})
+    assert app_module.embed_launcher_colors("bxa", record) == ("#123456", None)
+    # Blank/absent provisioned color falls back to the shared default.
+    assert app_module.embed_launcher_colors("bxa", make_record("bxa", design={"color_primary": "  "})) == (
+        app_module.EMBED_LAUNCHER_DEFAULT_COLOR,
+        None,
+    )
+    assert app_module.embed_launcher_colors("bxa", make_record("bxa")) == (
+        app_module.EMBED_LAUNCHER_DEFAULT_COLOR,
+        None,
+    )
+    # Built-in bots keep their committed launcher colors, including the icon override.
+    assert app_module.embed_launcher_colors("hyrox-assessment", None) == ("#000000", "#FFED00")
+
+
+@pytest.mark.asyncio
+async def test_embed_admin_public_id_backfills_a_legacy_dynamic_record():
+    registry = FakeRegistry({"bxa": make_record("bxa", active=True, embed_public_id=None)})
+    quart_app = make_ctx(registry)
+    async with quart_app.app_context():
+        public_id = await app_module.resolve_embed_admin_public_id("bxa")
+    assert PUBLIC_ID_RE.match(public_id)
+    # Persisted, not just returned, so the ID is stable across requests.
+    assert registry.records["bxa"].embed_public_id == public_id
+    assert len(registry.save_calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_embed_admin_public_id_is_stable_and_never_rewrites():
+    registry = FakeRegistry({"bxa": make_record("bxa", active=True, embed_public_id="dyn1234567")})
+    quart_app = make_ctx(registry)
+    async with quart_app.app_context():
+        assert await app_module.resolve_embed_admin_public_id("bxa") == "dyn1234567"
+        assert await app_module.resolve_embed_admin_public_id("publishone") == get_public_id("publishone")
+        assert await app_module.resolve_embed_admin_public_id("ghost") is None
+    assert registry.save_calls == []  # nothing to heal -> no write
+
+
+# --- effective model / effort (shared by the chat path and the admin directory) ------------
+
+
+@pytest.mark.asyncio
+async def test_effective_model_honors_a_deployed_llm_and_falls_back_otherwise():
+    assert app_module.resolve_dynamic_chat_model(make_record("bxa", llm="gpt-5"), DEPLOYED_MODELS) == "gpt-5"
+    # Undeployed, empty, and tutor-mode cases resolve to the mode-aware defaults.
+    assert (
+        app_module.resolve_dynamic_chat_model(make_record("bxa", llm="nope"), DEPLOYED_MODELS)
+        == DEFAULT_DYNAMIC_QNA_MODEL
+    )
+    assert (
+        app_module.resolve_dynamic_chat_model(make_record("bxa", llm=None), DEPLOYED_MODELS)
+        == DEFAULT_DYNAMIC_QNA_MODEL
+    )
+    assert (
+        app_module.resolve_dynamic_chat_model(make_record("bxa", llm="nope", modes={"tutor": True}), DEPLOYED_MODELS)
+        == DEFAULT_DYNAMIC_TUTOR_MODEL
+    )
+    assert app_module.resolve_dynamic_chat_model(make_record("bxa", llm="gpt-5"), {}) == DEFAULT_DYNAMIC_QNA_MODEL
+
+
+@pytest.mark.asyncio
+async def test_effective_reasoning_effort_matches_the_model_capability():
+    reasoning_record = make_record("bxa", reasoning_effort="high")
+    assert app_module.resolve_dynamic_reasoning_effort(reasoning_record, DEFAULT_DYNAMIC_TUTOR_MODEL) == "high"
+    # An invalid provisioned effort falls back to medium; a non-reasoning model gets no effort at all.
+    assert (
+        app_module.resolve_dynamic_reasoning_effort(make_record("bxa", reasoning_effort="turbo"), DEFAULT_DYNAMIC_TUTOR_MODEL)
+        == "medium"
+    )
+    assert app_module.resolve_dynamic_reasoning_effort(make_record("bxa"), DEFAULT_DYNAMIC_TUTOR_MODEL) == "medium"
+    assert app_module.resolve_dynamic_reasoning_effort(reasoning_record, DEFAULT_DYNAMIC_QNA_MODEL) is None
+    assert app_module.resolve_dynamic_reasoning_effort(reasoning_record, None) is None
+
+
+def test_dynamic_chatbot_admin_payload_reports_effective_values():
+    record = make_record(
+        "bxa",
+        display_name="ABX",
+        active=False,
+        llm="not-deployed",
+        reasoning_effort="high",
+        modes={"tutor": True},
+        embed_public_id="dyn1234567",
+    )
+    payload = app_module.build_dynamic_chatbot_admin_payload(record, DEPLOYED_MODELS)
+    assert payload["botName"] == "bxa"
+    assert payload["displayName"] == "ABX"
+    assert payload["active"] is False
+    assert payload["publicId"] == "dyn1234567"
+    assert payload["mode"] == "tutor-qna"
+    # The directory must show what would really serve, not the undeployed provisioned model.
+    assert payload["llm"] == DEFAULT_DYNAMIC_TUTOR_MODEL
+    assert payload["reasoningEffort"] == "high"
 
 
 # --- apply_saved_chatbot_prompt_override (dynamic branch) ---------------------------------

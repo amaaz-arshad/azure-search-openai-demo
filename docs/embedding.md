@@ -19,8 +19,9 @@ That's it. The script injects a launcher button (bottom-right by default) and, o
 loads the chatbot in an isolated iframe.
 
 Get the public ID (and manage the allowed-domains whitelist) from the internal **Chatbot
-Directory** page (`/chatbots`): every bot card has an **Embed** button that shows the ready-to-copy
-snippet, a domain whitelist editor, and a live preview.
+Directory** page (`/admin/chatbots`): every bot card has an **Embed** button that shows the
+ready-to-copy snippet, a domain whitelist editor, and a live preview. The directory lists both
+built-in and provisioned (dynamic) bots — see [Provisioned bots](#provisioned-dynamic-bots).
 
 > There is also an **`/embed-demo`** page (gated by the internal admin password, like the other
 > admin tools) — pick any chatbot from the dropdown to preview its popup, copy the public-ID
@@ -34,9 +35,47 @@ The embed snippet references a chatbot by an opaque, generated public ID (GA/Cla
 its route name. The internal route name stays unchanged and is still how the app is browsed
 directly (`/<chatbot_name>`); only the public ID is used for widget integration, and it never
 appears in the host page DOM or the iframe `src` (the iframe loads `/embed/<publicId>`, which
-resolves the bot server-side). The ID↔name map is committed in `app/backend/embed_public_ids.py`
-so embed codes are stable across deploys; run `python -m embed_public_ids` to mint an ID for a new
-chatbot.
+resolves the bot server-side).
+
+IDs come from two places, one per kind of bot:
+
+- **Built-in bots** — the ID↔name map committed in `app/backend/embed_public_ids.py`, so embed codes
+  are stable across deploys. Run `python -m embed_public_ids` to mint an ID for a new built-in bot,
+  then paste the printed line and commit it.
+- **Provisioned (dynamic) bots** — minted at create time and stored on the bot's registry record
+  (`embedPublicId`), because there is no source file to commit for a bot the control panel invents
+  at runtime.
+
+Minting checks both sets, so the ID space stays 1:1 and a dynamic bot can never collide with a
+built-in. Resolution follows the same order: the committed map first (no I/O, so built-in embeds
+never depend on the registry), then the registry. An ID is **write-once** — no update, restart, or
+admin action rotates it, since live snippets already point at it.
+
+## Provisioned (dynamic) bots
+
+Bots created through the provisioning API (`POST /provisioning/chatbots`, see
+[provisioning-api.md](provisioning-api.md)) are embeddable exactly like built-in bots, with no extra
+step:
+
+- **`create` mints the public ID** and returns it as `publicId`, plus a ready-to-paste
+  `embedSnippet`, so the control panel can show the customer their embed code without anyone opening
+  the admin UI.
+- They appear on **`/admin/chatbots`** (tagged `PROVISIONED`) and in the **`/admin/embed`** picker
+  (under a `Provisioned` group, fetched live — a new bot needs no redeploy).
+- **Stopped bots** (`active: false`) are still listed in the directory, tagged `STOPPED`, but offer
+  no **Embed** button and are absent from the embed picker: a stopped bot's route redirects home, so
+  its embed would load a broken iframe. Existing embeds of a bot that is later stopped go dark the
+  same way (`/embed/<publicId>` redirects, and the widget config 404s). Starting it again restores
+  them — the ID never changed.
+- The launcher bubble color comes from the bot's provisioned `design.color_primary` (falling back to
+  the shared default), rather than the per-bot table used for built-in bots.
+- The whitelist editor accepts a stopped bot, so domains can be prepared before the bot is started.
+- **`delete` also deletes the bot's whitelist**, because that store is keyed by bot *name*: leaving
+  it behind would silently apply one customer's allowed domains to the next bot provisioned under
+  the same name.
+
+Bots provisioned before this existed have no stored ID; one is minted and saved the first time an
+admin surface lists them (or on the bot's next provisioning operation), so no migration is needed.
 
 ## Domain whitelist
 

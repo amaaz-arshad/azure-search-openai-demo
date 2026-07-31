@@ -1,25 +1,91 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
 
-import { chatbotDefinitions } from "../../chatbots/registry";
+import { chatbotDefinitions, type ChatbotMode } from "../../chatbots/registry";
 import { formatChatbotLabel } from "../shared/chatbotDisplay";
 import EmbedSnippetModal from "./EmbedSnippetModal";
+import { listDynamicChatbotsApi } from "./dynamicChatbotsApi";
 import styles from "./ChatbotDirectory.module.css";
 
-const sortedChatbots = [...chatbotDefinitions].sort((a, b) => a.name.localeCompare(b.name));
+/**
+ * A directory card, from either of the two chatbot worlds: the 18 built-in bots compiled into the
+ * frontend registry, and the provisioned ("dynamic") bots that live in the backend registry and are
+ * created through the provisioning API. They are merged for display only — nothing else about the
+ * isolation between them changes.
+ */
+type DirectoryEntry = {
+    name: string;
+    label: string;
+    llm: string;
+    reasoningEffort?: string;
+    mode: ChatbotMode;
+    agenticRetrievalDefault: boolean;
+    provisioned: boolean;
+    active: boolean;
+    canEmbed: boolean;
+};
+
+const builtInEntries: DirectoryEntry[] = chatbotDefinitions.map(chatbot => ({
+    name: chatbot.name,
+    label: formatChatbotLabel(chatbot.name),
+    llm: chatbot.llm,
+    reasoningEffort: chatbot.reasoningEffort,
+    mode: chatbot.mode,
+    agenticRetrievalDefault: chatbot.agenticRetrievalDefault,
+    provisioned: false,
+    active: true,
+    canEmbed: true
+}));
 
 // Rendered inside the /admin shell (see pages/admin/AdminLayout). The shell owns the single auth
 // gate and the tab bar, so this page only renders the directory content.
 const ChatbotDirectory = () => {
     const [query, setQuery] = useState("");
     const [embedFor, setEmbedFor] = useState<string | null>(null);
+    const [dynamicEntries, setDynamicEntries] = useState<DirectoryEntry[]>([]);
+    const [dynamicError, setDynamicError] = useState<string | null>(null);
+
+    useEffect(() => {
+        const controller = new AbortController();
+        listDynamicChatbotsApi(controller.signal)
+            .then(chatbots => {
+                setDynamicEntries(
+                    chatbots.map(chatbot => ({
+                        name: chatbot.botName,
+                        label: chatbot.displayName || formatChatbotLabel(chatbot.botName),
+                        llm: chatbot.llm,
+                        reasoningEffort: chatbot.reasoningEffort ?? undefined,
+                        mode: chatbot.mode,
+                        // The generic frontend mirrors lemon: it auto-checks agentic retrieval whenever
+                        // the deployment offers it (see chatbots/generic/pages/chat/Chat.tsx).
+                        agenticRetrievalDefault: true,
+                        provisioned: true,
+                        active: chatbot.active,
+                        // A stopped bot's route redirects home, so an embed of it would load a broken
+                        // iframe — never hand out a snippet for one.
+                        canEmbed: chatbot.active && Boolean(chatbot.publicId)
+                    }))
+                );
+                setDynamicError(null);
+            })
+            .catch((error: unknown) => {
+                if (controller.signal.aborted) {
+                    return;
+                }
+                setDynamicError(error instanceof Error ? error.message : "Could not load provisioned chatbots.");
+            });
+        return () => controller.abort();
+    }, []);
+
+    const sortedChatbots = useMemo(
+        () => [...builtInEntries, ...dynamicEntries].sort((a, b) => a.name.localeCompare(b.name)),
+        [dynamicEntries]
+    );
 
     const normalizedQuery = query.trim().toLowerCase();
     const filteredChatbots = sortedChatbots.filter(
-        chatbot =>
-            chatbot.name.toLowerCase().includes(normalizedQuery) ||
-            formatChatbotLabel(chatbot.name).toLowerCase().includes(normalizedQuery)
+        chatbot => chatbot.name.toLowerCase().includes(normalizedQuery) || chatbot.label.toLowerCase().includes(normalizedQuery)
     );
 
     return (
@@ -63,6 +129,14 @@ const ChatbotDirectory = () => {
                         ) : null}
                     </div>
 
+                    {/* Built-in bots are compiled in and always render; say so explicitly when the
+                        provisioned half of the list could not be fetched. */}
+                    {dynamicError ? (
+                        <p className={styles.listWarning} role="status">
+                            Built-in chatbots only — provisioned chatbots could not be loaded. {dynamicError}
+                        </p>
+                    ) : null}
+
                     <div className={styles.directoryViewport}>
                         {filteredChatbots.length > 0 ? (
                             <div className={styles.directoryGrid}>
@@ -71,22 +145,30 @@ const ChatbotDirectory = () => {
                                         <div className={styles.cardHeader}>
                                             <span className={styles.cardIndex}>{String(index + 1).padStart(2, "0")}</span>
                                             <div className={styles.cardHeaderActions}>
-                                                <button
-                                                    type="button"
-                                                    className={styles.embedButton}
-                                                    onClick={event => {
-                                                        event.preventDefault();
-                                                        event.stopPropagation();
-                                                        setEmbedFor(chatbot.name);
-                                                    }}
-                                                >
-                                                    Embed
-                                                </button>
+                                                {chatbot.canEmbed ? (
+                                                    <button
+                                                        type="button"
+                                                        className={styles.embedButton}
+                                                        onClick={event => {
+                                                            event.preventDefault();
+                                                            event.stopPropagation();
+                                                            setEmbedFor(chatbot.name);
+                                                        }}
+                                                    >
+                                                        Embed
+                                                    </button>
+                                                ) : null}
                                                 <span className={styles.cardAction}>Open</span>
                                             </div>
                                         </div>
-                                        <strong className={styles.cardTitle}>{formatChatbotLabel(chatbot.name)}</strong>
+                                        <strong className={styles.cardTitle}>{chatbot.label}</strong>
                                         <span className={styles.cardRoute}>/{chatbot.name}</span>
+                                        {chatbot.provisioned ? (
+                                            <div className={styles.cardTags}>
+                                                <span className={styles.cardTag}>Provisioned</span>
+                                                {chatbot.active ? null : <span className={styles.cardTagStopped}>Stopped</span>}
+                                            </div>
+                                        ) : null}
                                         <ul className={styles.cardMeta}>
                                             <li className={styles.cardMetaItem}>
                                                 <span className={styles.cardMetaLabel}>LLM</span>
