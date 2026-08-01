@@ -696,6 +696,78 @@ def test_publishone_forces_english_for_german_browser_locale(browser: Browser, l
         context.close()
 
 
+def test_bbsa_forces_german_for_english_browser_locale(browser: Browser, live_server_url: str):
+    """bbsa is German-only: the UI is pinned to `de` and the chat `language` override — and hence
+    the answer language — must stay German even for an English browser, mirroring how publishone
+    pins English. breitband.tirol is a German-language corpus, so a mirrored locale would ask the
+    model to translate German technical/legal terms."""
+    context = browser.new_context(locale="en-US")
+    page = context.new_page()
+    captured_language: dict[str, str] = {}
+
+    def handle_chat_stream(route: Route):
+        post_data = route.request.post_data_json
+        captured_language["value"] = post_data["context"]["overrides"]["language"]
+        fulfill_chat_stream_snapshot(route, "tests/snapshots/test_app/test_chat_stream_text/client0/result.jsonlines")
+
+    page.route("*/**/chat/stream", handle_chat_stream)
+
+    try:
+        page.goto(f"{live_server_url}bbsa")
+
+        expect(page).to_have_title("Breitband.Tirol")
+        expect(page.get_by_text("Grüß Gott!", exact=False)).to_be_visible()
+        question_input = page.get_by_placeholder("Stellen Sie Ihre Frage zu Glasfaser in Tirol")
+        expect(question_input).to_be_visible()
+
+        # The navbar menu stays German despite the en-US browser locale.
+        page.locator("header button").last.click()
+        expect(page.get_by_role("button", name="Neuer Chat")).to_be_visible()
+        expect(page.get_by_text("New chat")).to_have_count(0)
+        page.keyboard.press("Escape")
+
+        question_input.fill("Was ist Glasfaser?")
+        # This QuestionInput's Fluent send Button carries no accessible name, so it is addressed by
+        # its CSS-module class rather than by label.
+        page.locator('[class*="sendButton"]').first.click()
+
+        expect(page.get_by_text("The capital of France is Paris.")).to_be_visible()
+        assert captured_language["value"] == "de"
+    finally:
+        context.close()
+
+
+def test_bbsa_navbar_is_light_while_the_send_button_keeps_the_brand_color(page: Page, live_server_url: str):
+    """The bbsa wordmark is dark-on-opaque-white, so its navbar is repainted white in the bot's own
+    Layout.module.css by redefining the navbar tokens in the header's OWN scope. The theme root must
+    keep navbar.background at the brand #032D3C — the composer send button reads that same token, and
+    every dropdown/disclaimer border and shadow is derived from it."""
+    page.goto(f"{live_server_url}bbsa")
+
+    header = page.locator("header")
+    expect(header).to_be_visible()
+
+    header_background = header.evaluate("el => getComputedStyle(el).backgroundColor")
+    assert header_background == "rgb(255, 255, 255)", header_background
+
+    # The secondary brand color separates the white bar from the chat surface.
+    header_border = header.evaluate("el => getComputedStyle(el).borderBottomColor")
+    assert header_border == "rgb(162, 29, 35)", header_border
+
+    # Scoped override: the token is white inside the header, brand teal at the theme root.
+    scoped_token = header.evaluate("el => getComputedStyle(el).getPropertyValue('--chatbot-navbar-background').trim()")
+    assert scoped_token == "#ffffff", scoped_token
+    root_token = page.locator('[data-chatbot-theme="bbsa"]').first.evaluate(
+        "el => getComputedStyle(el).getPropertyValue('--chatbot-navbar-background').trim()"
+    )
+    assert root_token.lower() == "#032d3c", root_token
+
+    send_button_background = page.locator('[class*="sendButton"]').first.evaluate(
+        "el => getComputedStyle(el).backgroundColor"
+    )
+    assert send_button_background == "rgb(3, 45, 60)", send_button_background
+
+
 def test_nerilio_answer_places_avatar_outside_card(page: Page, live_server_url: str):
     page.route(
         "*/**/chat/stream",

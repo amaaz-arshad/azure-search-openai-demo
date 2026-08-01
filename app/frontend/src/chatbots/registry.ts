@@ -2,6 +2,7 @@ import type { ComponentType } from "react";
 import type { i18n as I18nInstance } from "i18next";
 
 import { agindoChatbot } from "./agindo";
+import { bbsaChatbot } from "./bbsa";
 import { bensbergChatbot } from "./bensberg";
 import { cbtxChatbot } from "./cbtx";
 import { demoChatbot } from "./demo";
@@ -40,6 +41,7 @@ export interface ChatbotDefinition extends ChatbotMetadata {
 
 export const chatbotDefinitions: ChatbotDefinition[] = [
     { ...agindoChatbot, llm: "gpt-4.1", mode: "qna", agenticRetrievalDefault: false },
+    { ...bbsaChatbot, llm: "gpt-4.1", mode: "qna", agenticRetrievalDefault: false },
     { ...bensbergChatbot, llm: "gpt-5.4-mini", reasoningEffort: "high", mode: "tutor-qna", agenticRetrievalDefault: true },
     { ...nerilioChatbot, llm: "gpt-4.1", mode: "qna", agenticRetrievalDefault: false },
     { ...snapChatbot, llm: "gpt-4.1", mode: "qna", agenticRetrievalDefault: false },

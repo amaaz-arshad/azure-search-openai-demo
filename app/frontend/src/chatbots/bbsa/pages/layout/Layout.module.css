@@ -1,0 +1,177 @@
+.layout {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.main {
+    display: flex;
+    flex: 1;
+    min-height: 0; /* allow inner scroll areas to work inside flex container */
+}
+
+/* Navbar background and text color */
+.header {
+    background-color: var(--chatbot-navbar-background) !important;
+    color: var(--chatbot-navbar-text);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.headerContainer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1rem;
+    height: 56px; /* fixed height for navbar */
+    position: relative;
+    color: var(--chatbot-navbar-text);
+}
+
+/* Brand wordmark */
+.logoContainer {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    min-width: 154px;
+}
+
+.brandWordmark {
+    display: block;
+    width: auto;
+    height: 30px;
+    max-width: min(204px, 48vw);
+}
+
+/* Right section with dropdown */
+.rightSection {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+/* Dropdown menu */
+.dropdown {
+    position: relative;
+}
+
+.menuButton {
+    color: var(--chatbot-navbar-text) !important;
+    background: none;
+    border: none;
+    padding: 8px;
+}
+
+.menuButton:hover {
+    background-color: var(--chatbot-navbar-menu-hover-background);
+}
+
+.dropdownMenu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background-color: var(--chatbot-dropdown-background);
+    border: 1px solid var(--chatbot-dropdown-border);
+    border-radius: 4px;
+    list-style: none;
+    padding: 0.5rem 0;
+    min-width: 200px;
+    box-shadow: var(--chatbot-dropdown-shadow);
+    z-index: 1001;
+}
+
+.dropdownItem {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.5rem 1rem;
+    background: none;
+    border: none;
+    text-align: left;
+    color: var(--chatbot-dropdown-item-text);
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.dropdownItem:hover {
+    background-color: var(--chatbot-dropdown-item-hover-background);
+}
+
+/* Remove old navbar styles */
+.headerTitleContainer,
+.headerNavList,
+.headerNavPageLink,
+.headerNavPageLinkActive,
+.menuToggle {
+    display: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .logoContainer {
+        min-width: 126px;
+    }
+
+    .brandWordmark {
+        height: 24px;
+    }
+}
+
+
+/* polished-dropdown */
+/* Unify the navbar dropdown to the demo bot's more polished look: a rounded
+   floating menu with a gap below the trigger, a pill hover on the trigger, and
+   rounded, roomier, bolder items. */
+.menuButton {
+    border-radius: 999px;
+}
+
+.dropdownMenu {
+    margin-top: 0.5rem;
+    border-radius: 18px;
+    padding: 0.45rem;
+    min-width: 220px;
+}
+
+.dropdownItem {
+    gap: 0.65rem;
+    padding: 0.75rem 0.9rem;
+    border-radius: 14px;
+    font-weight: 600;
+}
+
+
+/* bbsa-light-navbar */
+/* Breitband.Tirol's nav wordmark is dark-on-opaque-white (not a white-on-dark
+   wordmark like publishone's), so this bot's navbar is light — the logo would show
+   as a white block on a dark bar. Only the header repaints itself, by redefining the
+   navbar tokens in ITS OWN scope: the theme root keeps navbar.background at the brand
+   #032D3C, which is what the composer's send button uses and what every dropdown /
+   disclaimer border and shadow is derived from (a white navbar.background at the root
+   would make all of those invisible). The 2px rule in the secondary #a21d23 echoes the
+   wordmark and separates the white bar from the chat surface. */
+.header {
+    --chatbot-navbar-background: #ffffff;
+    --chatbot-navbar-text: #032d3c;
+    --chatbot-navbar-menu-hover-background: rgba(3, 45, 60, 0.08);
+
+    background-color: #ffffff !important;
+    color: #032d3c;
+    border-bottom: 2px solid #a21d23;
+}
+
+/* The wordmark PNG carries internal padding (738x172 with whitespace around the pin and
+   type), so publishone's 30px reads noticeably smaller here than its tightly-cropped SVG
+   does. 40px in a 56px bar restores the intended optical size with room to breathe. */
+.brandWordmark {
+    height: 40px;
+    max-width: min(240px, 52vw);
+}
+
+@media (max-width: 768px) {
+    .brandWordmark {
+        height: 32px;
+    }
+}

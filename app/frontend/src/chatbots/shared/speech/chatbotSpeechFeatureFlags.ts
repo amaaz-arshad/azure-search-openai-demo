@@ -19,6 +19,11 @@ export const chatbotSpeechFeatureFlags: Record<string, ChatbotSpeechVisibility> 
         showSpeechOutputBrowser: true,
         showSpeechOutputAzure: true
     },
+    bbsa: {
+        showSpeechInput: false,
+        showSpeechOutputBrowser: false,
+        showSpeechOutputAzure: false
+    },
     cbtx: {
         showSpeechInput: true,
         showSpeechOutputBrowser: true,

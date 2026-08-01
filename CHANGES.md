@@ -17,6 +17,116 @@ Two categories per date:
 
 ## 2026-07-31
 
+### New `/bbsa` bot (Breitband.Tirol) with a breitband.tirol scrape/index pipeline
+
+#### Decisions
+
+- **breitband.tirol is one WordPress install served on a wildcard subdomain per
+  municipality, and the REST API is host-aware.** The site looks like ~24 pages; it is
+  actually those pages plus 36 live municipality subdomains
+  (`schwoich.breitband.tirol`, …) where the *same* page IDs return
+  municipality-specific rendered content. Diffing the main host against three
+  subdomains showed exactly two pages vary: `gemeindeinfos` (build status, who pays for
+  the house connection, the local contact person, the providers active on that
+  municipality's network) and the `home` hero line. Everything else is byte-identical.
+- **Scope chosen with the user: main site + all 36 municipalities, deduped.** The shared
+  pages are scraped once from the main host; each municipality contributes exactly one
+  document assembled from its varying parts (one REST list request per subdomain, so 37
+  requests total). Rejected alternatives: main site only (the bot could not answer "is
+  fiber available in Virgen / whom do I contact in Schwoich", likely the most-asked
+  question type) and all pages × all hosts (~890 docs, ~90% duplicate boilerplate, which
+  degrades retrieval and points citations at arbitrary subdomains).
+- **`breitband.tirol/gemeinde/<slug>/` is a directory stub, but its post type is the
+  change watermark.** Those pages render chrome only, so they are never content. Their
+  records do carry per-municipality `modified` timestamps — and since the municipality
+  data lives in Elementor fields behind *shared* page IDs, nothing else moves when a
+  municipality is edited. A `pages`/`posts` watermark alone would miss every
+  municipality edit, so `fetch_remote_state` includes the per-slug `modified` map.
+- **`citation_target="url"` is load-bearing beyond linking.** `get_sources_content`
+  labels each source with the citation, so with `url` the label IS the page URL — which
+  means a municipality's subdomain carries its identity into *every* chunk of its
+  document, not just the first one that repeats the name in its body. That is what makes
+  per-municipality attribution survive chunking.
+- **The prompt's main job is to stop municipality cross-contamination.** Municipalities
+  have contradictory rules (free house connection in Schwoich, owner-built empty conduit
+  in Brandenberg, different active providers), so a 🟠 Municipality-Specific Answers
+  section forbids transferring or generalizing one municipality's rule to another,
+  requires naming the municipality for every municipality-specific claim, and bans
+  confirming availability at a specific address (it points at the site's address check
+  and the Interessensbekundung instead).
+- **German is locked at both ends** (chosen with the user): `language_locale="German"`,
+  the chat `language` override pinned to `de`, and only the `de` i18n bundle registered.
+  Mirroring the user's language would make the model translate German technical/legal
+  terms (Hausanschluss, Leerrohr, Interessensbekundung) out of a German-only corpus.
+- **The navbar had to go white, and the override had to be header-scoped.** The supplied
+  `bbsa-nav-logo.png` is a dark-on-**opaque-white** wordmark (verified: alpha is fully
+  opaque, corner pixel white), unlike publishone's white-on-dark SVG, so it cannot sit on
+  a dark bar — it would render as a white block. Chosen with the user: white navbar with
+  the logo at full fidelity. But moving `navbar.background` to white at the *theme root*
+  would break unrelated chrome — `--chatbot-dropdown-border`/`-shadow` and every
+  `--chatbot-disclaimer-*` token are derived from it, and the composer's send button
+  reads it directly. So the seed stays `#032D3C` and only `.header` redefines the tokens
+  in its own scope, with a 2px `#a21d23` rule (the secondary color) under the bar.
+- **A sibling parser, not a generalized one.** `bbsajson.py` mirrors `snapjson.py` rather
+  than refactoring it into a shared multi-site parser: that matches the repo's
+  five-existing-parsers pattern and keeps the working snap path untouched. They stay
+  disjoint via category *and* feed marker, which is now covered by a test.
+- **Reused the snap scraper's HTML→markdown converter, owned the HTTP layer.**
+  `scrape_bbsa` imports `clean_html`/`clean_inline`/`extract_site_chrome`/… from
+  `scrape_snap` (Elementor and Divi bodies need the same conversion) but defines its own
+  `fetch_*` so requests carry a bbsa User-Agent instead of snap.de's.
+- **Refresh automation is deferred**, consistent with `refresh_snap.py` — a manual,
+  change-gated command for now.
+- **Test scope.** `tests/test_bbsajson.py` (12) and `tests/test_scrape_bbsa.py` (16) pass,
+  as does the new fixture-free wiring test in `test_app.py` and the extended
+  `test_chatbot_config_registry.py`. The two new `client`-based `test_app.py` tests and
+  the two new `e2e.py` tests could NOT be executed here: the app-client and e2e live
+  servers both fail to start offline (pre-existing environmental baseline — the existing
+  `publishone` equivalents error identically at the same fixtures). Every assertion in
+  the new e2e tests was instead verified individually in a real Chromium against the vite
+  dev server with route mocks (12/12 held), and two stale-on-arrival selectors were fixed
+  that way: the theme root attribute is `data-chatbot-theme` (not `data-chatbot`), and
+  this `QuestionInput`'s send Button has no accessible name, so it is addressed by its
+  CSS-module class — note the pre-existing `publishone` e2e test still uses
+  `get_by_label("Submit question")`, which no longer matches anything.
+
+#### Changes
+
+- Added `scripts/scrape_bbsa.py` — scrapes breitband.tirol into `data/bbsa.json`
+  (`"feed": "breitband.tirol"`): statewide pages/posts, one `website-header-footer`
+  site-info document, a `gemeinden-index` document listing all municipalities and their
+  sites, and one `gemeinde-<slug>` document per municipality. Aborts unless both halves
+  are non-empty. `--limit-gemeinden` for smoke tests. First full run: 54 documents
+  (18 site + 36 municipalities) → 112 search chunks.
+- Added `app/backend/prepdocslib/bbsajson.py` (category `bbsa`, `.json`, feed-marker
+  gated) and wired `build_bbsa_sections_if_applicable` into `parse_file`
+  (`filestrategy.py`); re-ran `scripts/copy_prepdocslib.py` to sync the four
+  `app/functions/*/prepdocslib/` copies.
+- Added `app/backend/refresh_bbsa.py` — change-gated end-to-end refresh
+  (watermark `data/bbsa.state.json` → scrape → delete category → re-index), with
+  `--force`/`--check-only` and a per-part change log.
+- Added `app/backend/approaches/chatbots/bbsa/{__init__,config,sampleprompt}.py`
+  (`gpt-4.1`, `language_locale="German"`, `citation_target="url"`,
+  `support_email="office@bbsa.tirol"`, `prompt_mode="override"`).
+- Registered the bot: `"bbsa"` in `KNOWN_CHATBOT_NAMES` and `EMBED_LAUNCHER_COLORS`
+  (`#032D3C`) in `app/backend/app.py`, `CHATBOT_PROMPT_MODULES` in
+  `approaches/chatbot_prompt_registry.py`, and `EMBED_PUBLIC_IDS["bbsa"] = "ibu732n0pa"`
+  in `app/backend/embed_public_ids.py`.
+- Added `app/frontend/src/chatbots/bbsa/` (forked from `publishone`): `index.ts`,
+  German-pinned `i18n/config.ts`, `pages/layout/Layout.tsx` + `.module.css` (white navbar,
+  `bbsa-nav-logo.png`, 40px wordmark, `#a21d23` rule), `components/Answer/Answer.tsx`
+  (`bbsa-assisstant.png`, round avatar, outside-left), `pages/chat/Chat.tsx`
+  (`chatbotCategory = "bbsa"`, `language: "de"`), and Breitband.Tirol copy in all three
+  locale bundles.
+- Registered the frontend bot in `chatbots/registry.ts` (`gpt-4.1`, `qna`), added the
+  `bbsa` theme seed to `shared/theme/chatbotThemes.ts`, and disabled speech in
+  `shared/speech/chatbotSpeechFeatureFlags.ts`.
+- Added `tests/test_bbsajson.py`, `tests/test_scrape_bbsa.py`, two `/bbsa` e2e tests in
+  `tests/e2e.py`, three tests in `tests/test_app.py` (one fixture-free wiring test), and
+  bbsa coverage in `tests/test_chatbot_config_registry.py`.
+- Documented the bot contract and the corpus pipeline in `CLAUDE.md` (Contracts To
+  Preserve + Adding Data; the custom-parser list is now six).
+
 ### Provisioned (dynamic) bots are now listed in the admin directory and embeddable
 
 #### Decisions

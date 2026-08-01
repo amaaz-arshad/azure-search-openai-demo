@@ -1,0 +1,231 @@
+.container {
+    --chatbot-answer-font-size: 15px;
+    --chatbot-answer-font-size-mobile: 15px;
+    --chatbot-answer-card-radius: 1.5em;
+    --chatbot-answer-card-radius-mobile: 1.5em;
+    --chatbot-answer-outside-avatar-size: 30px;
+    --chatbot-disclaimer-message-font-size: 15px;
+    --chatbot-disclaimer-message-font-size-mobile: 15px;
+    --chat-mobile-inline-padding: clamp(0.75rem, 4.25vw, 1rem);
+    --chat-mobile-input-bottom-padding: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    /* Remove margin-top: 1rem; */
+    height: calc(100vh - 56px); /* Subtract navbar height (56px from Layout.module.css) */
+}
+
+.chatRoot {
+    flex: 1;
+    display: flex;
+    height: 100%;
+    transition: margin-left 0.3s ease;
+}
+
+/* History panel shifts the chat aside only on wide layouts. On compact and
+   tablet-portrait viewports it overlays instead, so the 300px shift can't
+   force horizontal scrolling. */
+@media (min-width: 992px) {
+    .chatRootHistoryOpen {
+        margin-left: 300px;
+    }
+}
+
+.chatContainer {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    height: 100%; /* Use full height instead of max-height */
+    min-height: 0;
+    /* Vertical scroll only. overflow-y:auto alone makes overflow-x compute to
+       auto, so the chat area was a horizontal scroll container; once the
+       scrollbar was hidden (scrollbar-width:none) any edge overflow became an
+       invisible sideways swipe. Clip the x-axis so the view never scrolls
+       horizontally at any width while keeping the hidden vertical scrollbar. */
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.chatContainer::-webkit-scrollbar {
+    display: none;
+}
+
+.chatEmptyState {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding-top: 1rem;
+}
+
+.chatEmptyStateTitle {
+    font-size: 2.75rem;
+    font-weight: 600;
+    margin-top: 0;
+    margin-bottom: 1.875rem;
+}
+
+.chatEmptyStateSubtitle {
+    font-weight: 600;
+    margin-bottom: 0.625rem;
+}
+
+.chatMessageStream {
+    flex: 1;
+    width: 100%;
+    padding: 1.5rem 1.5rem 0;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    max-width: 64.25rem;
+}
+
+.chatMessageGpt {
+    margin-bottom: 1.5rem;
+    max-width: 100%;
+    display: flex;
+}
+
+.chatMessageGptMinWidth {
+    max-width: 31.25rem;
+    margin-bottom: 1.25rem;
+}
+
+.chatInput {
+    position: sticky;
+    bottom: 0;
+    flex: 0 0 auto;
+    padding: 1rem;
+    width: 100%;
+    max-width: 64.25rem;
+    box-sizing: border-box;
+    background: #f2f2f2;
+    z-index: 10; /* Ensure it stays above other content */
+}
+
+.chatAnalysisPanel {
+    flex: 1;
+    overflow-y: auto;
+    max-height: 85vh;
+    margin-left: 1.25rem;
+    margin-right: 1.25rem;
+}
+
+.chatSettingsSeparator {
+    display: flex;
+    flex-direction: column;
+    margin-top: 0.9375rem;
+}
+
+.loadingLogo {
+    font-size: 1.75rem;
+}
+
+.commandsSplitContainer {
+    display: flex;
+    justify-content: space-between;
+}
+
+.commandsContainer {
+    display: flex;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    align-self: flex-end;
+}
+
+.commandButton {
+    margin-bottom: 1.25rem;
+}
+
+@media (max-width: 991px) {
+    .container {
+        --chatbot-answer-shell-gap: 0.5rem;
+        --chatbot-answer-outside-avatar-size: 26px;
+    }
+
+    .chatMessageStream {
+        padding: 1.25rem var(--chat-mobile-inline-padding) 0;
+    }
+
+    .chatInput {
+        padding: 0.75rem var(--chat-mobile-inline-padding) var(--chat-mobile-input-bottom-padding);
+    }
+}
+
+@media (min-width: 992px) {
+    .container {
+        /* Remove margin-top: 1.25rem; */
+        height: calc(100vh - 56px); /* Keep consistent height */
+    }
+
+    .chatEmptyState {
+        padding-top: 3.75rem;
+    }
+
+    .chatEmptyStateTitle {
+        font-size: 4rem;
+    }
+
+    .chatInput {
+        padding: 0.75rem 1.5rem 1.5rem;
+    }
+
+    .commandsSplitContainer {
+        padding-left: 1rem;
+    }
+
+    .commandsContainer {
+        padding-left: 0rem;
+        padding-right: 0rem;
+    }
+
+    .commandButton {
+        margin-right: 1.25rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .chatMessageGpt {
+        max-width: 100%;
+        min-width: 31.25rem;
+    }
+}
+
+
+/* cleaner-ui-refresh */
+/* Cleaner unified look: center the conversation column and connect the composer
+   to the chat by dropping the gap above it. Stream and input share the same
+   max-width so messages stay aligned and nothing peeks beside the sticky input. */
+.chatMessageStream {
+    max-width: 48rem;
+    padding-bottom: 1.5rem;
+}
+
+/* Let the conversation run beneath the composer's rounded top corners. The lower
+   footer still masks with the page colour, but the radius band shows scrolled
+   chat content instead of a blank grey wedge. */
+.chatInput {
+    --composer-overlap: 1.5rem;
+    max-width: 48rem;
+    margin-top: calc(0rem - var(--composer-overlap));
+    padding-top: 0;
+    background: linear-gradient(to bottom, transparent 0 var(--composer-overlap), #f2f2f2 var(--composer-overlap));
+}
+
+/* Small disclaimer line beneath the composer (replaces the old top banner). */
+.inputDisclaimer {
+    margin: 0.5rem 0 0;
+    text-align: center;
+    font-size: 0.75rem;
+    line-height: 1.3;
+    color: #6b6b6b;
+}
+
+.inputDisclaimer a {
+    color: inherit;
+    text-decoration: underline;
+}

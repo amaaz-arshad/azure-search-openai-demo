@@ -297,6 +297,7 @@ NON_CHATBOT_FRONTEND_PREFIXES = {
 # Keep in sync with frontend chatbot routes in app/frontend/src/chatbots/registry.ts.
 KNOWN_CHATBOT_NAMES = {
     "agindo",
+    "bbsa",
     "bensberg",
     "cbtx",
     "nerilio",
@@ -1045,6 +1046,9 @@ async def embed_demo():
 EMBED_LAUNCHER_DEFAULT_COLOR = "#4f46e5"
 EMBED_LAUNCHER_COLORS = {
     "agindo": "#e2c200",
+    # bbsa's navbar is white (its nav wordmark is dark-on-white), so the launcher uses the brand
+    # dark teal rather than the visible chrome — a white bubble would vanish on a host page.
+    "bbsa": "#032D3C",
     "bensberg": "#005155",
     "demo": "#313335",
     "fbn": "#00cc96",

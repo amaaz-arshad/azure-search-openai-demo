@@ -52,6 +52,48 @@ def test_chatbot_config_registry_loads_known_configs() -> None:
     assert bensberg.prompt_mode == "override"
     assert bensberg.support_email == "info@lemon-systems.de"
 
+    bbsa = get_chatbot_config("bbsa")
+    assert bbsa is not None
+    assert bbsa.chatgpt_model == "gpt-4.1"
+    assert bbsa.language_locale == "German"
+    assert bbsa.support_email == "office@bbsa.tirol"
+    # The bbsa corpus is scraped web content: every record carries the live breitband.tirol
+    # (or <gemeinde>.breitband.tirol) URL, so citations must resolve to the public page.
+    assert bbsa.citation_target == "url"
+    assert bbsa.prompt_mode == "override"
+
+
+def test_render_bbsa_prompt_locks_german_and_keeps_municipality_attribution_rules() -> None:
+    load_chatbot_config.cache_clear()
+    bbsa_prompt = get_chatbot_prompt("bbsa")
+    assert bbsa_prompt is not None
+    # prompt_mode="override" bypasses the base RAG citation instructions, so the prompt itself
+    # must opt in to citations.
+    assert "Use square brackets to reference the source" in bbsa_prompt
+    assert "{{POSSIBLE_CITATIONS_PROMPT}}" in bbsa_prompt
+    # The corpus holds one document per municipality with contradictory rules (who pays for the
+    # house connection, which providers sell service). Transferring one municipality's rule to
+    # another is the bot's main accuracy risk, so the prompt must forbid it explicitly.
+    assert "Municipality-Specific Answers" in bbsa_prompt
+    assert "NEVER transferable between municipalities" in bbsa_prompt
+
+    rendered = render_chatbot_prompt(
+        bbsa_prompt,
+        "bbsa",
+        citations=["https://schwoich.breitband.tirol/gemeindeinfos/"],
+    )
+
+    # The url citation_target means the possible-citation labels are live breitband.tirol URLs —
+    # which is also what carries the municipality identity into every chunk's source label.
+    assert "Possible citations for current question: [https://schwoich.breitband.tirol/gemeindeinfos/]" in rendered
+    # Placeholders are fully substituted (no leftover template tokens).
+    assert "{{POSSIBLE_CITATIONS_PROMPT}}" not in rendered
+    assert "{{SUPPORT_EMAIL}}" not in rendered
+    assert "{{language_locale}}" not in rendered
+    assert "office@bbsa.tirol" in rendered
+    # language_locale is code-substituted from config.py, locking answers to German.
+    assert "Always respond in German" in rendered
+
 
 def test_chatbot_config_registry_returns_defaults_for_unknown_chatbots() -> None:
     load_chatbot_config.cache_clear()

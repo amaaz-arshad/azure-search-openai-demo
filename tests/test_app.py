@@ -2238,3 +2238,69 @@ async def test_format_as_ndjson():
 
     result = [line async for line in app.format_as_ndjson(gen())]
     assert result == ['{"a": "I ❤️ 🐍"}\n', '{"b": "Newlines inside \\n strings are fine"}\n']
+
+
+def test_bbsa_is_wired_consistently_across_the_backend_registries():
+    """A new built-in bot has to land in four independent places or it half-works: the route gate,
+    the prompt registry, the embed ID map, and the widget launcher palette. Fixture-free on purpose
+    so it runs without the app client."""
+    from approaches.chatbot_config_registry import get_chatbot_config
+    from approaches.chatbot_prompt_registry import get_registered_chatbot_names
+    from embed_public_ids import EMBED_PUBLIC_IDS, is_embeddable, resolve_public_id
+
+    # /<chatbot_name> gates on this set; a missing name redirects to "/" even with a frontend route.
+    assert "bbsa" in app.KNOWN_CHATBOT_NAMES
+    # "bbsa" must not collide with a reserved (non-chatbot) frontend prefix such as "admin".
+    assert "bbsa" not in app.NON_CHATBOT_FRONTEND_PREFIXES
+
+    assert "bbsa" in get_registered_chatbot_names()
+    config = get_chatbot_config("bbsa")
+    assert config is not None and config.language_locale == "German" and config.citation_target == "url"
+
+    # Public + embeddable: a committed, stable public ID that round-trips.
+    assert is_embeddable("bbsa")
+    public_id = app.get_public_id("bbsa")
+    assert public_id == EMBED_PUBLIC_IDS["bbsa"]
+    assert PUBLIC_ID_RE.match(public_id)
+    assert resolve_public_id(public_id) == "bbsa"
+
+    # The launcher bubble is the brand dark teal, not the (white) visible navbar — a white bubble
+    # would be invisible on a host page.
+    assert app.EMBED_LAUNCHER_COLORS["bbsa"] == "#032D3C"
+
+    # General invariant this bot must not break: every bot with a prompt module is routable.
+    # ("internal" and "public-test" are the documented exceptions in the other direction.)
+    assert set(get_registered_chatbot_names()) <= app.KNOWN_CHATBOT_NAMES
+
+
+@pytest.mark.asyncio
+async def test_bbsa_route_serves_the_spa_and_locks_framing_to_its_whitelist(client, monkeypatch):
+    embed_store = client.app.config[app.CONFIG_CHATBOT_EMBED_CONFIG_STORE]
+
+    async def mock_load_allowed_rules(chatbot_name: str):
+        assert chatbot_name == "bbsa"
+        return ["*.breitband.tirol"]
+
+    monkeypatch.setattr(embed_store, "load_allowed_rules", mock_load_allowed_rules)
+
+    response = await client.get("/bbsa")
+    assert response.status_code == 200
+    assert response.headers.get("Content-Security-Policy") == "frame-ancestors 'self' *.breitband.tirol"
+
+
+@pytest.mark.asyncio
+async def test_bbsa_embed_route_resolves_its_public_id(client, monkeypatch):
+    embed_store = client.app.config[app.CONFIG_CHATBOT_EMBED_CONFIG_STORE]
+
+    async def mock_load_allowed_rules(chatbot_name: str):
+        assert chatbot_name == "bbsa"
+        return []
+
+    monkeypatch.setattr(embed_store, "load_allowed_rules", mock_load_allowed_rules)
+
+    response = await client.get(f"/embed/{app.get_public_id('bbsa')}/config")
+    assert response.status_code == 200
+    payload = await response.get_json()
+    assert payload["primaryColor"] == app.EMBED_LAUNCHER_COLORS["bbsa"]
+    # The readable route name never leaves the backend on the embed surface.
+    assert "bbsa" not in (await response.get_data()).decode()

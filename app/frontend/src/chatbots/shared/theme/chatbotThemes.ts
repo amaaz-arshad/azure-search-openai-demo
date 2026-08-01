@@ -44,6 +44,14 @@ export const chatbotThemes: Record<string, ChatbotThemeSeed> = {
         primary: "#e2c200",
         pageTone: "light"
     },
+    bbsa: {
+        // Breitband.Tirol dark teal. The navbar itself is repainted white in the bot's own
+        // Layout.module.css (its wordmark is dark-on-white); this primary stays dark so the
+        // composer send button, user bubbles, dropdown/disclaimer borders and the login page
+        // keep the brand color. Secondary #a21d23 is the navbar rule, applied in that CSS.
+        primary: "#032D3C",
+        pageTone: "light"
+    },
     bensberg: {
         primary: "#005155",
         pageTone: "light",

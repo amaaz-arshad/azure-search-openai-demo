@@ -11,6 +11,7 @@ from typing import Optional
 from pypdf import PdfReader
 
 from .blobmanager import AdlsBlobManager, BaseBlobManager, BlobManager
+from .bbsajson import build_bbsa_sections_if_applicable
 from .embeddings import ImageEmbeddings, OpenAIEmbeddings
 from .figureprocessor import FigureProcessor, MediaDescriptionStrategy, process_page_image
 from .fhgjson import build_fhg_sections_if_applicable
@@ -67,7 +68,7 @@ async def parse_file(
     force_generic: bool = False,
 ) -> list[Section]:
     key = file.file_extension().lower()
-    # When force_generic is set, skip every content-specific custom parser (hyrox/lemon/snap/fhg/feed)
+    # When force_generic is set, skip every content-specific custom parser (hyrox/lemon/snap/bbsa/fhg/feed)
     # and route straight to the generic extension-based parsers below. Used by the content2 dynamic
     # auto-indexer so provisioned-bot files are always parsed generically regardless of category.
     if not force_generic:
@@ -94,6 +95,14 @@ async def parse_file(
         )
         if snap_sections is not None:
             return snap_sections
+
+        bbsa_sections = await build_bbsa_sections_if_applicable(
+            file=file,
+            category=category,
+            check_cancel=check_cancel,
+        )
+        if bbsa_sections is not None:
+            return bbsa_sections
 
         fhg_sections = await build_fhg_sections_if_applicable(
             file=file,
