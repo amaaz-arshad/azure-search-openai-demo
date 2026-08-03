@@ -15,6 +15,138 @@ Two categories per date:
 
 ---
 
+## 2026-08-03
+
+### Navbar dropdown menu items are no longer semi-bold (all bots)
+
+#### Decisions
+
+- **User request: the navbar dropdown items read as bold on every bot; make them normal
+  weight.** They were `font-weight: 600`, which came from the `demo` bot's dropdown and was
+  copied into every other bot by the earlier "polished-dropdown" unification — so it was one
+  value duplicated 20 times, not a per-bot design choice.
+- **Set the weight explicitly to `400` rather than deleting the declaration.** `.dropdownItem`
+  is a `<button>`, and buttons don't inherit `font-weight` from the page in every engine;
+  dropping the line would leave the rendered weight to UA defaults instead of pinning it.
+- **Edited all 18 per-bot `Layout.module.css` files, which covers all 21 bots** — `bensberg`,
+  `internal`, and `generic` (the dynamic/provisioned bots) import lemon's stylesheet, so they
+  inherit the change. Verified afterwards that no `.dropdownItem` rule anywhere still sets a
+  bold weight, and that nothing else (no `.dropdownMenu button`, no global rule) sets one.
+- **Left the centered `.navbarTitle` at 600** — the request was about the dropdown items, and
+  the title is a different element.
+- **No test churn:** no pytest or Playwright assertion referenced `font-weight`, so nothing
+  needed updating. Not separately rendered in a browser — a CSS literal swap in the single
+  rule that governs that text, confirmed by diff and by the grep sweep above.
+
+#### Changes
+
+- `app/frontend/src/chatbots/{agindo,bbsa,cbtx,demo,fbn,fhg,free,hyrox-assessment,knoll,lemon,moodle,nerilio,publishone,rak,sartorius,snap,steuertipps,vjoonk4}/pages/layout/Layout.module.css`:
+  `.dropdownItem` `font-weight: 600` → `400` (20 occurrences — `free` and `rak` each have the
+  declaration in both their base block and the appended `polished-dropdown` block).
+- Same files: the `polished-dropdown` comment no longer claims "bolder items".
+
+## 2026-08-01
+
+### `/bbsa`: fixed the 2px page scrollbar the navbar rule was causing
+
+#### Decisions
+
+- **Reported by the user: /bbsa had a vertical scrollbar no other bot had.** Measured it
+  rather than guessed — `document.scrollHeight - innerHeight` was **2px** on `/bbsa` and
+  **0px** on `/publishone`, `/lemon` and `/snap`, with bbsa's `header.offsetHeight` at
+  **58px** against everyone else's 56px.
+- **Cause was mine, from the navbar work:** `Chat.module.css` sizes the chat
+  `height: calc(100vh - 56px)` against `.headerContainer`'s fixed `height: 56px`, and the
+  `border-bottom: 2px solid #a21d23` I added to `.header` sat *outside* that 56px. Header
+  58px + chat `100vh - 56px` = `100vh + 2px`. Exactly the observed overflow.
+- **Fixed by making the rule cost no layout height** — `box-shadow: inset 0 -2px 0 #a21d23`
+  instead of `border-bottom`. Pixel-identical, and it decouples the decoration from the
+  layout arithmetic entirely. Rejected the alternative of changing the calc to
+  `100vh - 58px`: the literal appears twice in `Chat.module.css` (base + the ≤768px media
+  query) and would silently rot the next time the rule changes.
+- **Verified across 6 viewports** (1280×860, 1920×1080, 1024×700, 768×900, 390×844 mobile,
+  1280×500 short), empty and with a long answer: document overflow 0px everywhere, and the
+  inner chat area — not the page — does the scrolling.
+- **Two e2e guards added, because this class of bug is invisible in a screenshot.** The
+  navbar test now asserts the inset shadow *and* `header.offsetHeight === 56` as a pair,
+  and a new `test_bbsa_chat_fits_the_viewport_without_a_page_scrollbar` asserts the
+  document never exceeds the viewport, empty or with an answer.
+
+#### Changes
+
+- `chatbots/bbsa/pages/layout/Layout.module.css`: `border-bottom` → inset `box-shadow`,
+  with the layout-coupling rationale in the comment.
+- `tests/e2e.py`: replaced the `borderBottomColor` assertion with the shadow +
+  `offsetHeight === 56` pair; added the viewport-overflow test.
+- `CLAUDE.md`: recorded that the rule must never be a border.
+
+### `/bbsa`: speech enabled, and the chat chrome switched from publishone's to lemon's
+
+#### Decisions
+
+- **Requested by the user:** enable speech input/output, move the assistant avatar inside the
+  bubble like lemon (and the other avatar-inside bots), and adopt lemon's question input.
+- **The Answer change is a deletion, not a rewrite.** Lemon calls
+  `createBotAnswer(logo, Browser, Azure)` with no options at all, and `ChatbotAnswer`'s
+  defaults already are lemon's design (`assistantLogoPlacement: "inside"`,
+  `showAssistantName: true`, `showCopyButton: true`). So bbsa simply drops the three
+  publishone overrides. That also restores the assistant name and copy button, which is
+  what "like lemon" means — not just the avatar position.
+- **The composer files are byte-identical copies of lemon's**, `.tsx` and `.module.css`
+  both. Lemon's differs from publishone's in more than styling: it is multiline with
+  `autoAdjustHeight` capped at 12rem, has tooltips on the send/stop buttons, a custom
+  `StopCircleIcon`, and a disabled-surface state. Copying wholesale keeps them in sync;
+  cherry-picking CSS would have produced a third variant.
+- **This removed the last consumer of `--chatbot-navbar-background` outside the header.**
+  Publishone's circular `.sendButton` was filled with that token; lemon's send button is a
+  black glyph on the default Fluent surface. The theme root must still stay `#032D3C` —
+  `--chatbot-dropdown-*` and every `--chatbot-disclaimer-*` are derived from it — so the
+  header-scoped override is unchanged, but the *reason* recorded in `CLAUDE.md` and the
+  e2e test both had to be corrected. The e2e assertion was retargeted from the send
+  button's background to the derived `--chatbot-dropdown-border`
+  (`rgba(3, 45, 60, 0.16)`) and `--chatbot-disclaimer-accent` (`#032D3C`), which is a
+  *better* guard: those are the tokens that actually break if the override is moved.
+- **Selector contract changed: address the send button by accessible name, not class.**
+  `[class*="sendButton"]` no longer exists. Lemon wraps the button in a Tooltip with
+  `relationship="label"`, so its accessible name is `tooltips.submitQuestion`
+  ("Frage einreichen"). Both the pre-existing bbsa e2e test and my screenshot harness
+  broke on this and were fixed.
+- **No locale work was needed, and bbsa is better off than lemon here.** Every key the
+  lemon composer and the speech buttons need — `tooltips.submitQuestion`,
+  `stopStreaming`, `askWithVoice`, `stopRecording`, `speakAnswer` — is already present in
+  all three bbsa bundles (inherited from publishone). Lemon's own `de` bundle is missing
+  `stopStreaming`, so lemon shows the raw key there; bbsa does not.
+- **What speech actually yields on this deployment:** the frontend flags are ANDed with
+  `/config`, and the nerilio env has `USE_SPEECH_INPUT_BROWSER=true`,
+  `USE_SPEECH_OUTPUT_AZURE=true`, `USE_SPEECH_OUTPUT_BROWSER=false`. So bbsa gets mic
+  input and Azure TTS (German voice `de-DE-Florian:DragonHDLatestNeural`); browser TTS
+  stays off deployment-wide. All three flags were set to `true` anyway so the bot follows
+  the deployment rather than pinning a second switch.
+- **Verification:** `tsc --noEmit` and `npm run build` clean. The e2e live server still
+  cannot start offline, so all 11 assertions of the new design test — plus the 5 revised
+  ones in the existing navbar/German-lock tests — were each verified in a real Chromium
+  against the vite dev server with route mocks (11/11 and 15/16; the single miss was a
+  guessed mic selector in the throwaway harness, corrected to the real
+  `tooltips.askWithVoice` label).
+
+#### Changes
+
+- `shared/speech/chatbotSpeechFeatureFlags.ts`: `bbsa` speech input/output → `true`.
+- `chatbots/bbsa/components/Answer/Answer.tsx`: dropped the publishone option overrides
+  so the avatar, assistant name and copy/speak actions render inside the bubble header.
+- `chatbots/bbsa/components/QuestionInput/{QuestionInput.tsx,QuestionInput.module.css}`:
+  replaced with lemon's; `SpeechInput.tsx` now passes `idleMicColor="black"` to match.
+- `shared/theme/chatbotThemes.ts`: corrected the `bbsa` seed comment (the send button no
+  longer reads the navbar token).
+- `tests/e2e.py`: added
+  `test_bbsa_uses_lemons_answer_and_composer_design_with_speech`; renamed
+  `test_bbsa_navbar_is_light_…` and retargeted it to the derived theme tokens; fixed the
+  send-button selector in the German-lock test.
+- `CLAUDE.md`: rewrote the `bbsa` contract bullet for the lemon chrome, the speech
+  capability, and the send-button selector rule.
+
+---
+
 ## 2026-07-31
 
 ### New `/bbsa` bot (Breitband.Tirol) with a breitband.tirol scrape/index pipeline

@@ -727,9 +727,9 @@ def test_bbsa_forces_german_for_english_browser_locale(browser: Browser, live_se
         page.keyboard.press("Escape")
 
         question_input.fill("Was ist Glasfaser?")
-        # This QuestionInput's Fluent send Button carries no accessible name, so it is addressed by
-        # its CSS-module class rather than by label.
-        page.locator('[class*="sendButton"]').first.click()
+        # lemon's composer wraps the send Button in a Tooltip with relationship="label", so the
+        # button's accessible name is the localized tooltips.submitQuestion string.
+        page.get_by_label("Frage einreichen").click()
 
         expect(page.get_by_text("The capital of France is Paris.")).to_be_visible()
         assert captured_language["value"] == "de"
@@ -737,11 +737,12 @@ def test_bbsa_forces_german_for_english_browser_locale(browser: Browser, live_se
         context.close()
 
 
-def test_bbsa_navbar_is_light_while_the_send_button_keeps_the_brand_color(page: Page, live_server_url: str):
+def test_bbsa_navbar_is_light_but_the_theme_root_keeps_the_brand_color(page: Page, live_server_url: str):
     """The bbsa wordmark is dark-on-opaque-white, so its navbar is repainted white in the bot's own
     Layout.module.css by redefining the navbar tokens in the header's OWN scope. The theme root must
-    keep navbar.background at the brand #032D3C — the composer send button reads that same token, and
-    every dropdown/disclaimer border and shadow is derived from it."""
+    keep navbar.background at the brand #032D3C: every dropdown and disclaimer border, shadow and
+    accent is derived from it, so a white value at the root would make all of them invisible/grey.
+    The derived-token assertions below are what actually catch that regression."""
     page.goto(f"{live_server_url}bbsa")
 
     header = page.locator("header")
@@ -750,22 +751,98 @@ def test_bbsa_navbar_is_light_while_the_send_button_keeps_the_brand_color(page: 
     header_background = header.evaluate("el => getComputedStyle(el).backgroundColor")
     assert header_background == "rgb(255, 255, 255)", header_background
 
-    # The secondary brand color separates the white bar from the chat surface.
-    header_border = header.evaluate("el => getComputedStyle(el).borderBottomColor")
-    assert header_border == "rgb(162, 29, 35)", header_border
+    # The secondary brand color separates the white bar from the chat surface. It is an INSET
+    # box-shadow, never a border: Chat.module.css sizes the chat as calc(100vh - 56px) against
+    # .headerContainer's fixed 56px, so a 2px border makes the header 58px and gives the page a
+    # permanent 2px scrollbar. The two assertions below are one pair — keep them together.
+    header_shadow = header.evaluate("el => getComputedStyle(el).boxShadow")
+    assert "inset" in header_shadow and "rgb(162, 29, 35)" in header_shadow, header_shadow
+    assert header.evaluate("el => el.offsetHeight") == 56, header.evaluate("el => el.offsetHeight")
 
     # Scoped override: the token is white inside the header, brand teal at the theme root.
     scoped_token = header.evaluate("el => getComputedStyle(el).getPropertyValue('--chatbot-navbar-background').trim()")
     assert scoped_token == "#ffffff", scoped_token
-    root_token = page.locator('[data-chatbot-theme="bbsa"]').first.evaluate(
-        "el => getComputedStyle(el).getPropertyValue('--chatbot-navbar-background').trim()"
-    )
-    assert root_token.lower() == "#032d3c", root_token
 
-    send_button_background = page.locator('[class*="sendButton"]').first.evaluate(
-        "el => getComputedStyle(el).backgroundColor"
+    theme_root = page.locator('[data-chatbot-theme="bbsa"]').first
+
+    def root_token(name: str) -> str:
+        return theme_root.evaluate(f"el => getComputedStyle(el).getPropertyValue('{name}').trim()")
+
+    assert root_token("--chatbot-navbar-background").lower() == "#032d3c", root_token("--chatbot-navbar-background")
+    # Derived from theme.navbar.background — these are the tokens that silently die if the white
+    # override is ever moved from the .header scope up to the theme root.
+    assert root_token("--chatbot-dropdown-border") == "rgba(3, 45, 60, 0.16)", root_token("--chatbot-dropdown-border")
+    assert root_token("--chatbot-disclaimer-accent").lower() == "#032d3c", root_token("--chatbot-disclaimer-accent")
+
+
+def test_bbsa_chat_fits_the_viewport_without_a_page_scrollbar(page: Page, live_server_url: str):
+    """The chat owns its own scrolling: the document must never exceed the viewport, empty or
+    full. bbsa regressed here once — a 2px border-bottom on the navbar made the header 58px while
+    Chat.module.css still sized the chat as calc(100vh - 56px), so every page had a 2px
+    scrollbar that no other bot had. Long answers must scroll the inner chat area, not the page."""
+    page.route(
+        "*/**/chat/stream",
+        lambda route: fulfill_chat_stream_snapshot(
+            route, "tests/snapshots/test_app/test_chat_stream_text/client0/result.jsonlines"
+        ),
     )
-    assert send_button_background == "rgb(3, 45, 60)", send_button_background
+
+    page.goto(f"{live_server_url}bbsa")
+    expect(page.get_by_placeholder("Stellen Sie Ihre Frage zu Glasfaser in Tirol")).to_be_visible()
+
+    document_overflow = page.evaluate("() => document.documentElement.scrollHeight - window.innerHeight")
+    assert document_overflow <= 0, f"empty chat overflows the viewport by {document_overflow}px"
+
+    page.get_by_placeholder("Stellen Sie Ihre Frage zu Glasfaser in Tirol").fill("Was ist Glasfaser?")
+    page.get_by_label("Frage einreichen").click()
+    expect(page.get_by_text("The capital of France is Paris.")).to_be_visible()
+
+    document_overflow = page.evaluate("() => document.documentElement.scrollHeight - window.innerHeight")
+    assert document_overflow <= 0, f"chat with an answer overflows the viewport by {document_overflow}px"
+
+
+def test_bbsa_uses_lemons_answer_and_composer_design_with_speech(page: Page, live_server_url: str):
+    """bbsa adopts lemon's chat chrome rather than publishone's: the assistant avatar and name sit
+    INSIDE the bubble header (not outside-left), the composer is lemon's tooltip-labelled send
+    button, and speech is enabled — so the mic sits in the composer and each answer gets a
+    speak button. Guards against a regression back to publishone's `createBotAnswer` overrides."""
+    page.route(
+        "*/**/chat/stream",
+        lambda route: fulfill_chat_stream_snapshot(
+            route, "tests/snapshots/test_app/test_chat_stream_text/client0/result.jsonlines"
+        ),
+    )
+
+    page.goto(f"{live_server_url}bbsa")
+
+    # Composer: lemon's send Button is labelled by its Tooltip, and publishone's circular
+    # brand-colored .sendButton is gone.
+    expect(page.get_by_label("Frage einreichen")).to_be_visible()
+    assert page.locator('[class*="sendButton"]').count() == 0
+
+    # Speech input: the mic renders next to the send button.
+    expect(page.get_by_label("Frage per Stimme stellen")).to_be_visible()
+
+    question_input = page.get_by_placeholder("Stellen Sie Ihre Frage zu Glasfaser in Tirol")
+    question_input.fill("Was ist Glasfaser?")
+    page.get_by_label("Frage einreichen").click()
+    expect(page.get_by_text("The capital of France is Paris.")).to_be_visible()
+
+    # Answer chrome: the avatar is INSIDE the bubble (lemon's "inside" placement, the default),
+    # alongside the assistant name and the copy + speak actions.
+    assistant_avatar = page.locator('img[src*="bbsa-assisstant"]')
+    expect(assistant_avatar.first).to_be_visible()
+    avatar_classes = assistant_avatar.evaluate_all("nodes => nodes.map(node => String(node.className))")
+    assert avatar_classes
+    assert all("assistantAvatar" in class_name for class_name in avatar_classes), avatar_classes
+    # publishone's outside-left placement adds assistantAvatarOutside to the img and
+    # answerShellWithOutsideAvatar to the shell; neither may come back.
+    assert not any("assistantAvatarOutside" in class_name for class_name in avatar_classes), avatar_classes
+    assert page.locator('[class*="answerShellWithOutsideAvatar"]').count() == 0
+
+    expect(page.get_by_text("Breitband.Tirol").first).to_be_visible()
+    # Speech output (Azure TTS is enabled deployment-side) puts a speak button on the answer.
+    expect(page.get_by_label("Antwort sprechen").first).to_be_visible()
 
 
 def test_nerilio_answer_places_avatar_outside_card(page: Page, live_server_url: str):

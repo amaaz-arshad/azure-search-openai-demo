@@ -1,59 +1,30 @@
 .questionInputContainer {
-    border-radius: 2.5rem;
+    border-radius: 1.5rem;
     box-shadow:
         0px 0.5rem 1rem rgba(0, 0, 0, 0.14),
         0px 0px 0.125rem rgba(0, 0, 0, 0.12);
     width: 100%;
-    padding: 0.3rem;
+    padding: 0.8rem;
     background: white;
-    /* border: 1px solid silver; */
-    display: flex;
-    align-items: center; /* 🔑 fixes vertical alignment */
 }
 
 .questionInputTextArea {
     width: 100%;
-    padding-left: 10px;
-    /* line-height: 70px; */
+    line-height: 2.5rem;
+    /* max-height: 18rem;
+    overflow-y: auto; */
 }
 
 .questionInputButtonsContainer {
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
-    /* background-color: purple; */
 }
 
-.sendButton:global(.fui-Button) {
-    width: 44px;
-    height: 44px;
-    min-width: 44px;
-    border-radius: 50%;
-    padding: 0;
-
-    background-color: var(--chatbot-navbar-background);
-    color: white;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.sendButton:global(.fui-Button) svg,
-.sendButton:global(.fui-Button:hover) svg,
-.sendButton:global(.fui-Button:active) svg,
-.sendButton:global(.fui-Button:focus) svg,
-.sendButton:global(.fui-Button:focus-visible) svg {
-    color: white;
-}
-
-.sendButton:global(.fui-Button),
-.sendButton:global(.fui-Button:hover),
-.sendButton:global(.fui-Button:active),
-.sendButton:global(.fui-Button:focus),
-.sendButton:global(.fui-Button:focus-visible) {
-    background-color: var(--chatbot-navbar-background);
-    color: white;
+@media (min-width: 992px) {
+    .questionInputContainer {
+        /* Allow the container to grow; text area will scroll instead */
+    }
 }
 
 
@@ -63,4 +34,17 @@
 .questionInputContainer {
     box-shadow: none;
     border: 1px solid #e6e6e6;
+}
+
+.questionInputContainerDisabled {
+    background: #f3f3f3;
+    border-color: #dedede;
+}
+
+.questionInputContainerDisabled .questionInputButtonsContainer {
+    opacity: 0.45;
+}
+
+.questionInputContainerDisabled :global(button) {
+    background: transparent;
 }

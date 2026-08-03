@@ -120,7 +120,7 @@
     color: var(--chatbot-dropdown-item-text);
     cursor: pointer;
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 400;
 }
 
 .dropdownItem:hover {

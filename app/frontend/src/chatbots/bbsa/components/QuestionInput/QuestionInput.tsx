@@ -1,13 +1,20 @@
 import { useState, useEffect, useContext } from "react";
 import { Stack, TextField } from "@fluentui/react";
-import { Button } from "@fluentui/react-components";
-import { Send32Filled, Stop24Filled } from "@fluentui/react-icons";
+import { Button, Tooltip } from "@fluentui/react-components";
+import { Send28Filled } from "@fluentui/react-icons";
 import { useTranslation } from "react-i18next";
 
 import styles from "./QuestionInput.module.css";
 import { SpeechInput } from "./SpeechInput";
 import { LoginContext } from "../../loginContext";
 import { requireLogin } from "../../authConfig";
+
+const StopCircleIcon = () => (
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="14" cy="14" r="12.5" stroke="black" strokeWidth="2" fill="none" />
+        <rect x="9" y="9" width="10" height="10" rx="1" fill="black" />
+    </svg>
+);
 
 interface Props {
     onSend: (question: string) => void;
@@ -69,17 +76,21 @@ export const QuestionInput = ({ onSend, onStop, disabled, placeholder, clearOnSe
 
     const disableRequiredAccessControl = requireLogin && !loggedIn;
     const sendQuestionDisabled = disabled || !question.trim() || disableRequiredAccessControl;
+    const showDisabledSurface = disabled;
 
     if (disableRequiredAccessControl) {
         placeholder = "Please login to continue...";
     }
 
     return (
-        <Stack horizontal className={styles.questionInputContainer}>
+        <Stack horizontal className={`${styles.questionInputContainer} ${showDisabledSurface ? styles.questionInputContainerDisabled : ""}`}>
             <TextField
                 className={styles.questionInputTextArea}
-                disabled={disableRequiredAccessControl}
+                disabled={disabled || disableRequiredAccessControl}
                 placeholder={placeholder}
+                multiline
+                resizable={false}
+                autoAdjustHeight
                 borderless
                 value={question}
                 onChange={onQuestionChange}
@@ -88,15 +99,24 @@ export const QuestionInput = ({ onSend, onStop, disabled, placeholder, clearOnSe
                 onCompositionEnd={handleCompositionEnd}
                 styles={{
                     field: {
-                        fontSize: 16 // Ensure minimum 16px font size for iPhone
+                        fontSize: 16, // Ensure minimum 16px font size for iPhone
+                        minHeight: 44, // Minimum touch target size for iOS
+                        // Auto-grow with content (autoAdjustHeight) up to a cap, then scroll.
+                        // maxHeight clamps the inline height Fluent sets.
+                        maxHeight: "12rem",
+                        overflowY: "auto"
                     }
                 }}
             />
             <div className={styles.questionInputButtonsContainer}>
                 {isStreaming || isLoading ? (
-                    <Button size="large" className={styles.sendButton} icon={<Stop24Filled />} onClick={onStop} />
+                    <Tooltip content={t("tooltips.stopStreaming")} relationship="label" showDelay={0} hideDelay={0}>
+                        <Button size="large" icon={<StopCircleIcon />} onClick={onStop} />
+                    </Tooltip>
                 ) : (
-                    <Button size="large" className={styles.sendButton} icon={<Send32Filled />} disabled={sendQuestionDisabled} onClick={sendQuestion} />
+                    <Tooltip content={t("tooltips.submitQuestion")} relationship="label" showDelay={0} hideDelay={0}>
+                        <Button size="large" icon={<Send28Filled primaryFill="black" />} disabled={sendQuestionDisabled} onClick={sendQuestion} />
+                    </Tooltip>
                 )}
             </div>
             {showSpeechInput && <SpeechInput updateQuestion={setQuestion} />}

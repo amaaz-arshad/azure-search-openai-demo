@@ -7,5 +7,14 @@ interface Props {
 }
 
 export const SpeechInput = ({ updateQuestion }: Props) => {
-    return <SpeechInputButton updateQuestion={updateQuestion} supportedLngs={supportedLngs} containerClassName={styles.questionInputButtonsContainer} />;
+    // idleMicColor matches lemon's composer: its send glyph is black on the default Fluent button
+    // surface, so the mic has to be black too or it renders in the Fluent accent blue beside it.
+    return (
+        <SpeechInputButton
+            updateQuestion={updateQuestion}
+            supportedLngs={supportedLngs}
+            containerClassName={styles.questionInputButtonsContainer}
+            idleMicColor="black"
+        />
+    );
 };

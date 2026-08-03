@@ -120,7 +120,7 @@
     color: var(--chatbot-dropdown-item-text);
     cursor: pointer;
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 400;
 }
 
 .dropdownItem:hover {
@@ -153,7 +153,7 @@
 /* polished-dropdown */
 /* Unify the navbar dropdown to the demo bot's more polished look: a rounded
    floating menu with a gap below the trigger, a pill hover on the trigger, and
-   rounded, roomier, bolder items. */
+   rounded and roomier items. */
 .menuButton {
     border-radius: 999px;
 }
@@ -169,5 +169,5 @@
     gap: 0.65rem;
     padding: 0.75rem 0.9rem;
     border-radius: 14px;
-    font-weight: 600;
+    font-weight: 400;
 }
