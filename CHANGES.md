@@ -17,6 +17,71 @@ Two categories per date:
 
 ## 2026-08-04
 
+### The chatbot directory reads live per-bot settings instead of hardcoded literals
+
+#### Decisions
+
+- **User question: why are the `/admin/chatbots` card values hardcoded, and can they reflect each
+  bot's actual settings?** They were compiled-in literals in `chatbots/registry.ts` — the frontend
+  had no round-trip for built-in bots, and `CLAUDE.md` even instructed contributors to hand-mirror
+  `llm`/`reasoningEffort` from the deployment `.env`. Measured the drift that invites: 1 of 20
+  built-in cards was wrong (`internal`, see below); the other 19 happened to match.
+- **`llm` and `reasoningEffort` are now read from the running backend; `mode` and
+  `agenticRetrievalDefault` cannot be and stay in the frontend.** New admin-gated
+  `GET /internal-admin/builtin-chatbots` reports the effective values by resolving **the same
+  lookup `/chat` uses** — `chatbot_approaches.get(name, CONFIG_CHAT_APPROACH)` — rather than
+  re-deriving them from `config.py` + `.env`. Startup only builds a per-bot approach when a bot's
+  config differs from the deployment default, so reading the approach object covers both cases with
+  no second copy of the rules to drift. Effort is reported as null on a non-reasoning model
+  (e.g. gpt-4.1), mirroring `resolve_dynamic_reasoning_effort`, so the card drops the row instead of
+  displaying a value the backend ignores. `mode` (Q&A vs Tutor) and the agentic default have no
+  backend fact behind them — backend `prompt_mode` is `inject`/`override`, unrelated, and the
+  agentic default is the bot's own `Chat.tsx` initial toggle state — so those stay declared in
+  `registry.ts`, now documented as such.
+- **Deliberately a NEW endpoint, not an extension of `/internal-admin/dynamic-chatbots`.** That one
+  is documented as provisioned-only precisely so the built-in/dynamic isolation invariant stays
+  legible; mixing both estates into it would blur that.
+- **`/internal` reports no model at all (`variesBySourceBot: true`), and the card shows "per source
+  bot".** Found while checking the drift: `internal` is absent from `CHATBOT_PROMPT_MODULES`, so its
+  `config.py` (which sets `reasoning_effort="high"`) is never loaded and startup builds it no
+  approach — and `/chat` resolves the approach from `include_category`, which for an internal session
+  is the **selected source bot**. So the card's old "gpt-5.4-mini / high" was true only by
+  coincidence when a high-effort tutor bot was selected, and reporting the deployment default would
+  have been just as wrong. Naming no model is the only honest answer.
+- **A failed fetch degrades to the compiled literals AND says so.** Silently falling back would
+  reintroduce exactly the failure mode being fixed — a stale value presented as fact — so the page
+  renders a warning above the grid. The registry literals are kept (and should stay plausible) for
+  the no-backend/offline case.
+- **Not done:** `mode` was left frontend-declared rather than adding a `mode` field to 20 backend
+  `config.py` files — that would duplicate a frontend concern into backend config to serve one admin
+  card. If per-bot agentic control is ever wanted, the clean path is a real provisioning/config
+  field, which would then also make the card's last hardcoded value dynamic.
+
+#### Changes
+
+- `app/backend/app.py` — `build_builtin_chatbot_admin_payload()` + admin-gated
+  `GET /internal-admin/builtin-chatbots`, placed beside the dynamic listing it deliberately does not
+  join.
+- `app/frontend/src/pages/ChatbotDirectory/builtinChatbotsApi.ts` (new) — typed client for it.
+- `app/frontend/src/pages/ChatbotDirectory/ChatbotDirectory.tsx` — compiled entries renamed to
+  `compiledBuiltInEntries` (fallback), overlaid with the fetched effective values; `llmVaries`
+  renders "per source bot"; a staleness warning when the fetch fails.
+- `tests/test_app.py` — `/internal-admin/builtin-chatbots` added to the auth-required
+  parametrization, plus tests that the payload matches the app's own approach objects for every
+  built-in bot, that a `config.py`-pinned bot reports its own model/effort, that effort is dropped on
+  a non-reasoning model, that the `public-test` alias mirrors `free`, and that `internal` claims no
+  model.
+- `CLAUDE.md` — registry `llm`/`reasoningEffort` documented as an offline fallback (replacing the
+  hand-mirror-from-`.env` instruction), with the `mode`/agentic split and the `/internal` rule.
+- Verified: `npm run build` exit 0; `ty check app/backend/app.py` adds no diagnostics (28 in that
+  file are pre-existing, none in the added range or naming the new symbols); new tests collect
+  (`--collect-only`). `test_app.py` still cannot execute in this dev env, so the route was exercised
+  offline via the bare-Quart + real-blueprint harness (401 unauthenticated; per-bot override wins;
+  default-approach fallback; effort dropped for gpt-4.1; alias mirrors `free`; `internal` model-less)
+  and the page via route-mocked Playwright with backend values deliberately different from the
+  literals (card takes gpt-5.4/xhigh, drops Reasoning on null, keeps the literal for an unreported
+  bot, shows "per source bot" for internal) plus a 500 pass proving the fallback and its warning.
+
 ### Provisioned bots no longer default to agentic retrieval (and why they were erroring)
 
 #### Decisions
@@ -69,9 +134,30 @@ Two categories per date:
   `showAgenticRetrievalOption: true`, i.e. a deployment that *supports* agentic), `/bot-config/<name>`
   and `/chat`, and asserted the real outgoing payload: `use_agentic_knowledgebase: false` with
   `retrieval_reasoning_effort` absent. `npm run build` exits 0.
+- **The `/admin/chatbots` card was a second, independent surface and kept showing "Agentic retrieval
+  On" for provisioned bots** (user-reported, with a screenshot, after the chat default was already
+  live). It is display-only: `ChatbotDirectory.tsx` hardcoded `agenticRetrievalDefault: true` for
+  every dynamic entry, with a comment saying it mirrors lemon — so the page was mislabeling bots that
+  were already running classic search, not reporting a bot that still used agentic retrieval. Fixed
+  to `false`. There is no per-bot agentic field on the registry record to derive it from (confirmed
+  against `ChatbotRegistryRecord` and `docs/provisioning-api.md`), so the card stays a hardcoded
+  mirror of the frontend default and the two must move together; noted as an invariant in `CLAUDE.md`.
+- **Observation, not changed: `bots/cbtx.json` is a provisioned record whose name collides with the
+  built-in `cbtx` (CABLETEX).** The directory has no dedup (`[...builtInEntries, ...dynamicEntries]`),
+  so it renders two `/cbtx` cards — one built-in, one `PROVISIONED`. That record can never serve:
+  `resolve_active_dynamic_record` short-circuits on `KNOWN_CHATBOT_NAMES`, so `/cbtx` is always the
+  built-in, and even an embed of its public ID mounts the built-in bot (the `/embed/:publicId` route
+  resolves `chatbotDefinitions` first). Worth deciding whether `create` should reject built-in names.
+  The other 11 records (`bxa`, `esrs`, `example`, `fhp`, `hyroxlemon`, `rptestbot`, `splan`, `tdiso`,
+  `test`, `tkk`, `xba`) collide with nothing.
 
 #### Changes
 
+- `app/frontend/src/pages/ChatbotDirectory/ChatbotDirectory.tsx` — dynamic entries map to
+  `agenticRetrievalDefault: false`, so provisioned cards read "Agentic retrieval Off"; built-in cards
+  are untouched (lemon/bensberg still "On"). Verified with a route-mocked Playwright pass over
+  `/admin/chatbots` (mocked `/internal-admin/session` + `/internal-admin/dynamic-chatbots`): 22 cards
+  read, both provisioned entries `Off`, `lemon`/`bensberg` `On`. `npm run build` exits 0.
 - `app/frontend/src/chatbots/generic/pages/chat/Chat.tsx` — `setUseAgenticRetrieval(false)` in the
   `/config` load, with a comment recording the provenance and the 429/no-fallback reason; removed the
   dead commented-out `if (config.showAgenticRetrievalOption) { setRetrieveCount(10); }` block that

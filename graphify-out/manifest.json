@@ -10,8 +10,8 @@
     "semantic_hash": "c8206d7e25a79e5a4ed79f965d38d672"
   },
   "app/backend/app.py": {
-    "mtime": 1785849503.0852375,
-    "ast_hash": "1f73b9c6dbcc61fd2c91d355644b540c",
+    "mtime": 1785868623.5445778,
+    "ast_hash": "672093b8fa14ae3040624554d1d12a56",
     "semantic_hash": ""
   },
   "app/backend/config.py": {
@@ -5835,8 +5835,8 @@
     "semantic_hash": "0c40d7d633948374cd2d34c7f5d6dc63"
   },
   "tests/test_app.py": {
-    "mtime": 1785849503.2057397,
-    "ast_hash": "535e0e654b1e39f3a2123f49f21b83bd",
+    "mtime": 1785868657.9217,
+    "ast_hash": "c73f3f81316dd4eedc4956568b14b7a4",
     "semantic_hash": ""
   },
   "tests/test_app_config.py": {
@@ -6015,8 +6015,8 @@
     "semantic_hash": "77ec55ea90a84f95635bc9985e49b57a"
   },
   "CLAUDE.md": {
-    "mtime": 1785857217.0476937,
-    "ast_hash": "12b9734cd6744199886674e7d19545b3",
+    "mtime": 1785868846.5917442,
+    "ast_hash": "01beb3934f80b16b4f465c50acac5407",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -8410,8 +8410,8 @@
     "semantic_hash": "b7d811e41ee8cb385db724f4491957fb"
   },
   "CHANGES.md": {
-    "mtime": 1785857251.78987,
-    "ast_hash": "641e3fe74d71f2fce0d11a94c18186c2",
+    "mtime": 1785868878.650233,
+    "ast_hash": "71abd32e94dc025fb3a88949242144f8",
     "semantic_hash": ""
   },
   "aci-openlit.example.yaml": {
@@ -8895,8 +8895,8 @@
     "semantic_hash": ""
   },
   "app/frontend/src/pages/ChatbotDirectory/ChatbotDirectory.tsx": {
-    "mtime": 1785512179.827213,
-    "ast_hash": "5586fc193a3386ffff9da387c88927ef",
+    "mtime": 1785868644.6774077,
+    "ast_hash": "1eaaec70835a2028ddb1b0efa9fb2a49",
     "semantic_hash": ""
   },
   "app/frontend/src/pages/ChatbotDirectory/EmbedSnippetModal.tsx": {
@@ -9967,6 +9967,11 @@
   "tests/test_hubspot.py": {
     "mtime": 1785847789.573856,
     "ast_hash": "8beceb5686c6eaf491fc04ca8dae9e5e",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/pages/ChatbotDirectory/builtinChatbotsApi.ts": {
+    "mtime": 1785868631.2726145,
+    "ast_hash": "0559a94dd60854af7563896a7172fe40",
     "semantic_hash": ""
   }
 }

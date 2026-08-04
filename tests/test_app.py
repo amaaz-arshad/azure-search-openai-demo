@@ -729,7 +729,9 @@ async def test_simple_chatbot_chat_route_allows_missing_simple_auth_session(clie
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("path", ["/internal-admin/prompts", "/managed_uploads", "/free-admin/users"])
+@pytest.mark.parametrize(
+    "path", ["/internal-admin/prompts", "/internal-admin/builtin-chatbots", "/managed_uploads", "/free-admin/users"]
+)
 async def test_internal_admin_routes_require_session(client, path):
     response = await client.get(path)
     payload = await response.get_json()
@@ -1165,6 +1167,55 @@ async def test_dynamic_chatbots_listing_backfills_a_missing_public_id(client, dy
 async def test_dynamic_chatbots_listing_requires_auth(client):
     response = await client.get("/internal-admin/dynamic-chatbots")
     assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_builtin_chatbots_listing_reports_the_settings_chat_would_use(client):
+    # The directory used to hand-mirror these from the deployment .env, which drifts silently. The
+    # endpoint must resolve exactly like /chat does, so a card can never advertise a model or effort
+    # the bot does not actually run on.
+    await login_internal_admin(client)
+
+    response = await client.get("/internal-admin/builtin-chatbots")
+    assert response.status_code == 200
+    chatbots = (await response.get_json())["chatbots"]
+    assert [entry["name"] for entry in chatbots] == sorted(app.KNOWN_CHATBOT_NAMES)
+
+    overrides = client.app.config[app.CONFIG_CHATBOT_CHAT_APPROACHES]
+    default_approach = client.app.config[app.CONFIG_CHAT_APPROACH]
+    by_name = {entry["name"]: entry for entry in chatbots}
+    for name in app.KNOWN_CHATBOT_NAMES:
+        if name == app.INTERNAL_ROUTER_CHATBOT_NAME:
+            continue
+        approach = overrides.get(app.normalize_chatbot_name(name) or name, default_approach)
+        assert by_name[name]["llm"] == approach.chatgpt_model
+
+    # /internal is a router shell: its include_category — and so the approach lookup — resolves to
+    # the SELECTED source bot, so it has no model of its own and must not claim one.
+    assert by_name["internal"] == {
+        "name": "internal",
+        "llm": None,
+        "reasoningEffort": None,
+        "variesBySourceBot": True,
+    }
+
+    # A bot pinned in its own config.py reports that model/effort, not the deployment default.
+    assert by_name["lemon"]["llm"] == "gpt-5.4-mini"
+    assert by_name["lemon"]["reasoningEffort"] == "high"
+    # Effort is meaningless on a non-reasoning model and is dropped downstream, so it is not shown.
+    assert by_name["snap"]["llm"] == "gpt-4.1"
+    assert by_name["snap"]["reasoningEffort"] is None
+
+
+@pytest.mark.asyncio
+async def test_builtin_chatbots_listing_resolves_the_public_test_alias(client):
+    # `public-test` is an alias of `free`, so a chat request through either name runs on the same
+    # config; the listing must not report the deployment default for the alias.
+    await login_internal_admin(client)
+
+    response = await client.get("/internal-admin/builtin-chatbots")
+    by_name = {entry["name"]: entry for entry in (await response.get_json())["chatbots"]}
+    assert by_name["public-test"] == {**by_name["free"], "name": "public-test"}
 
 
 @pytest.mark.asyncio

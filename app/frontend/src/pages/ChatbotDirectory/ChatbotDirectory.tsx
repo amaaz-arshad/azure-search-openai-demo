@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { chatbotDefinitions, type ChatbotMode } from "../../chatbots/registry";
 import { formatChatbotLabel } from "../shared/chatbotDisplay";
 import EmbedSnippetModal from "./EmbedSnippetModal";
+import { listBuiltinChatbotsApi, type BuiltinChatbotEntry } from "./builtinChatbotsApi";
 import { listDynamicChatbotsApi } from "./dynamicChatbotsApi";
 import styles from "./ChatbotDirectory.module.css";
 
@@ -19,6 +20,8 @@ type DirectoryEntry = {
     label: string;
     llm: string;
     reasoningEffort?: string;
+    // `/internal` runs on whichever source bot the user selects, so it has no single model to name.
+    llmVaries?: boolean;
     mode: ChatbotMode;
     agenticRetrievalDefault: boolean;
     provisioned: boolean;
@@ -26,7 +29,11 @@ type DirectoryEntry = {
     canEmbed: boolean;
 };
 
-const builtInEntries: DirectoryEntry[] = chatbotDefinitions.map(chatbot => ({
+// Compiled fallback only. The registry's `llm`/`reasoningEffort` literals are hand-mirrored from the
+// deployment, so they are replaced by the effective values from /internal-admin/builtin-chatbots as
+// soon as it answers. `mode` and `agenticRetrievalDefault` always come from here — they describe this
+// frontend's own prompt and toggle behavior, and no backend setting corresponds to them.
+const compiledBuiltInEntries: DirectoryEntry[] = chatbotDefinitions.map(chatbot => ({
     name: chatbot.name,
     label: formatChatbotLabel(chatbot.name),
     llm: chatbot.llm,
@@ -45,6 +52,8 @@ const ChatbotDirectory = () => {
     const [embedFor, setEmbedFor] = useState<string | null>(null);
     const [dynamicEntries, setDynamicEntries] = useState<DirectoryEntry[]>([]);
     const [dynamicError, setDynamicError] = useState<string | null>(null);
+    const [builtinSettings, setBuiltinSettings] = useState<Map<string, BuiltinChatbotEntry> | null>(null);
+    const [builtinSettingsError, setBuiltinSettingsError] = useState<string | null>(null);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -57,9 +66,11 @@ const ChatbotDirectory = () => {
                         llm: chatbot.llm,
                         reasoningEffort: chatbot.reasoningEffort ?? undefined,
                         mode: chatbot.mode,
-                        // The generic frontend mirrors lemon: it auto-checks agentic retrieval whenever
-                        // the deployment offers it (see chatbots/generic/pages/chat/Chat.tsx).
-                        agenticRetrievalDefault: true,
+                        // Provisioned bots retrieve with classic search: the generic frontend sets
+                        // setUseAgenticRetrieval(false) (see chatbots/generic/pages/chat/Chat.tsx).
+                        // This card mirrors that default, so it must be changed with it — there is no
+                        // per-bot agentic field on the registry record to read it from.
+                        agenticRetrievalDefault: false,
                         provisioned: true,
                         active: chatbot.active,
                         // A stopped bot's route redirects home, so an embed of it would load a broken
@@ -78,9 +89,48 @@ const ChatbotDirectory = () => {
         return () => controller.abort();
     }, []);
 
+    // Effective built-in model/effort from the running backend, read off the same approach objects
+    // /chat resolves. Failing is non-fatal: the compiled literals still render and the warning above
+    // the grid says they may be stale, so the directory never silently presents a guess as fact.
+    useEffect(() => {
+        const controller = new AbortController();
+        listBuiltinChatbotsApi(controller.signal)
+            .then(chatbots => {
+                setBuiltinSettings(new Map(chatbots.map(chatbot => [chatbot.name, chatbot])));
+                setBuiltinSettingsError(null);
+            })
+            .catch((error: unknown) => {
+                if (controller.signal.aborted) {
+                    return;
+                }
+                setBuiltinSettingsError(error instanceof Error ? error.message : "Could not load built-in chatbot settings.");
+            });
+        return () => controller.abort();
+    }, []);
+
+    const builtInEntries = useMemo(() => {
+        if (!builtinSettings) {
+            return compiledBuiltInEntries;
+        }
+        return compiledBuiltInEntries.map(entry => {
+            const effective = builtinSettings.get(entry.name);
+            if (!effective) {
+                return entry;
+            }
+            return {
+                ...entry,
+                llm: effective.llm || entry.llm,
+                // null means the effective model has no reasoning effort (e.g. gpt-4.1), so the card
+                // drops the row rather than showing a literal the backend would ignore.
+                reasoningEffort: effective.reasoningEffort ?? undefined,
+                llmVaries: effective.variesBySourceBot === true
+            };
+        });
+    }, [builtinSettings]);
+
     const sortedChatbots = useMemo(
         () => [...builtInEntries, ...dynamicEntries].sort((a, b) => a.name.localeCompare(b.name)),
-        [dynamicEntries]
+        [builtInEntries, dynamicEntries]
     );
 
     const normalizedQuery = query.trim().toLowerCase();
@@ -137,6 +187,14 @@ const ChatbotDirectory = () => {
                         </p>
                     ) : null}
 
+                    {/* Never let a compiled literal pass for the live setting without saying so. */}
+                    {builtinSettingsError ? (
+                        <p className={styles.listWarning} role="status">
+                            Showing compiled defaults for built-in chatbots — their live settings could not be loaded, so LLM and
+                            reasoning effort may be stale. {builtinSettingsError}
+                        </p>
+                    ) : null}
+
                     <div className={styles.directoryViewport}>
                         {filteredChatbots.length > 0 ? (
                             <div className={styles.directoryGrid}>
@@ -172,7 +230,9 @@ const ChatbotDirectory = () => {
                                         <ul className={styles.cardMeta}>
                                             <li className={styles.cardMetaItem}>
                                                 <span className={styles.cardMetaLabel}>LLM</span>
-                                                <span className={styles.cardMetaValue}>{chatbot.llm}</span>
+                                                <span className={styles.cardMetaValue}>
+                                                    {chatbot.llmVaries ? "per source bot" : chatbot.llm}
+                                                </span>
                                             </li>
                                             {chatbot.reasoningEffort ? (
                                                 <li className={styles.cardMetaItem}>

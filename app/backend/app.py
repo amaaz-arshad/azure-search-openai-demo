@@ -1797,6 +1797,66 @@ async def resolve_embed_admin_public_id(chatbot_name: str) -> str | None:
     return get_record_public_id(record)
 
 
+def build_builtin_chatbot_admin_payload(chatbot_name: str, approach: Approach) -> dict[str, Any]:
+    """One built-in bot's EFFECTIVE chat settings, read off the approach a chat call would use.
+
+    Startup only builds a per-bot `ChatReadRetrieveReadApproach` when that bot's `config.py`
+    differs from the deployment defaults, so the bots whose config leaves `chatgpt_model` /
+    `reasoning_effort` unset fall through to the default approach. Resolving through the same
+    `chatbot_approaches.get(name, CONFIG_CHAT_APPROACH)` lookup as `/chat` therefore reports what a
+    real request runs at, with no second copy of the resolution rules to drift — which is the whole
+    point: the frontend directory used to hand-mirror these values from the deployment `.env`.
+
+    `reasoningEffort` is None for a non-reasoning model (e.g. gpt-4.1), mirroring
+    `resolve_dynamic_reasoning_effort` and the fact that effort is dropped downstream for them.
+
+    `/internal` is reported as having no model of its own: it is a router shell whose
+    `include_category` — and therefore the approach lookup that follows from it — resolves to the
+    SELECTED source bot, so an internal session runs on that bot's model and effort. It also has no
+    entry in `CHATBOT_PROMPT_MODULES`, so its `config.py` is never loaded and startup builds it no
+    approach; naming any single model here would advertise one no internal session actually uses.
+    """
+    if chatbot_name == INTERNAL_ROUTER_CHATBOT_NAME:
+        return {"name": chatbot_name, "llm": None, "reasoningEffort": None, "variesBySourceBot": True}
+
+    chat_model = getattr(approach, "chatgpt_model", None)
+    reasoning_effort = getattr(approach, "reasoning_effort", None)
+    supports_reasoning = Approach.GPT_REASONING_MODELS.get(chat_model) if isinstance(chat_model, str) else None
+    return {
+        "name": chatbot_name,
+        "llm": chat_model,
+        "reasoningEffort": reasoning_effort if supports_reasoning is not None else None,
+        "variesBySourceBot": False,
+    }
+
+
+@bp.get("/internal-admin/builtin-chatbots")
+@internal_admin_required
+async def list_internal_admin_builtin_chatbots():
+    """Effective model/effort for every built-in bot, so the admin directory can stop hardcoding it.
+
+    Deliberately a separate endpoint from `/internal-admin/dynamic-chatbots`, which stays
+    provisioned-only — mixing the two sources there would blur the built-in/dynamic isolation
+    invariant. Names are reported as the frontend routes them and resolved through
+    `normalize_chatbot_name`, so the `public-test` alias reports `free`'s settings exactly as a
+    chat request through that alias would.
+
+    `mode` and the agentic-retrieval default are NOT here: both are frontend behavior with no
+    backend fact behind them (the bot's own `Chat.tsx` owns the initial toggle state, and backend
+    `prompt_mode` is `inject`/`override`, unrelated to Q&A vs Tutor).
+    """
+    chatbot_approaches: dict[str, Approach] = current_app.config.get(CONFIG_CHATBOT_CHAT_APPROACHES, {})
+    default_approach: Approach = current_app.config[CONFIG_CHAT_APPROACH]
+    chatbots = [
+        build_builtin_chatbot_admin_payload(
+            chatbot_name,
+            chatbot_approaches.get(normalize_chatbot_name(chatbot_name) or chatbot_name, default_approach),
+        )
+        for chatbot_name in sorted(KNOWN_CHATBOT_NAMES)
+    ]
+    return jsonify({"chatbots": chatbots}), 200
+
+
 def build_dynamic_chatbot_admin_payload(
     record: ChatbotRegistryRecord, deployed_models: dict[str, Any] | None
 ) -> dict[str, Any]:
