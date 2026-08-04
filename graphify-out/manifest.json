@@ -10,8 +10,8 @@
     "semantic_hash": "c8206d7e25a79e5a4ed79f965d38d672"
   },
   "app/backend/app.py": {
-    "mtime": 1785534371.9547336,
-    "ast_hash": "523fdeff5933da24584353ca4d090de7",
+    "mtime": 1785849503.0852375,
+    "ast_hash": "1f73b9c6dbcc61fd2c91d355644b540c",
     "semantic_hash": ""
   },
   "app/backend/config.py": {
@@ -5815,8 +5815,8 @@
     "semantic_hash": "2837121d0b2421c51f0ad4859b129b5b"
   },
   "tests/e2e.py": {
-    "mtime": 1785646688.3760247,
-    "ast_hash": "ff3e20360277ea5693841cb522d5dcfb",
+    "mtime": 1785849503.2027726,
+    "ast_hash": "6cbd8f9ad62023eb6b8dca249a2f70d1",
     "semantic_hash": ""
   },
   "tests/mocks.py": {
@@ -5835,8 +5835,8 @@
     "semantic_hash": "0c40d7d633948374cd2d34c7f5d6dc63"
   },
   "tests/test_app.py": {
-    "mtime": 1785535040.1101675,
-    "ast_hash": "af0d50b3ba03b728d44925c18a0ef25a",
+    "mtime": 1785849503.2057397,
+    "ast_hash": "535e0e654b1e39f3a2123f49f21b83bd",
     "semantic_hash": ""
   },
   "tests/test_app_config.py": {
@@ -6015,8 +6015,8 @@
     "semantic_hash": "77ec55ea90a84f95635bc9985e49b57a"
   },
   "CLAUDE.md": {
-    "mtime": 1785646838.3395772,
-    "ast_hash": "918bed6ce8167919e15ff435cf47c05e",
+    "mtime": 1785857217.0476937,
+    "ast_hash": "12b9734cd6744199886674e7d19545b3",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -6610,8 +6610,8 @@
     "semantic_hash": "93ea9f08ac03d923822a4b649c85b563"
   },
   "app/backend/core/freeauth.py": {
-    "mtime": 1785349628.108484,
-    "ast_hash": "c14a25fc2c58779383b3671876762fa7",
+    "mtime": 1785849503.0867455,
+    "ast_hash": "6658e606583c3819ed0f61754bfe9c6c",
     "semantic_hash": ""
   },
   "app/backend/core/simplechatbotauth.py": {
@@ -7160,18 +7160,18 @@
     "semantic_hash": "9f294c9f584b7470f127de3d91635736"
   },
   "app/frontend/src/chatbots/free/locales/de/translation.json": {
-    "mtime": 1785349628.1094627,
-    "ast_hash": "4d814a40ac18bbfab0c2c1173a98310a",
+    "mtime": 1785849503.088759,
+    "ast_hash": "fa2fd1225d4115fb7eee924d4e8f1580",
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/free/locales/en/translation.json": {
-    "mtime": 1785349628.1094627,
-    "ast_hash": "d915709af5e08877982fa10eaf00df2d",
+    "mtime": 1785849503.089756,
+    "ast_hash": "89a453ab409d6776480ba07a12095a92",
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/free/locales/nl/translation.json": {
-    "mtime": 1785349628.1109674,
-    "ast_hash": "eaa675e08eaffffb07f862841370c813",
+    "mtime": 1785849503.0907557,
+    "ast_hash": "21f1f95aa92f017ffe8de05250a2177d",
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/free/loginContext.tsx": {
@@ -7185,13 +7185,13 @@
     "semantic_hash": "9b136fca6ee1532e4a73f0a9d0ad32b9"
   },
   "app/frontend/src/chatbots/free/pages/basicauth/BasicLogin.tsx": {
-    "mtime": 1781801890.865729,
-    "ast_hash": "b3d342ea9fc383b66a6e078594d6836a",
-    "semantic_hash": "b3d342ea9fc383b66a6e078594d6836a"
+    "mtime": 1785849503.093285,
+    "ast_hash": "62027f54620bd6d5abffb5bac97a7f93",
+    "semantic_hash": ""
   },
   "app/frontend/src/chatbots/free/pages/basicauth/basicAuth.ts": {
-    "mtime": 1785349881.079646,
-    "ast_hash": "27ee77c13f247a60d32a85f3054a64a1",
+    "mtime": 1785849503.0952802,
+    "ast_hash": "d369d1d3321ef59e37978dc904a5674a",
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/free/pages/chat/Chat.tsx": {
@@ -8200,9 +8200,9 @@
     "semantic_hash": "b5135db511c63124ff2aea17d8c82e97"
   },
   "infra/main.parameters.json": {
-    "mtime": 1781799994.9233024,
-    "ast_hash": "16817222840704ea272b12288ba0878e",
-    "semantic_hash": "16817222840704ea272b12288ba0878e"
+    "mtime": 1785849503.2002091,
+    "ast_hash": "bcce2fa2fcb54502953505a6b4fa1a89",
+    "semantic_hash": ""
   },
   "pyproject.toml": {
     "mtime": 1780620253.9711957,
@@ -8280,8 +8280,8 @@
     "semantic_hash": "839d3b88cd755f250d7e5ed2a17d6ca2"
   },
   "tests/test_freeauth.py": {
-    "mtime": 1785349628.1165752,
-    "ast_hash": "0f5f82e475741ab8274bcd3ca7d94b72",
+    "mtime": 1785849503.2072437,
+    "ast_hash": "fc2feac904d6a946df017ddb1291968f",
     "semantic_hash": ""
   },
   "tests/test_hyrox_assessment.py": {
@@ -8305,9 +8305,9 @@
     "semantic_hash": "7fea2d13397b782e48438525a487c5fc"
   },
   ".azdo/pipelines/azure-dev.yml": {
-    "mtime": 1776940772.3831203,
-    "ast_hash": "4b0899b11d9374552778b5acab096b57",
-    "semantic_hash": "4b0899b11d9374552778b5acab096b57"
+    "mtime": 1785849503.070824,
+    "ast_hash": "b46bee0272e02636e81a393addf0cd3e",
+    "semantic_hash": ""
   },
   ".git-diff-public-test.txt": {
     "mtime": 1776940772.3851311,
@@ -8365,9 +8365,9 @@
     "semantic_hash": "709064bd115c302a7c1da0e7e830633f"
   },
   ".github/workflows/azure-dev.yml": {
-    "mtime": 1776940772.3871412,
-    "ast_hash": "57905986ab4a54f0ffae616b547eed21",
-    "semantic_hash": "57905986ab4a54f0ffae616b547eed21"
+    "mtime": 1785849503.0723348,
+    "ast_hash": "0563d452ce267201511acb02d4edfdc2",
+    "semantic_hash": ""
   },
   ".github/workflows/evaluate.yaml": {
     "mtime": 1774356202.7421308,
@@ -8410,8 +8410,8 @@
     "semantic_hash": "b7d811e41ee8cb385db724f4491957fb"
   },
   "CHANGES.md": {
-    "mtime": 1785764657.122744,
-    "ast_hash": "c1de17fd142e74e335dafdf659774b49",
+    "mtime": 1785857251.78987,
+    "ast_hash": "641e3fe74d71f2fce0d11a94c18186c2",
     "semantic_hash": ""
   },
   "aci-openlit.example.yaml": {
@@ -9040,8 +9040,8 @@
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/generic/pages/chat/Chat.tsx": {
-    "mtime": 1783624867.625599,
-    "ast_hash": "789eb4220179a37ee027d9b698a21244",
+    "mtime": 1785857002.7484412,
+    "ast_hash": "a4e794009700143d4d113dfee9e42bcd",
     "semantic_hash": ""
   },
   "app/backend/core/chatbotsessioncounterstore.py": {
@@ -9957,6 +9957,16 @@
   "app/frontend/src/assets/bbsa-nav-logo.png": {
     "mtime": 1785517314.799867,
     "ast_hash": "41a9265c81dfd7f8de684554db883244",
+    "semantic_hash": ""
+  },
+  "app/backend/core/hubspot.py": {
+    "mtime": 1785845522.0199037,
+    "ast_hash": "142cd2ffbe0d24609d4dc8728c89b5aa",
+    "semantic_hash": ""
+  },
+  "tests/test_hubspot.py": {
+    "mtime": 1785847789.573856,
+    "ast_hash": "8beceb5686c6eaf491fc04ca8dae9e5e",
     "semantic_hash": ""
   }
 }

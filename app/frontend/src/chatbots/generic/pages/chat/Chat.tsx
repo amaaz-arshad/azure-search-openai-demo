@@ -207,14 +207,19 @@ const Chat = () => {
             setShowChatHistoryBrowser(botConfig.features?.history !== false);
             setShowChatHistoryCosmos(false);
             setShowAgenticRetrievalOption(config.showAgenticRetrievalOption);
-            setUseAgenticRetrieval(config.showAgenticRetrievalOption);
+            // Provisioned bots default to CLASSIC search, like every built-in Q&A bot. This used to
+            // auto-enable agentic retrieval (`config.showAgenticRetrievalOption`), inherited verbatim
+            // from lemon when this frontend was forked rather than chosen for dynamic bots. Agentic
+            // retrieval makes Azure AI Search vectorize the query itself (integrated vectorization),
+            // with no retry and no fallback in the backend, so one 429 from the shared embedding
+            // deployment fails the whole turn with "All retrieval tasks failed" — which is what
+            // provisioned bots hit while another bot's knowledge base was being indexed. The
+            // Settings toggle stays visible, so agentic retrieval is still opt-in per session.
+            setUseAgenticRetrieval(false);
             setWebSourceSupported(config.webSourceEnabled);
             setWebSourceEnabled(config.webSourceEnabled);
             setSharePointSourceSupported(config.sharepointSourceEnabled);
             setSharePointSourceEnabled(config.sharepointSourceEnabled);
-            // if (config.showAgenticRetrievalOption) {
-            //     setRetrieveCount(10);
-            // }
             const defaultRetrievalEffort = config.defaultRetrievalReasoningEffort ?? "minimal";
             setHideMinimalRetrievalReasoningOption(config.webSourceEnabled);
             setRetrievalReasoningEffort(defaultRetrievalEffort);
