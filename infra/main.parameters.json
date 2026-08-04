@@ -323,6 +323,9 @@
     "publicTestEmailFromName": {
       "value": "${PUBLIC_TEST_EMAIL_FROM_NAME=Public Test}"
     },
+    "hubspotApiKey": {
+      "value": "${HUBSPOT_API_KEY}"
+    },
     "openLitEndpoint": {
       "value": "${OPENLIT_ENDPOINT}"
     },

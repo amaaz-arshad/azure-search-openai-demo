@@ -15,6 +15,214 @@ Two categories per date:
 
 ---
 
+## 2026-08-04
+
+### Provisioned bots no longer default to agentic retrieval (and why they were erroring)
+
+#### Decisions
+
+- **Diagnosed the intermittent `azure.core.exceptions.HttpResponseError` bubble that only appeared
+  in provisioned bots.** It is not a bot bug and not random. The backend traceback
+  (Log Analytics workspace `8d8a1844-…`, the ACA env's) reads:
+  `Status: 502 (Bad Gateway)` / `All retrieval tasks failed. Failures: Knowledge source
+  'gptkbindex-nerilio': Could not complete vectorization action. The vectorization endpoint
+  returned status code '429' (TooManyRequests).`, raised at
+  [approach.py:610](app/backend/approaches/approach.py#L610) (`knowledgebase_client.retrieve`).
+  Chain: a bulk KB ingestion run saturates the shared `text-embedding-3-large` deployment on
+  `cog-bfmtryd6z3arm` → the search index's `text-embedding-3-large-vectorizer` (same deployment)
+  gets 429 at query time → the knowledge source fails → 502 → nothing retries it → the generic
+  error bubble from [error.py:15](app/backend/error.py#L15). Evidence: failures exist **only** on
+  2026-08-04 in three clusters (08:xx, 09:xx, 14:xx) and nothing in the prior 30 days; Azure OpenAI
+  429s in exactly those windows are **exclusively** on the embedding deployment (345 at 08:45,
+  367+128 at 14:30/14:45) while chat models stayed in single digits; and `content2` blob
+  timestamps line the bursts up with ingestion — `esrs/` PDFs at 08:49 and a 10 MB
+  `fhp/www.fh-potsdam.de_*.json` at **14:31:31**, which then embedded steadily
+  (~250K tokens/min) past 14:51. The bot being tested (`splan`) was fine; a *different* bot's
+  ingestion broke it. It "fixed itself" when that ingestion finished.
+- **Provisioned bots now default to classic search (user request).** The agentic-on default was
+  never a decision for dynamic bots: `git log -S` puts it in commit `2e7a12bc` *"Generic bot: reuse
+  lemon UI verbatim, parameterized by provisioning config"* — inherited with the rest of lemon's UI.
+  There is explicit precedent for correcting it (the `cbtx` fork changed the same line to
+  `setUseAgenticRetrieval(false)`), and this log already described **only lemon and bensberg** as the
+  agentic-default bots, so code and docs disagreed. 18 of 21 built-in frontends hardcode it off.
+- **Kept the capability, changed only the default.** `setShowAgenticRetrievalOption(config.…)` is
+  untouched, so the Settings toggle still appears wherever the deployment supports agentic retrieval
+  and a session can opt in. Rejected removing it outright — the 429 exposure is an infra contention
+  problem, not a reason to drop a retrieval mode.
+- **Left `retrieveCount` at 10.** The outgoing payload is unchanged; `top` simply becomes *effective*
+  now, because it was a documented no-op under agentic retrieval (the knowledge agent chose the doc
+  count). Deliberately not narrowed to the built-in Q&A bots' 5 — that would be a second,
+  unrequested behavior change. Note the existing toggle handler still lands on 5 if a user turns
+  agentic on and back off within a session; pre-existing, untouched.
+- **Not done (recommended, in value order):** (1) retry + fall back to `run_search_approach` around
+  `knowledgebase_client.retrieve` so a transient 429/502 degrades one turn instead of erroring —
+  the LLM-Wiki path already models that fallback, and this is what would have prevented the incident
+  for lemon/bensberg too; (2) give the index vectorizer its own embedding deployment so bulk
+  ingestion cannot starve live chat; (3) lower the `content2` indexer's embedding concurrency —
+  note [embeddings.py:109](app/backend/prepdocslib/embeddings.py#L109) retries rate limits **15×**
+  with 15–60s waits, so ingestion survives its own throttling by hammering, externalizing the
+  pressure onto query-time vectorization. Also unaddressed: the user-facing bubble leaks the Python
+  class name for transient retrieval failures.
+- **Verified by route-mocked browser run, because the generic bot has no e2e coverage at all**
+  (`tests/e2e.py` mocks no `/bot-config`, so there was no existing test to update). Drove the vite
+  dev server with Playwright, mocked `/auth_setup`, `/config` (with
+  `showAgenticRetrievalOption: true`, i.e. a deployment that *supports* agentic), `/bot-config/<name>`
+  and `/chat`, and asserted the real outgoing payload: `use_agentic_knowledgebase: false` with
+  `retrieval_reasoning_effort` absent. `npm run build` exits 0.
+
+#### Changes
+
+- `app/frontend/src/chatbots/generic/pages/chat/Chat.tsx` — `setUseAgenticRetrieval(false)` in the
+  `/config` load, with a comment recording the provenance and the 429/no-fallback reason; removed the
+  dead commented-out `if (config.showAgenticRetrievalOption) { setRetrieveCount(10); }` block that
+  belonged to the old default.
+- `CLAUDE.md` — documented the classic-search default in the dynamic-bot contract bullet, including
+  the warning not to reintroduce the auto-enable when re-copying lemon's `Chat.tsx` during the
+  generic-decoupling migration.
+
+### Free Bot: first/last name on signup, and a HubSpot contact per verified registration
+
+#### Decisions
+
+- **User request: collect first + last name on the Free Bot signup form, and create a HubSpot CRM
+  contact on registration** (mapping supplied from a working Postman call: `email`, `firstname`,
+  `lastname`, `company`, `neriliofreebot: "true"`).
+- **The existing `displayName` field IS the company, so it maps to HubSpot's `company`.** Its
+  label has always been "Firmenname" / "Company name" / "Bedrijfsnaam" in the three locales — only
+  the stored identifier says "display name". Confirmed with the user before wiring it. The
+  identifier was deliberately **not** renamed: it keys every stored account blob, the session
+  payload, `/free-auth/profile` and the `/admin/users` listing, so renaming it would orphan all of
+  them for zero user-visible gain. Corrected the German/English/Dutch `displayNameRequired` copy,
+  which said "display name"/"Anzeigename"/"Weergavenaam" while the field it refers to says
+  "company name" — actively confusing now that three name-ish fields are validated in a row.
+- **The contact is created after email verification, not at signup submit** (user's choice of the
+  two). HubSpot only ever receives verified, real addresses; abandoned signups and typo'd
+  addresses never reach the CRM.
+- **Both names are required**, consistent with every other field on the form, so a HubSpot contact
+  is never half-populated. Existing accounts are untouched.
+- **The sync can never cost a user their account.** It runs last in `verify_signup`, *after* the
+  account blob is written — and because an existing email can never be re-registered, an exception
+  there would leave the user with an account they can neither use nor recreate. So
+  `HubSpotContactStore` swallows and logs every failure (timeout, refused connection, revoked
+  token, renamed property) and `sync_new_account_to_crm` wraps it in a second `try/except`.
+  Verified by test and by an injected exploding client: the session cookie is still issued.
+- **A 409 duplicate leaves the existing contact untouched**, logged at INFO rather than ERROR.
+  Free Bot signup already refuses an address it knows, so a 409 means the contact predates the bot
+  (imported, or captured by another form); a signup is not the authority on it, and overwriting
+  could clobber sales-owned fields. Chose this over a create-or-update upsert deliberately.
+- **Blank property values are omitted rather than sent as `""`**, so a field HubSpot already holds
+  for an address is never blanked by a signup that did not collect it.
+- **`first_name`/`last_name` default to `""` and are NOT in the required-field sets** of
+  `load_account` or `load_pending_signup` — legacy account blobs have neither, and a signup already
+  awaiting its code at deploy time must still verify rather than dead-end. Both are carried through
+  **every** rewrite site (the two `PendingFreeSignup` rewrites in `resend_signup_code` and the
+  wrong-code `failed_attempts` bump, plus all three `FreeAccount` rewrites), which is the same
+  footgun `expires_at` already documents. Considered switching those sites to
+  `dataclasses.replace` to kill the class of bug outright, but kept the file's explicit-construction
+  pattern and added `test_every_account_rewrite_keeps_the_names` as the guard instead — a test
+  enforces the invariant where a refactor only reduces its likelihood.
+- **Validation order mirrors the form's field order** (first → last → company → email → password)
+  on both ends, since the form shows one message at a time and it should point at the topmost gap.
+- **The company input's `autoComplete` changed `name` → `organization`.** Required by this change,
+  not incidental: with real given/family-name fields present, `name` makes browsers autofill the
+  person's full name into the company box.
+- **The two names share one row** (`.nameRow`, stacking below 420px) rather than stacking. Stacked
+  they cost ~134px; side by side, 69px. Measured consequence, reported rather than papered over:
+  the signup card is 791px → 860px, so at a viewport exactly 900px tall the page now scrolls by
+  **8px**. Below ~840px tall it already scrolled before this change, and this is a standalone form
+  page with no `100vh` layout contract (unlike the chat), so the extra fields were allowed to cost
+  their height. Tried reclaiming it by not rendering the always-empty subtitle `<p>` on
+  login/signup and **reverted**: that element's negative top margin collapses into the title's
+  bottom margin, so removing it made the card 8px *taller* and shifted the login card's spacing
+  too — an unrequested visual change for a negative gain.
+- **`HUBSPOT_API_KEY` is optional everywhere.** Unset simply skips the sync, which is the normal
+  state for local runs; the bicep secret and its `envSecrets` entry are both `!empty()`-gated per
+  the existing convention.
+- **Deploying this needs `azd provision` (or `azd up`), not just `azd deploy`.** The key was already
+  present in both `.azure/*/.env` but wired into nothing; it reaches the Container App only through
+  the bicep secret, which `azd deploy` does not re-run. Until then the deployed backend logs
+  "HUBSPOT_API_KEY is not set" and silently skips the sync while signup keeps working. The active
+  `agentic-retrieval-nerilio` env already sets `SERVICE_BACKEND_RESOURCE_EXISTS=true` plus both
+  `AZURE_CONTAINER_APP_CUSTOM_DOMAIN*` values, so provisioning preserves the `chat.nerilio.ai`
+  binding per the existing deployment note.
+- **Verification (the user asked for proof it works), all four links exercised for real:**
+  1. **Live HubSpot**, through the production `create_contact` path with the token from the azd env:
+     contact created (201), read back with all five properties set including the custom
+     `neriliofreebot: "true"`, a second create correctly refused with 409, then deleted (204 →
+     404 on read-back) so the portal was left clean.
+  2. **The real Quart route**, by registering the real `app.bp` blueprint on a bare Quart app with
+     only the free-auth service in config (no `before_serving`, no Azure): the browser's exact JSON
+     body → `first_name`/`last_name` on the pending signup → the account blob → the HubSpot call;
+     plus a names-less body returning 400 (not 500) and the HubSpot-outage path still setting the
+     session cookie.
+  3. **The real form in Chromium** against `vite dev` with route-mocked backend calls: both fields
+     render above the company field with the right `autocomplete` values, validation reports the
+     topmost gap and sends nothing until complete, the POST body carries `firstName`/`lastName`,
+     labels resolve in all three locales, and the name row is side by side on desktop / stacked at
+     390px with no horizontal scrollbar at any of three viewports.
+  4. **Unit + integration tests** — 15 new HubSpot tests, plus 10 new freeauth test functions
+     (13 cases, one parametrized): `tests/test_freeauth.py` goes 14 → 27, all green. The
+     HubSpot tests that exercise HTTP do so against a throwaway localhost aiohttp server rather
+     than a mocked `ClientSession`, so the headers, JSON body and status handling are genuinely
+     covered rather than asserted against a mock's own shape.
+- **Not done, deliberately:** first/last name are not surfaced in `/admin/users` or the Free Bot
+  profile modal. They exist to populate HubSpot and were not requested in the UI. The gap worth
+  knowing about: if the CRM call fails, an admin has no in-app view of the captured names to fix
+  the contact by hand — the ERROR log line is the only trace.
+- **Pre-existing, unrelated, and NOT fixed here** (both confirmed by stashing this change and
+  reproducing identically): every `tests/test_app.py` client fixture and the whole `tests/e2e.py`
+  live server fail to start offline, because `FreeAuthStore.setup()` → `resolve_session_secret()`
+  reaches real blob storage (`test-storage-account.blob.core.windows.net`, `getaddrinfo failed`)
+  during `before_serving`; Quart's 6s `startup_timeout` is what surfaces it as a timeout. So the
+  new `test_app.py` case and the new `e2e.py` case could not be executed in their own harnesses —
+  the e2e test's every selector and expected string was instead executed verbatim against
+  `vite dev` to prove the test itself is correct. `ty check` reports the same 28 diagnostics before
+  and after (all in `app.py`, none in the new modules).
+- **Regression check, whole runnable suite** (`pytest tests/ --ignore=e2e.py --ignore=test_app.py`):
+  **818 passed, 44 failed, 86 errors**. Re-running exactly the 9 failing files with this change
+  stashed gave **the same 44 failed / 86 errors with an identical per-file breakdown** —
+  `test_cosmosdb` 36E, `test_upload` 34E, `test_app_config` 25F+2E, `test_content_file` 14E+2F,
+  `test_searchmanager` 11F, `test_hyrox_assessment` 2F, `test_chatapproach` 2F, `test_publishonefeed`
+  1F, `test_prepdocslib_textsplitter` 1F. So the whole 130 is environmental baseline (offline blob /
+  network), not regression. Note `test_app_config.py` also drives `test_app()`, so it shares the
+  startup root cause above; its `minimal_env` clears `os.environ`, and `HubSpotContactStore(api_key=None)`
+  normalises to `""` → `is_configured()` False → no request and no exception, so this change cannot
+  reach it.
+
+#### Changes
+
+- `app/backend/core/hubspot.py` (new): `HubSpotContactStore` with `is_configured`,
+  `build_contact_properties`, `interpret_contact_response` and `create_contact`.
+- `app/backend/core/freeauth.py`: `first_name`/`last_name` on `FreeAccount` and
+  `PendingFreeSignup`; both parsed with `.get(...)` in `load_account`, `list_accounts` and
+  `load_pending_signup`; carried through all five rewrite sites; `start_signup` takes and validates
+  them; `verify_signup` copies them onto the account and calls the new
+  `sync_new_account_to_crm`; constructor takes `hubspot_contact_store`.
+- `app/backend/app.py`: reads `HUBSPOT_API_KEY`, builds `HubSpotContactStore` into `FreeAuthStore`,
+  and passes `firstName`/`lastName` from `/free-auth/signup`.
+- `app/frontend/src/chatbots/free/pages/basicauth/basicAuth.ts`: `SignUpInput` gains
+  `firstName`/`lastName`, validated in form order and sent in the request body.
+- `app/frontend/src/chatbots/free/pages/basicauth/BasicLogin.tsx`: two new inputs in a
+  `.nameRow`, state + `resetForm` wiring, company input `autoComplete` `name` → `organization`.
+- `app/frontend/src/chatbots/free/pages/basicauth/BasicLogin.module.css`: `.nameRow` two-column
+  grid, stacking under 420px.
+- `app/frontend/src/chatbots/free/locales/{de,en,nl}/translation.json`: `signupPage.firstName`,
+  `signupPage.lastName`, `authErrors.firstNameRequired`, `authErrors.lastNameRequired`; corrected
+  `authErrors.displayNameRequired` to say company name.
+- `infra/main.parameters.json`, `infra/main.bicep`, `.azdo/pipelines/azure-dev.yml`,
+  `.github/workflows/azure-dev.yml`: `HUBSPOT_API_KEY` / `hubspotApiKey` wiring.
+- `tests/test_hubspot.py` (new, 15 tests): payload shape, blank-omission, a real request against a
+  localhost server, unconfigured no-op, 4xx/5xx handling, 409-as-INFO, body truncation, timeout,
+  unreachable host.
+- `tests/test_freeauth.py`: both names required (parametrized incl. whitespace), order before the
+  company error, names persisted end to end, names survive a resend and a wrong code, HubSpot
+  outage does not cost the account, no-store configured, every account rewrite keeps the names,
+  self-service reset keeps them, legacy account blobs and legacy pending signups still load.
+- `tests/test_app.py`: signup route asserts the new kwargs; new case for a names-less body → 400.
+- `tests/e2e.py`: `test_free_signup_form_collects_a_first_and_last_name`.
+- `CLAUDE.md`: new HubSpot-sync contract bullet; the account-rewrite rule now names
+  `first_name`/`last_name` and `reactivate_account`.
+
 ## 2026-08-03
 
 ### Navbar dropdown menu items are no longer semi-bold (all bots)

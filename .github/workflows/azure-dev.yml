@@ -157,6 +157,7 @@ jobs:
           AZURE_CLIENT_APP_SECRET: ${{ secrets.AZURE_CLIENT_APP_SECRET }}
           PUBLIC_TEST_SMTP_USERNAME: ${{ secrets.PUBLIC_TEST_SMTP_USERNAME }}
           PUBLIC_TEST_SMTP_PASSWORD: ${{ secrets.PUBLIC_TEST_SMTP_PASSWORD }}
+          HUBSPOT_API_KEY: ${{ secrets.HUBSPOT_API_KEY }}
 
       - name: Deploy Application
         run: azd deploy --no-prompt

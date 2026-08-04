@@ -404,6 +404,8 @@ async def test_free_signup_starts_verification(client, monkeypatch):
     auth_service = client.app.config[app.CONFIG_FREE_AUTH_SERVICE]
 
     async def mock_start_signup(**kwargs):
+        assert kwargs["first_name"] == "Susi"
+        assert kwargs["last_name"] == "Musterfrau"
         assert kwargs["display_name"] == "Test User"
         assert kwargs["email"] == "user@example.com"
         return SimpleNamespace(email="user@example.com", expires_in_seconds=900)
@@ -413,6 +415,8 @@ async def test_free_signup_starts_verification(client, monkeypatch):
     response = await client.post(
         "/free-auth/signup",
         json={
+            "firstName": "Susi",
+            "lastName": "Musterfrau",
             "displayName": "Test User",
             "email": "user@example.com",
             "password": "secret",
@@ -427,6 +431,24 @@ async def test_free_signup_starts_verification(client, monkeypatch):
         "email": "user@example.com",
         "expiresInSeconds": 900,
     }
+
+
+@pytest.mark.asyncio
+async def test_free_signup_without_names_is_a_validation_error_not_a_crash(client):
+    """An old cached frontend bundle posts no names; that must be a 400, never a 500."""
+    response = await client.post(
+        "/free-auth/signup",
+        json={
+            "displayName": "Test User",
+            "email": "user@example.com",
+            "password": "secret-enough",
+            "confirmPassword": "secret-enough",
+        },
+    )
+
+    payload = await response.get_json()
+    assert response.status_code == 400
+    assert payload == {"errorKey": "authErrors.firstNameRequired"}
 
 
 @pytest.mark.asyncio

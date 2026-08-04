@@ -15,6 +15,20 @@
     text-align: center;
 }
 
+/* First name + last name share one row. Six stacked inputs would push the signup card past a
+   laptop viewport; the gap matches the shared .form grid gap so the row reads as two normal rows. */
+.nameRow {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+@media (max-width: 420px) {
+    .nameRow {
+        grid-template-columns: 1fr;
+    }
+}
+
 .modeSwitch {
     display: grid;
     grid-template-columns: repeat(2, 1fr);

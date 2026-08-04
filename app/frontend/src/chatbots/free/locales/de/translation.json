@@ -237,6 +237,8 @@
     "signupPage": {
         "title": "Konto erstellen",
         "subtitle": "",
+        "firstName": "Vorname",
+        "lastName": "Nachname",
         "displayName": "Firmenname",
         "email": "E-Mail",
         "password": "Passwort",
@@ -260,7 +262,9 @@
         "passwordHint": "Verwende mindestens 8 Zeichen."
     },
     "authErrors": {
-        "displayNameRequired": "Ein Anzeigename ist erforderlich.",
+        "firstNameRequired": "Ein Vorname ist erforderlich.",
+        "lastNameRequired": "Ein Nachname ist erforderlich.",
+        "displayNameRequired": "Ein Firmenname ist erforderlich.",
         "emailRequired": "Eine E-Mail-Adresse ist erforderlich.",
         "invalidEmail": "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
         "passwordRequired": "Ein Passwort ist erforderlich.",

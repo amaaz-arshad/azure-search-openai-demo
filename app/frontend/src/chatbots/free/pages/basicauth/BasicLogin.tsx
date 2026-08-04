@@ -25,6 +25,9 @@ const BasicLogin = ({ onSuccess }: { onSuccess: (session: FreeSession) => void }
     const [mode, setMode] = useState<Mode>("login");
     const [signupStage, setSignupStage] = useState<SignupStage>("details");
     const [resetStage, setResetStage] = useState<ResetStage>("request");
+    const [firstName, setFirstName] = useState("");
+    const [lastName, setLastName] = useState("");
+    // The company name — this field is labeled "Firmenname" / "Company name" / "Bedrijfsnaam".
     const [displayName, setDisplayName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -96,6 +99,8 @@ const BasicLogin = ({ onSuccess }: { onSuccess: (session: FreeSession) => void }
         setMode(nextMode);
         setSignupStage("details");
         setResetStage("request");
+        setFirstName("");
+        setLastName("");
         setDisplayName("");
         setEmail("");
         setPassword("");
@@ -109,6 +114,8 @@ const BasicLogin = ({ onSuccess }: { onSuccess: (session: FreeSession) => void }
 
     const handleStartSignup = async () => {
         const result = await signUp({
+            firstName,
+            lastName,
             displayName,
             email,
             password,
@@ -285,17 +292,45 @@ const BasicLogin = ({ onSuccess }: { onSuccess: (session: FreeSession) => void }
 
                     <form className={sharedStyles.form} onSubmit={handleSubmit} autoComplete="off">
                         {mode === "signup" && signupStage === "details" && (
-                            <input
-                                className={sharedStyles.input}
-                                disabled={controlsDisabled}
-                                placeholder={t("signupPage.displayName")}
-                                value={displayName}
-                                onChange={event => {
-                                    setDisplayName(event.target.value);
-                                    clearMessages();
-                                }}
-                                autoComplete="name"
-                            />
+                            <>
+                                {/* Side by side so the extra person fields don't make the card
+                                    outgrow the viewport; stacks below 420px. */}
+                                <div className={styles.nameRow}>
+                                    <input
+                                        className={sharedStyles.input}
+                                        disabled={controlsDisabled}
+                                        placeholder={t("signupPage.firstName")}
+                                        value={firstName}
+                                        onChange={event => {
+                                            setFirstName(event.target.value);
+                                            clearMessages();
+                                        }}
+                                        autoComplete="given-name"
+                                    />
+                                    <input
+                                        className={sharedStyles.input}
+                                        disabled={controlsDisabled}
+                                        placeholder={t("signupPage.lastName")}
+                                        value={lastName}
+                                        onChange={event => {
+                                            setLastName(event.target.value);
+                                            clearMessages();
+                                        }}
+                                        autoComplete="family-name"
+                                    />
+                                </div>
+                                <input
+                                    className={sharedStyles.input}
+                                    disabled={controlsDisabled}
+                                    placeholder={t("signupPage.displayName")}
+                                    value={displayName}
+                                    onChange={event => {
+                                        setDisplayName(event.target.value);
+                                        clearMessages();
+                                    }}
+                                    autoComplete="organization"
+                                />
+                            </>
                         )}
 
                         {!isVerificationStep && (

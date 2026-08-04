@@ -235,6 +235,8 @@
     "signupPage": {
         "title": "Create your account",
         "subtitle": "",
+        "firstName": "First name",
+        "lastName": "Last name",
         "displayName": "Company name",
         "email": "Email",
         "password": "Password",
@@ -258,7 +260,9 @@
         "passwordHint": "Use at least 8 characters."
     },
     "authErrors": {
-        "displayNameRequired": "Display name is required.",
+        "firstNameRequired": "First name is required.",
+        "lastNameRequired": "Last name is required.",
+        "displayNameRequired": "Company name is required.",
         "emailRequired": "Email is required.",
         "invalidEmail": "Please enter a valid email address.",
         "passwordRequired": "Password is required.",

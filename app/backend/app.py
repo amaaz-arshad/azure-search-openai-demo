@@ -205,6 +205,7 @@ from core.freeauth import (
     describe_account_expiry,
     normalize_free_email,
 )
+from core.hubspot import HubSpotContactStore
 from core.sessionhelper import create_session_id
 from core.simplechatbotauth import (
     SIMPLE_CHATBOT_AUTH_INVALID_CREDENTIALS_MESSAGE,
@@ -1414,6 +1415,8 @@ async def free_signup():
     auth_service = get_free_auth_service()
     try:
         verification_challenge = await auth_service.start_signup(
+            first_name=str(request_json.get("firstName", "")),
+            last_name=str(request_json.get("lastName", "")),
             display_name=str(request_json.get("displayName", "")),
             email=str(request_json.get("email", "")),
             password=str(request_json.get("password", "")),
@@ -2717,6 +2720,9 @@ async def setup_clients():
     PUBLIC_TEST_SMTP_PASSWORD = os.getenv("PUBLIC_TEST_SMTP_PASSWORD")
     PUBLIC_TEST_EMAIL_FROM = os.getenv("PUBLIC_TEST_EMAIL_FROM")
     PUBLIC_TEST_EMAIL_FROM_NAME = os.getenv("PUBLIC_TEST_EMAIL_FROM_NAME", "nerilio")
+    # Optional: a verified Free Bot signup is mirrored into HubSpot as a CRM contact. Unset means
+    # the sync is simply skipped, which is the normal state for local runs.
+    HUBSPOT_API_KEY = os.getenv("HUBSPOT_API_KEY")
 
     KB_FIELDS_CONTENT = os.getenv("KB_FIELDS_CONTENT", "content")
     KB_FIELDS_SOURCEPAGE = os.getenv("KB_FIELDS_SOURCEPAGE", "sourcepage")
@@ -2970,6 +2976,7 @@ async def setup_clients():
         email_from=PUBLIC_TEST_EMAIL_FROM,
         email_from_name=PUBLIC_TEST_EMAIL_FROM_NAME,
         running_in_production=RUNNING_ON_AZURE,
+        hubspot_contact_store=HubSpotContactStore(api_key=HUBSPOT_API_KEY),
     )
     await free_auth_service.setup()
     current_app.config[CONFIG_FREE_AUTH_SERVICE] = free_auth_service

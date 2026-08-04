@@ -236,6 +236,8 @@
     "signupPage": {
         "title": "Maak je account aan",
         "subtitle": "",
+        "firstName": "Voornaam",
+        "lastName": "Achternaam",
         "displayName": "Bedrijfsnaam",
         "email": "E-mailadres",
         "password": "Wachtwoord",
@@ -259,7 +261,9 @@
         "passwordHint": "Gebruik minimaal 8 tekens."
     },
     "authErrors": {
-        "displayNameRequired": "Weergavenaam is verplicht.",
+        "firstNameRequired": "Voornaam is verplicht.",
+        "lastNameRequired": "Achternaam is verplicht.",
+        "displayNameRequired": "Bedrijfsnaam is verplicht.",
         "emailRequired": "E-mailadres is verplicht.",
         "invalidEmail": "Voer een geldig e-mailadres in.",
         "passwordRequired": "Wachtwoord is verplicht.",

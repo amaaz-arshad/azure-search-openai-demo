@@ -21,6 +21,7 @@ from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
 from azure.storage.blob import ContentSettings
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
+from core.hubspot import HubSpotContactStore
 from prepdocslib.blobmanager import BlobManager
 
 logger = logging.getLogger("scripts")
@@ -48,6 +49,10 @@ FREE_ACCOUNT_LIFETIME_DAYS = 30
 
 @dataclass(frozen=True)
 class FreeAccount:
+    # display_name is the registrant's COMPANY: the signup form labels this field
+    # "Firmenname" / "Company name" / "Bedrijfsnaam". It keeps its original identifier so existing
+    # account blobs, sessions and the admin list stay readable, and it is what feeds HubSpot's
+    # `company` property.
     display_name: str
     email: str
     password_salt: str
@@ -57,6 +62,11 @@ class FreeAccount:
     # Written on signup and rewritten by an admin reactivation. Accounts registered before the
     # trial window existed have no stored value; their expiry derives from created_at instead.
     expires_at: str = ""
+    # The person behind the company, collected by the signup form and forwarded to HubSpot as
+    # firstname/lastname. Optional on the dataclass because accounts registered before the fields
+    # existed have neither, so they are deliberately absent from load_account's required-field set.
+    first_name: str = ""
+    last_name: str = ""
 
 
 @dataclass(frozen=True)
@@ -73,6 +83,11 @@ class PendingFreeSignup:
     last_sent_at: str
     send_count: int
     failed_attempts: int
+    # Held here until the code is verified, then copied onto the account. Defaulted (and not
+    # required by load_pending_signup) so a signup already awaiting its code when this shipped
+    # still verifies instead of dead-ending.
+    first_name: str = ""
+    last_name: str = ""
 
 
 @dataclass(frozen=True)
@@ -214,6 +229,7 @@ class FreeAuthStore:
         session_cookie_name: str = FREE_AUTH_COOKIE,
         session_max_age_seconds: int = FREE_SESSION_MAX_AGE_SECONDS,
         running_in_production: bool = False,
+        hubspot_contact_store: HubSpotContactStore | None = None,
     ):
         self.blob_manager = blob_manager
         self.auth_container = auth_container
@@ -230,6 +246,7 @@ class FreeAuthStore:
             "Nerilio Bot", FREE_EMAIL_BRAND_NAME
         )
         self.running_in_production = running_in_production
+        self.hubspot_contact_store = hubspot_contact_store
 
     async def setup(self):
         self.session_secret = await self.resolve_session_secret()
@@ -416,6 +433,8 @@ class FreeAuthStore:
             created_at=str(payload["created_at"]),
             updated_at=str(payload["updated_at"]),
             expires_at=str(payload.get("expires_at", "") or ""),
+            first_name=str(payload.get("first_name", "") or "").strip(),
+            last_name=str(payload.get("last_name", "") or "").strip(),
         )
 
     async def load_pending_signup(self, email: str) -> PendingFreeSignup | None:
@@ -458,6 +477,8 @@ class FreeAuthStore:
             last_sent_at=str(payload["last_sent_at"]),
             send_count=int(payload["send_count"]),
             failed_attempts=int(payload["failed_attempts"]),
+            first_name=str(payload.get("first_name", "") or "").strip(),
+            last_name=str(payload.get("last_name", "") or "").strip(),
         )
 
     async def save_pending_signup(self, pending_signup: PendingFreeSignup) -> None:
@@ -561,6 +582,8 @@ class FreeAuthStore:
                     created_at=str(payload["created_at"]),
                     updated_at=str(payload["updated_at"]),
                     expires_at=str(payload.get("expires_at", "") or ""),
+                    first_name=str(payload.get("first_name", "") or "").strip(),
+                    last_name=str(payload.get("last_name", "") or "").strip(),
                 )
             )
 
@@ -608,6 +631,8 @@ class FreeAuthStore:
             created_at=account.created_at,
             updated_at=format_utc(datetime.now(timezone.utc)),
             expires_at=account.expires_at,
+            first_name=account.first_name,
+            last_name=account.last_name,
         )
         await self.save_json_blob(self.get_account_blob_name(updated_account.email), asdict(updated_account))
         await self.delete_pending_password_reset(updated_account.email)
@@ -637,6 +662,8 @@ class FreeAuthStore:
             created_at=account.created_at,
             updated_at=format_utc(now),
             expires_at=format_utc(now + timedelta(days=lifetime_days)),
+            first_name=account.first_name,
+            last_name=account.last_name,
         )
         await self.save_json_blob(self.get_account_blob_name(updated_account.email), asdict(updated_account))
         return updated_account
@@ -869,14 +896,24 @@ class FreeAuthStore:
     async def start_signup(
         self,
         *,
+        first_name: str,
+        last_name: str,
         display_name: str,
         email: str,
         password: str,
         confirm_password: str,
     ) -> FreeVerificationChallenge:
+        normalized_first_name = first_name.strip()
+        normalized_last_name = last_name.strip()
         normalized_display_name = display_name.strip()
         normalized_email = normalize_free_email(email)
 
+        # Validated in the order the signup form stacks the fields, so the one error message the
+        # form shows points at the topmost offending input.
+        if not normalized_first_name:
+            raise FreeAuthError("authErrors.firstNameRequired")
+        if not normalized_last_name:
+            raise FreeAuthError("authErrors.lastNameRequired")
         if not normalized_display_name:
             raise FreeAuthError("authErrors.displayNameRequired")
         if normalized_email is None:
@@ -911,6 +948,8 @@ class FreeAuthStore:
             last_sent_at=format_utc(now),
             send_count=1,
             failed_attempts=0,
+            first_name=normalized_first_name,
+            last_name=normalized_last_name,
         )
         await self.save_pending_signup(pending_signup)
         await self.send_verification_email(normalized_email, verification_code)
@@ -951,6 +990,8 @@ class FreeAuthStore:
             last_sent_at=format_utc(now),
             send_count=pending_signup.send_count + 1,
             failed_attempts=0,
+            first_name=pending_signup.first_name,
+            last_name=pending_signup.last_name,
         )
         await self.save_pending_signup(refreshed_pending_signup)
         await self.send_verification_email(normalized_email, verification_code)
@@ -999,6 +1040,8 @@ class FreeAuthStore:
                 last_sent_at=pending_signup.last_sent_at,
                 send_count=pending_signup.send_count,
                 failed_attempts=pending_signup.failed_attempts + 1,
+                first_name=pending_signup.first_name,
+                last_name=pending_signup.last_name,
             )
             await self.save_pending_signup(updated_pending_signup)
             raise FreeAuthError("authErrors.invalidVerificationCode")
@@ -1011,10 +1054,37 @@ class FreeAuthStore:
             created_at=format_utc(now),
             updated_at=format_utc(now),
             expires_at=format_utc(now + timedelta(days=FREE_ACCOUNT_LIFETIME_DAYS)),
+            first_name=pending_signup.first_name,
+            last_name=pending_signup.last_name,
         )
         await self.save_account(account)
         await self.delete_pending_signup(account.email)
+        await self.sync_new_account_to_crm(account)
         return self.build_session(account)
+
+    async def sync_new_account_to_crm(self, account: FreeAccount) -> None:
+        """Register a newly verified account as a HubSpot contact.
+
+        Runs last in the signup sequence and is best-effort by design. The account blob is already
+        written by this point, so raising would show the user a failure for an account that exists
+        — and because an existing email can never be re-registered, they could not retry. The
+        HubSpot store swallows its own HTTP failures; this guard covers everything else.
+
+        display_name is the company (the form labels it "Firmenname" / "Company name" /
+        "Bedrijfsnaam"), which is why it maps onto HubSpot's `company` rather than a name property.
+        """
+        if self.hubspot_contact_store is None:
+            return
+
+        try:
+            await self.hubspot_contact_store.create_contact(
+                email=account.email,
+                first_name=account.first_name,
+                last_name=account.last_name,
+                company=account.display_name,
+            )
+        except Exception:
+            logger.exception("Unable to sync the new free account %s to HubSpot", account.email)
 
     async def start_password_reset(self, *, email: str) -> FreeVerificationChallenge:
         normalized_email = normalize_free_email(email)
@@ -1168,6 +1238,8 @@ class FreeAuthStore:
             created_at=account.created_at,
             updated_at=format_utc(now),
             expires_at=account.expires_at,
+            first_name=account.first_name,
+            last_name=account.last_name,
         )
         await self.save_json_blob(self.get_account_blob_name(updated_account.email), asdict(updated_account))
         await self.delete_pending_password_reset(updated_account.email)

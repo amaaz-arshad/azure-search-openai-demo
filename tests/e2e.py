@@ -2023,3 +2023,71 @@ def test_hyrox_assessment_keeps_input_mid_assessment(page: Page, live_server_url
     expect(page.get_by_placeholder("Type your message")).to_be_visible()
     # Hidden markers are still stripped from the visible transcript.
     expect(page.locator("#main-content")).not_to_contain_text("[[")
+
+
+def test_free_signup_form_collects_a_first_and_last_name(page: Page, live_server_url: str):
+    """The Free Bot signup form asks for the person as well as the company.
+
+    First/last name are what a verified signup sends to HubSpot as firstname/lastname, while the
+    long-standing "Company name" field (stored as display_name) is what its `company` gets.
+    """
+    signup_bodies: list[str] = []
+
+    def handle_signup(route: Route):
+        signup_bodies.append(route.request.post_data or "")
+        route.fulfill(
+            status=200,
+            json={"verificationRequired": True, "email": "susi@example.com", "expiresInSeconds": 900},
+        )
+
+    # Unauthenticated, so the signup card renders instead of the chat.
+    page.route("*/**/free-auth/session", lambda route: route.fulfill(status=401, json={"errorKey": "x"}))
+    page.route("*/**/free-auth/signup", handle_signup)
+
+    page.goto(f"{live_server_url}free")
+    page.get_by_role("tab", name="Sign up").click()
+
+    first_name_input = page.get_by_placeholder("First name", exact=True)
+    last_name_input = page.get_by_placeholder("Last name", exact=True)
+    company_input = page.get_by_placeholder("Company name", exact=True)
+
+    expect(first_name_input).to_be_visible()
+    expect(last_name_input).to_be_visible()
+    # The person is asked for above the company.
+    assert page.locator("form input").evaluate_all("nodes => nodes.map(node => node.placeholder)")[:3] == [
+        "First name",
+        "Last name",
+        "Company name",
+    ]
+
+    # The company field must not keep autocomplete="name": with real name fields present, browsers
+    # would autofill the person's full name into it.
+    expect(first_name_input).to_have_attribute("autocomplete", "given-name")
+    expect(last_name_input).to_have_attribute("autocomplete", "family-name")
+    expect(company_input).to_have_attribute("autocomplete", "organization")
+
+    # Both names are required, and the topmost gap is the one reported. Nothing is sent until the
+    # form is complete, so the backend never sees a half-filled registration.
+    submit_button = page.get_by_role("button", name="Sign up", exact=True).last
+    submit_button.click()
+    expect(page.get_by_role("alert")).to_have_text("First name is required.")
+    first_name_input.fill("Susi")
+    submit_button.click()
+    expect(page.get_by_role("alert")).to_have_text("Last name is required.")
+    last_name_input.fill("Musterfrau")
+    submit_button.click()
+    expect(page.get_by_role("alert")).to_have_text("Company name is required.")
+    assert signup_bodies == []
+
+    company_input.fill("Mustermann GmbH")
+    page.get_by_placeholder("Email", exact=True).fill("susi@example.com")
+    page.get_by_placeholder("Password", exact=True).fill("long-enough-pw")
+    page.get_by_placeholder("Confirm password", exact=True).fill("long-enough-pw")
+    submit_button.click()
+
+    expect(page.get_by_placeholder("Verification code", exact=True)).to_be_visible()
+    assert len(signup_bodies) == 1
+    submitted = json.loads(signup_bodies[0])
+    assert submitted["firstName"] == "Susi"
+    assert submitted["lastName"] == "Musterfrau"
+    assert submitted["displayName"] == "Mustermann GmbH"

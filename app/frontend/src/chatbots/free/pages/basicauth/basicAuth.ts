@@ -37,6 +37,9 @@ type VerificationStartResult =
       };
 
 type SignUpInput = {
+    firstName: string;
+    lastName: string;
+    // The company name — the form labels this field "Firmenname" / "Company name" / "Bedrijfsnaam".
     displayName: string;
     email: string;
     password: string;
@@ -159,9 +162,27 @@ export const getCurrentProfile = async (): Promise<FreeProfile> => {
     return profile;
 };
 
-export const signUp = async ({ displayName, email, password, confirmPassword }: SignUpInput): Promise<VerificationStartResult> => {
+export const signUp = async ({
+    firstName,
+    lastName,
+    displayName,
+    email,
+    password,
+    confirmPassword
+}: SignUpInput): Promise<VerificationStartResult> => {
+    const normalizedFirstName = firstName.trim();
+    const normalizedLastName = lastName.trim();
     const normalizedDisplayName = displayName.trim();
     const normalizedEmail = normalizeEmail(email);
+
+    // Same order as the backend's start_signup validation, so both ends flag the topmost empty field.
+    if (!normalizedFirstName) {
+        return { ok: false, errorKey: "authErrors.firstNameRequired" };
+    }
+
+    if (!normalizedLastName) {
+        return { ok: false, errorKey: "authErrors.lastNameRequired" };
+    }
 
     if (!normalizedDisplayName) {
         return { ok: false, errorKey: "authErrors.displayNameRequired" };
@@ -197,6 +218,8 @@ export const signUp = async ({ displayName, email, password, confirmPassword }: 
             "Content-Type": "application/json"
         },
         body: JSON.stringify({
+            firstName: normalizedFirstName,
+            lastName: normalizedLastName,
             displayName: normalizedDisplayName,
             email: normalizedEmail,
             password,

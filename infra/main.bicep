@@ -299,6 +299,11 @@ param publicTestSmtpPassword string = ''
 param publicTestEmailFrom string = ''
 param publicTestEmailFromName string = 'Public Test'
 
+// Private app token for the HubSpot CRM. A verified Free Bot signup is mirrored into HubSpot as a
+// contact; leaving this empty simply skips the sync.
+@secure()
+param hubspotApiKey string = ''
+
 param openLitEndpoint string = ''
 param clientAppId string = ''
 @secure()
@@ -434,6 +439,9 @@ var acaBackendSecrets = union(
   } : {},
   !empty(publicTestSmtpPassword) ? {
     publictestsmtppassword: publicTestSmtpPassword
+  } : {},
+  !empty(hubspotApiKey) ? {
+    hubspotapikey: hubspotApiKey
   } : {}
 )
 var acaBackendEnvSecrets = concat(
@@ -463,6 +471,12 @@ var acaBackendEnvSecrets = concat(
     {
       name: 'PUBLIC_TEST_SMTP_PASSWORD'
       secretRef: 'publictestsmtppassword'
+    }
+  ] : [],
+  !empty(hubspotApiKey) ? [
+    {
+      name: 'HUBSPOT_API_KEY'
+      secretRef: 'hubspotapikey'
     }
   ] : []
 )
@@ -685,6 +699,7 @@ module backend 'core/host/appservice.bicep' = if (deploymentTarget == 'appservic
       AZURE_CLIENT_APP_SECRET: clientAppSecret
       PUBLIC_TEST_SMTP_USERNAME: publicTestSmtpUsername
       PUBLIC_TEST_SMTP_PASSWORD: publicTestSmtpPassword
+      HUBSPOT_API_KEY: hubspotApiKey
     })
   }
 }
