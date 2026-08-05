@@ -17,6 +17,55 @@ Two categories per date:
 
 ## 2026-08-04
 
+### `/admin/embed`: selecting a provisioned bot loaded the wrong bot (or none at all)
+
+#### Decisions
+
+- **User report: selecting a provisioned bot on `/admin/embed` shows "Could not load the whitelist."
+  and no launcher bubble.** Root cause is an ordering defect in `embed_demo.html`'s `reveal()`:
+  `startDemo(); loadWhitelist(); loadProvisionedOptions();`. Selecting a bot reloads the page as
+  `?bot=<publicId>`, and **only built-in options are server-rendered** — the provisioned `<option>`s
+  are appended by a fetch that, in that order, cannot possibly have finished. So `select.value =
+  <provisioned id>` always matched nothing on the reload, and the page then keyed both the whitelist
+  request and the widget's `chatbotId` off a selection that was never the requested bot.
+- **Backend was ruled out, not assumed.** Exercised the real routes offline (bare `Quart` + the real
+  blueprint + a fake registry holding an active provisioned record, per the workaround in the
+  project memory): `GET /internal-admin/embed-config/<provisioned>` → 200, `GET /internal-admin/
+  dynamic-chatbots` → 200, `GET /embed/<publicId>/config` resolves the dynamic ID. Also confirmed
+  the real `/embed-demo` renders all 19 embeddable built-in options. Nothing server-side is wrong.
+- **Reproduced in a real browser rather than reasoned about.** Drove the actual `embed_demo.html`
+  under Playwright against a mock backend, comparing the stock and fixed `reveal()`. Two distinct
+  symptoms, one cause: with built-in options present the picker **silently falls back to
+  `publishone`** (wrong whitelist, wrong snippet, wrong bubble — a wrong-bot bug that is arguably
+  worse than an error, since nothing signals it); where option 0 is not resolvable the page shows
+  *exactly* the reported signature — "Could not load the whitelist." + the literal "the selected
+  bot" fallback label + an empty (placeholder-showing) textarea + no launcher. Both are fixed.
+- **Rejected: server-rendering the provisioned options.** That is the obvious alternative, but
+  `CLAUDE.md` pins `/embed-demo` as a static render that must not list the registry server-side (the
+  route is exercised by tests with no blob backend). Awaiting the existing fetch keeps that contract.
+- **The picker must never sit on an unresolvable selection.** `select.value = <unknown>` is not the
+  hazard it looks like — per spec's "ask for a reset", Chromium *and* Firefox both snap to option 0
+  (verified in both engines), which is what turns this into a silent wrong-bot bug. The explicit
+  `selectedIndex < 0` fallback covers the remaining case (a picker with no usable option at all).
+- **Two guards were added so no variant can present a misleading error.** A nameless whitelist
+  request hits `GET /internal-admin/embed-config/` — a route that does not exist — and its 404 was
+  being reported as "Could not load the whitelist.", which reads as a backend fault; it now says
+  "No chatbot is selected." Likewise the widget is no longer booted with an empty `chatbotId`
+  (which renders no launcher and looks like the widget itself is broken).
+
+#### Changes
+
+- `app/backend/embed_demo.html`: `reveal()` is now `async` and awaits `loadProvisionedOptions()`
+  before `startDemo()`/`loadWhitelist()`; `startDemo()` falls back to the first option when `?bot=`
+  resolves to nothing and skips widget injection (and the snippet) when there is no bot at all;
+  `loadWhitelist()` reads the name once and reports "No chatbot is selected." instead of firing a
+  nameless request.
+- `tests/test_app.py`: new `test_embed_demo_waits_for_provisioned_options_before_restoring_the_picker`
+  pinning the ordering contract inside `reveal()` plus both guards.
+- Noted, not changed (pre-existing, out of scope): `tests/e2e.py`'s two embedded-widget tests still
+  pass `?bot=nerilio`, a plain route name that stopped matching an option value at the public-ID
+  cutover; they also predate the page's admin gate, so they cannot pass as written.
+
 ### The chatbot directory reads live per-bot settings instead of hardcoded literals
 
 #### Decisions

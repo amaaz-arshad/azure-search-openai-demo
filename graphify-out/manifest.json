@@ -5835,8 +5835,8 @@
     "semantic_hash": "0c40d7d633948374cd2d34c7f5d6dc63"
   },
   "tests/test_app.py": {
-    "mtime": 1785868657.9217,
-    "ast_hash": "c73f3f81316dd4eedc4956568b14b7a4",
+    "mtime": 1785879684.372054,
+    "ast_hash": "91ae5950ea130ba418979d297609f9fd",
     "semantic_hash": ""
   },
   "tests/test_app_config.py": {
@@ -8410,8 +8410,8 @@
     "semantic_hash": "b7d811e41ee8cb385db724f4491957fb"
   },
   "CHANGES.md": {
-    "mtime": 1785868878.650233,
-    "ast_hash": "71abd32e94dc025fb3a88949242144f8",
+    "mtime": 1785879730.4867237,
+    "ast_hash": "9c87a7a0c70bb7e25494ca84ca3f7b8f",
     "semantic_hash": ""
   },
   "aci-openlit.example.yaml": {
@@ -8420,8 +8420,8 @@
     "semantic_hash": "adae50f83572dd4d9ed2e810407f4c2d"
   },
   "app/backend/embed_demo.html": {
-    "mtime": 1785512213.3773332,
-    "ast_hash": "aa9ffa7a525cd49f0ad98e6f9b2a14b8",
+    "mtime": 1785879654.4704785,
+    "ast_hash": "4bd7fb282418242e20b681dcce92f301",
     "semantic_hash": ""
   },
   "app/frontend/index.html": {

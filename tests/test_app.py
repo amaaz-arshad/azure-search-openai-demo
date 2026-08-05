@@ -1228,6 +1228,26 @@ async def test_embed_demo_page_fetches_provisioned_chatbots(client):
 
 
 @pytest.mark.asyncio
+async def test_embed_demo_waits_for_provisioned_options_before_restoring_the_picker(client):
+    # Selecting a bot reloads the page as ?bot=<publicId>, and ONLY built-in options are
+    # server-rendered. So the provisioned <option>s must be appended before startDemo() restores
+    # the selection and before loadWhitelist() keys off it — otherwise a provisioned ID matches no
+    # option, selectedIndex stays -1, and both reads come back empty: the whitelist GET hits
+    # /internal-admin/embed-config/ (404 -> "Could not load the whitelist.") and the widget is
+    # initialised with an empty chatbotId, so no launcher bubble renders.
+    body = (await (await client.get("/embed-demo")).get_data()).decode()
+    reveal_body = body.split("async function reveal()", 1)[1].split("}", 1)[0]
+    assert reveal_body.index("await loadProvisionedOptions()") < reveal_body.index("startDemo()")
+    assert reveal_body.index("await loadProvisionedOptions()") < reveal_body.index("loadWhitelist()")
+    # An unresolvable ?bot= (deleted/stopped bot) must fall back to a real option, never -1.
+    assert "if (select.selectedIndex < 0) { select.selectedIndex = 0; }" in body
+    # And if nothing at all can be selected, say so instead of firing a nameless request whose 404
+    # reads as a backend fault, or booting the widget with an empty ID (which renders no launcher).
+    assert 'if (!botName) { setStatus(rulesStatus, "err", "No chatbot is selected."); return; }' in body
+    assert "if (!bot) { return; }" in body
+
+
+@pytest.mark.asyncio
 async def test_route_name_resolves_anonymized_embed_referer(client):
     # Requests from inside the embed iframe carry Referer /embed/<publicId>; it must map to the bot
     # so per-bot scoping (history, simple-auth, telemetry) matches the old /<name>?embed=1 behavior.

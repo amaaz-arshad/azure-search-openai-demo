@@ -334,13 +334,19 @@
         pwdInput.focus();
       }
 
-      function reveal() {
+      async function reveal() {
         loadingEl.hidden = true;
         gateCard.hidden = true;
         adminContent.hidden = false;
+        // The provisioned <option>s must exist BEFORE the picker is restored from ?bot= and before
+        // the whitelist is keyed off the selected option. Selecting a bot reloads this page with
+        // ?bot=<publicId>, and only built-in options are server-rendered — so starting the demo
+        // first left `select.value = <provisioned id>` matching nothing: selectedIndex -1, an empty
+        // bot name (404 "Could not load the whitelist.") and an empty chatbotId (no launcher bubble).
+        // loadProvisionedOptions never rejects, so awaiting it cannot strand the page.
+        await loadProvisionedOptions();
         startDemo();
         loadWhitelist();
-        loadProvisionedOptions();
       }
 
       // Built-in bots are rendered into the picker server-side (they are known at build time).
@@ -405,10 +411,15 @@
       // ---- domain whitelist (admin-gated; keyed by chatbot name) ---------------------------
 
       async function loadWhitelist() {
-        rulesBotName.textContent = currentBotName() || "the selected bot";
+        var botName = currentBotName();
+        rulesBotName.textContent = botName || "the selected bot";
         setStatus(rulesStatus, "", "");
+        // Without a name the request would be GET /internal-admin/embed-config/ — a route that does
+        // not exist, so the 404 surfaced as "Could not load the whitelist." and read like a backend
+        // fault when the real problem is that nothing is selected. Say what is actually wrong.
+        if (!botName) { setStatus(rulesStatus, "err", "No chatbot is selected."); return; }
         try {
-          var res = await fetch("/internal-admin/embed-config/" + encodeURIComponent(currentBotName()), { method: "GET" });
+          var res = await fetch("/internal-admin/embed-config/" + encodeURIComponent(botName), { method: "GET" });
           if (!res.ok) { setStatus(rulesStatus, "err", "Could not load the whitelist."); return; }
           var data = await res.json();
           rulesArea.value = (data.embedConfig && data.embedConfig.allowedRules || []).join("\n");
@@ -448,10 +459,14 @@
         var params = new URLSearchParams(window.location.search);
         var requested = params.get("bot");
         if (requested) { select.value = requested; }
+        // A ?bot= that matches no option (bot deleted or stopped since the link was made, or the
+        // provisioned fetch failed) leaves selectedIndex at -1 — every read below would then be an
+        // empty string and fail silently. Fall back to the first option so the page stays usable.
+        if (select.selectedIndex < 0) { select.selectedIndex = 0; }
         var bot = select.value; // anonymous public ID (option value)
 
         var snippet = '<script async src="' + origin + '/widget.js" data-chatbot-id="' + bot + '"><\/script>';
-        snippetEl.textContent = snippet;
+        snippetEl.textContent = bot ? snippet : "No chatbot is available to embed.";
 
         copyBtn.addEventListener("click", function () {
           navigator.clipboard.writeText(snippet).then(function () {
@@ -466,6 +481,9 @@
         });
 
         // Load the widget for the selected bot (programmatic API + queue stub). Do not auto-open.
+        // An empty id means the picker has nothing to select; loading the widget then renders no
+        // launcher at all, which looks like the widget itself is broken. Skip it instead.
+        if (!bot) { return; }
         window.chatbot = window.chatbot || { q: [], init: function (o) { this.q.push(["init", o]); },
           open: function () { this.q.push(["open"]); }, close: function () { this.q.push(["close"]); } };
         window.chatbot.init({ chatbotId: bot });
