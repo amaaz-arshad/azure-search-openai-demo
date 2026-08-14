@@ -198,3 +198,26 @@ export async function deleteChatHistoryApi(id: string, idToken: string): Promise
         throw new Error(`Deleting chat history failed: ${response.statusText}`);
     }
 }
+
+/**
+ * Record one visit to the assessment bot (learner id + timestamp) for the admin CSV export.
+ *
+ * Only launches that carry an `account_id` count, because that id is what the Lemon LMS puts on the
+ * launch URL — without one the bot was opened outside Lemon, which the export deliberately ignores.
+ * Skipping here just avoids a pointless request; the backend drops it either way.
+ *
+ * Fire-and-forget: the backend answers 204 regardless, and `keepalive` lets the ping survive a
+ * learner who lands and immediately navigates away — that visit still counts.
+ */
+export async function recordAssessmentVisitApi(accountId?: string): Promise<void> {
+    if (!accountId) {
+        return;
+    }
+
+    await fetch(`${BACKEND_URI}/hyrox-assessment/visit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ account_id: accountId }),
+        keepalive: true
+    });
+}

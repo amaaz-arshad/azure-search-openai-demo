@@ -23,6 +23,7 @@ from core.internaladminauth import (
 )
 from core.simplechatbotauth import SIMPLE_CHATBOT_AUTH_COOKIE_PREFIX
 from embed_public_ids import DYNAMIC_PUBLIC_ID_INDEX, PUBLIC_ID_RE
+from prepdocslib.blobmanager import BlobListEntry
 
 
 def fake_response(http_code):
@@ -730,7 +731,15 @@ async def test_simple_chatbot_chat_route_allows_missing_simple_auth_session(clie
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "path", ["/internal-admin/prompts", "/internal-admin/builtin-chatbots", "/managed_uploads", "/free-admin/users"]
+    "path",
+    [
+        "/internal-admin/prompts",
+        "/internal-admin/builtin-chatbots",
+        "/internal-admin/hyrox-visits",
+        "/internal-admin/hyrox-visits.csv",
+        "/managed_uploads",
+        "/free-admin/users",
+    ],
 )
 async def test_internal_admin_routes_require_session(client, path):
     response = await client.get(path)
@@ -920,6 +929,115 @@ async def test_internal_admin_embed_config_rejects_non_embeddable_bot(client):
 async def test_internal_admin_embed_config_requires_auth(client):
     response = await client.get("/internal-admin/embed-config/publishone")
     assert response.status_code == 401
+
+
+# --- HYROX assessment visit tracking -------------------------------------------------------
+#
+# The bot pings /hyrox-assessment/visit on every page load and the admin tab exports the result as
+# CSV. Only a real Lemon launch (an account_id is present) on a deployed host is recorded; see
+# approaches/chatbots/hyrox_assessment/visits.py, and tests/test_hyrox_visits.py for the policy
+# logic this only wires up. The test client's default Host is `localhost`, which is exactly what the
+# production-only gate rejects, so every ping below states a deployed Host explicitly.
+DEPLOYED_HOST = {"Host": "nerilio.snap.de"}
+
+
+class _FakeVisitBlobManager:
+    """Stands in for the global BlobManager: keeps uploads in memory and lists them back."""
+
+    def __init__(self, entries=None):
+        self.writes: list[tuple[str, dict]] = []
+        self.entries = list(entries or [])
+
+    async def upload_blob_data(self, file, blob_name: str, content_type=None) -> str:
+        file.seek(0)
+        self.writes.append((blob_name, json.loads(file.read().decode("utf-8"))))
+        self.entries.append(BlobListEntry(name=blob_name, last_modified=datetime.now(timezone.utc)))
+        return f"https://example.invalid/{blob_name}"
+
+    async def list_blobs(self, prefix=None):
+        normalized = (prefix or "").strip("/")
+        return [entry for entry in self.entries if entry.name.startswith(normalized)]
+
+
+@pytest.mark.asyncio
+async def test_hyrox_visit_ping_records_a_lemon_launch_without_a_session(client):
+    # Ungated on purpose: the assessment bot has no login, so requiring one would record nothing.
+    blob_manager = _FakeVisitBlobManager()
+    client.app.config[app.CONFIG_GLOBAL_BLOB_MANAGER] = blob_manager
+
+    response = await client.post("/hyrox-assessment/visit", json={"account_id": "104477"}, headers=DEPLOYED_HOST)
+
+    assert response.status_code == 204
+    assert len(blob_manager.writes) == 1
+    blob_name, record = blob_manager.writes[0]
+    assert blob_name.startswith("hyrox-assessment-visits/")
+    assert record["user_id"] == "104477"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "payload",
+    [{"account_id": None}, {"account_id": ""}, {"account_id": {"nested": "object"}}, {}],
+)
+async def test_hyrox_visit_ping_ignores_anything_that_is_not_a_lemon_launch(client, payload):
+    # No account_id means the bot was opened outside Lemon (or the body was malformed): nothing is
+    # recorded, and it still answers 204 so nothing can surface in the learner's page.
+    blob_manager = _FakeVisitBlobManager()
+    client.app.config[app.CONFIG_GLOBAL_BLOB_MANAGER] = blob_manager
+
+    response = await client.post("/hyrox-assessment/visit", json=payload, headers=DEPLOYED_HOST)
+
+    assert response.status_code == 204
+    assert blob_manager.writes == []
+
+
+@pytest.mark.asyncio
+async def test_hyrox_visit_ping_ignores_local_runs(client):
+    # A locally-run backend talks to the production storage account (start.ps1 loads the azd env), so
+    # the export would otherwise count developer testing as customer usage.
+    blob_manager = _FakeVisitBlobManager()
+    client.app.config[app.CONFIG_GLOBAL_BLOB_MANAGER] = blob_manager
+
+    response = await client.post(
+        "/hyrox-assessment/visit", json={"account_id": "104477"}, headers={"Host": "localhost:50505"}
+    )
+
+    assert response.status_code == 204
+    assert blob_manager.writes == []
+
+
+@pytest.mark.asyncio
+async def test_hyrox_visits_admin_lists_months_and_exports_csv(client):
+    await login_internal_admin(client)
+    blob_manager = _FakeVisitBlobManager()
+    client.app.config[app.CONFIG_GLOBAL_BLOB_MANAGER] = blob_manager
+    for account_id in ["104477", "104477", "200"]:
+        await client.post("/hyrox-assessment/visit", json={"account_id": account_id}, headers=DEPLOYED_HOST)
+    month = datetime.now(timezone.utc).strftime("%Y-%m")
+
+    response = await client.get("/internal-admin/hyrox-visits")
+    assert response.status_code == 200
+    payload = await response.get_json()
+    assert payload["rowCount"] == 3
+    assert payload["months"][0] == {"month": month, "totalCount": 3}
+    assert {row["userId"] for row in payload["rows"]} == {"104477", "200"}
+
+    csv_response = await client.get(f"/internal-admin/hyrox-visits.csv?month={month}")
+    assert csv_response.status_code == 200
+    assert csv_response.headers["Content-Type"].startswith("text/csv")
+    assert f"hyrox-visits-{month}.csv" in csv_response.headers["Content-Disposition"]
+    csv_lines = (await csv_response.get_data()).decode("utf-8").splitlines()
+    assert csv_lines[0] == "user_id,timestamp"
+    assert len(csv_lines) == 4
+    assert [line.split(",")[0] for line in csv_lines[1:]] == ["104477", "104477", "200"]
+
+
+@pytest.mark.asyncio
+async def test_hyrox_visits_admin_rejects_a_malformed_month(client):
+    await login_internal_admin(client)
+    for path in ["/internal-admin/hyrox-visits", "/internal-admin/hyrox-visits.csv"]:
+        response = await client.get(f"{path}?month=2026-13")
+        assert response.status_code == 400
 
 
 # --- embedding provisioned (dynamic) bots --------------------------------------------------

@@ -10,8 +10,8 @@
     "semantic_hash": "c8206d7e25a79e5a4ed79f965d38d672"
   },
   "app/backend/app.py": {
-    "mtime": 1785868623.5445778,
-    "ast_hash": "672093b8fa14ae3040624554d1d12a56",
+    "mtime": 1786705998.7069004,
+    "ast_hash": "2640dbf6de809180cb0adbc0bc834b9a",
     "semantic_hash": ""
   },
   "app/backend/config.py": {
@@ -510,8 +510,8 @@
     "semantic_hash": ""
   },
   "app/frontend/src/index.tsx": {
-    "mtime": 1785512108.744312,
-    "ast_hash": "e18e34d1fba28e0383a5092674431a12",
+    "mtime": 1786704188.192124,
+    "ast_hash": "f01bd47267a8acd69085063dca5d9815",
     "semantic_hash": ""
   },
   "app/frontend/src/loginContext.tsx": {
@@ -5815,8 +5815,8 @@
     "semantic_hash": "2837121d0b2421c51f0ad4859b129b5b"
   },
   "tests/e2e.py": {
-    "mtime": 1785849503.2027726,
-    "ast_hash": "6cbd8f9ad62023eb6b8dca249a2f70d1",
+    "mtime": 1786706184.7314186,
+    "ast_hash": "207a0a739911d66f1a5f892ab59d442a",
     "semantic_hash": ""
   },
   "tests/mocks.py": {
@@ -5835,8 +5835,8 @@
     "semantic_hash": "0c40d7d633948374cd2d34c7f5d6dc63"
   },
   "tests/test_app.py": {
-    "mtime": 1785879684.372054,
-    "ast_hash": "91ae5950ea130ba418979d297609f9fd",
+    "mtime": 1786706167.4141808,
+    "ast_hash": "79e7fb06bea4ba21c6019281869051dd",
     "semantic_hash": ""
   },
   "tests/test_app_config.py": {
@@ -6015,8 +6015,8 @@
     "semantic_hash": "77ec55ea90a84f95635bc9985e49b57a"
   },
   "CLAUDE.md": {
-    "mtime": 1785868846.5917442,
-    "ast_hash": "01beb3934f80b16b4f465c50acac5407",
+    "mtime": 1786706349.8639386,
+    "ast_hash": "996efefb668e5c96b72d73f7b8e0c486",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
@@ -7210,9 +7210,9 @@
     "semantic_hash": "8f68c27c3fc38817b2726b20e2d4f1ee"
   },
   "app/frontend/src/chatbots/hyrox-assessment/api/api.ts": {
-    "mtime": 1776940772.51355,
-    "ast_hash": "a627720d262833eb3c47078969f7a82e",
-    "semantic_hash": "a627720d262833eb3c47078969f7a82e"
+    "mtime": 1786706009.1382635,
+    "ast_hash": "ef497a0a79337ab041067ad8ae66dff3",
+    "semantic_hash": ""
   },
   "app/frontend/src/chatbots/hyrox-assessment/api/index.ts": {
     "mtime": 1774361812.335599,
@@ -7570,8 +7570,8 @@
     "semantic_hash": "9b136fca6ee1532e4a73f0a9d0ad32b9"
   },
   "app/frontend/src/chatbots/hyrox-assessment/pages/chat/Chat.tsx": {
-    "mtime": 1783624867.757588,
-    "ast_hash": "78f5db11473e441becada11cc19300d6",
+    "mtime": 1786706015.3387935,
+    "ast_hash": "7e4320f9c17170c450072cc31cc56b86",
     "semantic_hash": ""
   },
   "app/frontend/src/chatbots/hyrox-assessment/pages/layout/Layout.tsx": {
@@ -8410,8 +8410,8 @@
     "semantic_hash": "b7d811e41ee8cb385db724f4491957fb"
   },
   "CHANGES.md": {
-    "mtime": 1785879730.4867237,
-    "ast_hash": "9c87a7a0c70bb7e25494ca84ca3f7b8f",
+    "mtime": 1786706413.11308,
+    "ast_hash": "5b8e45b3ccd319b982bd7d215155ff47",
     "semantic_hash": ""
   },
   "aci-openlit.example.yaml": {
@@ -9485,8 +9485,8 @@
     "semantic_hash": ""
   },
   "app/frontend/src/pages/admin/AdminLayout.tsx": {
-    "mtime": 1783096731.0442142,
-    "ast_hash": "f113d1a0415689b261c920c8293ff0ee",
+    "mtime": 1786704176.1845336,
+    "ast_hash": "89f6807821a79fcb0ad8c503367cf48e",
     "semantic_hash": ""
   },
   "app/frontend/src/pages/admin/AdminShellContext.tsx": {
@@ -9972,6 +9972,31 @@
   "app/frontend/src/pages/ChatbotDirectory/builtinChatbotsApi.ts": {
     "mtime": 1785868631.2726145,
     "ast_hash": "0559a94dd60854af7563896a7172fe40",
+    "semantic_hash": ""
+  },
+  "app/backend/approaches/chatbots/hyrox_assessment/visits.py": {
+    "mtime": 1786705976.3307166,
+    "ast_hash": "9e8bee806d343b2e741b4a96914674f1",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/pages/HyroxVisits/HyroxVisitsPage.tsx": {
+    "mtime": 1786706061.0274303,
+    "ast_hash": "eb31dff405f85c661d634388eb43e300",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/pages/HyroxVisits/hyroxVisitsApi.ts": {
+    "mtime": 1786706020.865086,
+    "ast_hash": "ec96478ec0fb1acb724049e0525efe30",
+    "semantic_hash": ""
+  },
+  "app/frontend/src/pages/HyroxVisits/index.ts": {
+    "mtime": 1786704170.6404462,
+    "ast_hash": "b05ea51e0e9fdec1dd96a939753da674",
+    "semantic_hash": ""
+  },
+  "tests/test_hyrox_visits.py": {
+    "mtime": 1786706111.134175,
+    "ast_hash": "6e21b6aa3d7675319e340066b1d78e68",
     "semantic_hash": ""
   }
 }

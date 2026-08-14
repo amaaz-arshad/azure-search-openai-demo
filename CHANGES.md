@@ -15,6 +15,93 @@ Two categories per date:
 
 ---
 
+## 2026-08-14
+
+### HYROX assessment: per-visit tracking and a monthly CSV export in the admin backend
+
+#### Decisions
+
+- **Requested: record user id + timestamp whenever someone visits the HYROX bot, and expose a
+  monthly, exportable CSV in the admin backend.** The user chose, from four options put to them:
+  one row per **page load** (not per session or per day), an **on-demand** download with a month
+  picker (rather than a scheduled monthly file, which would need a timer trigger this app does not
+  have), plus — in the first iteration — anonymous visitors recorded and a reconstructed historical
+  tail merged in.
+- **Scope then narrowed, on request, to three rules: no history, Lemon launches only, production
+  only.** All three were implemented the same day, replacing the first iteration. What this removed
+  is worth knowing, because the removed design was sound and should not drift back: the export used
+  to merge a tail reconstructed from `hyrox-assessment-logs/<account_id>/<session_id>.json` (one row
+  per session, id from the folder, timestamp from the blob's `last_modified` — that session's *last*
+  activity, since every turn overwrites the record), tagged `session_log` in a third CSV column and
+  cut off at the earliest real ping so the two sources could not double-count. It is gone: the
+  export now starts the day tracking shipped, and the CSV is back to the two columns originally
+  asked for.
+- **"Launched from/within Lemon" is decided by the presence of `account_id`, and that is the only
+  reliable signal.** The LMS is what puts the id on the launch URL, for both the native webview and
+  the `web_frontend=true` iframe, so a launch without one is someone opening the bot's address
+  directly. No host-side check can do better: the native webview sends no referrer, and inside the
+  LMS iframe the chat calls are same-origin, so neither `Origin` nor `Referer` identifies the
+  embedding page. The frontend also skips the request when it has no id, but purely to avoid a
+  pointless call — the backend gate is the enforcement.
+- **"Production only" is a one-directional Host check, and the direction is deliberate.** A request
+  whose Host is positively a loopback name (`localhost`, `127.0.0.1`, `::1`, `*.localhost`, with the
+  port stripped) is dropped; anything else — including an unknown or missing Host — still records.
+  Failing the other way would risk silently recording nothing in production, which is a far worse
+  failure than a stray local row. Rejected an env flag as the primary mechanism: it only works if
+  every developer remembers to set it, whereas the Host is always true by construction.
+- **One blob per visit, with the row encoded in the blob NAME.** Appending rows to a monthly file
+  was rejected: it is a read-modify-write that concurrent learners race on and silently lose rows
+  to. Putting `<timestamp>__<user id>__<nonce>` in the name makes a month's CSV a single prefix
+  listing with zero downloads; the JSON body still keeps the raw pre-sanitization id for tracing.
+  The nonce is what keeps two visits inside the same millisecond from overwriting each other.
+- **The ping endpoint is ungated and always answers 204.** The bot has no login — identity comes
+  from the Lemon launch URL — so requiring a session would record nothing. Reporting must never
+  affect the assessment, so the write is best-effort and a malformed body, a storage outage, or a
+  missing blob manager all still return 204.
+- **Why "production only" had to be explicit at all.** `app/start.ps1` loads the azd env and the app
+  has no storage emulator, so a locally-run backend talks to the *production* storage account —
+  without the Host gate, testing the bot locally would add real rows to the customer-facing CSV.
+  (The `npm run dev` workflow never reached the backend anyway: `/hyrox-assessment/visit` is not in
+  `vite.config.ts`'s proxy list, so the ping 404s at the dev server. That is incidental, not a
+  guard — adding that prefix to the proxy would start routing pings to whatever backend is running.)
+- **Accepted residuals, unchanged from the session logs:** the visit blobs live in the `content`
+  container that `/content/<path>` serves unauthenticated (a blob holds only an id + timestamp and
+  its name embeds a random nonce, so it is unenumerable but not secret), nothing prunes them, and
+  the endpoint is writable by anyone who can reach the app (ids are capped at 64 chars and
+  sanitized, so the blast radius is junk rows, not malformed blob names).
+- **Verified rather than assumed.** The routes were exercised offline against the real blueprint
+  (bare `Quart` + fake blob manager, per the project memory workaround): a Lemon launch on a
+  deployed Host records, while a missing/empty id, a junk body, and every loopback Host record
+  nothing, and a pre-existing session-log blob no longer appears anywhere in the listing or CSV.
+  Both UI halves were driven under Playwright against the Vite dev server: the admin tab renders its
+  two columns and downloads, and the bot fires exactly **one** ping per load (the `useRef` guard
+  holds under StrictMode's dev double-mount) but none at all without a Lemon id — including the
+  confirmation that `readLemonAccount`'s sessionStorage cache keeps reporting the launch id after
+  the query string is dropped, which is why the e2e test clears it before asserting the no-id path.
+- **A trap worth remembering for future tests:** Quart's test client sends `Host: localhost`, which
+  is exactly what the production-only gate rejects, so every ping in `test_app.py` states a deployed
+  Host explicitly. A test written without one silently asserts nothing.
+
+#### Changes
+
+- Added `app/backend/approaches/chatbots/hyrox_assessment/visits.py`: the `should_record_visit` gate
+  (Lemon launch + production), blob naming/parsing, the best-effort `record_visit`, `collect_rows`,
+  month filtering and summaries, and the two-column CSV renderer.
+- `app/backend/app.py`: new `POST /hyrox-assessment/visit` (public, 204, passes `request.host` to
+  the gate) plus admin-gated `GET /internal-admin/hyrox-visits` (month summaries + capped preview)
+  and `GET /internal-admin/hyrox-visits.csv?month=YYYY-MM|all`.
+- `app/frontend/src/chatbots/hyrox-assessment/api/api.ts` + `pages/chat/Chat.tsx`: the fire-and-
+  forget visit ping, once per page load, skipped when the launch carried no `account_id`.
+- Added the `app/frontend/src/pages/HyroxVisits/` admin tab (page, API client, styles) and wired
+  `/admin/hyrox-visits` into `index.tsx` and the `AdminLayout` tab bar.
+- Tests: new `tests/test_hyrox_visits.py` (16 unit tests, covering both halves of the gate),
+  route/auth/CSV integration tests in `tests/test_app.py`, and an e2e test in `tests/e2e.py` pinning
+  one ping per page load and none without a Lemon id.
+- `CLAUDE.md`: new contract bullet for visit tracking, and `/admin/hyrox-visits` added to the admin
+  tab list.
+
+---
+
 ## 2026-08-04
 
 ### `/admin/embed`: selecting a provisioned bot loaded the wrong bot (or none at all)

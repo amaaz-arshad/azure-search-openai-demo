@@ -116,6 +116,16 @@ from approaches.chatbot_prompt_registry import (
     get_registered_chatbot_names,
     normalize_chatbot_name,
 )
+from approaches.chatbots.hyrox_assessment.visits import (
+    ALL_MONTHS,
+    collect_rows,
+    csv_filename,
+    filter_rows_by_month,
+    is_valid_month,
+    month_summaries,
+    record_visit,
+    render_visits_csv,
+)
 from approaches.chatreadretrieveread import ChatReadRetrieveReadApproach
 from approaches.promptmanager import PromptManager
 from chat_history.cosmosdb import chat_history_cosmosdb_bp
@@ -2726,6 +2736,82 @@ async def delete_managed_uploaded_files():
         else f"{len(deleted_payload)} files deleted successfully."
     )
     return jsonify({"message": message, "deletedFiles": deleted_payload, "failedFiles": []}), 200
+
+
+# HYROX assessment visit tracking: one public ping the bot fires on load, plus the admin listing and
+# CSV export built from it (see approaches/chatbots/hyrox_assessment/visits.py).
+# How many rows the admin page previews; the CSV download is never truncated.
+HYROX_VISIT_PREVIEW_LIMIT = 200
+
+
+@bp.post("/hyrox-assessment/visit")
+async def record_hyrox_assessment_visit():
+    """Record one visit to the HYROX assessment bot (user id + timestamp) for the admin export.
+
+    Ungated on purpose: the bot itself has no login — the Lemon LMS launches it with the learner's
+    account_id on the query string — so requiring a session here would record nothing. `record_visit`
+    owns the two policies (a Lemon launch only, production only; see visits.py) and is best-effort,
+    and this always answers 204, so neither a dropped visit nor a storage outage can surface in the
+    learner's page.
+    """
+    request_json = await request.get_json(silent=True)
+    account_id = None
+    if isinstance(request_json, dict):
+        raw_account_id = request_json.get("account_id")
+        if isinstance(raw_account_id, (str, int)):
+            account_id = str(raw_account_id)
+
+    blob_manager: BlobManager = current_app.config[CONFIG_GLOBAL_BLOB_MANAGER]
+    await record_visit(blob_manager, account_id, host=request.host)
+    return "", 204
+
+
+@bp.get("/internal-admin/hyrox-visits")
+@internal_admin_required
+async def list_hyrox_assessment_visits():
+    """Month summaries for the picker plus a capped preview of the selected month's rows."""
+    month = (request.args.get("month") or "").strip()
+    if month and month != ALL_MONTHS and not is_valid_month(month):
+        return jsonify({"message": "Month must be in YYYY-MM format."}), 400
+
+    blob_manager: BlobManager = current_app.config[CONFIG_GLOBAL_BLOB_MANAGER]
+    all_rows = await collect_rows(blob_manager)
+    selected_rows = filter_rows_by_month(all_rows, month)
+    # Newest first for reading; the CSV keeps chronological order.
+    preview_rows = list(reversed(selected_rows))[:HYROX_VISIT_PREVIEW_LIMIT]
+    return (
+        jsonify(
+            {
+                "months": month_summaries(all_rows),
+                "selectedMonth": month or ALL_MONTHS,
+                "rowCount": len(selected_rows),
+                "totalCount": len(all_rows),
+                "rows": [{"userId": row.user_id, "timestamp": row.timestamp.isoformat()} for row in preview_rows],
+                "previewLimit": HYROX_VISIT_PREVIEW_LIMIT,
+                "previewTruncated": len(selected_rows) > len(preview_rows),
+            }
+        ),
+        200,
+    )
+
+
+@bp.get("/internal-admin/hyrox-visits.csv")
+@internal_admin_required
+async def download_hyrox_assessment_visits_csv():
+    """The export: one CSV of user id + timestamp for a month (or every month)."""
+    month = (request.args.get("month") or "").strip()
+    if month and month != ALL_MONTHS and not is_valid_month(month):
+        return jsonify({"message": "Month must be in YYYY-MM format."}), 400
+
+    blob_manager: BlobManager = current_app.config[CONFIG_GLOBAL_BLOB_MANAGER]
+    rows = filter_rows_by_month(await collect_rows(blob_manager), month)
+    csv_file = io.BytesIO(render_visits_csv(rows).encode("utf-8"))
+    return await send_file(
+        csv_file,
+        mimetype="text/csv",
+        as_attachment=True,
+        attachment_filename=csv_filename(month),
+    )
 
 
 @bp.before_app_serving

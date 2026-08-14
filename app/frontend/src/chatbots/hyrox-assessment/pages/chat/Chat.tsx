@@ -7,7 +7,17 @@ import { Panel, DefaultButton } from "@fluentui/react";
 import hyroxLogo from "../../assets/HYROX.svg";
 import styles from "./Chat.module.css";
 
-import { chatApi, configApi, RetrievalMode, ChatAppResponse, ChatAppResponseOrError, ChatAppRequest, ResponseMessage, SpeechConfig } from "../../api";
+import {
+    chatApi,
+    configApi,
+    recordAssessmentVisitApi,
+    RetrievalMode,
+    ChatAppResponse,
+    ChatAppResponseOrError,
+    ChatAppRequest,
+    ResponseMessage,
+    SpeechConfig
+} from "../../api";
 import {
     Answer,
     AnswerError,
@@ -64,6 +74,9 @@ const Chat = () => {
     // Fire the lemon://save_progress hand-off exactly once per session, on the freshly
     // received passed-completion response (not on history replay).
     const progressReportedRef = useRef<boolean>(false);
+    // One visit ping per page load. The ref (not just the empty-deps effect) is what holds that
+    // under StrictMode's dev double-mount, which would otherwise record two visits per load.
+    const visitRecordedRef = useRef<boolean>(false);
     const legacyInitialUserMessage: string = t("initialUserMsg");
     const baseInitialAssistantMessage: string = t("initialAssistantMsg");
     const initialAssistantMessageContent: string = lemonAccount.firstName
@@ -313,6 +326,19 @@ const Chat = () => {
             setRecentChatsAction(null);
         };
     }, [setRecentChatsAction]);
+
+    // Record the visit for the admin export (Lemon launches only — see recordAssessmentVisitApi).
+    // Deliberately fire-and-forget and never awaited: this is reporting, so a failed or blocked
+    // request must leave the assessment itself untouched.
+    useEffect(() => {
+        if (visitRecordedRef.current) {
+            return;
+        }
+        visitRecordedRef.current = true;
+        recordAssessmentVisitApi(lemonAccount.accountId).catch(() => {
+            // Visit reporting is best-effort; the learner never sees this.
+        });
+    }, [lemonAccount.accountId]);
 
     const isSyntheticInitialPair = ([user, response]: [user: string, response: ChatAppResponse]) =>
         response.message.role === "assistant" &&

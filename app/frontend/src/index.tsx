@@ -20,6 +20,7 @@ import i18n from "./chatbots/nerilio/i18n/config";
 import ChatbotDirectory from "./pages/ChatbotDirectory";
 import ManagePromptsPage from "./pages/ManagePrompts";
 import FreeUsersPage from "./pages/FreeUsers";
+import HyroxVisitsPage from "./pages/HyroxVisits";
 import UploadFilesPage from "./pages/UploadFiles";
 import { AdminLayout, EmbedDemoTab } from "./pages/admin";
 import { msalConfig, useLogin } from "./authConfig";
@@ -94,6 +95,7 @@ const router = createBrowserRouter([
                     { path: "prompts", element: <ManagePromptsPage /> },
                     { path: "uploads", element: <UploadFilesPage /> },
                     { path: "users", element: <FreeUsersPage /> },
+                    { path: "hyrox-visits", element: <HyroxVisitsPage /> },
                     { path: "embed", element: <EmbedDemoTab /> }
                 ]
             },

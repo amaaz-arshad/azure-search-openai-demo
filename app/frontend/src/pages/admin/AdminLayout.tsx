@@ -23,6 +23,7 @@ const ADMIN_TABS = [
     { to: "/admin/prompts", label: "Prompts" },
     { to: "/admin/uploads", label: "Uploads" },
     { to: "/admin/users", label: "nerilio users" },
+    { to: "/admin/hyrox-visits", label: "HYROX visits" },
     { to: "/admin/embed", label: "Embed demo" }
 ];
 

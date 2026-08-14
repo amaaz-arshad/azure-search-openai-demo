@@ -1,0 +1,297 @@
+/* Matches the other /admin tabs' surface (see FreeUsersPage.module.css) so the shell reads as one
+   tool; only the table and source pills are specific to this page. */
+.page {
+    --panel-bg: rgba(255, 255, 255, 0.78);
+    --panel-border: rgba(172, 68, 198, 0.14);
+    --text-strong: #24182b;
+    --text-muted: #675d6f;
+    --accent: #ac44c6;
+    --accent-dark: #7f2898;
+    --accent-soft: rgba(172, 68, 198, 0.12);
+    --shadow: 0 24px 70px rgba(77, 42, 103, 0.14);
+    position: relative;
+    min-height: 100svh;
+    overflow: hidden;
+    background: radial-gradient(circle at top left, rgba(255, 255, 255, 0.88), transparent 34%),
+        radial-gradient(circle at top right, rgba(172, 68, 198, 0.14), transparent 30%), linear-gradient(145deg, #f7f4ee 0%, #f0eee9 52%, #e8e4de 100%);
+    color: var(--text-strong);
+}
+
+.glowOne,
+.glowTwo {
+    position: absolute;
+    border-radius: 999px;
+    filter: blur(24px);
+    pointer-events: none;
+}
+
+.glowOne {
+    top: -80px;
+    right: -40px;
+    width: 280px;
+    height: 280px;
+    background: rgba(172, 68, 198, 0.24);
+}
+
+.glowTwo {
+    bottom: -100px;
+    left: -30px;
+    width: 360px;
+    height: 360px;
+    background: rgba(0, 204, 150, 0.18);
+}
+
+.shell {
+    position: relative;
+    z-index: 1;
+    width: min(1320px, calc(100% - 32px));
+    margin: 0 auto;
+    padding: 40px 0 48px;
+    display: grid;
+    gap: 20px;
+}
+
+.header {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.54);
+    border: 1px solid rgba(172, 68, 198, 0.1);
+    color: var(--accent-dark);
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.title {
+    margin: 12px 0 0;
+    font-size: clamp(2.2rem, 5vw, 4.2rem);
+    line-height: 0.95;
+    letter-spacing: -0.06em;
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.subtitle {
+    margin: 12px 0 0;
+    max-width: 60ch;
+    color: var(--text-muted);
+    font-size: 1rem;
+    line-height: 1.5;
+}
+
+.headerActions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.countPill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 48px;
+    border-radius: 999px;
+    padding: 0 18px;
+    border: 1px solid rgba(172, 68, 198, 0.14);
+    background: rgba(255, 255, 255, 0.54);
+    color: var(--text-strong);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.panel {
+    border: 1px solid var(--panel-border);
+    border-radius: 30px;
+    padding: 24px;
+    background: var(--panel-bg);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(18px);
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.label {
+    font-size: 0.92rem;
+    font-weight: 600;
+}
+
+.select {
+    min-height: 54px;
+    min-width: 260px;
+    padding: 0 18px;
+    border: 1px solid rgba(172, 68, 198, 0.16);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.9);
+    color: var(--text-strong);
+    font: inherit;
+}
+
+.select:focus {
+    outline: none;
+    border-color: rgba(172, 68, 198, 0.42);
+    box-shadow: 0 0 0 4px rgba(172, 68, 198, 0.12);
+}
+
+.primaryButton,
+.secondaryButton {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 48px;
+    padding: 0 18px;
+    border-radius: 16px;
+    font: inherit;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition:
+        transform 160ms ease,
+        box-shadow 160ms ease,
+        background-color 160ms ease,
+        border-color 160ms ease,
+        opacity 160ms ease;
+}
+
+.primaryButton {
+    border: 0;
+    background: linear-gradient(135deg, var(--accent) 0%, #c46bd9 100%);
+    color: #fffaff;
+    box-shadow: 0 16px 28px rgba(172, 68, 198, 0.24);
+}
+
+.secondaryButton {
+    border: 1px solid rgba(172, 68, 198, 0.14);
+    background: rgba(255, 255, 255, 0.66);
+    color: var(--text-strong);
+}
+
+.primaryButton:hover,
+.secondaryButton:hover {
+    transform: translateY(-1px);
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+    transform: none;
+    box-shadow: none;
+}
+
+.statusMessage {
+    margin: 0;
+    min-height: 22px;
+    color: var(--text-muted);
+}
+
+.summaryLine {
+    margin: 0;
+    color: var(--text-muted);
+}
+
+/* The table scrolls inside its own box so a long user id never widens the admin page. */
+.tableWrap {
+    overflow-x: auto;
+    border: 1px solid rgba(172, 68, 198, 0.1);
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.72);
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+}
+
+.table th,
+.table td {
+    padding: 12px 18px;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.table thead th {
+    position: sticky;
+    top: 0;
+    background: rgba(255, 255, 255, 0.92);
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.table tbody tr + tr td {
+    border-top: 1px solid rgba(172, 68, 198, 0.08);
+}
+
+.emptyState {
+    border: 1px dashed rgba(172, 68, 198, 0.2);
+    border-radius: 24px;
+    padding: 36px 24px;
+    display: grid;
+    gap: 8px;
+    text-align: center;
+    background: rgba(255, 255, 255, 0.44);
+}
+
+.emptyTitle {
+    font-size: 1.1rem;
+}
+
+.emptyText {
+    color: var(--text-muted);
+}
+
+.notes {
+    border-top: 1px solid rgba(172, 68, 198, 0.1);
+    padding-top: 14px;
+}
+
+.notesSummary {
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.notesText {
+    margin: 10px 0 0;
+    max-width: 80ch;
+    color: var(--text-muted);
+    line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+    .header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .headerActions {
+        justify-content: flex-start;
+    }
+
+    .select {
+        min-width: 0;
+        flex: 1 1 200px;
+    }
+}

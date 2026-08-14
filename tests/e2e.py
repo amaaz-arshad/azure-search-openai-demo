@@ -432,6 +432,37 @@ def test_hyrox_assessment_scopes_active_session_by_account(page: Page, live_serv
     assert bot_frame.evaluate("window.localStorage.getItem('chatbot-active-session:hyrox-assessment:7')") is None
 
 
+def test_hyrox_assessment_reports_one_visit_per_page_load(page: Page, live_server_url: str):
+    """Opening the bot from Lemon records a visit for the admin CSV export: one ping per page load,
+    carrying the learner id from the launch URL. A reload is a new visit; StrictMode's dev
+    double-mount is not; and a launch with no Lemon id is not a visit at all."""
+    pings: list[str] = []
+
+    def handle_visit(route: Route):
+        pings.append(route.request.post_data or "")
+        route.fulfill(status=204, body="")
+
+    page.route("*/**/hyrox-assessment/visit", handle_visit)
+
+    page.goto(f"{live_server_url}hyrox-assessment?account_id=104477&first_name=Ada")
+    expect(page.get_by_role("button", name="Start assessment")).to_be_visible()
+    assert len(pings) == 1
+    assert json.loads(pings[0])["account_id"] == "104477"
+
+    page.reload()
+    expect(page.get_by_role("button", name="Start assessment")).to_be_visible()
+    assert len(pings) == 2
+
+    # Opened outside Lemon: no account_id, so no visit is reported at all. sessionStorage has to be
+    # cleared first — readLemonAccount deliberately caches the launch identity there, so a same-tab
+    # navigation that drops the query string still reports the learner it was launched for (which is
+    # why dropping the query string alone would NOT prove the no-id path).
+    page.evaluate("window.sessionStorage.clear()")
+    page.goto(f"{live_server_url}hyrox-assessment")
+    expect(page.get_by_role("button", name="Start assessment")).to_be_visible()
+    assert len(pings) == 2
+
+
 def test_chat(sized_page: Page, live_server_url: str):
     page = sized_page
 
