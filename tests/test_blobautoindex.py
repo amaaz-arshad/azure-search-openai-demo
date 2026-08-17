@@ -28,6 +28,13 @@ class MockBlobManager:
     async def remove_blob_name(self, blob_name: str) -> None:
         self.removals.append(blob_name)
 
+    async def list_blob_names(self, prefix: str) -> list[str]:
+        return [
+            upload["blob_name"]
+            for upload in self.uploads
+            if upload["blob_name"].startswith(prefix) and upload["blob_name"] not in self.removals
+        ]
+
     async def download_blob(self, blob_name: str, container: str | None = None):
         self.download_calls.append((blob_name, container))
         return self.downloads.get(blob_name)
@@ -514,3 +521,320 @@ async def test_content2_indexer_from_storage_reads_source_container(monkeypatch:
     assert blob_manager.download_calls == [("bxa/guide.txt", "content2")]
     assert blob_manager.uploads == []
     assert result.storage_url == "https://storage.example.com/content2/bxa/guide.txt"
+
+
+# --- publishone2 archive packages ------------------------------------------------------------
+
+PACKAGE_FEED_XML = b"""<?xml version="1.0" encoding="utf-8"?>
+<folder id="1"><naam>Package</naam><meta />
+  <document id="99"><naam>Doc</naam><meta />
+    <document version="1">
+      <p><img id="Grafik 1" href="https://snap-em.publishone.nl/api/content/8798" po-ref-id="8798">
+        <asset id="8798"><title>Doc-image1</title><manifest media-type="image/jpeg" /></asset>
+      </img></p>
+    </document>
+  </document>
+</folder>
+"""
+
+
+def build_zip(entries: dict[str, bytes]) -> bytes:
+    import io
+    import zipfile
+
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        for name, data in entries.items():
+            archive.writestr(name, data)
+    return buffer.getvalue()
+
+
+class StubDescriber:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    async def describe_image(self, image_bytes: bytes) -> str:
+        self.calls += 1
+        return "a transcribed table"
+
+
+def make_publishone2_indexer(blob_manager, search_manager, section_builder, describer=None):
+    from prepdocslib.feedarchive import FeedArchiveOptions
+
+    return AutoBlobIndexer(
+        config=AutoBlobIndexerConfig(
+            trigger_container="content",
+            source_prefix="nerilio/Nerilio-Amsterdam-ZIP-zip",
+            target_prefix="publishone2",
+            category="publishone2",
+            allowed_extensions=frozenset({".xml", ".zip"}),
+            archive_extensions=frozenset({".zip"}),
+        ),
+        blob_manager=blob_manager,
+        search_manager=search_manager,
+        file_processors={".xml": object()},
+        section_builder=section_builder,
+        archive_options=FeedArchiveOptions(describer=describer),
+    )
+
+
+@pytest.mark.asyncio
+async def test_archive_indexes_each_document_and_mirrors_its_images() -> None:
+    captured: list[dict[str, Any]] = []
+
+    async def section_builder(*, file, file_processors, category, image_bundle=None):
+        captured.append({"filename": file.filename(), "category": category, "bundle": image_bundle})
+        return [object()]
+
+    describer = StubDescriber()
+    blob_manager = MockBlobManager()
+    search_manager = MockSearchManager()
+    indexer = make_publishone2_indexer(blob_manager, search_manager, section_builder, describer)
+
+    result = await indexer.index_blob(
+        blob_name="content/nerilio/Nerilio-Amsterdam-ZIP-zip/nerilio2.zip",
+        content=build_zip({"Doc.xml": PACKAGE_FEED_XML, "8798.jpg": b"jpeg-bytes"}),
+    )
+
+    assert result.status == "indexed"
+    assert result.indexed_sections == 1
+    assert describer.calls == 1
+
+    # Everything is namespaced by the archive stem so a package owns its own prefix.
+    uploaded = {upload["blob_name"]: upload for upload in blob_manager.uploads}
+    assert set(uploaded) == {"publishone2/nerilio2/images/8798.jpg", "publishone2/nerilio2/Doc.xml"}
+    assert uploaded["publishone2/nerilio2/images/8798.jpg"]["content"] == b"jpeg-bytes"
+    assert uploaded["publishone2/nerilio2/images/8798.jpg"]["content_type"] == "image/jpeg"
+
+    # The section builder receives a bundle resolving the document's <img> to the mirrored blob.
+    assert captured[0]["filename"] == "Doc.xml"
+    assert captured[0]["category"] == "publishone2"
+    resolved = captured[0]["bundle"].lookup(["8798"])
+    assert resolved.public_path == "/content/publishone2/nerilio2/images/8798.jpg"
+    assert resolved.description == "a transcribed table"
+
+    assert search_manager.updates[0]["url"] == "https://storage.example.com/content/publishone2/nerilio2/Doc.xml"
+
+
+@pytest.mark.asyncio
+async def test_archive_purges_its_whole_package_prefix_before_reindexing() -> None:
+    async def section_builder(*, file, file_processors, category, image_bundle=None):
+        return [object()]
+
+    blob_manager = MockBlobManager()
+    search_manager = MockSearchManager()
+    indexer = make_publishone2_indexer(blob_manager, search_manager, section_builder)
+
+    await indexer.index_blob(
+        blob_name="content/nerilio/Nerilio-Amsterdam-ZIP-zip/nerilio2.zip",
+        content=build_zip({"Doc.xml": PACKAGE_FEED_XML}),
+    )
+
+    # A package whose contents shrank must not leave orphaned documents behind, so the purge is
+    # keyed on the package prefix rather than on the individual files.
+    assert search_manager.removals == [
+        {
+            "path": None,
+            "category": "publishone2",
+            "storage_url_prefix": "https://storage.example.com/content/publishone2/nerilio2/",
+        }
+    ]
+
+
+@pytest.mark.asyncio
+async def test_deleting_an_archive_removes_its_documents_and_blobs() -> None:
+    async def section_builder(*, file, file_processors, category, image_bundle=None):
+        return [object()]
+
+    blob_manager = MockBlobManager()
+    search_manager = MockSearchManager()
+    indexer = make_publishone2_indexer(blob_manager, search_manager, section_builder)
+
+    await indexer.index_blob(
+        blob_name="content/nerilio/Nerilio-Amsterdam-ZIP-zip/nerilio2.zip",
+        content=build_zip({"Doc.xml": PACKAGE_FEED_XML, "8798.jpg": b"jpeg-bytes"}),
+    )
+    result = await indexer.delete_blob(blob_name="content/nerilio/Nerilio-Amsterdam-ZIP-zip/nerilio2.zip")
+
+    assert result.status == "deleted"
+    assert search_manager.removals[-1] == {
+        "path": None,
+        "category": "publishone2",
+        "storage_url_prefix": "https://storage.example.com/content/publishone2/nerilio2/",
+    }
+    assert sorted(blob_manager.removals) == [
+        "publishone2/nerilio2/Doc.xml",
+        "publishone2/nerilio2/images/8798.jpg",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_a_plain_xml_in_the_archive_feed_behaves_like_publishone() -> None:
+    async def section_builder(*, file, file_processors, category, image_bundle=None):
+        assert image_bundle is None
+        return [object()]
+
+    blob_manager = MockBlobManager()
+    search_manager = MockSearchManager()
+    indexer = make_publishone2_indexer(blob_manager, search_manager, section_builder)
+
+    result = await indexer.index_blob(
+        blob_name="content/nerilio/Nerilio-Amsterdam-ZIP-zip/loose.xml",
+        content=PACKAGE_FEED_XML,
+        content_type="application/xml",
+    )
+
+    assert result.status == "indexed"
+    assert result.target_blob_name == "publishone2/loose.xml"
+    assert search_manager.removals == [
+        {"path": "loose.xml", "category": "publishone2", "storage_url_suffix": "publishone2/loose.xml"}
+    ]
+
+
+@pytest.mark.asyncio
+async def test_an_unreadable_archive_is_skipped_without_touching_the_index() -> None:
+    async def section_builder(*, file, file_processors, category, image_bundle=None):
+        raise AssertionError("must not parse an unreadable archive")
+
+    blob_manager = MockBlobManager()
+    search_manager = MockSearchManager()
+    indexer = make_publishone2_indexer(blob_manager, search_manager, section_builder)
+
+    result = await indexer.index_blob(
+        blob_name="content/nerilio/Nerilio-Amsterdam-ZIP-zip/broken.zip",
+        content=b"this is not a zip",
+    )
+
+    assert result.status == "skipped-bad-archive"
+    assert search_manager.removals == []
+    assert blob_manager.uploads == []
+
+
+@pytest.mark.asyncio
+async def test_an_archive_with_no_documents_still_clears_its_prefix() -> None:
+    async def section_builder(*, file, file_processors, category, image_bundle=None):
+        raise AssertionError("no documents to build sections from")
+
+    blob_manager = MockBlobManager()
+    search_manager = MockSearchManager()
+    indexer = make_publishone2_indexer(blob_manager, search_manager, section_builder)
+
+    result = await indexer.index_blob(
+        blob_name="content/nerilio/Nerilio-Amsterdam-ZIP-zip/images-only.zip",
+        content=build_zip({"8798.jpg": b"jpeg-bytes"}),
+    )
+
+    assert result.status == "archive-no-content"
+    assert len(search_manager.removals) == 1
+    assert search_manager.updates == []
+
+
+@pytest.mark.asyncio
+async def test_zip_is_supported_without_a_file_processor_entry() -> None:
+    async def section_builder(*, file, file_processors, category, image_bundle=None):
+        return []
+
+    indexer = make_publishone2_indexer(MockBlobManager(), MockSearchManager(), section_builder)
+
+    # There is deliberately no ".zip" FileProcessor; the documents inside the archive have one.
+    assert indexer.is_supported("nerilio/Nerilio-Amsterdam-ZIP-zip/pkg.zip") is True
+    assert indexer.is_archive("nerilio/Nerilio-Amsterdam-ZIP-zip/pkg.zip") is True
+    assert indexer.is_supported("nerilio/Nerilio-Amsterdam-ZIP-zip/notes.pdf") is False
+
+
+@pytest.mark.asyncio
+async def test_a_zip_named_xml_is_still_read_as_an_archive() -> None:
+    """Real PublishOne exports ship ZIP packages carrying a .xml extension, so archive detection
+    falls back to the payload's own magic bytes."""
+    captured: list[Any] = []
+
+    async def section_builder(*, file, file_processors, category, image_bundle=None):
+        captured.append(file.filename())
+        return [object()]
+
+    blob_manager = MockBlobManager()
+    search_manager = MockSearchManager()
+    indexer = make_publishone2_indexer(blob_manager, search_manager, section_builder)
+
+    result = await indexer.index_blob(
+        blob_name="content/nerilio/Nerilio-Amsterdam-ZIP-zip/b8b748e2.xml",
+        content=build_zip({"Guidebook.xml": PACKAGE_FEED_XML, "5499.png": b"png-bytes"}),
+        content_type="application/xml",
+    )
+
+    assert result.status == "indexed"
+    assert captured == ["Guidebook.xml"]
+    assert {upload["blob_name"] for upload in blob_manager.uploads} == {
+        "publishone2/b8b748e2/images/5499.png",
+        "publishone2/b8b748e2/Guidebook.xml",
+    }
+
+
+@pytest.mark.asyncio
+async def test_deleting_a_zip_named_xml_clears_its_package_prefix() -> None:
+    async def section_builder(*, file, file_processors, category, image_bundle=None):
+        return [object()]
+
+    blob_manager = MockBlobManager()
+    search_manager = MockSearchManager()
+    indexer = make_publishone2_indexer(blob_manager, search_manager, section_builder)
+
+    await indexer.index_blob(
+        blob_name="content/nerilio/Nerilio-Amsterdam-ZIP-zip/b8b748e2.xml",
+        content=build_zip({"Guidebook.xml": PACKAGE_FEED_XML, "5499.png": b"png-bytes"}),
+    )
+    # On delete the payload is gone, so the package prefix is cleared on extension alone.
+    await indexer.delete_blob(blob_name="content/nerilio/Nerilio-Amsterdam-ZIP-zip/b8b748e2.xml")
+
+    assert {
+        "path": None,
+        "category": "publishone2",
+        "storage_url_prefix": "https://storage.example.com/content/publishone2/b8b748e2/",
+    } in search_manager.removals
+    assert sorted(blob_manager.removals) == [
+        "publishone2/b8b748e2/Guidebook.xml",
+        "publishone2/b8b748e2/images/5499.png",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_deleting_a_plain_document_in_an_archive_feed_still_removes_the_single_file() -> None:
+    blob_manager = MockBlobManager()
+    search_manager = MockSearchManager()
+
+    async def section_builder(*, file, file_processors, category, image_bundle=None):
+        return [object()]
+
+    indexer = make_publishone2_indexer(blob_manager, search_manager, section_builder)
+
+    result = await indexer.delete_blob(blob_name="content/nerilio/Nerilio-Amsterdam-ZIP-zip/loose.xml")
+
+    assert result.status == "deleted"
+    assert result.target_blob_name == "publishone2/loose.xml"
+    # The speculative package purge runs first and finds nothing; the single-file removal follows.
+    assert search_manager.removals[-1] == {
+        "path": "loose.xml",
+        "category": "publishone2",
+        "storage_url_suffix": "publishone2/loose.xml",
+    }
+    assert blob_manager.removals == ["publishone2/loose.xml"]
+
+
+@pytest.mark.asyncio
+async def test_publishone_feed_never_treats_a_zip_as_an_archive() -> None:
+    # Archive mode is opt-in per feed: the publishone feed must reject a stray zip outright.
+    indexer = AutoBlobIndexer(
+        config=AutoBlobIndexerConfig(
+            trigger_container="content",
+            source_prefix="nerilio/Nerilio-Amsterdam",
+            target_prefix="publishone",
+            category="publishone",
+            allowed_extensions=frozenset({".xml"}),
+        ),
+        blob_manager=MockBlobManager(),
+        search_manager=MockSearchManager(),
+        file_processors={".xml": object()},
+    )
+
+    assert indexer.is_archive("nerilio/Nerilio-Amsterdam/pkg.zip") is False
+    assert indexer.is_supported("nerilio/Nerilio-Amsterdam/pkg.zip") is False

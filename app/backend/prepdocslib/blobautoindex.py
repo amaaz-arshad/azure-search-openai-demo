@@ -3,11 +3,22 @@ import io
 import logging
 import mimetypes
 import os
+import zipfile
 from dataclasses import dataclass
 from collections.abc import Awaitable, Callable
 from typing import Optional
 
 from .blobmanager import BlobManager
+from .feedarchive import (
+    FeedArchiveOptions,
+    build_image_bundle,
+    describe_archive_images,
+    document_blob_name,
+    expand_feed_archive,
+    image_blob_name,
+    looks_like_zip,
+    package_name_for_archive,
+)
 from .fileprocessor import FileProcessor
 from .filestrategy import parse_file
 from .listfilestrategy import File
@@ -38,6 +49,11 @@ class AutoBlobIndexerConfig:
     dynamic_category_from_path: bool = False
     # When True, force generic extension-based parsing (bypass all custom content-specific parsers).
     force_generic_parsing: bool = False
+    # --- archive mode (publishone2 ZIP packages) ---
+    # Extensions treated as archives: one source blob expands into several documents plus the image
+    # assets they reference. Everything mirrored out of an archive is namespaced by the archive's
+    # filename stem, which is what makes re-upload and delete scoped to that package.
+    archive_extensions: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -95,12 +111,14 @@ class AutoBlobIndexer:
         search_manager: SearchManager,
         file_processors: dict[str, FileProcessor],
         section_builder: Optional[SectionBuilder] = None,
+        archive_options: Optional[FeedArchiveOptions] = None,
     ):
         self.config = config
         self.blob_manager = blob_manager
         self.search_manager = search_manager
         self.file_processors = file_processors
         self.section_builder = section_builder
+        self.archive_options = archive_options or FeedArchiveOptions()
         self.index_ready = False
         self.index_lock = asyncio.Lock()
 
@@ -186,10 +204,67 @@ class AutoBlobIndexer:
             return None
         return url_for_blob_name(target_blob_name)
 
-    def is_supported(self, blob_name: str) -> bool:
+    def extension_for(self, blob_name: str) -> str:
         filename = os.path.basename(self.normalize_source_blob_name(blob_name))
-        extension = os.path.splitext(filename)[1].lower()
-        return extension in self.config.allowed_extensions and extension in self.file_processors
+        return os.path.splitext(filename)[1].lower()
+
+    def archive_mode_enabled(self) -> bool:
+        return bool(self.config.archive_extensions)
+
+    def is_archive(self, blob_name: str, content: Optional[bytes] = None) -> bool:
+        """Whether a blob should be read as an archive package.
+
+        Extension first, then the payload's own magic bytes: real PublishOne exports ship ZIP
+        packages named `.xml`, and an unreadable-XML crash on every one of them is a poor trade for
+        a four-byte check. Sniffing only ever applies to a feed that has archives enabled, so
+        publishone/moodle behaviour cannot change.
+        """
+        if self.extension_for(blob_name) in self.config.archive_extensions:
+            return True
+        return self.archive_mode_enabled() and content is not None and looks_like_zip(content)
+
+    def is_supported(self, blob_name: str) -> bool:
+        extension = self.extension_for(blob_name)
+        if extension not in self.config.allowed_extensions:
+            return False
+        # Archives have no FileProcessor of their own — the documents inside them do.
+        if extension in self.config.archive_extensions:
+            return True
+        return extension in self.file_processors
+
+    def package_storage_url_prefix(self, package_name: str) -> str:
+        """storageUrl prefix shared by every document mirrored out of one archive."""
+        endpoint = self.blob_manager.endpoint.rstrip("/")
+        target_prefix = normalize_prefix(self.config.target_prefix)
+        package_prefix = f"{target_prefix}/{package_name}" if target_prefix else package_name
+        return f"{endpoint}/{self.blob_manager.container}/{package_prefix}/"
+
+    def package_blob_prefix(self, package_name: str) -> str:
+        target_prefix = normalize_prefix(self.config.target_prefix)
+        return f"{target_prefix}/{package_name}/" if target_prefix else f"{package_name}/"
+
+    async def purge_package(self, package_name: str, category: str) -> int:
+        """Drop every search doc and mirrored blob belonging to one archive package.
+
+        Run before re-indexing an archive as well as on delete: an archive whose contents shrank
+        would otherwise leave orphaned documents and images behind. Returns the number of mirrored
+        blobs removed, which is also how a delete recognises a package that arrived under a
+        non-archive extension.
+        """
+        await self.search_manager.remove_content(
+            category=category,
+            storage_url_prefix=self.package_storage_url_prefix(package_name),
+        )
+        blob_prefix = self.package_blob_prefix(package_name)
+        list_blob_names = getattr(self.blob_manager, "list_blob_names", None)
+        if not callable(list_blob_names):
+            logger.info("Blob manager cannot list by prefix; leaving mirrored blobs under %s", blob_prefix)
+            return 0
+        removed = 0
+        for blob_name in await list_blob_names(blob_prefix):
+            await self.blob_manager.remove_blob_name(blob_name)
+            removed += 1
+        return removed
 
     @staticmethod
     def content_type_for_filename(filename: str, content_type: Optional[str]) -> str:
@@ -244,6 +319,13 @@ class AutoBlobIndexer:
             )
 
         await self.ensure_index()
+
+        if self.is_archive(normalized_source_blob_name, content):
+            return await self.index_archive_blob(
+                normalized_source_blob_name=normalized_source_blob_name,
+                content=content,
+                category=category,
+            )
 
         filename = os.path.basename(normalized_source_blob_name)
         file_wrapper = self.build_file(filename, content)
@@ -303,6 +385,111 @@ class AutoBlobIndexer:
             storage_url=storage_url,
             indexed_sections=len(sections),
             status="indexed",
+        )
+
+    async def index_archive_blob(
+        self,
+        *,
+        normalized_source_blob_name: str,
+        content: bytes,
+        category: str,
+    ) -> AutoBlobIndexResult:
+        """Index one archive package: several feed documents plus the images they reference.
+
+        Everything is mirrored under `<target_prefix>/<archive stem>/`, and that whole prefix is
+        purged first so a re-uploaded archive can never leave a removed document behind.
+        """
+        if self.section_builder is None:
+            raise RuntimeError("Archive indexing requires a section_builder that accepts an image_bundle")
+
+        package_name = package_name_for_archive(normalized_source_blob_name)
+        try:
+            archive = expand_feed_archive(content)
+        except zipfile.BadZipFile:
+            logger.warning("Skipping unreadable archive: %s", normalized_source_blob_name)
+            return AutoBlobIndexResult(
+                source_blob_name=normalized_source_blob_name,
+                target_blob_name=None,
+                storage_url=None,
+                indexed_sections=0,
+                status="skipped-bad-archive",
+            )
+
+        await self.purge_package(package_name, category)
+
+        if not archive.documents:
+            logger.info("Archive '%s' contains no feed documents", normalized_source_blob_name)
+            return AutoBlobIndexResult(
+                source_blob_name=normalized_source_blob_name,
+                target_blob_name=None,
+                storage_url=None,
+                indexed_sections=0,
+                status="archive-no-content",
+            )
+
+        descriptions = await describe_archive_images(
+            archive.images.values(),
+            describer=self.archive_options.describer,
+            cache=self.archive_options.description_cache,
+            concurrency=self.archive_options.describe_concurrency,
+            max_images=self.archive_options.max_images,
+        )
+
+        target_prefix = normalize_prefix(self.config.target_prefix)
+        for asset in archive.images.values():
+            await self.blob_manager.upload_blob_data(
+                io.BytesIO(asset.data),
+                image_blob_name(target_prefix, package_name, asset.filename),
+                content_type=self.content_type_for_filename(asset.filename, None),
+            )
+
+        image_bundle = build_image_bundle(
+            archive.images.values(),
+            descriptions,
+            target_prefix=target_prefix,
+            package_name=package_name,
+            content_root=self.archive_options.content_root,
+        )
+
+        indexed_sections = 0
+        for document in archive.documents:
+            file_wrapper = self.build_file(document.name, document.data)
+            try:
+                sections = await self.section_builder(
+                    file=file_wrapper,
+                    file_processors=self.file_processors,
+                    category=category,
+                    image_bundle=image_bundle,
+                )
+            finally:
+                file_wrapper.close()
+
+            target_blob_name = document_blob_name(target_prefix, package_name, document.name)
+            storage_url = await self.blob_manager.upload_blob_data(
+                io.BytesIO(document.data),
+                target_blob_name,
+                content_type=self.content_type_for_filename(document.name, None),
+            )
+            if not sections:
+                logger.info("No searchable sections extracted from '%s' in archive '%s'", document.name, package_name)
+                continue
+            await self.search_manager.update_content(sections, url=storage_url)
+            indexed_sections += len(sections)
+
+        logger.info(
+            "Indexed archive '%s': %d document(s), %d image(s), %d described, %d section(s)",
+            normalized_source_blob_name,
+            len(archive.documents),
+            len(archive.images),
+            len(descriptions),
+            indexed_sections,
+        )
+        return AutoBlobIndexResult(
+            source_blob_name=normalized_source_blob_name,
+            target_blob_name=self.package_blob_prefix(package_name),
+            storage_url=self.package_storage_url_prefix(package_name),
+            indexed_sections=indexed_sections,
+            status="indexed" if indexed_sections else "archive-no-content",
         )
 
     async def index_blob_from_storage(self, *, blob_name: str) -> AutoBlobIndexResult:
@@ -386,6 +573,22 @@ class AutoBlobIndexer:
             )
 
         filename = os.path.basename(normalized_source_blob_name)
+
+        if self.archive_mode_enabled():
+            # The blob is already gone, so its payload cannot be sniffed the way index_blob does.
+            # Clearing the package prefix unconditionally covers an archive that arrived under any
+            # extension, and is a no-op for a file that was not one (nothing was ever mirrored to
+            # `<target>/<stem>/`). A plain document then falls through to the single-file delete.
+            package_name = package_name_for_archive(normalized_source_blob_name)
+            removed_package_blobs = await self.purge_package(package_name, category)
+            if self.is_archive(normalized_source_blob_name) or removed_package_blobs:
+                return AutoBlobIndexResult(
+                    source_blob_name=normalized_source_blob_name,
+                    target_blob_name=self.package_blob_prefix(package_name),
+                    storage_url=None,
+                    indexed_sections=0,
+                    status="deleted",
+                )
 
         if not self.config.mirror_blob:
             # No-mirror mode: nothing was copied into `content`, and the source blob is already gone.

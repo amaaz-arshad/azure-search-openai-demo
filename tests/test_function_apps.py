@@ -279,6 +279,120 @@ async def test_publishone_delete_sync_removes_target_blob_for_delete_event(monke
     assert auto_indexer.deleted == ["content/nerilio/Nerilio-Amsterdam/test.xml"]
 
 
+@pytest.mark.parametrize("filename", ["nerilio2.zip", "loose.xml"])
+@pytest.mark.asyncio
+async def test_publishone2_auto_index_function_handles_archives_and_plain_xml(
+    monkeypatch: pytest.MonkeyPatch, filename: str
+) -> None:
+    class MockAutoIndexer:
+        def __init__(self) -> None:
+            self.calls: list[dict[str, Any]] = []
+
+        async def index_blob_from_storage(self, *, blob_name: str):
+            self.calls.append({"blob_name": blob_name})
+            return type(
+                "Result",
+                (),
+                {
+                    "source_blob_name": blob_name,
+                    "status": "indexed",
+                    "indexed_sections": 3,
+                    "target_blob_name": "publishone2/nerilio2/",
+                },
+            )()
+
+    auto_indexer = MockAutoIndexer()
+    monkeypatch.setattr(
+        moodle_auto_indexer,
+        "settings",
+        moodle_auto_indexer.GlobalSettings(auto_indexers={"publishone2": auto_indexer}),
+    )
+
+    await moodle_auto_indexer.publishone2_auto_index(
+        EventGridEventStub(
+            f"/blobServices/default/containers/content/blobs/nerilio/Nerilio-Amsterdam-ZIP-zip/{filename}",
+            "Microsoft.Storage.BlobCreated",
+        )
+    )
+
+    assert auto_indexer.calls == [{"blob_name": f"content/nerilio/Nerilio-Amsterdam-ZIP-zip/{filename}"}]
+
+
+@pytest.mark.asyncio
+async def test_publishone2_delete_sync_removes_the_package(monkeypatch: pytest.MonkeyPatch) -> None:
+    class MockAutoIndexer:
+        def __init__(self) -> None:
+            self.deleted: list[str] = []
+
+        async def delete_blob(self, *, blob_name: str):
+            self.deleted.append(blob_name)
+            return type(
+                "Result",
+                (),
+                {
+                    "source_blob_name": blob_name,
+                    "status": "deleted",
+                    "target_blob_name": "publishone2/nerilio2/",
+                },
+            )()
+
+    auto_indexer = MockAutoIndexer()
+    monkeypatch.setattr(
+        moodle_auto_indexer,
+        "settings",
+        moodle_auto_indexer.GlobalSettings(auto_indexers={"publishone2": auto_indexer}),
+    )
+
+    await moodle_auto_indexer.publishone2_delete_sync(
+        EventGridEventStub(
+            "/blobServices/default/containers/content/blobs/nerilio/Nerilio-Amsterdam-ZIP-zip/nerilio2.zip",
+            "Microsoft.Storage.BlobDeleted",
+        )
+    )
+
+    assert auto_indexer.deleted == ["content/nerilio/Nerilio-Amsterdam-ZIP-zip/nerilio2.zip"]
+
+
+def test_publishone2_feed_definition_is_archive_capable_and_isolated_from_publishone() -> None:
+    publishone = moodle_auto_indexer.FEED_DEFINITIONS["publishone"]
+    publishone2 = moodle_auto_indexer.FEED_DEFINITIONS["publishone2"]
+
+    assert publishone2.source_prefix == "nerilio/Nerilio-Amsterdam-ZIP-zip"
+    assert publishone2.target_prefix == "publishone2"
+    assert publishone2.category == "publishone2"
+    assert set(publishone2.allowed_extensions) == {".xml", ".zip"}
+    assert publishone2.archive_extensions == (".zip",)
+    # publishone stays XML-only and non-archive, and its prefix cannot swallow the ZIP folder:
+    # "nerilio/Nerilio-Amsterdam-ZIP-zip/x" does not start with "nerilio/Nerilio-Amsterdam/".
+    assert publishone.archive_extensions == ()
+    assert not publishone2.source_prefix.startswith(f"{publishone.source_prefix}/")
+
+
+def test_publishone2_event_grid_subscriptions_cover_both_file_kinds() -> None:
+    import importlib.util
+    import pathlib
+
+    script_path = pathlib.Path(__file__).resolve().parents[1] / "scripts" / "setup_moodle_delete_event_subscription.py"
+    spec = importlib.util.spec_from_file_location("setup_event_subscriptions", script_path)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+
+    subscriptions = {subscription["name"]: subscription for subscription in module.SUBSCRIPTIONS}
+    for name, function_name, event_type in (
+        ("publishone2-auto-indexer-create-sync", "publishone2_auto_index", "Microsoft.Storage.BlobCreated"),
+        ("publishone2-auto-indexer-delete-sync", "publishone2_delete_sync", "Microsoft.Storage.BlobDeleted"),
+    ):
+        subscription = subscriptions[name]
+        assert subscription["function_name"] == function_name
+        assert subscription["event_types"] == (event_type,)
+        assert subscription["subject_prefix"] == (
+            "/blobServices/default/containers/content/blobs/nerilio/Nerilio-Amsterdam-ZIP-zip/"
+        )
+        # No suffix filter: the folder receives both .zip packages and plain .xml documents.
+        assert subscription["subject_suffix"] == ""
+
+
 @pytest.mark.asyncio
 async def test_fhg_auto_index_function_indexes_triggered_blob(monkeypatch: pytest.MonkeyPatch) -> None:
     class MockAutoIndexer:

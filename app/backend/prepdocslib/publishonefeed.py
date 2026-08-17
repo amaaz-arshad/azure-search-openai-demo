@@ -1,3 +1,4 @@
+import contextvars
 import logging
 import re
 import xml.etree.ElementTree as ET
@@ -5,6 +6,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Optional
 
+from .feedarchive import FeedImageBundle, ResolvedFeedImage
 from .fileprocessor import FileProcessor
 from .listfilestrategy import File
 from .page import Page
@@ -14,12 +16,24 @@ from .xmlparser import cleanup_xml_text, normalize_tag
 
 logger = logging.getLogger("scripts")
 
+# The document renderer is a deep synchronous recursion, so the resolved image bundle is published
+# through a ContextVar instead of being threaded through every render function. It is set for the
+# duration of one document render and always reset afterwards.
+active_image_bundle: contextvars.ContextVar[Optional[FeedImageBundle]] = contextvars.ContextVar(
+    "publishone_active_image_bundle", default=None
+)
+
 PUBLISHONE_DOCUMENT_URL_TEMPLATE = "https://amsterdam.publishone.nl/document/{document_id}/content"
 HEADING_LEVELS = {f"h{level}": level for level in range(1, 7)}
 INLINE_BREAK_TAGS = {"br"}
 SKIPPED_CONTENT_TAGS = {"naam", "lastmodified", "meta"}
 BLOCK_RENDER_TAGS = {"document", "section", "meta", "p", "list", "li", *HEADING_LEVELS.keys()}
 DIRECT_VALUE_SKIP_TAGS = {"naam", "lastmodified", "meta", "document"}
+# How many of a document's images are repeated into chunks that lost them to splitting. A document
+# with many figures would otherwise pay for all of them in every chunk.
+MAX_TRAILER_IMAGES = 3
+# An image opener whose link never closes on the same line — i.e. one the splitter cut in half.
+TRUNCATED_IMAGE_OPENER_RE = re.compile(r"!\[[^\]]*\](?:\([^)\n]*)?$")
 
 
 @dataclass(frozen=True)
@@ -168,7 +182,131 @@ def extract_inline_text(element: ET.Element) -> str:
     return joined_text
 
 
+def iter_descendant_assets(element: ET.Element) -> list[ET.Element]:
+    return [
+        candidate
+        for candidate in element.iter()
+        if isinstance(candidate.tag, str) and normalize_tag(candidate.tag) == "asset"
+    ]
+
+
+def image_reference_keys(element: ET.Element) -> list[str]:
+    """Every id an <img> can be matched to an archive image by, most specific first.
+
+    A PublishOne <img> carries `po-ref-id="8793"` and wraps `<asset id="8793">`; the archive entry
+    is `8793.jpg`. The external `href` ends with the same id, so it is a usable last resort. The
+    `id` attribute ("Grafik 1") is a layout label rather than an asset id, so it is tried last.
+    """
+    keys: list[Optional[str]] = [element.attrib.get("po-ref-id")]
+    keys.extend(asset.attrib.get("id") for asset in iter_descendant_assets(element))
+    keys.append(element.attrib.get("href") or element.attrib.get("src"))
+    keys.append(element.attrib.get("id"))
+    return [normalized for key in keys if (normalized := normalize_text(key))]
+
+
+def image_label(element: ET.Element, fallback: str) -> str:
+    """Human-readable name for an image, taken from its <asset> title."""
+    for asset in iter_descendant_assets(element):
+        for tag_name in ("title", "naam"):
+            asset_title = get_direct_child_text(asset, tag_name)
+            if asset_title:
+                return asset_title
+    return normalize_text(element.attrib.get("id")) or fallback
+
+
+def markdown_alt_text(value: str) -> str:
+    """Square brackets and newlines would break the Markdown image syntax."""
+    return re.sub(r"\s+", " ", value.replace("[", "(").replace("]", ")")).strip()
+
+
+def image_markdown_line(label: str, resolved: ResolvedFeedImage) -> str:
+    return f"![{markdown_alt_text(label)}]({resolved.public_path})"
+
+
+def resolve_document_images(element: ET.Element, bundle: Optional[FeedImageBundle]) -> list[tuple[str, ResolvedFeedImage]]:
+    """Every archive image the document actually references, as (label, image) in document order."""
+    if not bundle:
+        return []
+    resolved_images: list[tuple[str, ResolvedFeedImage]] = []
+    seen_keys: set[str] = set()
+    for candidate in element.iter():
+        if not isinstance(candidate.tag, str) or normalize_tag(candidate.tag) != "img":
+            continue
+        resolved = bundle.lookup(image_reference_keys(candidate))
+        if resolved is None or resolved.key in seen_keys:
+            continue
+        seen_keys.add(resolved.key)
+        resolved_images.append((image_label(candidate, resolved.filename), resolved))
+    return resolved_images
+
+
+def strip_truncated_image_links(text: str) -> str:
+    """Drop an image link the chunk splitter cut in half.
+
+    A split can land inside `![alt](/content/…/x.png)`, leaving an opener with no closing paren.
+    Markdown does not recognise that as an image, so it would render as literal `![alt](/content/…`
+    text in the answer. The complete reference is re-appended by append_image_trailer.
+    """
+    repaired_lines: list[str] = []
+    for line in text.splitlines():
+        opener = TRUNCATED_IMAGE_OPENER_RE.search(line)
+        if opener is not None:
+            line = line[: opener.start()].rstrip()
+            if not line:
+                continue
+        repaired_lines.append(line)
+    return "\n".join(repaired_lines)
+
+
+def append_image_trailer(sections: list[Section], resolved_images: list[tuple[str, ResolvedFeedImage]]) -> None:
+    """Repeat a document's image references in every chunk that lost them to splitting.
+
+    An image transcription is often long enough to be split across several chunks, and only the
+    first would carry the Markdown image line — so a question answered from a later chunk could
+    never show the picture the answer came from. The trailer is the reference only, never the
+    transcription, so nothing is duplicated into the embedding twice.
+    """
+    if not resolved_images:
+        return
+    trailer_images = resolved_images[:MAX_TRAILER_IMAGES]
+    for section in sections:
+        section.chunk.text = strip_truncated_image_links(section.chunk.text)
+        missing = [
+            (label, resolved)
+            for label, resolved in trailer_images
+            if f"]({resolved.public_path})" not in section.chunk.text
+        ]
+        if not missing:
+            continue
+        trailer_lines: list[str] = []
+        for label, resolved in missing:
+            trailer_lines.append(f"Image: {label}")
+            trailer_lines.append(image_markdown_line(label, resolved))
+        section.chunk.text = f"{section.chunk.text.rstrip()}\n" + "\n".join(trailer_lines)
+
+
+def describe_resolved_image(element: ET.Element, resolved: ResolvedFeedImage) -> str:
+    """Render an image whose bytes shipped with the document.
+
+    Emits the label, a Markdown image pointing at the mirrored blob (so the bot can display it),
+    and the transcription of what the image shows (so the content is retrievable at all — a feed
+    document is sometimes nothing but a title plus a data table rendered as a picture).
+    """
+    label = image_label(element, resolved.filename)
+    lines = [f"Image: {label}", f"![{markdown_alt_text(label)}]({resolved.public_path})"]
+    if resolved.description:
+        lines.append("Image content:")
+        lines.append(resolved.description)
+    return "\n".join(lines)
+
+
 def describe_image_element(element: ET.Element) -> str:
+    bundle = active_image_bundle.get()
+    if bundle:
+        resolved = bundle.lookup(image_reference_keys(element))
+        if resolved is not None:
+            return describe_resolved_image(element, resolved)
+
     href = normalize_text(element.attrib.get("href") or element.attrib.get("src"))
     image_id = normalize_text(element.attrib.get("id"))
     width = normalize_text(element.attrib.get("width"))
@@ -484,6 +622,7 @@ async def build_publishone_feed_sections(
     file: File,
     file_processors: dict[str, FileProcessor],
     category: Optional[str] = None,
+    image_bundle: Optional[FeedImageBundle] = None,
 ) -> list[Section]:
     processor = file_processors.get(file.file_extension().lower())
     if processor is None:
@@ -497,26 +636,33 @@ async def build_publishone_feed_sections(
         logger.info("No logical PublishOne documents found in '%s'", file.filename())
         return []
 
-    sections: list[Section] = []
-    for element, folder_path in logical_documents:
-        feed_document = build_feed_document(element, folder_path)
-        pages = [Page(page_num=0, offset=0, text=feed_document.content)]
-        document_sections = process_text(pages, file, processor.splitter, category)
-        document_id_slug = sanitize_identifier(feed_document.document_id)
-        category_prefix = sanitize_identifier(category or "document")
-        for chunk_index, section in enumerate(document_sections, start=1):
-            section.id = f"{file.filename_to_id()}-{category_prefix}-{document_id_slug}-chunk-{chunk_index:03d}"
-            section.sourcepage = feed_document.document_id
-            section.sourcefile = file.filename()
-            section.title = feed_document.title
-            section.url = feed_document.url
-            section.tags = feed_document.tags
-        sections.extend(document_sections)
+    # Publish the bundle for the synchronous render below, and always restore the previous value —
+    # nothing else should ever see another document's images.
+    bundle_token = active_image_bundle.set(image_bundle)
+    try:
+        sections: list[Section] = []
+        for element, folder_path in logical_documents:
+            feed_document = build_feed_document(element, folder_path)
+            pages = [Page(page_num=0, offset=0, text=feed_document.content)]
+            document_sections = process_text(pages, file, processor.splitter, category)
+            document_id_slug = sanitize_identifier(feed_document.document_id)
+            category_prefix = sanitize_identifier(category or "document")
+            for chunk_index, section in enumerate(document_sections, start=1):
+                section.id = f"{file.filename_to_id()}-{category_prefix}-{document_id_slug}-chunk-{chunk_index:03d}"
+                section.sourcepage = feed_document.document_id
+                section.sourcefile = file.filename()
+                section.title = feed_document.title
+                section.url = feed_document.url
+                section.tags = feed_document.tags
+            append_image_trailer(document_sections, resolve_document_images(element, image_bundle))
+            sections.extend(document_sections)
+    finally:
+        active_image_bundle.reset(bundle_token)
 
     return sections
 
 
-FEED_CATEGORIES = frozenset({"moodle", "publishone"})
+FEED_CATEGORIES = frozenset({"moodle", "publishone", "publishone2"})
 
 
 async def build_feed_sections_if_applicable(

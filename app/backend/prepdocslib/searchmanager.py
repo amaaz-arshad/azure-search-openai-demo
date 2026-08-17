@@ -877,36 +877,48 @@ class SearchManager:
         category: Optional[str] = None,
         storage_url: Optional[str] = None,
         storage_url_suffix: Optional[str] = None,
+        storage_url_prefix: Optional[str] = None,
         user: Optional[str] = None,
     ):
         logger.info(
             "Removing sections from '{%s or '<all>'}' from search index '%s'", path, self.search_info.index_name
         )
         async with self.search_info.create_search_client() as search_client:
+            # storage_url_suffix/prefix and only_oid are applied client-side because OData has no
+            # substring predicate for them, so a page can match the filter yet yield nothing to
+            # delete. `skip` is what advances past such a page — without it, a filter matching more
+            # rows than one page holds (e.g. a whole category) would re-request the same page
+            # forever.
+            skip = 0
             while True:
                 filter = self.build_filter(path=path, category=category, storage_url=storage_url, user=user)
                 max_results = 1000
                 result = await search_client.search(
-                    search_text="", filter=filter, top=max_results, include_total_count=True
+                    search_text="", filter=filter, top=max_results, skip=skip, include_total_count=True
                 )
                 result_count = await result.get_count()
                 if result_count == 0:
                     break
                 documents_to_remove = []
+                returned_count = 0
                 async for document in result:
-                    if storage_url_suffix is not None and not str(document.get("storageUrl") or "").endswith(
-                        storage_url_suffix
-                    ):
+                    returned_count += 1
+                    storage_url_value = str(document.get("storageUrl") or "")
+                    if storage_url_suffix is not None and not storage_url_value.endswith(storage_url_suffix):
+                        continue
+                    if storage_url_prefix is not None and not storage_url_value.startswith(storage_url_prefix):
                         continue
                     # If only_oid is set, only remove documents that have only this oid
                     if not only_oid or document.get("oids") == [only_oid]:
                         documents_to_remove.append({"id": document["id"]})
                 if len(documents_to_remove) == 0:
-                    if result_count < max_results:
+                    if returned_count < max_results:
                         break
-                    else:
-                        continue
+                    skip += returned_count
+                    continue
                 removed_docs = await search_client.delete_documents(documents_to_remove)
                 logger.info("Removed %d sections from index", len(removed_docs))
+                # Deleting shifts the result window, so restart paging from the top.
+                skip = 0
                 # It can take a few seconds for search results to reflect changes, so wait a bit
                 await asyncio.sleep(2)

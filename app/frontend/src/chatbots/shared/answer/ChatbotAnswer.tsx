@@ -114,8 +114,15 @@ type Props = {
 
 const syntaxStyle = oneLight as SyntaxHighlighterProps["style"];
 
+// Same-origin absolute paths are allowed so an answer can show a document image the backend serves
+// (e.g. /content/publishone2/<package>/images/<asset>.jpg). Ingestion writes the path into the
+// source text and cannot know the public origin, and a relative path is correct on the bot route,
+// inside the /embed iframe, and behind the dev proxy alike. "//host" and "/\host" are rejected:
+// browsers read both as protocol-relative URLs, which would leave the origin.
+const isSameOriginPath = (src: string) => src.startsWith("/") && !src.startsWith("//") && !src.startsWith("/\\");
+
 const allowedImageSrc = (src?: string | null) =>
-    !!src && (src.startsWith("https://") || src.startsWith("http://") || src.startsWith("data:image/"));
+    !!src && (src.startsWith("https://") || src.startsWith("http://") || src.startsWith("data:image/") || isSameOriginPath(src));
 
 const allowedLinkHref = (href?: string | null) =>
     !!href && (href.startsWith("https://") || href.startsWith("http://") || href.startsWith("mailto:") || href.startsWith("tel:"));

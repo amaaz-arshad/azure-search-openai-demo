@@ -45,6 +45,24 @@ SUBSCRIPTIONS = (
         "subject_suffix": ".xml",
     },
     {
+        # publishone2 accepts both plain feed XML and ZIP packages from the same drop folder, so no
+        # suffix filter is set; the function's is_supported() gate decides what to act on.
+        "name": "publishone2-auto-indexer-create-sync",
+        "function_name": "publishone2_auto_index",
+        "event_types": ("Microsoft.Storage.BlobCreated",),
+        "description": "PublishOne2 create/update",
+        "subject_prefix": "/blobServices/default/containers/content/blobs/nerilio/Nerilio-Amsterdam-ZIP-zip/",
+        "subject_suffix": "",
+    },
+    {
+        "name": "publishone2-auto-indexer-delete-sync",
+        "function_name": "publishone2_delete_sync",
+        "event_types": ("Microsoft.Storage.BlobDeleted",),
+        "description": "PublishOne2 delete-sync",
+        "subject_prefix": "/blobServices/default/containers/content/blobs/nerilio/Nerilio-Amsterdam-ZIP-zip/",
+        "subject_suffix": "",
+    },
+    {
         "name": "fhg-auto-indexer-create-sync",
         "function_name": "fhg_auto_index",
         "event_types": ("Microsoft.Storage.BlobCreated",),

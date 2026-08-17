@@ -26,6 +26,7 @@ CHATBOT_PROMPT_MODULES = {
     "hyrox-assessment": "approaches.chatbots.hyrox_assessment.sampleprompt",
     "moodle": "approaches.chatbots.moodle.sampleprompt",
     "publishone": "approaches.chatbots.publishone.sampleprompt",
+    "publishone2": "approaches.chatbots.publishone2.sampleprompt",
     "fbn": "approaches.chatbots.fbn.sampleprompt",
     "demo": "approaches.chatbots.demo.sampleprompt",
     "fhg": "approaches.chatbots.fhg.sampleprompt",

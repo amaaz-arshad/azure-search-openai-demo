@@ -1,0 +1,143 @@
+.layout {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.main {
+    display: flex;
+    flex: 1;
+    min-height: 0; /* allow inner scroll areas to work inside flex container */
+}
+
+/* Navbar background and text color */
+.header {
+    background-color: var(--chatbot-navbar-background) !important;
+    color: var(--chatbot-navbar-text);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.headerContainer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1rem;
+    height: 56px; /* fixed height for navbar */
+    position: relative;
+    color: var(--chatbot-navbar-text);
+}
+
+/* Brand wordmark */
+.logoContainer {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    min-width: 154px;
+}
+
+.brandWordmark {
+    display: block;
+    width: auto;
+    height: 30px;
+    max-width: min(204px, 48vw);
+}
+
+/* Right section with dropdown */
+.rightSection {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+/* Dropdown menu */
+.dropdown {
+    position: relative;
+}
+
+.menuButton {
+    color: var(--chatbot-navbar-text) !important;
+    background: none;
+    border: none;
+    padding: 8px;
+}
+
+.menuButton:hover {
+    background-color: var(--chatbot-navbar-menu-hover-background);
+}
+
+.dropdownMenu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background-color: var(--chatbot-dropdown-background);
+    border: 1px solid var(--chatbot-dropdown-border);
+    border-radius: 4px;
+    list-style: none;
+    padding: 0.5rem 0;
+    min-width: 200px;
+    box-shadow: var(--chatbot-dropdown-shadow);
+    z-index: 1001;
+}
+
+.dropdownItem {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.5rem 1rem;
+    background: none;
+    border: none;
+    text-align: left;
+    color: var(--chatbot-dropdown-item-text);
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.dropdownItem:hover {
+    background-color: var(--chatbot-dropdown-item-hover-background);
+}
+
+/* Remove old navbar styles */
+.headerTitleContainer,
+.headerNavList,
+.headerNavPageLink,
+.headerNavPageLinkActive,
+.menuToggle {
+    display: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .logoContainer {
+        min-width: 126px;
+    }
+
+    .brandWordmark {
+        height: 24px;
+    }
+}
+
+
+/* polished-dropdown */
+/* Unify the navbar dropdown to the demo bot's more polished look: a rounded
+   floating menu with a gap below the trigger, a pill hover on the trigger, and
+   rounded and roomier items. */
+.menuButton {
+    border-radius: 999px;
+}
+
+.dropdownMenu {
+    margin-top: 0.5rem;
+    border-radius: 18px;
+    padding: 0.45rem;
+    min-width: 220px;
+}
+
+.dropdownItem {
+    gap: 0.65rem;
+    padding: 0.75rem 0.9rem;
+    border-radius: 14px;
+    font-weight: 400;
+}

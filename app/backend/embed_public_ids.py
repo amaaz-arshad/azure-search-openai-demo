@@ -46,6 +46,7 @@ EMBED_PUBLIC_IDS: dict[str, str] = {
     "hyrox-assessment": "by7ewngt4w",
     "moodle": "qrwok2uqyr",
     "publishone": "oba6k03jtq",
+    "publishone2": "mj28aprop3",
     "fbn": "i9aa3rnmjn",
     "demo": "vwc2zfkvbj",
     "fhg": "b8krfl2e9a",

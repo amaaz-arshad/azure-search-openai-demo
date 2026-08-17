@@ -89,6 +89,11 @@ export const chatbotSpeechFeatureFlags: Record<string, ChatbotSpeechVisibility> 
         showSpeechOutputBrowser: false,
         showSpeechOutputAzure: false
     },
+    publishone2: {
+        showSpeechInput: false,
+        showSpeechOutputBrowser: false,
+        showSpeechOutputAzure: false
+    },
     sartorius: {
         showSpeechInput: true,
         showSpeechOutputBrowser: true,

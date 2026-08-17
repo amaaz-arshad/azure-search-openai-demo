@@ -9,6 +9,10 @@ Also hosts the `content2` dynamic multi-bot indexer: it watches the whole
 `content2` container (layout `content2/<bot_name>/<file>`), derives the search
 category from the per-bot folder, parses files with the generic parsers only,
 and indexes them in place without mirroring into `content`.
+
+The `publishone2` feed additionally accepts ZIP packages: one archive holds feed
+XML plus the image files those documents reference, so the images can be read by
+a vision model at ingestion time and displayed in answers.
 """
 
 import json
@@ -26,7 +30,14 @@ from prepdocslib.blobautoindex import (
     blob_name_from_event_grid_subject,
     parse_allowed_extensions,
 )
+from prepdocslib.feedarchive import (
+    DEFAULT_DESCRIBE_CONCURRENCY,
+    DEFAULT_MAX_IMAGES_PER_ARCHIVE,
+    BlobImageDescriptionCache,
+    FeedArchiveOptions,
+)
 from prepdocslib.fhgjson import prepare_fhg_dataset
+from prepdocslib.mediadescriber import FEED_IMAGE_DESCRIPTION_PROMPT, MultimodalModelDescriber
 from prepdocslib.page import Chunk
 from prepdocslib.publishonefeed import build_publishone_feed_sections
 from prepdocslib.servicesetup import (
@@ -55,6 +66,8 @@ class FeedDefinition:
     target_prefix_env: Optional[str] = None
     category_env: Optional[str] = None
     allowed_extensions_env: Optional[str] = None
+    # Extensions this feed treats as archive packages (see AutoBlobIndexerConfig.archive_extensions).
+    archive_extensions: tuple[str, ...] = ()
 
 
 TRIGGER_CONTAINER = os.getenv("MOODLE_AUTO_INDEX_TRIGGER_CONTAINER", "content")
@@ -80,6 +93,23 @@ FEED_DEFINITIONS = {
         target_prefix_env="PUBLISHONE_AUTO_INDEX_TARGET_PREFIX",
         category_env="PUBLISHONE_AUTO_INDEX_CATEGORY",
         allowed_extensions_env="PUBLISHONE_AUTO_INDEX_ALLOWED_EXTENSIONS",
+    ),
+    # publishone2 is the ZIP-capable sibling of the publishone feed: the drop folder receives either
+    # a plain feed XML (handled exactly like publishone) or a ZIP holding feed XML plus the image
+    # files those documents reference. Archive images are described by a vision model at ingestion
+    # time and mirrored alongside the documents, which is what lets the bot both answer from and
+    # display them.
+    "publishone2": FeedDefinition(
+        name="publishone2",
+        source_prefix="nerilio/Nerilio-Amsterdam-ZIP-zip",
+        target_prefix="publishone2",
+        category="publishone2",
+        allowed_extensions=(".xml", ".zip"),
+        archive_extensions=(".zip",),
+        source_prefix_env="PUBLISHONE2_AUTO_INDEX_SOURCE_PREFIX",
+        target_prefix_env="PUBLISHONE2_AUTO_INDEX_TARGET_PREFIX",
+        category_env="PUBLISHONE2_AUTO_INDEX_CATEGORY",
+        allowed_extensions_env="PUBLISHONE2_AUTO_INDEX_ALLOWED_EXTENSIONS",
     ),
     "fhg": FeedDefinition(
         name="fhg",
@@ -154,6 +184,39 @@ async def build_fhg_json_sections(*, file, file_processors, category: str) -> li
     ]
 
 
+def build_archive_options(
+    *,
+    target_prefix: str,
+    openai_client,
+    blob_manager,
+) -> FeedArchiveOptions:
+    """Vision describer + description cache for archive images.
+
+    The chat deployment the backend uses by default is a reasoning model, which the describer
+    cannot drive, so the image model is configured separately and defaults to gpt-4.1 (deployed
+    here, vision-capable, non-reasoning). With no OpenAI client the archive still indexes — images
+    are mirrored and displayed, just not transcribed.
+    """
+    describer = None
+    if openai_client is not None:
+        image_model = os.getenv("PUBLISHONE2_IMAGE_MODEL", "gpt-4.1")
+        image_deployment = os.getenv("PUBLISHONE2_IMAGE_DEPLOYMENT", image_model)
+        describer = MultimodalModelDescriber(
+            openai_client=openai_client,
+            model=image_model,
+            deployment=image_deployment if OpenAIHost(os.getenv("OPENAI_HOST", "azure")) == OpenAIHost.AZURE else None,
+            prompt=FEED_IMAGE_DESCRIPTION_PROMPT,
+            max_tokens=int(os.getenv("PUBLISHONE2_IMAGE_MAX_TOKENS", "1500")),
+        )
+
+    return FeedArchiveOptions(
+        describer=describer,
+        description_cache=BlobImageDescriptionCache(blob_manager, f"{target_prefix}/.image-descriptions"),
+        describe_concurrency=int(os.getenv("PUBLISHONE2_IMAGE_CONCURRENCY", str(DEFAULT_DESCRIBE_CONCURRENCY))),
+        max_images=int(os.getenv("PUBLISHONE2_IMAGE_MAX_PER_ARCHIVE", str(DEFAULT_MAX_IMAGES_PER_ARCHIVE))),
+    )
+
+
 def build_auto_indexer(
     *,
     feed: FeedDefinition,
@@ -163,12 +226,18 @@ def build_auto_indexer(
     embeddings,
     embedding_field_name: str,
     file_processors,
+    openai_client=None,
 ) -> AutoBlobIndexer:
     source_prefix = resolve_feed_value(feed.source_prefix_env, feed.source_prefix)
     target_prefix = resolve_feed_value(feed.target_prefix_env, feed.target_prefix)
     category = resolve_feed_value(feed.category_env, feed.category)
     allowed_extensions_raw = os.getenv(feed.allowed_extensions_env) if feed.allowed_extensions_env else None
     allowed_extensions = parse_allowed_extensions(allowed_extensions_raw, feed.allowed_extensions)
+    archive_options = (
+        build_archive_options(target_prefix=target_prefix, openai_client=openai_client, blob_manager=blob_manager)
+        if feed.archive_extensions
+        else None
+    )
 
     return AutoBlobIndexer(
         config=AutoBlobIndexerConfig(
@@ -179,7 +248,9 @@ def build_auto_indexer(
             allowed_extensions=allowed_extensions,
             manage_search_index=False,
             remove_by_storage_url=feed.name == "fhg",
+            archive_extensions=frozenset(feed.archive_extensions),
         ),
+        archive_options=archive_options,
         blob_manager=blob_manager,
         search_manager=SearchManager(
             search_info=search_info,
@@ -321,18 +392,21 @@ def configure_global_settings() -> None:
         azure_openai_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
     )
 
+    # The OpenAI client is shared by the embeddings service and the archive image describer, so it
+    # is built even when vectors are off.
+    openai_host = OpenAIHost(os.getenv("OPENAI_HOST", "azure"))
+    openai_client, azure_openai_endpoint = setup_openai_client(
+        openai_host=openai_host,
+        azure_credential=azure_credential,
+        azure_openai_service=os.getenv("AZURE_OPENAI_SERVICE"),
+        azure_openai_custom_url=os.getenv("AZURE_OPENAI_CUSTOM_URL"),
+        azure_openai_api_key=os.getenv("AZURE_OPENAI_API_KEY_OVERRIDE"),
+        openai_api_key=os.getenv("OPENAI_API_KEY"),
+        openai_organization=os.getenv("OPENAI_ORGANIZATION"),
+    )
+
     embeddings = None
     if use_vectors:
-        openai_host = OpenAIHost(os.getenv("OPENAI_HOST", "azure"))
-        openai_client, azure_openai_endpoint = setup_openai_client(
-            openai_host=openai_host,
-            azure_credential=azure_credential,
-            azure_openai_service=os.getenv("AZURE_OPENAI_SERVICE"),
-            azure_openai_custom_url=os.getenv("AZURE_OPENAI_CUSTOM_URL"),
-            azure_openai_api_key=os.getenv("AZURE_OPENAI_API_KEY_OVERRIDE"),
-            openai_api_key=os.getenv("OPENAI_API_KEY"),
-            openai_organization=os.getenv("OPENAI_ORGANIZATION"),
-        )
         embeddings = setup_embeddings_service(
             openai_host,
             open_ai_client=openai_client,
@@ -360,6 +434,7 @@ def configure_global_settings() -> None:
             embeddings=embeddings,
             embedding_field_name=embedding_field_name,
             file_processors=file_processors,
+            openai_client=openai_client,
         )
         for feed_name, feed in FEED_DEFINITIONS.items()
     }
@@ -410,6 +485,26 @@ async def publishone_delete_sync(event: func.EventGridEvent) -> None:
         await handle_delete_event(event, "publishone")
     except Exception:
         logger.exception("Unhandled exception in publishone_delete_sync")
+        raise
+
+
+@app.function_name(name="publishone2_auto_index")
+@app.event_grid_trigger(arg_name="event")
+async def publishone2_auto_index(event: func.EventGridEvent) -> None:
+    try:
+        await handle_create_event(event, "publishone2")
+    except Exception:
+        logger.exception("Unhandled exception in publishone2_auto_index")
+        raise
+
+
+@app.function_name(name="publishone2_delete_sync")
+@app.event_grid_trigger(arg_name="event")
+async def publishone2_delete_sync(event: func.EventGridEvent) -> None:
+    try:
+        await handle_delete_event(event, "publishone2")
+    except Exception:
+        logger.exception("Unhandled exception in publishone2_delete_sync")
         raise
 
 

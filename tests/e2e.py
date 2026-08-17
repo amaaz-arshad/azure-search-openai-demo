@@ -768,6 +768,107 @@ def test_bbsa_forces_german_for_english_browser_locale(browser: Browser, live_se
         context.close()
 
 
+def fulfill_chat_stream_answer(route: Route, answer: str) -> None:
+    """Fulfill /chat/stream with a synthetic answer, reusing the snapshot's context envelope."""
+    with open(
+        "tests/snapshots/test_app/test_chat_stream_text/client0/result.jsonlines", encoding="utf-8"
+    ) as snapshot_file:
+        envelope = snapshot_file.readline().rstrip("\n")
+    body = "\n".join(
+        [
+            envelope,
+            json.dumps({"delta": {"content": None, "role": "assistant"}}),
+            json.dumps({"delta": {"content": answer, "role": None}}),
+        ]
+    )
+    route.fulfill(
+        body=body,
+        status=200,
+        headers={"Transfer-encoding": "Chunked", "Content-Type": "application/x-ndjson"},
+    )
+
+
+def test_publishone2_answer_renders_a_same_origin_document_image(page: Page, live_server_url: str):
+    """publishone2 documents can carry their data in a picture (a menu table, a chart), so the
+    ingested chunk holds a Markdown image pointing at the mirrored blob and the model reproduces
+    that line. The shared answer renderer must accept a same-origin path for it to show at all."""
+    page.route(
+        "*/**/chat/stream",
+        lambda route: fulfill_chat_stream_answer(
+            route,
+            "Am Mittwoch gibt es Lasagne al Forno.\n\n"
+            "![Der Speiseplan](/content/publishone2/nerilio2/images/8798.jpg)",
+        ),
+    )
+    # The image request never reaches blob storage in the test environment.
+    page.route("*/**/content/publishone2/**", lambda route: route.fulfill(status=200, body="", content_type="image/jpeg"))
+
+    page.goto(f"{live_server_url}publishone2")
+
+    question_input = page.get_by_placeholder("Type your message")
+    question_input.click()
+    question_input.fill("Was gibt es Mittwoch zu essen?")
+    page.get_by_label("Submit question").click()
+
+    expect(page.get_by_text("Am Mittwoch gibt es Lasagne al Forno.")).to_be_visible()
+    expect(page.locator('img[src="/content/publishone2/nerilio2/images/8798.jpg"]')).to_be_visible()
+
+
+def test_answer_images_reject_off_origin_and_script_sources(page: Page, live_server_url: str):
+    """The allow-list that lets /content/... through must not let anything else in. Protocol-relative
+    sources are the trap: "//evil.test/x.png" starts with "/" but leaves the origin."""
+    page.route(
+        "*/**/chat/stream",
+        lambda route: fulfill_chat_stream_answer(
+            route,
+            "Answer text.\n\n"
+            "![protocol relative](//evil.test/x.png)\n\n"
+            "![backslash](/\\evil.test/x.png)\n\n"
+            "![script](javascript:alert(1))",
+        ),
+    )
+
+    page.goto(f"{live_server_url}publishone2")
+
+    question_input = page.get_by_placeholder("Type your message")
+    question_input.click()
+    question_input.fill("Show me something")
+    page.get_by_label("Submit question").click()
+
+    expect(page.get_by_text("Answer text.")).to_be_visible()
+    # Each rejected source degrades to its alt text instead of rendering an <img>.
+    assert page.locator('img[src*="evil.test"]').count() == 0
+    assert page.locator('img[src^="javascript:"]').count() == 0
+    expect(page.get_by_text("protocol relative")).to_be_visible()
+
+
+def test_publishone2_follows_the_browser_locale_unlike_publishone(browser: Browser, live_server_url: str):
+    """publishone is pinned to English; publishone2's corpus mixes German and English documents, so
+    its UI and its chat `language` override both follow the browser."""
+    context = browser.new_context(locale="de-DE")
+    page = context.new_page()
+    captured_language: dict[str, str] = {}
+
+    def handle_chat_stream(route: Route):
+        captured_language["value"] = route.request.post_data_json["context"]["overrides"]["language"]
+        fulfill_chat_stream_snapshot(route, "tests/snapshots/test_app/test_chat_stream_text/client0/result.jsonlines")
+
+    page.route("*/**/chat/stream", handle_chat_stream)
+
+    try:
+        page.goto(f"{live_server_url}publishone2")
+
+        question_input = page.get_by_placeholder("Geben Sie Ihre Nachricht ein")
+        expect(question_input).to_be_visible()
+        question_input.fill("Was gibt es zu essen?")
+        page.get_by_label("Frage einreichen").click()
+
+        expect(page.get_by_text("The capital of France is Paris.")).to_be_visible()
+        assert captured_language["value"] == "de"
+    finally:
+        context.close()
+
+
 def test_bbsa_navbar_is_light_but_the_theme_root_keeps_the_brand_color(page: Page, live_server_url: str):
     """The bbsa wordmark is dark-on-opaque-white, so its navbar is repainted white in the bot's own
     Layout.module.css by redefining the navbar tokens in the header's OWN scope. The theme root must
