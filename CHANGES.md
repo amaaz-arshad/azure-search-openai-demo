@@ -15,6 +15,153 @@ Two categories per date:
 
 ---
 
+## 2026-08-16
+
+### publishone2: a second PublishOne bot that reads ZIP packages, understands their images, and shows them
+
+#### Decisions
+
+- **Requested: a second bot, `publishone2`, whose indexer watches
+  `content/nerilio/Nerilio-Amsterdam-ZIP-zip/`, mirrors into `content/publishone2/` and indexes
+  under `category=publishone2` — handling both ZIP packages and plain feed XML — so that images
+  referenced by PublishOne documents can be both understood and displayed.** The existing
+  `publishone` bot is untouched.
+- **The two sample packages defined the requirement.** `nerilio-p1.zip` is `Tiroler Städte.xml` +
+  a photo of Innsbruck (the XML carries the content, the image is illustrative). `nerilio2.zip` is
+  `Speiseplan.xml` + a **canteen menu table rendered as a picture**: the XML body is one line
+  ("Der Speiseplan für die KW 31") and every fact a user could ask about lives inside the image. So
+  a caption is useless — the table has to be *transcribed* into searchable text — and the picture
+  has to be displayable next to the answer.
+- **Ingestion-time description, NOT `USE_MULTIMODAL`.** The repo's built-in multimodal stack stays
+  off, deliberately: its figure extraction lives only in `DocumentAnalysisParser` (Document
+  Intelligence, PDF-only) and XML never reaches it; the env also sets `USE_LOCAL_PDF_PARSER=true`,
+  so even PDFs bypass it; enabling it means new Azure resources, an index schema change and a full
+  re-index for one bot's benefit; and query-time image passing would still not make the menu table
+  **searchable**. Transcribing the image into the chunk text is what makes "Was gibt es Mittwoch?"
+  retrieve the right document at all. No search-index schema change was made anywhere.
+- **Images that exist only as an external PublishOne URL keep today's behaviour.** The loose XMLs
+  and the whole existing `publishone` corpus (`Product.xml` alone has 188 `<img>` tags) reference
+  images at `snap-em.publishone.nl`, which we cannot fetch. Those still render as the legacy
+  `Image: <url> (id: …)` line. Only images shipped **inside a ZIP** are described and displayed. No
+  credentials, no fetching, no risk to `publishone`.
+- **The bot follows the browser locale (de/en/nl), unlike `publishone`, which is pinned to
+  English.** The corpus mixes German (Speiseplan, Innsbruck) and English (PublishOne Guidebook)
+  documents. Concretely this is `i18n/config.ts` registering all three bundles with
+  `LanguageDetector`, `Chat.tsx` sending `i18n.language` instead of a literal `"en"`, and — the
+  part that is easy to get wrong — `config.py` leaving `language_locale=None`, because
+  `render_chatbot_prompt` only falls through to the request language when that field is unset.
+- **Citations keep `publishone`'s existing `https://amsterdam.publishone.nl/document/{id}/content`
+  template**, chosen over the `snap-em` host the ZIP assets come from, and over file-based
+  citations into the mirrored XML.
+- **Images are model-emitted Markdown, not a deterministic citation attachment.** The chunk text
+  carries `![name](/content/publishone2/…)` and the prompt tells the model to reproduce that line
+  verbatim when the answer draws on the image. This needed the shared answer renderer's image
+  allow-list widened to same-origin paths — it previously accepted only `https://`, `http://` and
+  `data:image/`, so `/content/...` silently degraded to alt text. A **relative** path is deliberate:
+  ingestion runs in an Azure Function that cannot know the public origin, and a leading-slash path
+  is correct on the bot route, inside the `/embed/<publicId>` iframe, and behind the vite dev proxy
+  alike. Protocol-relative sources are rejected explicitly.
+- **Every chunk of a split document repeats its image reference.** Found while verifying against
+  the real `nerilio2.zip`: the menu transcription splits into five chunks and only the first
+  carried the Markdown image line, so a question answered from a later chunk could never show the
+  picture the answer came from. `append_image_trailer` re-appends the reference (never the
+  transcription, so nothing is embedded twice), capped at `MAX_TRAILER_IMAGES = 3`.
+- **Archive detection sniffs the payload, not just the extension.** Found by ingesting the real
+  folder: `b8b748e24a5e44d5b792ceaaafe77b9d.xml` is not XML at all — it is a **ZIP** (magic bytes
+  `PK\x03\x04`) holding `PublishOne Guidebook.xml` plus 16 PNGs. Real exports name the file after
+  the document id and lose the container type, so extension-only detection crashed on it with
+  `ParseError: not well-formed`. `looks_like_zip` now decides, and only for feeds that have
+  archives enabled, so `publishone`/`moodle` cannot change behaviour. Delete has no payload to
+  sniff, so an archive-capable feed always clears the package prefix first and treats a non-empty
+  purge as proof it was a package; a plain document then falls through to the single-file delete.
+- **A chunk split can cut an image link in half, and that had to be repaired.** One chunk of 457
+  ended with `![Picture 3](/content/…/15802.` — Markdown does not recognise a half-link as an
+  image, so it would have rendered as literal junk text in an answer.
+  `strip_truncated_image_links` drops the cut opener (the complete reference is re-appended by the
+  trailer). Verified in the live index afterwards: 117 well-formed image links, 0 truncated.
+- **The describer defaults to `gpt-4.1`, not the deployment's chat model.** The Function App's
+  `AZURE_OPENAI_CHATGPT_DEPLOYMENT` is `gpt-5.4-mini`, a reasoning model, and the existing
+  `MultimodalModelDescriber` sent `max_tokens` + `seed`, which reasoning models reject outright.
+  The describer now branches to `max_completion_tokens` when pointed at one, and defaults to
+  `gpt-4.1` (deployed here, vision-capable, non-reasoning). Its prompt is transcribe-first with a
+  1500-token budget — the stock 5-sentence caption prompt at 500 tokens cannot hold a 7×5 menu
+  table with allergen codes.
+- **Archive mode is opt-in per feed and namespaced by the package.** Everything mirrored out of an
+  archive lives under `<target_prefix>/<archive stem>/`, and that whole prefix is purged before
+  re-indexing as well as on delete — so a package whose contents shrank leaves no orphans. The
+  `publishone` feed cannot treat a stray `.zip` as an archive, and its prefix cannot swallow the new
+  folder (`nerilio/Nerilio-Amsterdam-ZIP-zip/…` does not start with `nerilio/Nerilio-Amsterdam/`).
+- **No infra change and no new azd variable were needed.** `appEnvVariables` is already unioned into
+  the auto-indexer Function's app settings and `functions-rbac.bicep` already grants its identity
+  access to the OpenAI account, so the describer reuses what is there; the new
+  `PUBLISHONE2_IMAGE_*` settings all default in code, exactly as the publishone/fhg/content2 feeds
+  already do.
+- **Pagination bug fixed while adding the prefix selector.** `SearchManager.remove_content` applies
+  `storage_url_suffix`/`prefix` client-side, and its loop re-ran the *same* query when a page
+  matched the OData filter but yielded nothing to delete — fine for the existing filename-scoped
+  filters, an infinite loop for a category-wide one. It now advances with `skip`.
+
+#### Changes
+
+- Added `app/backend/prepdocslib/feedarchive.py`: ZIP expansion, asset-key resolution
+  (`po-ref-id` → nested `<asset id>` → `href` tail), bounded-concurrency description with a
+  per-archive cap, the blob-backed description cache (`sha256` + prompt version), and the mirror
+  path/public path helpers.
+- `app/backend/prepdocslib/publishonefeed.py`: added `publishone2` to `FEED_CATEGORIES`; added the
+  optional `image_bundle` parameter and a `ContextVar` so the deep synchronous renderer can reach
+  it; `describe_image_element` now renders label + Markdown image + transcription on a bundle hit
+  and is **byte-identical to before on a miss**; added `append_image_trailer`.
+- `app/backend/prepdocslib/blobautoindex.py`: `archive_extensions` config, `index_archive_blob`,
+  `purge_package`, and the archive branch in `delete_blob`.
+- `app/backend/prepdocslib/mediadescriber.py`: `prompt`/`max_tokens` parameters, reasoning-model
+  branch, media-type sniffing for the data URI (it hardcoded `image/png` for JPEG payloads), and
+  `FEED_IMAGE_DESCRIPTION_PROMPT`.
+- `app/backend/prepdocslib/searchmanager.py`: `storage_url_prefix` selector + skip-based paging.
+- `app/functions/moodle_auto_indexer/function_app.py`: the `publishone2` feed definition,
+  `build_archive_options`, the `publishone2_auto_index`/`publishone2_delete_sync` Event Grid
+  functions, and the OpenAI client hoisted out of the `use_vectors` branch.
+- `scripts/setup_moodle_delete_event_subscription.py`: the `publishone2` subscription pair, with no
+  suffix filter so both `.zip` and `.xml` events arrive.
+- Added `app/backend/prep_publishone2_zip.py`: manual ingest driving the *same* `AutoBlobIndexer`
+  archive path, plus `--dry-run` (describe + print, no writes) — which is how the pipeline was
+  verified against both real ZIPs.
+- Added the backend bot `app/backend/approaches/chatbots/publishone2/` and registered it in
+  `chatbot_prompt_registry.py`, `KNOWN_CHATBOT_NAMES`, `EMBED_LAUNCHER_COLORS` and
+  `embed_public_ids.py` (`mj28aprop3`). The prompt gains an **Images** section.
+- Added the frontend bot `app/frontend/src/chatbots/publishone2/` (clone of `publishone`) and
+  registered it in `registry.ts`, `chatbotThemes.ts` and `chatbotSpeechFeatureFlags.ts`. Its de/nl
+  bundles were missing `inputDisclaimer`, which `Chat.tsx` renders unconditionally — harmless while
+  only `en` was registered, a visible key name once all three are.
+- `app/frontend/src/chatbots/shared/answer/ChatbotAnswer.tsx`: same-origin paths added to
+  `allowedImageSrc`.
+- Ran `python scripts/copy_prepdocslib.py`.
+- Tests: new `tests/test_feedarchive.py`; archive cases in `tests/test_blobautoindex.py`; bundle
+  hit/miss, trailer and no-leak cases in `tests/test_publishonefeed.py`; the `publishone2` function
+  and subscription cases in `tests/test_function_apps.py`; image-render, allow-list-rejection and
+  locale cases in `tests/e2e.py`.
+- **Verified the deployed pipeline with a real delete + re-upload of all six blobs.** Both Event
+  Grid handlers fire and complete in ~10 s. The run caught one thing worth recording: the build
+  deployed at 15:55 UTC was packaged minutes *before* the ZIP-sniffing fix landed, so deleting the
+  ZIP-named-`.xml` package left 116 documents and 17 blobs orphaned — precisely the pre-fix
+  behaviour. After `azd deploy moodle-auto-indexer`, deleting that same file removed all 116 docs
+  and all 17 blobs, and re-uploading restored them exactly. **`azd deploy` packages the library via
+  its `prepackage` hook at the start of the run, so a deploy started before an edit ships the old
+  code even if it finishes after** — worth remembering when verifying a just-changed feed.
+- **Source-data quirk in the guidebook package, handled but worth reporting upstream:** it ships
+  `19304.png`, which the document never references, and the document references asset `15792`,
+  which is not in the package. The unresolvable reference falls back to the legacy `Image: <url>`
+  line and the unused image is simply mirrored — which is why 18 images are mirrored but only 17
+  distinct paths are referenced by chunks.
+- **Ingested the whole `Nerilio-Amsterdam-ZIP-zip` folder into category `publishone2`: 457 search
+  documents from 6 source files** (2 ZIPs, 1 ZIP-named-`.xml`, 3 plain XML), 18 images described
+  and mirrored. Note for whoever curates that folder: `72d62000…xml` and `cf558ef5…xml` are
+  **byte-identical duplicates**, and `999fe7ad…xml` is the same PublishOne Guidebook that the
+  `b8b748e2…` package contains with its images — so the guidebook is currently indexed three times
+  over (~333 of the 457 documents). That is a data-hygiene question for the source side, not a
+  pipeline bug, but duplicate content does degrade retrieval.
+
+---
+
 ## 2026-08-14
 
 ### HYROX assessment: per-visit tracking and a monthly CSV export in the admin backend
