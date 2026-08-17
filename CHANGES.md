@@ -15,6 +15,343 @@ Two categories per date:
 
 ---
 
+## 2026-08-17
+
+### `/bbsa`: speak-answer button now uses `de-AT-JonasNeural` (per-bot voice, not deployment-wide)
+
+#### Decisions
+
+- **Requested: switch bbsa's speaker output from `de-DE-Florian:DragonHDLatestNeural` to
+  `de-AT-JonasNeural`, matching the live avatar.**
+- **This could NOT be done by changing `AZURE_SPEECH_SERVICE_VOICE`.** That env var is
+  deployment-wide and is read by the speak-answer button on *every* speech-enabled bot — agindo,
+  cbtx, demo, fbn, free, internal, knoll, lemon, moodle, rak, sartorius, steuertipps, vjoonk4 and
+  bbsa all share it. Repointing it would have given all of them an Austrian voice. The request was
+  explicitly scoped to bbsa, so the fix had to be per-bot.
+- **The override lives in the bot's existing backend `config.py`**, as a new optional
+  `ChatbotConfig.speech_voice`. That is the established home for per-bot backend behaviour
+  (alongside `language_locale`, `citation_target`, model overrides), it is committed rather than
+  environment state, and it needs no new azd variable or infra change. `None` — every other bot —
+  means "use the deployment voice", so nothing else moves.
+- **`/speech/token` gained an optional `?chatbot=` parameter** and `resolve_speech_voice`. The
+  frontend identifies the bot; the endpoint resolves the override and falls back to the
+  deployment voice. The parameter only ever selects a voice string.
+- **That parameter is public input feeding toward `import_module`, so it is gated on
+  `KNOWN_CHATBOT_NAMES`.** `normalize_chatbot_name` only strips and lowercases — it does not
+  sanitise — and `load_chatbot_config` logs a full traceback for anything that fails to import.
+  Without the gate, `?chatbot=<junk>` was both an arbitrary import attempt and a way to flood the
+  logs with stack traces; verified before and after (the tracebacks are gone, the fallback is
+  unchanged).
+- **The frontend token cache is now keyed by bot name.** The response carries that bot's `voice`,
+  so a single shared cache entry could serve bbsa a token minted for the deployment default.
+- **Quality trade-off, stated for the record:** `de-DE-Florian:DragonHDLatestNeural` is a
+  higher-fidelity HD voice; `de-AT-JonasNeural` is a standard neural voice. There is no de-AT HD
+  or multilingual voice at all, so this trades fidelity for the correct Austrian accent — the
+  right call for a Tirol audience, and it now matches the avatar.
+- **Verified:** against the live backend, `?chatbot=bbsa` → `de-AT-JonasNeural` while `lemon`,
+  `cbtx`, `free` and the no-parameter default all still return
+  `de-DE-Florian:DragonHDLatestNeural`; unknown/`../etc`/empty names fall back cleanly. In a real
+  browser the speak-answer button requests `?chatbot=bbsa` and synthesizes with no SDK error.
+
+#### Changes
+
+- `app/backend/approaches/chatbots/chatbot_config.py`: new optional `speech_voice`.
+- `app/backend/approaches/chatbots/bbsa/config.py`: `speech_voice="de-AT-JonasNeural"`.
+- `app/backend/app.py`: `resolve_speech_voice` (gated on `KNOWN_CHATBOT_NAMES`), `/speech/token`
+  honours `?chatbot=`.
+- `shared/speech/azureSpeech.ts`: `getSpeechToken(forceRefresh, chatbotName)`, per-bot cache.
+- `shared/speech/SpeechOutputAzureButton.tsx`: optional `chatbotName` prop.
+- `bbsa/components/Answer/SpeechOutputAzure.tsx`: shim now injects `chatbotName="bbsa"`.
+- `tests/test_app.py` (3 tests: default, per-bot, unknown-name fallback);
+  `tests/test_chatbot_config_registry.py` (asserts bbsa is the only bot overriding).
+
+---
+
+### `/bbsa`: the live-avatar control is now a proper launcher, not an icon button
+
+#### Decisions
+
+- **Reported: the avatar control "looks very bad" — use what other sites use as the norm.** Fair.
+  It was `VideoPerson24Regular`, a thin outline glyph on a transparent background, which reads as
+  an ID-badge and as a minor toolbar action.
+- **The glyph was only half the problem.** Checking current widget-launcher guidance, the norm is
+  a **solid circle in the product's accent colour, roughly 48-64px, with a soft shadow** and
+  explicitly **no attention-seeking pulse or bounce** at rest. A bare outline glyph was never going
+  to look premium regardless of which glyph it was, so the whole treatment changed: 3rem circle,
+  brand teal, white glyph, shadow, and a hover lift.
+- **Glyph: `VideoPersonSparkle24Filled`** — a person in a video frame plus the sparkle that now
+  universally marks AI. That pairing is deliberate: the same guidance is blunt that a persona must
+  not imply a human is present, and the sparkle keeps it honest while still promising a face rather
+  than a text box. `VideoPersonOff24Filled` mirrors it for the stop state.
+- **The accent comes from `--chatbot-user-bubble-background`, NOT `--chatbot-navbar-background`.**
+  bbsa repaints the navbar white in the header scope, so that token is not a dependable brand
+  colour; the user bubble is `#032D3C` everywhere. Note the token's value is a *linear-gradient*,
+  so it must be used with the `background` shorthand — `background-color` would silently compute to
+  transparent (which is exactly what the first attempt did).
+- **The panel offset moved 3.25rem → 4.25rem** so the larger launcher and the panel cannot overlap.
+- **Verified:** 48×48, `border-radius: 50%`, shadow present, still `position: absolute` (zero
+  layout height, so the no-page-scrollbar invariant holds — re-asserted empty and with an answer),
+  tooltip still renders, `aria-pressed` reflects state, and the accessible names are unchanged so
+  every existing test still passes (13/13 browser checks).
+
+#### Changes
+
+- `shared/speech/avatar/AvatarToggleButton.tsx`: native `<button>` styled as a launcher, new
+  glyphs, `aria-pressed`.
+- `shared/speech/avatar/AvatarToggleButton.module.css` (new): the launcher treatment.
+- `shared/speech/avatar/AvatarPanel.module.css`: panel top offset clears the launcher.
+
+---
+
+### Local dev: prefer the Azure CLI over the Azure Developer CLI for credentials
+
+#### Decisions
+
+- **Reported: every page 500s locally with `CredentialUnavailableError: Timed out waiting for
+  Azure Developer CLI`.** Not caused by the avatar work — the failing request in the report is
+  `/nerilio`, and `serve_spa_index` needs a storage token for the per-bot `frame-ancestors`
+  whitelist on *every* SPA route, so all bots were equally dead.
+- **Root cause measured, not guessed:** `azd auth token` takes **22-121 seconds** on this machine
+  (still 22-40s with `AZD_SKIP_UPDATE_CHECK=true`, so the update check is not the story), while
+  `az account get-access-token` returns the same scopes in **1.5-3.5s**. The existing
+  `process_timeout=60` therefore could not help: the request in the report burned the full 60s and
+  then failed.
+- **Fix: `ChainedTokenCredential(AzureCliCredential, AzureDeveloperCliCredential)` for local dev.**
+  The chain is deliberate rather than a swap — an absent or unauthenticated `az` raises
+  `CredentialUnavailableError`, which is exactly the signal that makes `ChainedTokenCredential`
+  fall through to azd, so anyone who only has `azd auth login` is unaffected. The managed-identity
+  path used on Azure is untouched.
+- **This also fixed the backend's speech-token cache.** `get_speech_service_token` re-mints
+  whenever the cached token looks expired, and azd was returning tokens stamped as having expired
+  ~1.8 hours ago, so the cache never hit and every `/speech/token` paid a fresh CLI round trip.
+  With `az` the expiry is correct: the second call now returns in **4ms** instead of 20-37s.
+- **Verified:** `/bbsa`, `/nerilio` and `/lemon` all return **200 in ~50ms** (previously 500 after
+  60s), `/config` in 7ms, `/speech/avatar-token` in 0.3s, and the full hands-free avatar loop now
+  passes end to end **against the real backend** rather than against a vite proxy.
+
+#### Changes
+
+- `app/backend/app.py`: import `AzureCliCredential`/`ChainedTokenCredential`; both local branches
+  (with and without `AZURE_TENANT_ID`) now build a CLI-first chain; the annotation and the startup
+  log line follow.
+
+---
+
+### `/bbsa`: hands-free conversation mode for the live avatar
+
+#### Decisions
+
+- **Reported: "the live avatar is not able to listen to anything I'm saying".** Correct, and by
+  design — Azure's is a *text-to-speech* avatar: it renders a face and speaks, and has no
+  microphone at all. The listening half already existed as the composer's mic button, but it
+  dictates into the text box and waits for a press of send, so the two halves never formed a
+  conversation. The user chose to connect them into a full hands-free loop.
+- **Half-duplex, not full duplex.** The avatar's voice comes out of the speakers, so an open
+  microphone transcribes the avatar and answers itself. The microphone is therefore closed for
+  exactly as long as the avatar is talking, and the state machine is written as a single
+  reconciliation (`listen only when the session is ready, the avatar is silent, and no answer is
+  generating`) rather than a chain of events, so there is no ordering in which both can be on.
+- **Two SDK traps in the avatar events, both silent, both found only by logging a live session.**
+  (1) `AvatarEventArgs.type` is always `undefined` in 1.48 — the constructor assigns
+  `privOffset`/`privDescription` and never `privType` — so the name must be read from
+  `description`. (2) **The SDK's `AvatarEventTypes` enum does not match the wire format**: it
+  declares `SwitchedToSpeaking`/`SwitchedToIdle`, but a live session sends
+  **`SwitchToSpeaking`/`SwitchToIdle`** (no "ed"), plus `WebrtcConnected`, `TurnStart`, `TurnEnd`
+  and free-form `Debug info: …` strings. Matching the documented spelling never fires, and the
+  failure is invisible: the avatar speaks normally while the microphone stays open, i.e. it
+  transcribes itself. `classifyAvatarEvent` accepts both spellings and ignores debug payloads.
+  That session also showed **no trailing `SwitchToIdle` after speech**, so `TurnEnd` is treated as
+  end-of-speech — its timing matched playback (2.694s wall-clock after `SwitchToSpeaking` against a
+  2.65s span in the event offsets). Speaking is additionally set **optimistically** when `speak()`
+  is called, because the event arrives ~140ms later and the microphone has to be shut before any
+  audio reaches the speakers; the `speakSsmlAsync` promise (which resolved within 1ms of `TurnEnd`)
+  is kept as a backstop so a future change to the event names cannot stall the conversation.
+- **`AvatarSession.speak` flips the session status to `speaking`, and the panel has to accept
+  that as a live session.** Gating the status bar on `status === "ready"` alone made the entire
+  turn indicator vanish for the duration of every answer — precisely when the user needs telling
+  it is not their turn.
+- **A separate recognizer from the composer mic**, because the two must never hold the microphone
+  at once and this one is started by the state machine rather than by a click. End of turn is a
+  silence debounce on top of Azure's own phrase endpointing (`UTTERANCE_SILENCE_MS = 1500`) so a
+  pause for breath doesn't send half a question.
+- **The recognizer reuses the avatar session's own Speech token instead of calling
+  `/speech/token`.** Found while testing against the real backend: that endpoint takes **20–37
+  seconds** locally, so the microphone did not open until ~24s into the session and looked broken.
+  The avatar token response already carries the same `token`+`region`. Reuse is **not** gated on
+  the reported `expiresAt`: a locally-run backend authenticates with `AzureDeveloperCliCredential`,
+  which returned a token stamped as having expired **1.8 hours ago** while the live avatar was
+  authenticated with it at that very moment — an expiry check rejected a working token and fell
+  back to the slow path. Validity is instead proven by the session being up (and the service caps
+  a session at 30 minutes), with a retry on a fresh token if starting ever fails. Microphone
+  open-time went from ~24s to ~2s. The stale expiry also explains why the backend's token cache
+  never hits locally and every `/speech/token` costs a fresh CLI round trip — pre-existing, and it
+  affects the existing mic and speak-answer buttons too.
+- **A React ref is not a dependency.** The first live run opened no microphone at all: the
+  reconciling effect ran when the status became `ready`, but the listener is created *after*
+  `session.start()` resolves, so `listenerRef.current` was still null and nothing re-triggered the
+  effect. A `listenerReady` state was added to the dependency list. This is precisely the class of
+  bug the browser test caught and type-checking could not.
+- **The whole loop is verified against a REAL Azure avatar session**, not mocks: the avatar speaks
+  the answer, the microphone is proven closed for the duration (`getUserMedia` is counted and the
+  listening flag asserted), the interrupt control appears, and the microphone reopens afterwards.
+  Because the local backend could serve neither `/bbsa` (`serve_spa_index` hangs — `/lemon` and
+  `/snap` hang identically, so it is environmental) nor a timely `/chat`, the final harness mints
+  the Speech token and TURN credentials **directly from Azure with the resource key** and serves
+  them through route mocks: everything on the Azure side stays real while the flaky local pieces
+  are bypassed. Testing also produced a live demonstration of the **2-connections-per-minute
+  quota** — repeatedly reopening sessions left one stuck in "connecting", exactly the throttling
+  flagged in the deploy docs.
+- **The idle timeout must not run while an answer is generating or being spoken.** Those are
+  activity, not idleness; leaving the 90s timer running closed the session moments before the
+  avatar was due to speak (reproduced against the slow local backend — the user asks a question
+  and the avatar silently disappears). A separate, generous `AVATAR_BUSY_TIMEOUT_MS` applies in
+  those states rather than no timeout at all, so a request that never resolves still cannot hold a
+  billing session open to the service's 30-minute cap.
+- **The local backend cannot serve `/bbsa` at all** (`serve_spa_index` hangs; `/lemon` and `/snap`
+  hang identically, so it is environmental and pre-existing). The browser tests therefore run
+  against `vite dev`, whose proxy forwards `/config`, `/chat` and `/speech` to the real backend.
+
+#### Changes
+
+- `app/frontend/src/chatbots/shared/speech/avatar/conversationListener.ts` (new): the microphone
+  half — continuous recognition, silence-debounced turn detection, credentials provider with a
+  one-shot refresh retry.
+- `avatarSession.ts`: `onSpeakingChange` driven by the service's avatar events, the
+  `avatarEventName` workaround, a `credentials` getter for token reuse, and a speaking-false on
+  close so a dropped session can't leave the microphone shut forever.
+- `useAvatarSession.ts`: conversation orchestration (the reconciling effect, `listenerReady`,
+  utterance → send, microphone closed on every teardown path).
+- `AvatarPanel.tsx` + `.module.css`: turn indicator (listening / thinking / speaking), live
+  interim transcript clamped to two lines, and an interrupt button while speaking.
+- `bbsa/pages/chat/Chat.tsx`: passes the conversation config (locale, `busy`, `onUtterance` →
+  `makeApiRequest`) and the new panel props; `i18n` destructured for the recognition locale.
+- bbsa `de`/`en`/`nl`: `avatar.listening`/`speaking`/`thinking`/`starting`/`interrupt`.
+- `docs/deploy_features.md`, `CLAUDE.md`: conversation-mode behaviour and its caveats.
+
+---
+
+### `/bbsa`: live chat avatar (Azure real-time TTS avatar, Austrian German)
+
+#### Decisions
+
+- **Requested: add the Speech Studio "live chat avatar" to `bbsa` with a German (Austria)
+  voice, as a feature separate from the existing speech input/output.** The mic and the
+  per-answer "Antwort sprechen" button are untouched; the avatar is layered alongside them.
+- **Feasibility was verified against the live nerilio Speech resource, not just the docs.**
+  The avatar relay endpoint returns **HTTP 200 in `swedencentral`** (the deployed region), the
+  batch avatar API also returns 200 (so the account is not behind limited-access gating), the
+  tier is already the required `S0`, and both `de-AT` voices are present and GA. So **no new
+  Azure resource, no region move, and no Microsoft registration** — prebuilt avatars are GA and
+  only *custom* avatars are Limited Access. The installed
+  `microsoft-cognitiveservices-speech-sdk@1.48.0` already ships `AvatarConfig`/`AvatarSynthesizer`
+  (added in 1.33.0), so there is no dependency change either.
+- **The browser never receives a Speech key, and that decided the backend shape.** WebRTC needs
+  TURN credentials from the avatar relay endpoint. That endpoint has two hosts and they are not
+  interchangeable: the regional `*.tts.speech.microsoft.com` one accepts **only**
+  `Ocp-Apim-Subscription-Key`, while the custom-subdomain
+  `*.cognitiveservices.azure.com/**tts**/…` one accepts Entra ID `Authorization: Bearer` (note
+  the extra `/tts` segment). This app authenticates with its managed identity and Entra ID auth
+  for Cognitive Services *requires* the custom subdomain, so the backend builds the second form
+  by deriving the account name from `AZURE_SPEECH_SERVICE_ID` — verified: bearer auth returns
+  200 there. Getting this wrong is a silent trap, because the regional host answers 200 with a
+  key locally and then 401s in production.
+- **`GET /speech/avatar-token` is a separate endpoint, not extra fields on `/speech/token`.**
+  It makes a live outbound Azure call on every hit, and `/speech/token` is on the path of the
+  speak-answer button for every speech-enabled bot; folding them together would put a relay
+  request in front of plain text-to-speech, which needs no ICE servers at all.
+- **Only `turn:` URLs are forwarded.** The relay may also return a `stun:` URL; passing it
+  through makes the browser attempt a direct path the avatar service rejects, so the session
+  stalls in ICE gathering rather than failing fast.
+- **The avatar gets its own voice/character/style env.** `AZURE_SPEECH_SERVICE_VOICE` is
+  deployment-wide and shared by every bot's speak-answer button, so reusing it would have
+  changed that voice everywhere the moment the avatar voice was tuned. Defaults:
+  `de-AT-JonasNeural` (male, per the user's choice), character `harry`, style `casual`. There
+  are exactly two `de-AT` voices (`IngridNeural`, `JonasNeural`) and no de-AT HD/multilingual
+  voice, so the character has to match the chosen voice's gender.
+- **Cost drove the interaction design.** Real-time avatar bills **per second the session is
+  open, speaking or not** (~$0.50/min, ≈$30/hour — roughly 100× the audio-only cost), and
+  `/bbsa` is ungated and publicly embeddable. So the session is opt-in behind a button (never
+  on page load, which was explicitly rejected), auto-speaks while open, and is closed by the
+  hook on idle, on tab hide, on unmount and on unload.
+- **The layout constraint was the main regression risk.** bbsa's chat is sized
+  `calc(100vh - 56px)` in two places and two e2e tests assert the document never exceeds the
+  viewport — the same invariant a 2px navbar border broke once before. The toggle and panel are
+  therefore `position: absolute` inside `.chatRoot` and add **zero** layout height, rather than
+  sitting in normal flow between navbar and chat (which would have needed the Free Bot's
+  measured-CSS-variable treatment).
+- **The panel is hidden, not unmounted, while idle.** `AvatarSession.start()` binds the WebRTC
+  tracks straight to the `<video>`/`<audio>` refs, so those elements must already exist at the
+  moment the user clicks start; unmounting them would also drop the stream mid-session.
+- **Auto-speak is deliberately not guarded on a captured `avatar.isActive`.** It runs after an
+  await, so that value would be stale for a user who opens the avatar while the answer is still
+  generating; `speak` reads the session ref instead and no-ops when no session is open.
+- **Speech text reuses the existing pipeline rather than a second implementation.**
+  `cleanSpeechText` was exported (and `ChatAppResponseLike` with it) so `prepareAnswerForSpeech`
+  composes the exact `parseAnswerToMarkdown` → `stripCitationLinks` → `cleanSpeechText` chain the
+  speak-answer button uses; a parallel implementation would drift into reading markdown or "[1]".
+- **`showSpeechAvatar` is an optional field on `ChatbotSpeechVisibility`**, so the ~20 other bot
+  entries need no value. Absent means off, which is the cost-safe default.
+- **A self-review found one real UI bug and one piece of insurance.** The real one: in
+  `useAvatarSession`'s failure path, `session.close()` reports `"idle"`, so calling it *after*
+  `setStatus("error")` let the batched update land on `"idle"` — the panel hid itself and the
+  user was told nothing when the token/relay call failed. Teardown now runs first. Verified by
+  forcing `/speech/avatar-token` to 500 in a browser: before, the panel vanished silently;
+  after, it stays up and shows the message (and `getAvatarToken` now unwraps the backend's
+  `{"error": …}` so the panel shows the sentence rather than raw JSON). The insurance:
+  `AvatarSession.close()` no longer early-returns when already closed, so it always tears down
+  whatever it holds. That leak is **not reachable today** — everything between the cancel guard
+  and the peer-connection assignment is synchronous, and a browser check confirmed the old code
+  passed too — but an early return would silently convert any future `await` added in that
+  stretch into a live, billing avatar, which is the most expensive failure this file has.
+- **Verification.** 7 new unit tests pass; `tsc --noEmit`, `npm run build` and `az bicep build`
+  are clean; `ty check` on the new module is clean and app.py's 28 diagnostics are all
+  pre-existing (none mention speech/avatar). `test_app.py` still cannot start offline
+  (`FreeAuthStore.setup` reaches real blob storage — the long-standing baseline), so the new
+  route was verified through the **real route code** on a bare Quart app with the blueprint
+  registered: 200 with the full payload when enabled, 400 when disabled. The UI was verified in
+  a real Chromium against `vite dev` with route mocks — 12/12 checks, including that the
+  document does not overflow the viewport empty or with an answer, that the mic and speak
+  buttons survive, that `/speech/avatar-token` is fetched on click, and that no raw i18n keys
+  render.
+- **Still to do on the Azure side (not code):** file the quota increase for "New connections per
+  minute for real-time text-to-speech avatar" (default **2/min** per resource is an arrival
+  rate, not a concurrency cap, so a public bot throttles on the third simultaneous starter), and
+  judge the `de-AT` lip-sync quality in the Foundry avatar playground — Microsoft publishes no
+  guidance on non-en-US lip sync, and character/style are one-line env changes.
+
+#### Changes
+
+- `app/backend/core/speechavatar.py` (new): relay-token URL construction from the resource id,
+  `turn:`-only ICE shaping, and the aiohttp fetch (split into `fetch_ice_servers_from_url` so the
+  real HTTP path is testable).
+- `app/backend/app.py`: `GET /speech/avatar-token`; `showSpeechAvatar` in `/config`;
+  `USE_SPEECH_AVATAR` + `AZURE_SPEECH_AVATAR_VOICE`/`_CHARACTER`/`_STYLE` env reads and config
+  wiring; the avatar added to the Speech-service startup requirement.
+- `app/backend/config.py`: four new `CONFIG_SPEECH_AVATAR_*` keys.
+- `app/frontend/src/chatbots/shared/speech/avatar/` (new): `avatarSession.ts` (SDK + WebRTC
+  lifecycle, SSML with `leadingsilence-exact`), `useAvatarSession.ts` (idle/visibility/unload
+  cost guards), `AvatarPanel.tsx` + `.module.css`, `AvatarToggleButton.tsx`,
+  `avatarSpeechText.ts`, `index.ts`.
+- `app/frontend/src/chatbots/shared/speech/azureSpeech.ts`: `getAvatarToken()` + its types
+  (uncached by design — credentials are minted per session), unwrapping the backend's
+  `{"error": …}` body for display.
+- `app/frontend/src/chatbots/shared/speech/chatbotSpeechFeatureFlags.ts`: optional
+  `showSpeechAvatar`, `true` for `bbsa`, ANDed in `applyChatbotSpeechFeatureFlags`.
+- `app/frontend/src/chatbots/shared/answer/ChatbotAnswer.tsx`: exported `cleanSpeechText`;
+  `answerParsing.ts`: exported `ChatAppResponseLike`.
+- `app/frontend/src/chatbots/bbsa/`: `pages/chat/Chat.tsx` (hook, flag, auto-speak, render),
+  `pages/chat/Chat.module.css` (`.chatRoot` anchor + `.avatarToggle`), `api/models.ts`, and the
+  `avatar.*` keys in all three locales.
+- `infra/main.bicep` (+ `useSpeechService` var so the Speech account is created when either
+  feature is on), `infra/main.parameters.json`, `.azdo/pipelines/azure-dev.yml`,
+  `.github/workflows/azure-dev.yml`: the four new azd variables.
+- `tests/test_speechavatar.py` (new, 7 tests); `tests/test_app.py` (3 endpoint/config tests);
+  `tests/e2e.py` (`test_bbsa_live_avatar_is_offered_without_costing_the_page_any_height`).
+- `docs/deploy_features.md`: a "Live avatar" section with the cost/quota/region caveats;
+  `CLAUDE.md`: a live-avatar contract bullet and a pointer from the `bbsa` bullet.
+
+---
+
 ## 2026-08-16
 
 ### publishone2: a second PublishOne bot that reads ZIP packages, understands their images, and shows them
