@@ -19,7 +19,9 @@ from azure.cognitiveservices.speech import (
     SpeechSynthesizer,
 )
 from azure.identity.aio import (
+    AzureCliCredential,
     AzureDeveloperCliCredential,
+    ChainedTokenCredential,
     ManagedIdentityCredential,
     get_bearer_token_provider,
 )
@@ -108,7 +110,7 @@ from quart import (
 from quart_cors import cors
 
 from approaches.approach import Approach, DataPoints
-from approaches.chatbot_config_registry import load_all_chatbot_configs
+from approaches.chatbot_config_registry import load_all_chatbot_configs, load_chatbot_config
 from approaches.chatbot_prompt_registry import (
     CHATBOT_NAME_ALIASES,
     DEFAULT_CHATBOT_NAME,
@@ -175,6 +177,10 @@ from config import (
     CONFIG_SEMANTIC_RANKER_DEPLOYED,
     CONFIG_SHAREPOINT_SOURCE_ENABLED,
     CONFIG_SIMPLE_CHATBOT_AUTH_SERVICE,
+    CONFIG_SPEECH_AVATAR_CHARACTER,
+    CONFIG_SPEECH_AVATAR_ENABLED,
+    CONFIG_SPEECH_AVATAR_STYLE,
+    CONFIG_SPEECH_AVATAR_VOICE,
     CONFIG_SPEECH_INPUT_ENABLED,
     CONFIG_SPEECH_OUTPUT_AZURE_ENABLED,
     CONFIG_SPEECH_OUTPUT_BROWSER_ENABLED,
@@ -217,6 +223,7 @@ from core.freeauth import (
 )
 from core.hubspot import HubSpotContactStore
 from core.sessionhelper import create_session_id
+from core.speechavatar import fetch_avatar_ice_servers
 from core.simplechatbotauth import (
     SIMPLE_CHATBOT_AUTH_INVALID_CREDENTIALS_MESSAGE,
     SIMPLE_CHATBOT_AUTH_REQUIRED_MESSAGE,
@@ -1415,6 +1422,29 @@ def get_speech_service_auth_token() -> str:
     )
 
 
+def resolve_speech_voice(chatbot_name: str | None) -> str:
+    """Pick the speak-answer voice for a chatbot, falling back to the deployment default.
+
+    AZURE_SPEECH_SERVICE_VOICE is shared by every speech-enabled bot, so a bot that needs a
+    different voice sets `speech_voice` in its own config.py rather than moving the env var and
+    silently repointing all the others.
+    """
+    default_voice = current_app.config[CONFIG_SPEECH_SERVICE_VOICE]
+    if not chatbot_name:
+        return default_voice
+
+    normalized_name = normalize_chatbot_name(chatbot_name)
+    # Gate on the known set before touching the config registry. This value comes straight off a
+    # public query string, and `load_chatbot_config` feeds it into `import_module` and logs a full
+    # traceback for anything that doesn't resolve — so without this an unknown name is both an
+    # arbitrary import attempt and a way to flood the logs.
+    if not normalized_name or normalized_name not in KNOWN_CHATBOT_NAMES:
+        return default_voice
+
+    chatbot_config = load_chatbot_config(normalized_name)
+    return (chatbot_config.speech_voice if chatbot_config else None) or default_voice
+
+
 @bp.post("/free-auth/signup")
 @bp.post("/public-test-auth/signup")
 async def free_signup():
@@ -2290,6 +2320,7 @@ def config():
             "showSpeechInput": current_app.config[CONFIG_SPEECH_INPUT_ENABLED],
             "showSpeechOutputBrowser": current_app.config[CONFIG_SPEECH_OUTPUT_BROWSER_ENABLED],
             "showSpeechOutputAzure": current_app.config[CONFIG_SPEECH_OUTPUT_AZURE_ENABLED],
+            "showSpeechAvatar": current_app.config[CONFIG_SPEECH_AVATAR_ENABLED],
             "showChatHistoryBrowser": current_app.config[CONFIG_CHAT_HISTORY_BROWSER_ENABLED],
             "showChatHistoryCosmos": current_app.config[CONFIG_CHAT_HISTORY_COSMOS_ENABLED],
             "showAgenticRetrievalOption": current_app.config[CONFIG_AGENTIC_KNOWLEDGEBASE_ENABLED],
@@ -2351,12 +2382,53 @@ async def speech_token():
             {
                 "token": get_speech_service_auth_token(),
                 "region": current_app.config[CONFIG_SPEECH_SERVICE_LOCATION],
-                "voice": current_app.config[CONFIG_SPEECH_SERVICE_VOICE],
+                "voice": resolve_speech_voice(request.args.get("chatbot")),
                 "expiresAt": speech_token.expires_on,
             }
         )
     except Exception as error:
         current_app.logger.exception("Exception in /speech/token")
+        return jsonify({"error": str(error)}), 500
+
+
+@bp.route("/speech/avatar-token", methods=["GET"])
+async def speech_avatar_token():
+    """Issue everything a browser needs to open a real-time TTS avatar session.
+
+    This is deliberately a separate endpoint from /speech/token rather than extra fields on it:
+    the relay call is a live outbound request to Azure on every hit, and /speech/token is called
+    by every bot that shows the "speak answer" button. Folding the two together would put that
+    request in the path of plain text-to-speech, which needs no ICE servers at all.
+
+    The avatar has its own voice setting. AZURE_SPEECH_SERVICE_VOICE is deployment-wide and shared
+    by every speech-enabled bot, so reusing it here would change the existing speak-answer voice
+    everywhere the moment the avatar voice was tuned.
+    """
+    if not current_app.config[CONFIG_SPEECH_AVATAR_ENABLED]:
+        return jsonify({"error": "Speech avatar is not enabled."}), 400
+
+    if CONFIG_SPEECH_SERVICE_ID not in current_app.config or CONFIG_SPEECH_SERVICE_LOCATION not in current_app.config:
+        return jsonify({"error": "Speech service is not enabled."}), 400
+
+    try:
+        speech_token = await get_speech_service_token()
+        ice_servers = await fetch_avatar_ice_servers(
+            speech_service_id=current_app.config[CONFIG_SPEECH_SERVICE_ID],
+            bearer_token=speech_token.token,
+        )
+        return jsonify(
+            {
+                "token": get_speech_service_auth_token(),
+                "region": current_app.config[CONFIG_SPEECH_SERVICE_LOCATION],
+                "voice": current_app.config[CONFIG_SPEECH_AVATAR_VOICE],
+                "character": current_app.config[CONFIG_SPEECH_AVATAR_CHARACTER],
+                "style": current_app.config[CONFIG_SPEECH_AVATAR_STYLE],
+                "iceServers": ice_servers,
+                "expiresAt": speech_token.expires_on,
+            }
+        )
+    except Exception as error:
+        current_app.logger.exception("Exception in /speech/avatar-token")
         return jsonify({"error": str(error)}), 500
 
 
@@ -2886,6 +2958,13 @@ async def setup_clients():
     AZURE_SPEECH_SERVICE_LOCATION = os.getenv("AZURE_SPEECH_SERVICE_LOCATION")
     AZURE_SPEECH_SERVICE_VOICE = os.getenv("AZURE_SPEECH_SERVICE_VOICE") or "en-US-AndrewMultilingualNeural"
 
+    # Real-time text-to-speech avatar. Its voice/character/style are separate from the settings
+    # above because the avatar is an opt-in per-bot feature, while AZURE_SPEECH_SERVICE_VOICE is
+    # shared by the speak-answer button on every speech-enabled bot.
+    AZURE_SPEECH_AVATAR_VOICE = os.getenv("AZURE_SPEECH_AVATAR_VOICE") or "de-AT-JonasNeural"
+    AZURE_SPEECH_AVATAR_CHARACTER = os.getenv("AZURE_SPEECH_AVATAR_CHARACTER") or "harry"
+    AZURE_SPEECH_AVATAR_STYLE = os.getenv("AZURE_SPEECH_AVATAR_STYLE") or "casual"
+
     USE_MULTIMODAL = os.getenv("USE_MULTIMODAL", "").lower() == "true"
     RAG_SEARCH_TEXT_EMBEDDINGS = os.getenv("RAG_SEARCH_TEXT_EMBEDDINGS", "true").lower() == "true"
     RAG_SEARCH_IMAGE_EMBEDDINGS = os.getenv("RAG_SEARCH_IMAGE_EMBEDDINGS", "true").lower() == "true"
@@ -2896,6 +2975,7 @@ async def setup_clients():
     USE_SPEECH_INPUT_BROWSER = os.getenv("USE_SPEECH_INPUT_BROWSER", "").lower() == "true"
     USE_SPEECH_OUTPUT_BROWSER = os.getenv("USE_SPEECH_OUTPUT_BROWSER", "").lower() == "true"
     USE_SPEECH_OUTPUT_AZURE = os.getenv("USE_SPEECH_OUTPUT_AZURE", "").lower() == "true"
+    USE_SPEECH_AVATAR = os.getenv("USE_SPEECH_AVATAR", "").lower() == "true"
     USE_CHAT_HISTORY_BROWSER = os.getenv("USE_CHAT_HISTORY_BROWSER", "").lower() == "true"
     USE_CHAT_HISTORY_COSMOS = os.getenv("USE_CHAT_HISTORY_COSMOS", "").lower() == "true"
     USE_AGENTIC_KNOWLEDGEBASE = os.getenv("USE_AGENTIC_KNOWLEDGEBASE", "").lower() == "true"
@@ -2913,7 +2993,7 @@ async def setup_clients():
     # Use the current user identity for keyless authentication to Azure services.
     # This assumes you use 'azd auth login' locally, and managed identity when deployed on Azure.
     # The managed identity is setup in the infra/ folder.
-    azure_credential: AzureDeveloperCliCredential | ManagedIdentityCredential
+    azure_credential: ChainedTokenCredential | ManagedIdentityCredential
     azure_ai_token_provider: Callable[[], Awaitable[str]]
     if RUNNING_ON_AZURE:
         current_app.logger.info("Setting up Azure credential using ManagedIdentityCredential")
@@ -2927,14 +3007,32 @@ async def setup_clients():
         else:
             current_app.logger.info("Setting up Azure credential using ManagedIdentityCredential")
             azure_credential = ManagedIdentityCredential()
+    # Locally, try the Azure CLI first and fall back to the Azure Developer CLI.
+    #
+    # `azd auth token` shells out on every token request and has been measured at 22-121 seconds on
+    # a developer machine — far past any reasonable process timeout, so requests that need a token
+    # fail with `CredentialUnavailableError: Timed out waiting for Azure Developer CLI` and the
+    # page 500s. `az account get-access-token` returns in 1.5-3.5s for the same scopes. The chain
+    # keeps the previous behaviour intact for anyone who only has azd: an unavailable or
+    # unauthenticated `az` raises CredentialUnavailableError, which is exactly the signal
+    # ChainedTokenCredential uses to move on to the next credential.
     elif AZURE_TENANT_ID:
         current_app.logger.info(
-            "Setting up Azure credential using AzureDeveloperCliCredential with tenant_id %s", AZURE_TENANT_ID
+            "Setting up Azure credential using AzureCliCredential then AzureDeveloperCliCredential with tenant_id %s",
+            AZURE_TENANT_ID,
         )
-        azure_credential = AzureDeveloperCliCredential(tenant_id=AZURE_TENANT_ID, process_timeout=60)
+        azure_credential = ChainedTokenCredential(
+            AzureCliCredential(tenant_id=AZURE_TENANT_ID, process_timeout=60),
+            AzureDeveloperCliCredential(tenant_id=AZURE_TENANT_ID, process_timeout=60),
+        )
     else:
-        current_app.logger.info("Setting up Azure credential using AzureDeveloperCliCredential for home tenant")
-        azure_credential = AzureDeveloperCliCredential(process_timeout=60)
+        current_app.logger.info(
+            "Setting up Azure credential using AzureCliCredential then AzureDeveloperCliCredential for home tenant"
+        )
+        azure_credential = ChainedTokenCredential(
+            AzureCliCredential(process_timeout=60),
+            AzureDeveloperCliCredential(process_timeout=60),
+        )
     azure_ai_token_provider = get_bearer_token_provider(
         azure_credential, "https://cognitiveservices.azure.com/.default"
     )
@@ -3007,7 +3105,9 @@ async def setup_clients():
         enable_unauthenticated_access=AZURE_ENABLE_UNAUTHENTICATED_ACCESS,
     )
 
-    if USE_SPEECH_OUTPUT_AZURE or USE_SPEECH_INPUT_BROWSER:
+    # The avatar shares this resource: it authenticates with the same token and derives its relay
+    # host from AZURE_SPEECH_SERVICE_ID, so it must keep the same startup requirements.
+    if USE_SPEECH_OUTPUT_AZURE or USE_SPEECH_INPUT_BROWSER or USE_SPEECH_AVATAR:
         current_app.logger.info("Browser speech is enabled, setting up Azure speech service")
         if not AZURE_SPEECH_SERVICE_ID or AZURE_SPEECH_SERVICE_ID == "":
             raise ValueError("Azure speech resource not configured correctly, missing AZURE_SPEECH_SERVICE_ID")
@@ -3286,6 +3386,10 @@ async def setup_clients():
     current_app.config[CONFIG_SPEECH_INPUT_ENABLED] = USE_SPEECH_INPUT_BROWSER
     current_app.config[CONFIG_SPEECH_OUTPUT_BROWSER_ENABLED] = USE_SPEECH_OUTPUT_BROWSER
     current_app.config[CONFIG_SPEECH_OUTPUT_AZURE_ENABLED] = USE_SPEECH_OUTPUT_AZURE
+    current_app.config[CONFIG_SPEECH_AVATAR_ENABLED] = USE_SPEECH_AVATAR
+    current_app.config[CONFIG_SPEECH_AVATAR_VOICE] = AZURE_SPEECH_AVATAR_VOICE
+    current_app.config[CONFIG_SPEECH_AVATAR_CHARACTER] = AZURE_SPEECH_AVATAR_CHARACTER
+    current_app.config[CONFIG_SPEECH_AVATAR_STYLE] = AZURE_SPEECH_AVATAR_STYLE
     current_app.config[CONFIG_CHAT_HISTORY_BROWSER_ENABLED] = USE_CHAT_HISTORY_BROWSER
     current_app.config[CONFIG_CHAT_HISTORY_COSMOS_ENABLED] = USE_CHAT_HISTORY_COSMOS
     current_app.config[CONFIG_AGENTIC_KNOWLEDGEBASE_ENABLED] = USE_AGENTIC_KNOWLEDGEBASE

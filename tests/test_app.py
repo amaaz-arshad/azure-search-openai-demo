@@ -1939,6 +1939,82 @@ async def test_speech_request_failed(client, mock_speech_failed):
 
 
 @pytest.mark.asyncio
+async def test_speech_token_serves_the_deployment_voice_by_default(client):
+    response = await client.get("/speech/token")
+    assert response.status_code == 200
+    result = await response.get_json()
+    # conftest leaves AZURE_SPEECH_SERVICE_VOICE unset, so this is app.py's fallback.
+    assert result["voice"] == "en-US-AndrewMultilingualNeural"
+
+
+@pytest.mark.asyncio
+async def test_speech_token_serves_a_bots_own_voice_without_moving_the_others(client):
+    """bbsa declares speech_voice in its config.py because AZURE_SPEECH_SERVICE_VOICE is shared by
+    every speech-enabled bot — repointing that env var for bbsa would change all of them."""
+    bbsa = await (await client.get("/speech/token?chatbot=bbsa")).get_json()
+    assert bbsa["voice"] == "de-AT-JonasNeural"
+
+    # A bot with no speech_voice override still gets the deployment voice.
+    lemon = await (await client.get("/speech/token?chatbot=lemon")).get_json()
+    assert lemon["voice"] == "en-US-AndrewMultilingualNeural"
+
+
+@pytest.mark.asyncio
+async def test_speech_token_ignores_an_unknown_chatbot_name(client):
+    """The parameter is public input and is fed toward a module import, so anything outside the
+    known set must fall back rather than reach the config registry."""
+    for name in ["doesnotexist", "../etc", "", "  "]:
+        response = await client.get(f"/speech/token?chatbot={name}")
+        assert response.status_code == 200
+        result = await response.get_json()
+        assert result["voice"] == "en-US-AndrewMultilingualNeural"
+
+
+@pytest.mark.asyncio
+async def test_speech_avatar_token_is_refused_unless_the_feature_is_enabled(client):
+    """USE_SPEECH_AVATAR is off in the test env, and the avatar bills per minute of session time,
+    so the endpoint must not hand out relay credentials just because Speech is configured."""
+    response = await client.get("/speech/avatar-token")
+    assert response.status_code == 400
+    result = await response.get_json()
+    assert result["error"] == "Speech avatar is not enabled."
+
+
+@pytest.mark.asyncio
+async def test_speech_avatar_token_returns_the_session_credentials(client, monkeypatch):
+    """The browser gets the same aad# auth token /speech/token already issues plus the TURN
+    credentials — never a subscription key, which is why the relay call happens server-side."""
+    monkeypatch.setitem(client.app.config, app.CONFIG_SPEECH_AVATAR_ENABLED, True)
+
+    async def mock_fetch_ice_servers(speech_service_id, bearer_token, **kwargs):
+        assert speech_service_id == "test-id"
+        return [{"urls": ["turn:relay.communication.microsoft.com:3478"], "username": "u", "credential": "p"}]
+
+    monkeypatch.setattr(app, "fetch_avatar_ice_servers", mock_fetch_ice_servers)
+
+    response = await client.get("/speech/avatar-token")
+    assert response.status_code == 200
+    result = await response.get_json()
+    assert result["region"] == "eastus"
+    assert result["voice"] == "de-AT-JonasNeural"
+    assert result["character"] == "harry"
+    assert result["style"] == "casual"
+    assert result["iceServers"] == [
+        {"urls": ["turn:relay.communication.microsoft.com:3478"], "username": "u", "credential": "p"}
+    ]
+    assert result["token"].startswith("aad#")
+
+
+@pytest.mark.asyncio
+async def test_config_reports_the_speech_avatar_capability(client):
+    """The per-bot frontend flag is ANDed with this, so it is the deployment-side kill switch."""
+    response = await client.get("/config")
+    assert response.status_code == 200
+    result = await response.get_json()
+    assert result["showSpeechAvatar"] is False
+
+
+@pytest.mark.asyncio
 async def test_chat_text(client, snapshot):
     response = await client.post(
         "/chat",

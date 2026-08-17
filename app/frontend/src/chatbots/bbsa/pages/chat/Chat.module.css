@@ -20,6 +20,23 @@
     display: flex;
     height: 100%;
     transition: margin-left 0.3s ease;
+    /* Anchor for the avatar toggle + panel. Both are absolutely positioned so they add NO layout
+       height: this chat is sized calc(100vh - 56px) and tests/e2e.py asserts the document never
+       exceeds the viewport, so anything in normal flow here would produce a page scrollbar. */
+    position: relative;
+}
+
+.avatarToggle {
+    position: absolute;
+    top: 0.5rem;
+    right: 1rem;
+    z-index: 21;
+}
+
+@media (max-width: 768px) {
+    .avatarToggle {
+        right: 0.75rem;
+    }
 }
 
 /* History panel shifts the chat aside only on wide layouts. On compact and

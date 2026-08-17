@@ -236,6 +236,18 @@
     "useSpeechOutputAzure": {
       "value": "${USE_SPEECH_OUTPUT_AZURE=false}"
     },
+    "useSpeechAvatar": {
+      "value": "${USE_SPEECH_AVATAR=false}"
+    },
+    "speechAvatarVoice": {
+      "value": "${AZURE_SPEECH_AVATAR_VOICE=de-AT-JonasNeural}"
+    },
+    "speechAvatarCharacter": {
+      "value": "${AZURE_SPEECH_AVATAR_CHARACTER=harry}"
+    },
+    "speechAvatarStyle": {
+      "value": "${AZURE_SPEECH_AVATAR_STYLE=casual}"
+    },
     "speechServiceName": {
       "value": "${AZURE_SPEECH_SERVICE}"
     },

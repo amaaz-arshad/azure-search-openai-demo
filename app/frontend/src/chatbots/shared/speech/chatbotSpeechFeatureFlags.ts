@@ -2,12 +2,16 @@ export interface ChatbotSpeechVisibility {
     showSpeechInput: boolean;
     showSpeechOutputBrowser: boolean;
     showSpeechOutputAzure: boolean;
+    // Optional so the ~20 entries below don't all need a value for a feature only one bot uses.
+    // Absent means off, which is the safe default: the real-time avatar bills per minute.
+    showSpeechAvatar?: boolean;
 }
 
 export type ChatbotSpeechConfig = {
     showSpeechInput: boolean;
     showSpeechOutputBrowser: boolean;
     showSpeechOutputAzure: boolean;
+    showSpeechAvatar?: boolean;
 };
 
 // Central place to enable/disable chatbot speech UI without editing component JSX.
@@ -22,7 +26,8 @@ export const chatbotSpeechFeatureFlags: Record<string, ChatbotSpeechVisibility> 
     bbsa: {
         showSpeechInput: true,
         showSpeechOutputBrowser: true,
-        showSpeechOutputAzure: true
+        showSpeechOutputAzure: true,
+        showSpeechAvatar: true
     },
     cbtx: {
         showSpeechInput: true,
@@ -121,6 +126,7 @@ export function applyChatbotSpeechFeatureFlags<T extends ChatbotSpeechConfig>(ch
         ...config,
         showSpeechInput: config.showSpeechInput && flags.showSpeechInput,
         showSpeechOutputBrowser: config.showSpeechOutputBrowser && flags.showSpeechOutputBrowser,
-        showSpeechOutputAzure: config.showSpeechOutputAzure && flags.showSpeechOutputAzure
+        showSpeechOutputAzure: config.showSpeechOutputAzure && flags.showSpeechOutputAzure,
+        showSpeechAvatar: (config.showSpeechAvatar ?? false) && (flags.showSpeechAvatar ?? false)
     };
 }

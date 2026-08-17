@@ -221,5 +221,18 @@
     "searchSettings": "Such-Einstellungen",
     "llmSettings": "LLM-Einstellungen",
     "newChat": "Neuer Chat",
-    "inputDisclaimer": "<nerilio>nerilio</nerilio> generiert Antworten automatisiert aus den bereitgestellten Inhalten; verbindlich sind die offiziellen Quellen."
+    "inputDisclaimer": "<nerilio>nerilio</nerilio> generiert Antworten automatisiert aus den bereitgestellten Inhalten; verbindlich sind die offiziellen Quellen.",
+    "avatar": {
+        "start": "Live-Avatar starten",
+        "stop": "Live-Avatar beenden",
+        "close": "Avatar schließen",
+        "connecting": "Avatar wird verbunden …",
+        "error": "Der Avatar konnte nicht gestartet werden.",
+        "disclosure": "KI-generierter Avatar",
+        "listening": "Ich höre zu …",
+        "speaking": "Avatar spricht",
+        "thinking": "Einen Moment …",
+        "starting": "Mikrofon wird geöffnet …",
+        "interrupt": "Antwort unterbrechen"
+    }
 }

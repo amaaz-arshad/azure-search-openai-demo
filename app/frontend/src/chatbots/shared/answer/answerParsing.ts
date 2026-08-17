@@ -22,7 +22,7 @@ type ExternalResultMetadataLike = {
     url?: string;
 };
 
-type ChatAppResponseLike = {
+export type ChatAppResponseLike = {
     message: {
         content: string;
     };

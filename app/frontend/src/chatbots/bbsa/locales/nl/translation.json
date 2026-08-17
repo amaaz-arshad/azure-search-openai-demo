@@ -220,5 +220,18 @@
     "searchSettings": "Zoekinstellingen",
     "llmSettings": "LLM-instellingen",
     "newChat": "Nieuwe chat",
-    "inputDisclaimer": "<nerilio>nerilio</nerilio> genereert antwoorden automatisch op basis van de aangeboden inhoud; officiële bronnen zijn bindend."
+    "inputDisclaimer": "<nerilio>nerilio</nerilio> genereert antwoorden automatisch op basis van de aangeboden inhoud; officiële bronnen zijn bindend.",
+    "avatar": {
+        "start": "Live-avatar starten",
+        "stop": "Live-avatar stoppen",
+        "close": "Avatar sluiten",
+        "connecting": "Avatar wordt verbonden…",
+        "error": "De avatar kon niet worden gestart.",
+        "disclosure": "AI-gegenereerde avatar",
+        "listening": "Ik luister …",
+        "speaking": "Avatar spreekt",
+        "thinking": "Een moment …",
+        "starting": "Microfoon wordt geopend …",
+        "interrupt": "Antwoord onderbreken"
+    }
 }

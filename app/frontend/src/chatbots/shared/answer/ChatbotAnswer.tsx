@@ -157,7 +157,13 @@ const buildCitationTitle = (detail: CitationDetail): string | undefined => {
     return stepBadgeLabel ? `Linked to ${stepBadgeLabel}` : detail.reference;
 };
 
-const cleanSpeechText = (rawText: string): string => {
+/**
+ * Strip markdown syntax so a synthesizer reads prose rather than punctuation.
+ *
+ * Exported because the real-time avatar speaks the same text as the speak-answer button and must
+ * not re-derive this — a second implementation would drift and start reading markup aloud.
+ */
+export const cleanSpeechText = (rawText: string): string => {
     let cleaned = rawText;
 
     cleaned = cleaned.replace(/```[\s\S]*?```/g, " ");

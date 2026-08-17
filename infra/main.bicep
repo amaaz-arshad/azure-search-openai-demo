@@ -134,6 +134,9 @@ param speechServiceName string = ''
 param speechServiceSkuName string // Set in main.parameters.json
 param speechServiceDisableLocalAuth bool = false
 param speechServiceVoice string = ''
+param speechAvatarVoice string = ''
+param speechAvatarCharacter string = ''
+param speechAvatarStyle string = ''
 param useMultimodal bool = false
 param useEval bool = false
 param useCloudIngestion bool = false
@@ -340,6 +343,8 @@ param useSpeechInputBrowser bool = false
 param useSpeechOutputBrowser bool = false
 @description('Use Azure speech service for reading out text')
 param useSpeechOutputAzure bool = false
+@description('Use the Azure speech real-time text to speech avatar')
+param useSpeechAvatar bool = false
 @description('Use chat history feature in browser')
 param useChatHistoryBrowser bool = false
 @description('Use chat history feature in CosmosDB')
@@ -359,6 +364,10 @@ param useLocalHtmlParser bool = false
 
 @description('Use AI project')
 param useAiProject bool = false
+
+// The real-time avatar talks to the same Speech account as the read-out-loud feature, so the
+// resource (and its role assignments) must exist when either one is switched on.
+var useSpeechService = useSpeechOutputAzure || useSpeechAvatar
 
 var abbrs = loadJsonContent('abbreviations.json')
 var resourceToken = toLower(uniqueString(subscription().id, environmentName, location))
@@ -596,13 +605,17 @@ var appEnvVariables = {
   APPLICATIONINSIGHTS_CONNECTION_STRING: useApplicationInsights
     ? monitoring!.outputs.applicationInsightsConnectionString
     : ''
-  AZURE_SPEECH_SERVICE_ID: useSpeechOutputAzure ? speech!.outputs.resourceId : ''
-  AZURE_SPEECH_SERVICE_LOCATION: useSpeechOutputAzure ? speech!.outputs.location : ''
-  AZURE_SPEECH_SERVICE_VOICE: useSpeechOutputAzure ? speechServiceVoice : ''
+  AZURE_SPEECH_SERVICE_ID: useSpeechService ? speech!.outputs.resourceId : ''
+  AZURE_SPEECH_SERVICE_LOCATION: useSpeechService ? speech!.outputs.location : ''
+  AZURE_SPEECH_SERVICE_VOICE: useSpeechService ? speechServiceVoice : ''
+  AZURE_SPEECH_AVATAR_VOICE: useSpeechAvatar ? speechAvatarVoice : ''
+  AZURE_SPEECH_AVATAR_CHARACTER: useSpeechAvatar ? speechAvatarCharacter : ''
+  AZURE_SPEECH_AVATAR_STYLE: useSpeechAvatar ? speechAvatarStyle : ''
   ENABLE_LANGUAGE_PICKER: enableLanguagePicker
   USE_SPEECH_INPUT_BROWSER: useSpeechInputBrowser
   USE_SPEECH_OUTPUT_BROWSER: useSpeechOutputBrowser
   USE_SPEECH_OUTPUT_AZURE: useSpeechOutputAzure
+  USE_SPEECH_AVATAR: useSpeechAvatar
   USE_AGENTIC_KNOWLEDGEBASE: useAgenticKnowledgeBase
   // Chat history settings
   USE_CHAT_HISTORY_BROWSER: useChatHistoryBrowser
@@ -966,7 +979,7 @@ module contentUnderstanding 'br/public:avm/res/cognitive-services/account:0.7.2'
   }
 }
 
-module speech 'br/public:avm/res/cognitive-services/account:0.7.2' = if (useSpeechOutputAzure) {
+module speech 'br/public:avm/res/cognitive-services/account:0.7.2' = if (useSpeechService) {
   name: 'speech-service'
   scope: speechResourceGroup
   params: {
@@ -1671,8 +1684,8 @@ output AZURE_OPENAI_KNOWLEDGEBASE_DEPLOYMENT string = isAzureOpenAiHost && useAg
 output AZURE_OPENAI_KNOWLEDGEBASE_MODEL string = isAzureOpenAiHost && useAgenticKnowledgeBase ? knowledgeBase.modelName : ''
 output AZURE_OPENAI_REASONING_EFFORT string  = defaultReasoningEffort
 output AZURE_SEARCH_KNOWLEDGEBASE_RETRIEVAL_REASONING_EFFORT string = defaultRetrievalReasoningEffort
-output AZURE_SPEECH_SERVICE_ID string = useSpeechOutputAzure ? speech!.outputs.resourceId : ''
-output AZURE_SPEECH_SERVICE_LOCATION string = useSpeechOutputAzure ? speech!.outputs.location : ''
+output AZURE_SPEECH_SERVICE_ID string = useSpeechService ? speech!.outputs.resourceId : ''
+output AZURE_SPEECH_SERVICE_LOCATION string = useSpeechService ? speech!.outputs.location : ''
 
 output AZURE_VISION_ENDPOINT string = useMultimodal ? vision!.outputs.endpoint : ''
 output AZURE_CONTENTUNDERSTANDING_ENDPOINT string = useMediaDescriberAzureCU ? contentUnderstanding!.outputs.endpoint : ''

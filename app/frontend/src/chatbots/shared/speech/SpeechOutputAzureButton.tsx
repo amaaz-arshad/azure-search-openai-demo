@@ -12,9 +12,14 @@ let activePlaybackStop: (() => void) | null = null;
 interface Props {
     answer: string;
     isStreaming: boolean;
+    /**
+     * Identifies the bot so the backend can return its own voice. Omit to use the
+     * deployment-wide voice, which is what every bot without a `speech_voice` override gets.
+     */
+    chatbotName?: string;
 }
 
-export const SpeechOutputAzureButton = ({ answer, isStreaming }: Props) => {
+export const SpeechOutputAzureButton = ({ answer, isStreaming, chatbotName }: Props) => {
     const [isLoading, setIsLoading] = useState(false);
     const [isPlaying, setIsPlaying] = useState(false);
     const instanceIdRef = useRef(Symbol("SpeechOutputAzureButton"));
@@ -103,7 +108,7 @@ export const SpeechOutputAzureButton = ({ answer, isStreaming }: Props) => {
         setIsPlaying(true);
 
         try {
-            const speechToken = await getSpeechToken();
+            const speechToken = await getSpeechToken(false, chatbotName);
             const sdkSpeechConfig = SpeechSDK.SpeechConfig.fromAuthorizationToken(speechToken.token, speechToken.region);
             sdkSpeechConfig.speechSynthesisVoiceName = speechToken.voice;
             sdkSpeechConfig.speechSynthesisOutputFormat = getPreferredSpeechSynthesisOutputFormat();

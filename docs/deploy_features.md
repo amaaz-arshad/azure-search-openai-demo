@@ -329,6 +329,71 @@ Alternatively you can use the browser's built-in [Speech Synthesis API](https://
 azd env set USE_SPEECH_OUTPUT_BROWSER true
 ```
 
+### Live avatar (real-time text to speech avatar)
+
+A separate, opt-in feature from the speech input/output above: an Azure
+[real-time text to speech avatar](https://learn.microsoft.com/azure/ai-services/speech-service/text-to-speech-avatar/real-time-synthesis-avatar)
+that appears in a floating panel and speaks each answer over WebRTC. It reuses the same Speech
+resource and managed identity — the backend fetches the WebRTC relay (TURN) credentials at
+`/speech/avatar-token` so no Speech key ever reaches the browser.
+
+```shell
+azd env set USE_SPEECH_AVATAR true
+azd env set AZURE_SPEECH_AVATAR_VOICE de-AT-JonasNeural
+azd env set AZURE_SPEECH_AVATAR_CHARACTER harry
+azd env set AZURE_SPEECH_AVATAR_STYLE casual
+```
+
+The avatar has its own voice setting because `AZURE_SPEECH_SERVICE_VOICE` is deployment-wide and
+shared by the read-out-loud button on every speech-enabled chatbot.
+
+Before enabling it, know the following:
+
+* **Cost.** Real-time avatar is billed **per second the session is open, whether or not the avatar
+  is speaking** (~$0.50/min in West Europe, ≈$30/hour), and text to speech is billed separately.
+  That is roughly 100× the cost of audio-only output for a typical chat. Sessions are therefore
+  opt-in (the user must press the avatar button) and close automatically on idle, on tab hide, and
+  on unmount — do not make a session start on page load.
+* **Quota.** The default is **2 new avatar connections per minute** per Speech resource. That is an
+  arrival rate, not a concurrency cap, so a public bot will throttle (WebSocket 4429) as soon as
+  three visitors start an avatar in the same minute. Request an increase via the
+  [Foundry quota form](https://aka.ms/foundry-tools-quota-increase) ("New connections per minute for
+  real-time text-to-speech avatar") — this has lead time, so file it early.
+* **Region and tier.** Requires the **Standard S0** tier (there is no F0 avatar) and a region that
+  supports avatars — `swedencentral`, `westeurope`, `northeurope`, `italynorth`, `francecentral`,
+  and several US/Asia regions do; `germanywestcentral` and `switzerlandnorth` do **not**.
+* **Prebuilt avatars need no registration**; only *custom* avatars are Limited Access. Microsoft
+  does require that the synthetic nature of the avatar is disclosed to users, which the panel does.
+* **Limitations.** Firefox does not work with Microsoft's default TURN server; real-time mode
+  supports no gestures and no transparent background; the service disconnects after 5 minutes idle
+  or 30 minutes total. Prebuilt characters are tied to real actors' contracts and can be retired
+  with 12 months' notice, so avoid hard-coding one with no fallback.
+
+Per-chatbot visibility is controlled in `app/frontend/src/chatbots/shared/speech/chatbotSpeechFeatureFlags.ts`
+(`showSpeechAvatar`), ANDed with the `showSpeechAvatar` capability from `/config`. Currently only
+`bbsa` enables it.
+
+#### Hands-free conversation
+
+While the avatar panel is open the bot also listens: the microphone opens when it is the user's
+turn, the utterance is sent automatically once they stop speaking, the avatar answers, and the loop
+repeats. The panel shows whose turn it is and offers an interrupt button while the avatar talks.
+
+The Azure avatar itself is text-to-*speech* only and has no microphone — the listening half is a
+separate speech recognizer, distinct from the composer's mic button (which still just dictates into
+the text box). Two consequences worth knowing:
+
+* It is **half-duplex**: the microphone is closed for exactly as long as the avatar is speaking,
+  because an open microphone would transcribe the avatar through the speakers and the bot would
+  answer itself. Users on speakers should expect a short gap before they can talk.
+* End of turn is detected by silence, so a long mid-sentence pause can send early. Tune
+  `UTTERANCE_SILENCE_MS` in `shared/speech/avatar/conversationListener.ts` if that proves wrong for
+  real users.
+
+Note that speech recognition is billed separately from the avatar and text to speech, and that a
+conversation keeps the avatar session open — which is the expensive meter. The idle timeout still
+applies and closes the session after a quiet spell.
+
 ## Enabling authentication
 
 By default, the deployed Azure web app will have no authentication or access restrictions enabled, meaning anyone with routable network access to the web app can chat with your indexed data. If you'd like to automatically setup authentication and user login as part of the `azd up` process, see [this guide](./login_and_acl.md).

@@ -1,0 +1,71 @@
+/* Launcher for the live avatar.
+   Follows the widget-launcher convention rather than the app's icon-button styling: a solid,
+   accent-coloured circle with a soft shadow reads as "open the assistant", where a bare outline
+   glyph on a transparent background reads as a minor toolbar action and looked cheap.
+   Deliberately NOT animated at rest — a pulsing or bouncing launcher is attention-seeking and is
+   the thing most widget guidance warns against. */
+.launcher {
+    width: 3rem;
+    height: 3rem;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    /* The brand accent. Deliberately the user-bubble token, not --chatbot-navbar-background:
+       bbsa repaints the navbar white in the header scope, so that token is not a reliable brand
+       colour, whereas the user bubble is the same #032D3C everywhere. */
+    background: var(--chatbot-user-bubble-background, #032d3c);
+    color: var(--chatbot-user-bubble-text, #ffffff);
+    box-shadow:
+        0 0.25rem 0.75rem rgba(0, 0, 0, 0.26),
+        0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+    cursor: pointer;
+    transition:
+        transform 0.15s ease,
+        box-shadow 0.15s ease,
+        filter 0.15s ease;
+}
+
+.launcher:hover:not(:disabled) {
+    transform: translateY(-1px);
+    filter: brightness(1.12);
+    box-shadow:
+        0 0.4rem 1rem rgba(0, 0, 0, 0.3),
+        0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+}
+
+.launcher:active:not(:disabled) {
+    transform: translateY(0);
+    filter: brightness(0.95);
+}
+
+.launcher:focus-visible {
+    outline: 2px solid var(--chatbot-user-bubble-background, #032d3c);
+    outline-offset: 3px;
+}
+
+.launcher:disabled {
+    cursor: default;
+    opacity: 0.65;
+}
+
+/* Session running: same silhouette so the control stays in place, muted so it reads as
+   "currently on — tap to end" rather than as a second call to action. */
+.launcherActive {
+    filter: brightness(0.88);
+}
+
+.icon {
+    width: 1.5rem;
+    height: 1.5rem;
+    display: block;
+}
+
+@media (max-width: 768px) {
+    .launcher {
+        width: 2.75rem;
+        height: 2.75rem;
+    }
+}

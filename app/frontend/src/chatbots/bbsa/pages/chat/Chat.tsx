@@ -26,6 +26,9 @@ import { LoginContext } from "../../loginContext";
 import { Settings } from "../../components/Settings/Settings";
 import { setGlobalClearChat } from "../layout/Layout";
 import { applyChatbotSpeechFeatureFlags } from "../../../shared/speech/chatbotSpeechFeatureFlags";
+import { AvatarPanel, AvatarToggleButton, prepareAnswerForSpeech, useAvatarSession } from "../../../shared/speech/avatar";
+import { getSpeechRecognitionLocale } from "../../../shared/speech/azureSpeech";
+import { supportedLngs } from "../../i18n/config";
 import { readActiveSessionId, writeActiveSessionId, clearActiveSessionId } from "../../../shared/history/activeSession";
 
 const INITIAL_ASSISTANT_SENTINEL_USER_MESSAGE = "__initial_assistant__";
@@ -39,7 +42,10 @@ const createClientSessionId = () => {
 };
 
 const Chat = () => {
-    const { t } = useTranslation();
+    // `i18n` is read for the speech-recognition locale. bbsa is pinned to German today, so this
+    // always resolves to de-DE — it mirrors how the composer's mic button derives its locale, so
+    // the two stay in step if the bot ever stops pinning.
+    const { t, i18n } = useTranslation();
     // Breitband.Tirol is a Q&A-only bot served in German regardless of the browser locale.
     const chatbotCategory = "bbsa";
     const legacyInitialUserMessage: string = t("initialUserMsg");
@@ -114,6 +120,7 @@ const Chat = () => {
     const [showSpeechInput, setShowSpeechInput] = useState<boolean>(false);
     const [showSpeechOutputBrowser, setShowSpeechOutputBrowser] = useState<boolean>(false);
     const [showSpeechOutputAzure, setShowSpeechOutputAzure] = useState<boolean>(false);
+    const [showSpeechAvatar, setShowSpeechAvatar] = useState<boolean>(false);
     const [showChatHistoryBrowser, setShowChatHistoryBrowser] = useState<boolean>(false);
     const [showChatHistoryCosmos, setShowChatHistoryCosmos] = useState<boolean>(false);
     const [showAgenticRetrievalOption, setShowAgenticRetrievalOption] = useState<boolean>(false);
@@ -134,6 +141,27 @@ const Chat = () => {
         audio,
         isPlaying,
         setIsPlaying
+    };
+
+    // The live avatar is a separate feature from the mic and the per-answer speak button; those
+    // stay exactly as they are whether or not an avatar session is open.
+    // Hands-free conversation: while the avatar panel is open the microphone and the avatar's
+    // voice alternate, so a finished utterance is sent as if it had been typed. `busy` keeps the
+    // microphone shut while an answer is being generated, and the same recognition locale as the
+    // composer's mic button is reused so the two can never disagree about the language.
+    const avatar = useAvatarSession({
+        conversation: {
+            locale: getSpeechRecognitionLocale(i18n.language, supportedLngs),
+            busy: isLoading || isStreaming,
+            onUtterance: (text: string) => makeApiRequest(text)
+        }
+    });
+    // Deliberately not guarded on `avatar.isActive`: this runs after an await, so the value
+    // captured when the request started would be stale for a user who opens the avatar while the
+    // answer is still generating. `speak` reads the session ref, so it is always current and
+    // no-ops when no session is open.
+    const speakWithAvatar = (response: ChatAppResponse) => {
+        avatar.speak(prepareAnswerForSpeech(response));
     };
 
     const getConfig = async () => {
@@ -164,6 +192,7 @@ const Chat = () => {
             setShowSpeechInput(effectiveConfig.showSpeechInput);
             setShowSpeechOutputBrowser(effectiveConfig.showSpeechOutputBrowser);
             setShowSpeechOutputAzure(effectiveConfig.showSpeechOutputAzure);
+            setShowSpeechAvatar(Boolean(effectiveConfig.showSpeechAvatar));
             setShowChatHistoryBrowser(config.showChatHistoryBrowser);
             setShowChatHistoryCosmos(config.showChatHistoryCosmos);
             setShowAgenticRetrievalOption(config.showAgenticRetrievalOption);
@@ -449,6 +478,7 @@ const Chat = () => {
                             ? { ...parsedResponse, session_state: sessionState }
                             : parsedResponse;
                     setAnswers([...answers, [question, normalizedResponse]]);
+                    speakWithAvatar(normalizedResponse);
                     if (typeof sessionState === "string" && sessionState !== "") {
                         const token = client ? await getToken(client) : undefined;
                         historyManager.addItem(sessionState, [...conversationAnswers, [question, normalizedResponse]], token);
@@ -474,6 +504,7 @@ const Chat = () => {
                         ? { ...chatResponse, session_state: sessionState }
                         : chatResponse;
                 setAnswers([...answers, [question, normalizedResponse]]);
+                speakWithAvatar(normalizedResponse);
                 if (typeof sessionState === "string" && sessionState !== "") {
                     const token = client ? await getToken(client) : undefined;
                     historyManager.addItem(sessionState, [...conversationAnswers, [question, normalizedResponse]], token);
@@ -742,6 +773,34 @@ const Chat = () => {
                 <title>{t("pageTitle")}</title>
             </Helmet>
             <div className={`${styles.chatRoot} ${isHistoryPanelOpen ? styles.chatRootHistoryOpen : ""}`}>
+                {showSpeechAvatar && (
+                    <>
+                        <AvatarToggleButton
+                            className={styles.avatarToggle}
+                            isActive={avatar.isActive}
+                            isBusy={avatar.status === "connecting"}
+                            onStart={() => void avatar.start()}
+                            onStop={avatar.stop}
+                        />
+                        {/* Always mounted, only hidden: AvatarSession.start() binds the WebRTC
+                            tracks to these elements, so the refs must already exist at the moment
+                            the user clicks start — and unmounting mid-session would drop the
+                            stream. */}
+                        <AvatarPanel
+                            hidden={avatar.status === "idle"}
+                            status={avatar.status}
+                            error={avatar.error}
+                            videoRef={avatar.videoRef}
+                            audioRef={avatar.audioRef}
+                            onClose={avatar.stop}
+                            isSpeaking={avatar.isSpeaking}
+                            isListening={avatar.isListening}
+                            isBusy={isLoading || isStreaming}
+                            interimTranscript={avatar.interimTranscript}
+                            onInterrupt={avatar.stopSpeaking}
+                        />
+                    </>
+                )}
                 <div className={styles.chatContainer} ref={chatContainerRef}>
                     <div className={styles.chatMessageStream}>
                         {isStreaming &&

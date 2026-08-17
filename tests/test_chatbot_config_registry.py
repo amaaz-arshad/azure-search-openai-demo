@@ -141,3 +141,21 @@ def test_load_all_chatbot_configs_discovers_only_bots_with_config_files() -> Non
     assert "internal" not in get_registered_chatbot_names()
     assert "internal" not in configs
     assert set(get_registered_chatbot_names()) == set(configs.keys())
+
+
+def test_speech_voice_is_opt_in_per_bot() -> None:
+    """AZURE_SPEECH_SERVICE_VOICE is deployment-wide and shared by every speech-enabled bot, so a
+    bot that needs a different speak-answer voice declares it here instead. Only bbsa does today —
+    if that changes, make sure it was deliberate, because every other bot silently inherits the
+    deployment voice from a `None` here."""
+    load_chatbot_config.cache_clear()
+
+    configs = load_all_chatbot_configs()
+
+    bbsa_config = configs.get("bbsa")
+    assert bbsa_config is not None
+    # Austrian German, matching the live avatar's voice.
+    assert bbsa_config.speech_voice == "de-AT-JonasNeural"
+
+    overriding_bots = {name for name, config in configs.items() if config.speech_voice}
+    assert overriding_bots == {"bbsa"}, overriding_bots

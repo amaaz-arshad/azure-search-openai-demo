@@ -977,6 +977,55 @@ def test_bbsa_uses_lemons_answer_and_composer_design_with_speech(page: Page, liv
     expect(page.get_by_label("Antwort sprechen").first).to_be_visible()
 
 
+def test_bbsa_live_avatar_is_offered_without_costing_the_page_any_height(page: Page, live_server_url: str):
+    """The live avatar is an ADDITIONAL feature: the mic and the per-answer speak button must both
+    survive it, and its toggle/panel must add no layout height.
+
+    That last part is the regression this feature is most likely to cause. bbsa's chat is sized
+    calc(100vh - 56px), so anything placed in normal flow between the navbar and the chat gives
+    every page a permanent scrollbar — exactly the bug the 56px navbar border caused once before.
+    The toggle and the panel are therefore absolutely positioned inside .chatRoot."""
+
+    def handle_config(route: Route):
+        response = route.fetch()
+        config = response.json()
+        # USE_SPEECH_AVATAR is off in the e2e deployment; the frontend flag is ANDed with it, so
+        # the capability has to be forced on here to render the control at all.
+        config["showSpeechAvatar"] = True
+        route.fulfill(body=json.dumps(config), status=200, headers={"content-type": "application/json"})
+
+    page.route("*/**/config", handle_config)
+    page.route(
+        "*/**/chat/stream",
+        lambda route: fulfill_chat_stream_snapshot(
+            route, "tests/snapshots/test_app/test_chat_stream_text/client0/result.jsonlines"
+        ),
+    )
+
+    page.goto(f"{live_server_url}bbsa")
+    expect(page.get_by_placeholder("Stellen Sie Ihre Frage zu Glasfaser in Tirol")).to_be_visible()
+
+    # The avatar toggle is offered, and the existing speech features are untouched by it. The
+    # avatar is an ADDITIONAL feature: hands-free conversation does not replace the composer's mic
+    # button, which still dictates into the text box.
+    expect(page.get_by_label("Live-Avatar starten")).to_be_visible()
+    expect(page.get_by_label("Frage per Stimme stellen")).to_be_visible()
+
+    # The panel is mounted (so its <video>/<audio> refs exist before a session starts) but hidden,
+    # and neither it nor the toggle may push the document past the viewport.
+    expect(page.get_by_test_id("avatar-panel")).to_be_hidden()
+    document_overflow = page.evaluate("() => document.documentElement.scrollHeight - window.innerHeight")
+    assert document_overflow <= 0, f"the avatar toggle overflows the viewport by {document_overflow}px"
+
+    page.get_by_placeholder("Stellen Sie Ihre Frage zu Glasfaser in Tirol").fill("Was ist Glasfaser?")
+    page.get_by_label("Frage einreichen").click()
+    expect(page.get_by_text("The capital of France is Paris.")).to_be_visible()
+
+    expect(page.get_by_label("Antwort sprechen").first).to_be_visible()
+    document_overflow = page.evaluate("() => document.documentElement.scrollHeight - window.innerHeight")
+    assert document_overflow <= 0, f"chat with an answer overflows the viewport by {document_overflow}px"
+
+
 def test_nerilio_answer_places_avatar_outside_card(page: Page, live_server_url: str):
     page.route(
         "*/**/chat/stream",
