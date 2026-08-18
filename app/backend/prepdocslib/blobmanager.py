@@ -477,8 +477,14 @@ class BlobManager(BaseBlobManager):
         blob_client = container_client.get_blob_client(blob_name)
         return unquote(blob_client.url)
 
-    async def list_blob_names(self, prefix: str) -> list[str]:
-        container_client = self.blob_service_client.get_container_client(self.container)
+    async def list_blob_names(self, prefix: str, container: Optional[str] = None) -> list[str]:
+        """List blob names under a prefix.
+
+        `container` overrides the manager's configured container, mirroring `download_blob`. Needed to
+        enumerate the dedicated `content2` container (provisioned-bot knowledge bases), which is never
+        the manager's own container.
+        """
+        container_client = self.blob_service_client.get_container_client(container or self.container)
         if not await container_client.exists():
             return []
 

@@ -46,7 +46,11 @@ from openai.types.chat import (
 )
 from quart import has_request_context, request
 
-from approaches.chatbot_config_registry import get_chatbot_prompt_mode, render_chatbot_prompt
+from approaches.chatbot_config_registry import (
+    CITATION_TARGET_URL_OR_SOURCEPAGE,
+    get_chatbot_prompt_mode,
+    render_chatbot_prompt,
+)
 from approaches.chatbot_prompt_registry import get_chatbot_prompt, normalize_chatbot_name
 from approaches.promptmanager import PromptManager
 from prepdocslib.blobmanager import AdlsBlobManager, BlobManager
@@ -850,7 +854,11 @@ class Approach(ABC):
                         image_sources.append(url)
                     image_citation = self.get_image_citation(citation, img["url"])
                     citations.append(image_citation)
-            if document_citation_target == "url" and doc.url and doc.url not in seen_external_result_urls:
+            if (
+                self.citation_target_can_link_documents(document_citation_target)
+                and doc.url
+                and doc.url not in seen_external_result_urls
+            ):
                 seen_external_result_urls.add(doc.url)
                 external_results_metadata.append(
                     {
@@ -858,6 +866,13 @@ class Approach(ABC):
                         "title": doc.title or doc.sourcepage or doc.url,
                         "url": doc.url,
                         "snippet": clean_source(doc.content or ""),
+                        # Marks this entry as coming from an indexed document rather than a
+                        # SharePoint/web result. The frontend's filename -> web_url rewrite
+                        # (answerParsing.ts resolveSharePointUrl) must skip these: a provisioned bot
+                        # mixes uploaded PDFs with scraped pages, so a `report.pdf` citation could
+                        # otherwise be silently retargeted at an unrelated `.../report.pdf` on the
+                        # scraped site.
+                        "kind": "document",
                         "activity": asdict(doc.activity) if doc.activity else None,
                     }
                 )
@@ -911,11 +926,21 @@ class Approach(ABC):
         return sourcepage or ""
 
     def get_document_citation(self, document: Document, citation_target: str = "sourcepage") -> str:
-        if citation_target == "url" and document.url:
+        if citation_target in ("url", CITATION_TARGET_URL_OR_SOURCEPAGE) and document.url:
             return document.url
         if citation_target == "storage_url" and document.storage_url:
             return document.storage_url
         return self.get_citation(document.sourcepage)
+
+    @staticmethod
+    def citation_target_can_link_documents(citation_target: str) -> bool:
+        """Whether a retrieved document's own `url` may become its citation.
+
+        Both the all-or-nothing `"url"` mode and the per-document mode need the external-result
+        metadata that carries each document's title, which is what lets the frontend label the
+        citation with the page title instead of the raw URL.
+        """
+        return citation_target in ("url", CITATION_TARGET_URL_OR_SOURCEPAGE)
 
     def get_image_citation(self, citation: Optional[str], image_url: str):
         base_citation = citation or ""

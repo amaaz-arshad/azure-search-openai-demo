@@ -20,6 +20,9 @@ type ActivityDetailLike = {
 type ExternalResultMetadataLike = {
     title?: string;
     url?: string;
+    // "document" marks an entry built from an indexed search document (backend
+    // Approach.get_sources_content). Anything else is a SharePoint/web result.
+    kind?: string;
 };
 
 export type ChatAppResponseLike = {
@@ -154,6 +157,13 @@ const collectCitations = (answer: ChatAppResponseLike, isStreaming: boolean): { 
 
         const matchingResult = externalResults.find(result => {
             if (!result.url) {
+                return false;
+            }
+            // Only a SharePoint/web result may claim a bare filename citation. Indexed documents are
+            // excluded: a provisioned bot mixes uploaded files with scraped pages in one corpus, so
+            // matching "report.pdf" against a retrieved page URL ending in "/report.pdf" would
+            // silently retarget the customer's own file to an unrelated external page.
+            if (result.kind === "document") {
                 return false;
             }
             const urlParts = result.url.split("/");

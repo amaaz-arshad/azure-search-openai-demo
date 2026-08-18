@@ -150,3 +150,24 @@ async def test_apply_saved_empty_prompt_no_ansprache_still_default():
     async with quart_app.app_context():
         await app_module.apply_saved_chatbot_prompt_override(request_json)
     assert request_json["context"]["overrides"]["__saved_prompt_template"] == app_module.DEFAULT_DYNAMIC_PROMPT
+
+
+def test_both_dynamic_prompts_carry_every_citation_guard() -> None:
+    # A provisioned bot is cited per document, so one turn can show the model a page URL and a
+    # filename as source labels. Both failure modes these guards forbid shipped to production on
+    # `snap`, which is likewise URL-cited: a URL remembered from an earlier turn pasted into a
+    # bracket, and a source label written as a markdown link so the bracket validated while the raw
+    # URL leaked into the visible answer. The tutor prompt spells the guards out as markdown bullets,
+    # so this is what stops the two prompts from drifting apart.
+    from core.dynamic_tutor_prompt import DEFAULT_DYNAMIC_TUTOR_PROMPT, DYNAMIC_CITATION_GUARDS
+
+    import app
+
+    assert DYNAMIC_CITATION_GUARDS
+    for guard in DYNAMIC_CITATION_GUARDS:
+        assert guard in DEFAULT_DYNAMIC_TUTOR_PROMPT
+        assert guard in app.DEFAULT_DYNAMIC_PROMPT
+
+    # Both still substitute the citation list the backend injects per turn.
+    assert "{{POSSIBLE_CITATIONS_PROMPT}}" in DEFAULT_DYNAMIC_TUTOR_PROMPT
+    assert "{{POSSIBLE_CITATIONS_PROMPT}}" in app.DEFAULT_DYNAMIC_PROMPT

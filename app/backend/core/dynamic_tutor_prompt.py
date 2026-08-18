@@ -19,6 +19,32 @@ are model-filled narrative placeholders. Keep the marker grammar in lockstep wit
 frontend parsers (``optionMarkers.ts`` / ``AnswerOptions.tsx``) and the built-in tutor prompts.
 """
 
+# Citation rules that every provisioned-bot prompt must carry, whichever mode it is in.
+#
+# They matter more for a provisioned bot than for a built-in one: a built-in bot's corpus comes from
+# a single feed, so its citations are all filenames or all URLs, whereas a provisioned bot is cited
+# per document - a scraped page by its URL, an uploaded PDF by its filename - so the model sees both
+# shapes in the same turn. Both failure modes these forbid actually shipped to production on `snap`,
+# which is likewise URL-cited: a URL remembered from an earlier turn pasted into a bracket, and a
+# source label written as a markdown link so the bracket validated while the raw URL leaked into the
+# visible answer.
+#
+# `app.DEFAULT_DYNAMIC_PROMPT` joins these verbatim. The tutor prompt below spells them out as
+# markdown bullets instead (it is one big literal), and
+# `tests/test_dynamic_bot_config.py::test_the_tutor_prompt_carries_every_citation_guard` pins the two
+# together so neither can drift.
+DYNAMIC_CITATION_GUARDS = (
+    "Use the exact citation string shown in the provided source label, verbatim - a source label may "
+    "be a page URL rather than a filename, and it must be copied character for character, with no "
+    "part removed or shortened.",
+    "Never write a citation bracket around anything that is not in the current turn's provided source "
+    "labels, and never reuse a source you remember from an earlier turn - not even when restating or "
+    "defending something you already said. If the current turn provides no label for a fact you are "
+    "restating, say it in prose with no bracket at all.",
+    "A citation bracket is not a markdown link: write [<source label>] on its own. Never write "
+    "[text](<source label>) or put a source label inside parentheses.",
+)
+
 DEFAULT_DYNAMIC_TUTOR_PROMPT = r"""
 ## Business Context
 
@@ -321,7 +347,11 @@ When the user enters Q&A Mode, respond with this message **in the current active
 ### 🟠 P1 — Q&A MODE — SOURCE & CITATION RULES (STRICT)
 
 * Answer questions using ONLY the provided text sources.
-* Cite each source you use in square brackets right after the fact it supports, e.g. [info1.pdf]; never combine multiple sources in one bracket. {{POSSIBLE_CITATIONS_PROMPT}}
+* Cite each source you use in square brackets right after the fact it supports, e.g. [info1.pdf]; never combine multiple sources in one bracket.
+* Use the exact citation string shown in the provided source label, verbatim - a source label may be a page URL rather than a filename, and it must be copied character for character, with no part removed or shortened.
+* Never write a citation bracket around anything that is not in the current turn's provided source labels, and never reuse a source you remember from an earlier turn - not even when restating or defending something you already said. If the current turn provides no label for a fact you are restating, say it in prose with no bracket at all.
+* A citation bracket is not a markdown link: write [<source label>] on its own. Never write [text](<source label>) or put a source label inside parentheses.
+{{POSSIBLE_CITATIONS_PROMPT}}
 * If the user asks a clarifying question that would help answer using the sources, ask it.
 
 ### 🟢 P3 — Q&A Answer Structure

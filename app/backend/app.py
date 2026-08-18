@@ -199,6 +199,7 @@ from core.chatbotembedconfigstore import ChatbotEmbedConfig, ChatbotEmbedConfigS
 from core.chatbotpromptstore import ChatbotPromptOverride, ChatbotPromptStore
 from core.chatbotregistrystore import UNLIMITED_SESSIONS, ChatbotRegistryRecord, ChatbotRegistryStore
 from core.chatbotsessioncounterstore import ChatbotSessionCounterStore
+from core.dynamic_tutor_prompt import DYNAMIC_CITATION_GUARDS
 from core.dynamic_bot_config import (
     DEFAULT_DYNAMIC_QNA_MODEL,
     DEFAULT_DYNAMIC_TUTOR_MODEL,
@@ -649,12 +650,14 @@ async def ensure_example_dynamic_bot_seeded() -> None:
 # Minimal neutral system prompt for a dynamic bot whose control panel sent an empty `prompt`.
 # Real bots override this by sending their own prompt; the placeholders are substituted by
 # render_chatbot_prompt. Built-in bots never use this — they keep their source prompts.
+# DYNAMIC_CITATION_GUARDS (core/dynamic_tutor_prompt.py) explains why these rules are needed here.
 DEFAULT_DYNAMIC_PROMPT = (
     "You are a helpful assistant. Answer the user's question using only the facts in the sources "
     "below. If the sources do not contain the answer, say you don't know — do not invent anything. "
     "Answer in {{language_locale}}. Cite each source you use in square brackets right after the fact "
     "it supports, e.g. [info1.pdf]; never combine multiple sources in one bracket. "
-    "{{POSSIBLE_CITATIONS_PROMPT}}"
+    + " ".join(DYNAMIC_CITATION_GUARDS)
+    + " {{POSSIBLE_CITATIONS_PROMPT}}"
 )
 
 

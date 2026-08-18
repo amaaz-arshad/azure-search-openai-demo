@@ -16,6 +16,7 @@ from approaches.approach import (
     ThoughtStep,
     WebResult,
 )
+from approaches.chatbot_config_registry import CITATION_TARGET_URL_OR_SOURCEPAGE
 from approaches.chatreadretrieveread import ChatReadRetrieveReadApproach, _is_lemon_chatbot, _sanitize_lemon_text
 from approaches.promptmanager import PromptManager
 from prepdocslib.embeddings import ImageEmbeddings
@@ -129,6 +130,92 @@ def test_get_document_citation_target_uses_url_for_external_feed_categories() ->
     assert ChatReadRetrieveReadApproach.get_document_citation_target("publishone") == "url"
     assert ChatReadRetrieveReadApproach.get_document_citation_target("fhg") == "url"
     assert ChatReadRetrieveReadApproach.get_document_citation_target("demo") == "sourcepage"
+
+
+def test_get_document_citation_target_is_per_document_for_provisioned_bots() -> None:
+    # A provisioned bot's `include_category` IS its bot name and its search category, and it has no
+    # config module, so it resolves to the per-document mode.
+    for dynamic_name in ("xba", "tdiso", "fhp"):
+        assert ChatReadRetrieveReadApproach.get_document_citation_target(dynamic_name) == (
+            CITATION_TARGET_URL_OR_SOURCEPAGE
+        )
+
+    # A comma-separated list still keys on the first category, and a non-string is still "sourcepage".
+    assert ChatReadRetrieveReadApproach.get_document_citation_target("xba,fhg") == (CITATION_TARGET_URL_OR_SOURCEPAGE)
+    assert ChatReadRetrieveReadApproach.get_document_citation_target(None) == "sourcepage"
+
+
+def test_per_document_citation_uses_the_url_only_when_the_document_has_one(chat_approach) -> None:
+    # The whole point of the provisioned-bot mode: one corpus, two citation shapes. A scraped page
+    # record cites its live URL; an uploaded PDF in the same bot still cites its source file, because
+    # citing a URL it does not have would leave the answer with no way back to the document.
+    scraped_page = Document(
+        id="doc1",
+        sourcepage="www.snap.de_20260716084422.json",
+        sourcefile="www.snap.de_20260716084422.json",
+        title="Workflowmanagement fuer deinen Content",
+        url="https://www.snap.de",
+        content="SNAP Innovation",
+    )
+    uploaded_pdf = Document(
+        id="doc2",
+        sourcepage="Sonor-Force-2003.pdf",
+        sourcefile="Sonor-Force-2003.pdf",
+        content="Drum kit specifications",
+    )
+
+    assert (
+        chat_approach.get_document_citation(scraped_page, citation_target=CITATION_TARGET_URL_OR_SOURCEPAGE)
+        == "https://www.snap.de"
+    )
+    assert (
+        chat_approach.get_document_citation(uploaded_pdf, citation_target=CITATION_TARGET_URL_OR_SOURCEPAGE)
+        == "Sonor-Force-2003.pdf"
+    )
+    # The all-or-nothing modes are unchanged.
+    assert chat_approach.get_document_citation(scraped_page, citation_target="sourcepage") == (
+        "www.snap.de_20260716084422.json"
+    )
+    assert chat_approach.get_document_citation(uploaded_pdf, citation_target="url") == "Sonor-Force-2003.pdf"
+
+
+@pytest.mark.asyncio
+async def test_per_document_citation_mixes_url_and_file_citations_in_one_turn(chat_approach) -> None:
+    documents = [
+        Document(
+            id="doc1",
+            sourcepage="www.snap.de.json",
+            sourcefile="www.snap.de.json",
+            title="Beratung",
+            url="https://www.snap.de/beratung",
+            content="Beratung zu Content-Workflows.",
+        ),
+        Document(
+            id="doc2",
+            sourcepage="broschuere.pdf",
+            sourcefile="broschuere.pdf",
+            content="Nur im PDF enthalten.",
+        ),
+    ]
+
+    data_points = await chat_approach.get_sources_content(
+        documents,
+        use_semantic_captions=False,
+        include_text_sources=True,
+        download_image_sources=False,
+        document_citation_target=CITATION_TARGET_URL_OR_SOURCEPAGE,
+    )
+
+    assert data_points.citations == ["https://www.snap.de/beratung", "broschuere.pdf"]
+    # The source label the model sees is the citation, so it can only ever emit a citation that the
+    # frontend will resolve the same way.
+    assert data_points.text[0].startswith("https://www.snap.de/beratung: ")
+    assert data_points.text[1].startswith("broschuere.pdf: ")
+    # Only the document that has a url contributes external-result metadata, which is what gives the
+    # citation pill its title instead of the raw URL.
+    assert [entry["url"] for entry in data_points.external_results_metadata] == ["https://www.snap.de/beratung"]
+    assert data_points.external_results_metadata[0]["title"] == "Beratung"
+    assert data_points.external_results_metadata[0]["kind"] == "document"
 
 
 def test_get_system_prompt_variables_renders_support_email_and_preserves_literal_prompt_placeholders(chat_approach):
@@ -684,7 +771,9 @@ async def test_get_sources_content_uses_url_for_fhg_citations(chat_approach):
         document_citation_target="url",
     )
 
-    assert data_points.citations == ["https://www.fhg-tirol.ac.at/page.cfm?vpath=studium/bachelor/radiologietechnologie"]
+    assert data_points.citations == [
+        "https://www.fhg-tirol.ac.at/page.cfm?vpath=studium/bachelor/radiologietechnologie"
+    ]
     assert data_points.text == [
         "https://www.fhg-tirol.ac.at/page.cfm?vpath=studium/bachelor/radiologietechnologie: Study content"
     ]
@@ -725,6 +814,9 @@ async def test_get_sources_content_includes_document_metadata_for_url_citations(
             "title": "erste_hilfe_elearning",
             "url": "https://amsterdam.publishone.nl/document/8786/content",
             "snippet": "Erste Hilfe umfasst alle Massnahmen im Notfall.",
+            # Marks the entry as coming from an indexed document, so the frontend's
+            # filename -> web-url rewrite skips it.
+            "kind": "document",
             "activity": None,
         }
     ]
@@ -749,7 +841,10 @@ def test_replace_all_ref_ids_uses_url_for_fhg_citations(chat_approach):
         document_citation_target="url",
     )
 
-    assert result == "See [https://www.fhg-tirol.ac.at/page.cfm?vpath=studium/bachelor/radiologietechnologie] for the source."
+    assert (
+        result
+        == "See [https://www.fhg-tirol.ac.at/page.cfm?vpath=studium/bachelor/radiologietechnologie] for the source."
+    )
 
 
 def test_select_knowledgebase_client_priorities(chat_approach):

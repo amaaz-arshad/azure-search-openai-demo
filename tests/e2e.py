@@ -32,9 +32,7 @@ WINDOWS_PROCESS_ENV_KEYS = (
     "USERPROFILE",
     "WINDIR",
 )
-WINDOWS_PROCESS_ENV = {
-    key: value for key in WINDOWS_PROCESS_ENV_KEYS if (value := os.environ.get(key)) is not None
-}
+WINDOWS_PROCESS_ENV = {key: value for key in WINDOWS_PROCESS_ENV_KEYS if (value := os.environ.get(key)) is not None}
 
 
 def wait_for_server_ready(url: str, timeout: float = 10.0, check_interval: float = 0.5) -> bool:
@@ -277,7 +275,9 @@ def test_bensberg_option_prompt_disables_input_and_dedupes_topics(page: Page, li
     mode_button.click()
     expect(mode_button).to_have_attribute("aria-pressed", "true")
 
-    expect(page.get_by_text("Understood — let's start your knowledge test. Which topic should I ask you about?")).to_be_visible()
+    expect(
+        page.get_by_text("Understood — let's start your knowledge test. Which topic should I ask you about?")
+    ).to_be_visible()
     expect(page.get_by_text("The provided learning materials cover")).to_have_count(0)
     expect(page.get_by_text("Selection", exact=True)).to_have_count(1)
     expect(page.get_by_text("Abrufvergleich", exact=True)).to_have_count(1)
@@ -599,6 +599,100 @@ def test_shared_answer_renderer_handles_markdown_and_literal_html(page: Page, li
     expect(page.get_by_text("1. manual.txt")).to_be_visible()
 
 
+def build_citation_stream(content: str, data_points: dict) -> str:
+    """One NDJSON /chat/stream body: the context frame, then the answer text."""
+    frames = [
+        json.dumps(
+            {
+                "delta": {"role": "assistant"},
+                "context": {"data_points": data_points, "thoughts": [], "followup_questions": None},
+                "session_state": None,
+            }
+        ),
+        json.dumps({"delta": {"role": None, "content": content}}),
+    ]
+    return "\n".join(frames) + "\n"
+
+
+def ask_shared_renderer(page: Page, live_server_url: str, content: str, data_points: dict) -> None:
+    def handle(route: Route):
+        route.fulfill(
+            body=build_citation_stream(content, data_points),
+            status=200,
+            headers={"Transfer-encoding": "Chunked", "Content-Type": "application/x-ndjson"},
+        )
+
+    page.route("*/**/chat/stream", handle)
+    page.goto(f"{live_server_url}nerilio")
+    question_input = page.locator("textarea").first
+    question_input.click()
+    question_input.fill("Wie werden Quellen angezeigt?")
+    question_input.press("Enter")
+
+
+def test_a_url_citation_renders_as_an_external_link_labelled_with_its_title(page: Page, live_server_url: str):
+    # A retrieved document that carries its own page URL is cited by that URL, and the pill shows the
+    # document's title rather than the raw URL. This is what a provisioned bot's scraped-web records
+    # rely on, since their citation target now resolves per document.
+    ask_shared_renderer(
+        page,
+        live_server_url,
+        "SNAP beraet zu Content-Workflows [https://www.snap.de/beratung].",
+        {
+            "text": ["https://www.snap.de/beratung: Beratung zu Content-Workflows."],
+            "images": [],
+            "citations": ["https://www.snap.de/beratung"],
+            "external_results_metadata": [
+                {
+                    "id": "doc1",
+                    "title": "Beratung: Workflow-Management",
+                    "url": "https://www.snap.de/beratung",
+                    "snippet": "Beratung zu Content-Workflows.",
+                    "kind": "document",
+                    "activity": None,
+                }
+            ],
+        },
+    )
+
+    pill = page.get_by_role("link", name="1. Beratung: Workflow-Management")
+    expect(pill).to_be_visible()
+    expect(pill).to_have_attribute("href", "https://www.snap.de/beratung")
+    expect(pill).to_have_attribute("target", "_blank")
+
+
+def test_a_document_citation_is_not_retargeted_to_a_matching_external_url(page: Page, live_server_url: str):
+    # A provisioned bot mixes uploaded files with scraped pages in one corpus, so a `broschuere.pdf`
+    # citation can coexist with a retrieved page URL whose last path segment is also
+    # `broschuere.pdf`. The SharePoint filename -> web_url rewrite must not claim it: doing so turns
+    # the customer's own file into a link to an unrelated external page and makes the file
+    # unreachable from the answer. Entries marked `kind: "document"` are excluded from that rewrite.
+    ask_shared_renderer(
+        page,
+        live_server_url,
+        "Details stehen nur in der Broschuere [broschuere.pdf].",
+        {
+            "text": ["broschuere.pdf: Nur im PDF enthalten."],
+            "images": [],
+            "citations": ["broschuere.pdf"],
+            "external_results_metadata": [
+                {
+                    "id": "doc2",
+                    "title": "Fremde Broschuere",
+                    "url": "https://fremde-seite.example/downloads/broschuere.pdf",
+                    "snippet": "Nicht die Datei des Kunden.",
+                    "kind": "document",
+                    "activity": None,
+                }
+            ],
+        },
+    )
+
+    expect(page.get_by_role("button", name="1. broschuere.pdf")).to_be_visible()
+    expect(page.get_by_role("link", name="1. Fremde Broschuere")).to_have_count(0)
+    expect(page.locator("a[href='https://fremde-seite.example/downloads/broschuere.pdf']")).to_have_count(0)
+
+
 def test_shared_answer_wide_table_scroll_shadows_track_position(page: Page, live_server_url: str):
     """A wide table overflows its bubble and the edge scroll-shadow overlays
     follow the live scroll position (right-only at the start, left-only at the
@@ -801,7 +895,9 @@ def test_publishone2_answer_renders_a_same_origin_document_image(page: Page, liv
         ),
     )
     # The image request never reaches blob storage in the test environment.
-    page.route("*/**/content/publishone2/**", lambda route: route.fulfill(status=200, body="", content_type="image/jpeg"))
+    page.route(
+        "*/**/content/publishone2/**", lambda route: route.fulfill(status=200, body="", content_type="image/jpeg")
+    )
 
     page.goto(f"{live_server_url}publishone2")
 
@@ -1065,8 +1161,7 @@ def test_rak_answer_citation_keeps_logged_in_user_scope(page: Page, live_server_
             route, "tests/snapshots/test_app/test_chat_stream_text/client0/result.jsonlines"
         ),
     )
-    page.add_init_script(
-        """
+    page.add_init_script("""
         () => {
             window.__openedUrls = [];
             window.open = url => {
@@ -1074,8 +1169,7 @@ def test_rak_answer_citation_keeps_logged_in_user_scope(page: Page, live_server_
                 return null;
             };
         }
-        """
-    )
+        """)
 
     page.goto(f"{live_server_url}rak")
 
@@ -1095,9 +1189,7 @@ def test_rak_answer_citation_keeps_logged_in_user_scope(page: Page, live_server_
 
     page.wait_for_function("window.__openedUrls.length > 0")
     opened_urls = page.evaluate("window.__openedUrls")
-    assert opened_urls[-1].endswith(
-        "/content/rak/Benefit_Options-2.pdf?chatbot_name=rak&chatbot_user=12345"
-    )
+    assert opened_urls[-1].endswith("/content/rak/Benefit_Options-2.pdf?chatbot_name=rak&chatbot_user=12345")
 
 
 def test_chat_stop_button_visibility(page: Page, live_server_url: str):
@@ -1671,7 +1763,11 @@ def test_internal_bot_dropdown_uses_source_bot_router_settings(page: Page, live_
     login_internal_bot(page)
 
     expect(page.get_by_text("Select a source bot")).to_be_visible()
-    expect(page.get_by_text("Open Developer settings and choose which bot Internal Bot should use for retrieval and system instructions.")).to_be_visible()
+    expect(
+        page.get_by_text(
+            "Open Developer settings and choose which bot Internal Bot should use for retrieval and system instructions."
+        )
+    ).to_be_visible()
     expect(
         page.get_by_placeholder("Select a source bot in Developer settings before sending a message")
     ).to_be_disabled()
@@ -1698,7 +1794,9 @@ def test_internal_bot_dropdown_uses_source_bot_router_settings(page: Page, live_
     page.get_by_role("option", name="vjoon K4").click()
     page.get_by_role("button", name="Close").click()
 
-    expect(page.get_by_text("Hi there! I know the user manual for vjoon K4 version 16 really well. Just ask away.")).to_be_visible()
+    expect(
+        page.get_by_text("Hi there! I know the user manual for vjoon K4 version 16 really well. Just ask away.")
+    ).to_be_visible()
     expect(page.get_by_text("Hello, I'm nerilio. How can I assist you today?")).to_have_count(0)
     expect(page.get_by_text("Internal Bot")).to_be_visible()
 

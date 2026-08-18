@@ -33,6 +33,20 @@ CHATBOT_PROMPT_MODULES = {
     "vjoonk4": "approaches.chatbots.vjoonk4.sampleprompt",
 }
 
+# Every built-in (committed) chatbot name, i.e. everything that is NOT a provisioned/dynamic bot.
+#
+# This lives here rather than in app.py because app.py imports the approaches layer, so the reverse
+# import would be a cycle. It is the canonical set for "is this category a built-in bot?" questions
+# asked from inside the approaches layer; `app.KNOWN_CHATBOT_NAMES` is the routing-side mirror and
+# `tests/test_chatbot_config_registry.py` pins the two equal so neither can drift.
+#
+# It is NOT the same as CHATBOT_PROMPT_MODULES: that map has no `internal` (a router shell with no
+# prompt of its own) and no `public-test` (an alias of `free`), and both must count as built-in.
+BUILTIN_CHATBOT_NAMES = frozenset(CHATBOT_PROMPT_MODULES) | frozenset(CHATBOT_NAME_ALIASES) | {
+    DEFAULT_CHATBOT_NAME,
+    "internal",
+}
+
 
 def normalize_chatbot_name(chatbot_name: Optional[str]) -> Optional[str]:
     if not chatbot_name:
@@ -41,6 +55,12 @@ def normalize_chatbot_name(chatbot_name: Optional[str]) -> Optional[str]:
     if not normalized:
         return None
     return CHATBOT_NAME_ALIASES.get(normalized, normalized)
+
+
+def is_builtin_chatbot_name(chatbot_name: Optional[str]) -> bool:
+    """Whether a name/category belongs to a committed bot rather than a provisioned one."""
+    normalized = normalize_chatbot_name(chatbot_name)
+    return normalized is not None and normalized in BUILTIN_CHATBOT_NAMES
 
 
 @lru_cache(maxsize=None)

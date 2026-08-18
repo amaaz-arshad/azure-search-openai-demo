@@ -603,7 +603,22 @@ class SearchManager:
     async def create_knowledgebase(self):
         """Creates one or more Knowledge Bases in the search index based on desired knowledge sources."""
         if self.search_info.knowledgebase_name:
-            field_names = ["id", "sourcepage", "sourcefile", "content", "category"]
+            # `url`/`title`/`storageUrl` are required, not decorative: agentic retrieval only ever
+            # sees the fields projected here, so without them `Document.url` is always None and
+            # every url-citation bot (fhg, snap, bbsa, publishone, publishone2, moodle, and every
+            # provisioned bot) silently falls back to citing the source file the moment a session
+            # uses the agentic path. Verified against the live service before adding them.
+            field_names = [
+                "id",
+                "sourcepage",
+                "sourcefile",
+                "content",
+                "category",
+                "title",
+                "url",
+                "storageUrl",
+                "tags",
+            ]
             if self.use_acls:
                 field_names.extend(["oids", "groups"])
             if self.search_images:

@@ -15,6 +15,152 @@ Two categories per date:
 
 ---
 
+## 2026-08-18
+
+### content2: record parsers for provisioned-bot JSON/XML, and per-document URL citations
+
+#### Decisions
+
+- **Requested: stop parsing provisioned-bot `.json` in content2 with the generic `JsonParser`, use a
+  custom parser mapped properly into the search index; make a citation link to the record's `url`
+  when it has one (labelled with its `title`) and keep behaving as today when it does not; then
+  delete and re-index the affected documents.**
+- **First: measured what is actually in the container.** All 8 live content2 JSON files have one of
+  two shapes — an array of `{url, content}` scraped pages (fhg-2, fhp, tdiso ×3, xba) or a single
+  `{title, content}` document (rptestbot, xba). No record has both, and there are no tags/id/date
+  fields yet. The user expects more fields later, so the parser is alias-driven and shape-tolerant
+  rather than pinned to those two shapes.
+- **The damage from the generic parser was worse than "not mapped".** Verified in the live index: it
+  re-serialised each record with `json.dumps`, so the indexed `content` was JSON syntax carrying
+  literal `\uXXXX` escapes (German umlauts unsearchable, the model shown punctuation as source
+  text); the splitter then ran over the whole file so chunks spanned unrelated records and cut
+  mid-word; and `title`/`url`/`tags` were all null. 20,231 documents across 9 files.
+- **The one `.xml` in content2 was equally mangled, and the repo already had the right parser for
+  it.** `hyroxlemon/hyrox_knowledge_*.xml` is a `<knowledge>`→`<units>`→`<chunks>` export — exactly
+  what `lemonxml.py` parses — but that parser is gated on category `lemon`, so content2 fell through
+  to `XmlParser`: 4,784 flattened documents instead of ~1,078 clean ones. Asked, and the user chose
+  to extend the fix to XML rather than keep it JSON-only. `dynamicxml.py` therefore only sniffs the
+  root and re-dispatches to `lemonxml` with the provisioned bot's own category.
+- **Dispatch is an explicit opt-in flag, not a category gate.** `parse_file` gained
+  `dynamic_record_parsing`, set only by the content2 indexer and the re-index driver. Two options
+  were rejected: dropping `force_generic_parsing` would re-enable the category-keyed feed parsers for
+  content2, so a `content2/moodle/` folder would be claimed by `publishonefeed` and indexed into the
+  real moodle bot's corpus; and duplicating `KNOWN_CHATBOT_NAMES` into `prepdocslib` (which cannot
+  import `approaches`, since the Function app ships only `prepdocslib`) would add a drift hazard that
+  no test can catch, because `pyproject.toml`'s `pythonpath` always resolves `prepdocslib` to the
+  backend copy. The flag keeps `/admin/uploads` and `scripts/prepdocs --category <x>` on exactly
+  today's behaviour.
+- **Declining is `None`, never `[]` — this one is a data-loss trap.** `parse_file` reads an empty list
+  as "handled", and `AutoBlobIndexer.index_blob` deletes a file's documents *before* writing the new
+  ones. A parser that returned `[]` for an unexpected shape would therefore drop the whole file from
+  the index with a single INFO log — 10,798 documents for `fhp`, and the bot would answer "I don't
+  know" forever with no error anywhere. Same reasoning behind skipping empty-content records (an
+  empty embedding input is a 400, which is not a `RateLimitError` and so is not retried) and behind
+  the driver treating a `no-content` status as a failure rather than a success.
+- **`sourcepage` stays the bare source filename.** `getCitationFilePath` already prepends the bot
+  name, so a filename resolves to `/content2/<bot>/<file>` — a real blob. Emitting `<bot>/<file>`
+  would produce `/content2/<bot>/<bot>/<file>` and 404 every content2 citation that works today,
+  including the PDF citations of five provisioned bots. `dynamicxml` overrides `lemonxml`'s chunk-id
+  `sourcepage` for the same reason.
+- **Titles are derived by document-frequency boilerplate detection, cutting at the sharp rise.** 6 of
+  8 files have no `title` field, and the user chose deriving one over showing the raw URL. Scraped
+  records open with the page `<title>` and run straight into site-wide nav, so an n-gram that opens
+  many records is chrome. Two simpler rules were tried against the real files and rejected: longest
+  common substring collapses to a useless fragment on a site served in two languages, and "first
+  n-gram above the threshold" discards a CMS listing title shared by hundreds of URLs (which is
+  itself repeated text). Keying on the *rise* handles all three awkward cases; measured profiles are
+  clean step functions (e.g. `[1, 1, 2, 357, 366, 413, …]`). Known limitation, documented: if the
+  shared title's frequency is within 4× of the nav's, the title falls back to the URL slug.
+- **Citation resolution is now per document for provisioned bots only, keyed on "is this a built-in
+  name" rather than "does a config module exist".** `rak` is why: it has documents carrying a `url`
+  but deliberately cites the source file, so a global "url when present" default would have changed
+  its citations with no reindex at all. Audited the live index first — only `fhg`, `snap`, `bbsa`,
+  `publishone`, `publishone2`, `moodle` and `rak` have any document with a `url`, and every one of
+  those except `rak` already sets `citation_target="url"`, so the new mode is a no-op for all 22
+  built-ins. `BUILTIN_CHATBOT_NAMES` lives in `chatbot_prompt_registry.py` (a true leaf; `app.py`
+  imports the approaches layer, so the reverse import is a cycle) with a test pinning it equal to
+  `app.KNOWN_CHATBOT_NAMES`. Deliberately not a `ChatbotConfig.citation_target` literal: it is
+  synthesised for bots with no config module and a built-in must not be able to select it, the same
+  way `"storage_url"` is handled.
+- **That gate also closes a pre-existing arbitrary-import/log-flood hole.** `include_category` is
+  unvalidated client input and reached `load_chatbot_config` → `import_module` on every dynamic-bot
+  turn, where a miss logs a full traceback and is memoised in an unbounded `lru_cache`. Same vector
+  CLAUDE.md already documents for `/speech/token?chatbot=`.
+- **The frontend needed no change for the citation split, but populating `external_results_metadata`
+  for these bots exposed a real hazard.** `resolveSharePointUrl` rewrites any
+  `pdf|docx?|xlsx?|pptx?|txt|html?|csv` citation to a retrieved URL whose last path segment matches —
+  inert until now only because dynamic bots had no external-result metadata. A customer's
+  `broschuere.pdf` could be silently retargeted to an unrelated `.../broschuere.pdf` on a scraped
+  site, and their own file made unreachable. Document-derived entries now carry `kind: "document"` and
+  are excluded from that rewrite. Verified in a real browser both ways: with the marker the pill stays
+  a button resolving to `/content2/xba/broschuere.pdf`; removing it reproduces the hijack on both the
+  inline superscript and the footer pill.
+- **URL citations were dead in the agentic-retrieval path, for every url-citation bot, before this
+  change.** A knowledge source only exposes the fields listed in its `source_data_fields`, and
+  `create_knowledgebase` listed only `id/sourcepage/sourcefile/content/category`. Confirmed against
+  the live service with a real `retrieve` call: `sourceData` came back as
+  `category, content, id, sourcefile, sourcepage, tags, title` — no `url`, no `storageUrl` — so
+  `Document.url` was always `None` and `fhg`/`snap`/`bbsa`/`publishone`/`publishone2`/`moodle` all
+  silently fell back to citing the source file whenever a session used the agentic toggle. Now
+  projected explicitly. Note the content2 indexer runs `manage_search_index=False`, so it never
+  applies this itself; it needs a `prepdocs` run or an explicit knowledge-source upsert.
+- **Both dynamic prompts gained `DYNAMIC_CITATION_GUARDS`.** With URL citations, the two failure modes
+  that already shipped once on `snap` (also URL-cited) become reachable: a URL remembered from an
+  earlier turn pasted into a bracket, and a source label written as `[text](url)` so the bracket
+  validated while the raw URL leaked into the visible answer. The neutral Q&A prompt joins the shared
+  tuple; the tutor prompt spells them out as bullets, with a test pinning the two together.
+- **Approved and done alongside: 18,000 orphaned `hyroxlemon` documents removed.** Two XML blobs were
+  deleted from content2 without their documents being removed, so a bot was still answering from files
+  its owner had deleted. `--prune-orphans` only ever touches documents whose `storageUrl` is under the
+  content2 container and whose blob no longer exists.
+- **Not done, deliberately:** no built-in-name guard was added to `category_for_blob`, so a manually
+  created `content2/<built-in name>/` folder could still index into that bot's category. Provisioning
+  already refuses reserved names, and the alternative needs the name set inside `prepdocslib` — the
+  drift hazard rejected above. Recorded here rather than fixed.
+
+#### Changes
+
+- `app/backend/prepdocslib/dynamicjson.py` (new): shape-tolerant JSON record parser — alias-driven
+  field mapping, four container shapes, metadata-line header on every chunk, per-record chunking,
+  positional-index ids, http(s)-only `url`, invisible-character normalisation, n-gram boilerplate
+  title derivation.
+- `app/backend/prepdocslib/dynamicxml.py` (new): sniff-and-re-dispatch for `<knowledge>` exports;
+  rebinds `sourcepage` to the filename and prefixes the unit/section title to each chunk; treats a
+  validation failure as a decline.
+- `app/backend/prepdocslib/filestrategy.py`: `parse_file(..., dynamic_record_parsing=…)`, dispatched
+  after the six category-keyed parsers; `force_generic` comment corrected.
+- `app/backend/prepdocslib/blobautoindex.py`: `AutoBlobIndexerConfig.dynamic_record_parsing`, threaded
+  into `parse_file`.
+- `app/functions/moodle_auto_indexer/function_app.py`: content2 indexer sets
+  `dynamic_record_parsing=True`; module comment corrected.
+- `app/backend/prepdocslib/blobmanager.py`: `list_blob_names(prefix, container=…)` override, mirroring
+  `download_blob`.
+- `app/backend/prepdocslib/searchmanager.py`: knowledge source projects `title`/`url`/`storageUrl`/`tags`.
+- `app/backend/approaches/chatbot_prompt_registry.py`: `BUILTIN_CHATBOT_NAMES` + `is_builtin_chatbot_name`.
+- `app/backend/approaches/chatbot_config_registry.py`: `CITATION_TARGET_URL_OR_SOURCEPAGE`;
+  `get_chatbot_citation_target` returns it for non-built-in names; `get_chatbot_config` gated on the
+  built-in set.
+- `app/backend/approaches/approach.py`: `get_document_citation` handles the per-document mode;
+  `citation_target_can_link_documents`; `external_results_metadata` entries carry `kind: "document"`.
+- `app/frontend/src/chatbots/shared/answer/answerParsing.ts`: `resolveSharePointUrl` skips
+  `kind: "document"` entries.
+- `app/backend/core/dynamic_tutor_prompt.py`: `DYNAMIC_CITATION_GUARDS` + the guards as tutor-prompt
+  bullets. `app/backend/app.py`: `DEFAULT_DYNAMIC_PROMPT` joins the shared tuple.
+- `app/backend/prep_content2_reindex.py` (new): re-index driver with `--dry-run`, `--bot`,
+  `--prune-orphans`, `--continue-on-error`, `--sleep`; builds the same config as the Function.
+- Tests: `tests/test_dynamicjson.py` (57), `tests/test_dynamicxml.py` (14),
+  `tests/test_prep_content2_reindex.py` (11, incl. field-by-field config parity with the Function),
+  plus additions to `tests/test_prepdocslib_filestrategy.py`, `tests/test_blobautoindex.py`,
+  `tests/test_chatapproach.py`, `tests/test_chatbot_config_registry.py`,
+  `tests/test_dynamic_prompt_config.py`, and two `tests/e2e.py` citation tests.
+- `scripts/copy_prepdocslib.py` re-run, so all four `app/functions/*/prepdocslib` copies carry the new
+  modules.
+- `CLAUDE.md`: content2 contract bullet rewritten for the two parsing flags; two new contract bullets
+  (record parsers, per-document citations); parser dispatch table notes the opt-in pair; "Adding Data"
+  documents the re-index driver.
+
+---
+
 ## 2026-08-17
 
 ### `/bbsa`: speak-answer button now uses `de-AT-JonasNeural` (per-bot voice, not deployment-wide)

@@ -49,6 +49,11 @@ class AutoBlobIndexerConfig:
     dynamic_category_from_path: bool = False
     # When True, force generic extension-based parsing (bypass all custom content-specific parsers).
     force_generic_parsing: bool = False
+    # When True, route .json/.xml through the provisioned-bot record parsers (dynamicjson/dynamicxml)
+    # before falling back to the generic ones. Opt-in because those parsers are not category-keyed:
+    # they claim any record-shaped payload, so only the content2 indexer - where every file belongs
+    # to a provisioned bot by construction - may enable them.
+    dynamic_record_parsing: bool = False
     # --- archive mode (publishone2 ZIP packages) ---
     # Extensions treated as archives: one source blob expands into several documents plus the image
     # assets they reference. Everything mirrored out of an archive is namespaced by the archive's
@@ -343,6 +348,7 @@ class AutoBlobIndexer:
                     file_processors=self.file_processors,
                     category=category,
                     force_generic=self.config.force_generic_parsing,
+                    dynamic_record_parsing=self.config.dynamic_record_parsing,
                 )
         finally:
             file_wrapper.close()

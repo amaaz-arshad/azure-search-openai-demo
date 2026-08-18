@@ -507,3 +507,117 @@ async def test_file_strategy_uses_category_prefix_for_blob_remove(monkeypatch, m
 
     assert remove_calls == [("alpha.txt", "sartorius")]
     assert remove_content_calls == ["alpha.txt"]
+
+
+def build_dynamic_json_stream(name: str = "www.example.de_20260818.json"):
+    payload = [
+        {"url": "https://www.example.de/a", "content": "Erste Seite mit ausreichend Inhalt zum Indexieren."},
+        {"url": "https://www.example.de/b", "content": "Zweite Seite mit ausreichend Inhalt zum Indexieren."},
+    ]
+    stream = BytesIO(json.dumps(payload).encode("utf-8"))
+    stream.name = name
+    return stream
+
+
+@pytest.mark.asyncio
+async def test_parse_file_leaves_json_on_the_generic_parser_unless_dynamic_record_parsing_is_requested():
+    # The opt-in is what keeps `/admin/uploads` and `scripts/prepdocs --category <x>` on exactly the
+    # behaviour they have today: the record parser is not category-keyed, so without a flag it would
+    # claim any record-shaped JSON uploaded to any category.
+    file = File(content=build_dynamic_json_stream())
+
+    sections = await parse_file(
+        file,
+        {".json": FileProcessor(JsonParser(), SimpleTextSplitter())},
+        category="fhp",
+    )
+
+    assert len(sections) == 1
+    assert sections[0].url is None
+    assert sections[0].title is None
+    assert '"url": "https://www.example.de/a"' in sections[0].chunk.text
+
+
+@pytest.mark.asyncio
+async def test_parse_file_uses_the_record_parser_for_json_when_dynamic_record_parsing_is_requested():
+    file = File(content=build_dynamic_json_stream())
+
+    sections = await parse_file(
+        file,
+        {".json": FileProcessor(JsonParser(), SimpleTextSplitter())},
+        category="fhp",
+        force_generic=True,
+        dynamic_record_parsing=True,
+    )
+
+    assert len(sections) == 2
+    assert [section.url for section in sections] == ["https://www.example.de/a", "https://www.example.de/b"]
+    assert {section.category for section in sections} == {"fhp"}
+    # Prose, not the re-serialised record the generic JsonParser produced.
+    assert '"url":' not in sections[0].chunk.text
+
+
+@pytest.mark.asyncio
+async def test_parse_file_uses_the_knowledge_xml_parser_when_dynamic_record_parsing_is_requested():
+    knowledge_xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<knowledge version="2.1"><meta><course>C</course></meta><units>'
+        '<unit id="u001"><title>Unit One</title><chunks>'
+        '<chunk id="c0001"><section_title>Intro</section_title><content>Body text here.</content></chunk>'
+        "</chunks></unit></units></knowledge>"
+    )
+    stream = BytesIO(knowledge_xml.encode("utf-8"))
+    stream.name = "knowledge_20260722.xml"
+    file = File(content=stream)
+
+    sections = await parse_file(
+        file,
+        {".xml": FileProcessor(XmlParser(), SentenceTextSplitter())},
+        category="hyroxlemon",
+        force_generic=True,
+        dynamic_record_parsing=True,
+    )
+
+    assert len(sections) == 1
+    assert sections[0].title == "Unit One — Intro"
+    assert sections[0].category == "hyroxlemon"
+    assert sections[0].sourcepage == "knowledge_20260722.xml"
+
+
+@pytest.mark.asyncio
+async def test_dynamic_record_parsing_still_falls_back_to_the_generic_parser_for_an_unrecognised_payload():
+    # The fallback is what stops a customer's unexpected shape from emptying that bot's index: the
+    # content2 indexer deletes a file's documents before writing, so "handled but zero sections"
+    # would silently drop the file.
+    stream = BytesIO(json.dumps({"config": {"retries": 3}, "timeout": 30}).encode("utf-8"))
+    stream.name = "settings.json"
+    file = File(content=stream)
+
+    sections = await parse_file(
+        file,
+        {".json": FileProcessor(JsonParser(), SimpleTextSplitter())},
+        category="fhp",
+        force_generic=True,
+        dynamic_record_parsing=True,
+    )
+
+    assert len(sections) == 1
+    assert '"retries"' in sections[0].chunk.text
+
+
+@pytest.mark.asyncio
+async def test_dynamic_record_parsing_never_reaches_a_builtin_bots_feed_parser():
+    # force_generic and dynamic_record_parsing are set together by the content2 indexer. A folder
+    # named after a built-in bot must still not be claimed by that bot's category-keyed parser.
+    file = File(content=build_feed_stream())
+
+    sections = await parse_file(
+        file,
+        {".xml": FileProcessor(XmlParser(), SentenceTextSplitter())},
+        category="moodle",
+        force_generic=True,
+        dynamic_record_parsing=True,
+    )
+
+    assert all(section.url is None for section in sections)
+    assert all(section.id is None for section in sections)

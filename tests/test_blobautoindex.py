@@ -1,6 +1,7 @@
 from typing import Any
 
 import pytest
+from types import SimpleNamespace
 
 from prepdocslib.blobautoindex import AutoBlobIndexer, AutoBlobIndexerConfig, normalize_blob_name
 
@@ -193,8 +194,14 @@ async def test_auto_blob_indexer_skips_wrong_prefix_without_side_effects(
 
 
 def test_normalize_blob_name_strips_container_prefix() -> None:
-    assert normalize_blob_name("content/nerilio/Nerilio-Moodle/sample.xml", "content") == "nerilio/Nerilio-Moodle/sample.xml"
-    assert normalize_blob_name("/content/nerilio/Nerilio-Moodle/sample.xml", "content") == "nerilio/Nerilio-Moodle/sample.xml"
+    assert (
+        normalize_blob_name("content/nerilio/Nerilio-Moodle/sample.xml", "content")
+        == "nerilio/Nerilio-Moodle/sample.xml"
+    )
+    assert (
+        normalize_blob_name("/content/nerilio/Nerilio-Moodle/sample.xml", "content")
+        == "nerilio/Nerilio-Moodle/sample.xml"
+    )
 
 
 @pytest.mark.asyncio
@@ -414,6 +421,7 @@ def make_content2_indexer(blob_manager, search_manager, file_processors=None) ->
             mirror_blob=False,
             dynamic_category_from_path=True,
             force_generic_parsing=True,
+            dynamic_record_parsing=True,
         ),
         blob_manager=blob_manager,
         search_manager=search_manager,
@@ -838,3 +846,42 @@ async def test_publishone_feed_never_treats_a_zip_as_an_archive() -> None:
 
     assert indexer.is_archive("nerilio/Nerilio-Amsterdam/pkg.zip") is False
     assert indexer.is_supported("nerilio/Nerilio-Amsterdam/pkg.zip") is False
+
+
+@pytest.mark.asyncio
+async def test_content2_indexer_asks_for_the_provisioned_bot_record_parsers(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Both flags together are the content2 contract: never claimed by a built-in bot's category-keyed
+    # feed parser (force_generic), but .json/.xml go through the record parsers rather than the
+    # generic ones (dynamic_record_parsing).
+    captured: dict[str, Any] = {}
+
+    async def fake_parse_file(*args, **kwargs):
+        captured.update(kwargs)
+        return [object()]
+
+    monkeypatch.setattr("prepdocslib.blobautoindex.parse_file", fake_parse_file)
+
+    indexer = make_content2_indexer(MockBlobManager(), MockSearchManager())
+    await indexer.index_blob(blob_name="content2/xba/www.snap.de.json", content=b"[]")
+
+    assert captured["force_generic"] is True
+    assert captured["dynamic_record_parsing"] is True
+    assert captured["category"] == "xba"
+
+
+def test_the_deployed_content2_indexer_enables_the_record_parsers() -> None:
+    # The Function app builds its own config; a flag set only in the test helper above would ship
+    # nothing. prepdocslib is copied into app/functions/* by scripts/copy_prepdocslib.py, so the
+    # deployed indexer resolves this module from the backend copy - assert on the real builder.
+    from moodle_auto_indexer import function_app
+
+    indexer = function_app.build_content2_auto_indexer(
+        blob_manager=MockBlobManager(),
+        search_info=SimpleNamespace(index_name="idx", endpoint="https://s.search.windows.net"),
+        embeddings=None,
+        embedding_field_name="embedding3",
+        file_processors={},
+    )
+
+    assert indexer.config.dynamic_record_parsing is True
+    assert indexer.config.force_generic_parsing is True

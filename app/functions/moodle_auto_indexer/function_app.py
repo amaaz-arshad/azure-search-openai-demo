@@ -130,7 +130,10 @@ FEED_DEFINITIONS = {
 #   * watches the whole content2 container (no fixed source prefix),
 #   * derives the search category dynamically from the <bot_name> folder,
 #   * never mirrors into `content` (files are indexed in place; storageUrl points at content2),
-#   * parses every file with the generic extension-based parsers only (no custom feed parsers).
+#   * never lets a built-in bot's category-keyed feed parser claim a file (force_generic_parsing),
+#     but does route .json/.xml through the provisioned-bot record parsers first
+#     (dynamic_record_parsing -> prepdocslib.dynamicjson / dynamicxml), falling back to the generic
+#     extension parsers for everything else.
 # One event-subscription pair covers all bots; a brand-new bot folder "just works" with no config.
 CONTENT2_FEED_NAME = "content2"
 CONTENT2_CONTAINER = os.getenv("CONTENT2_AUTO_INDEX_CONTAINER", "content2")
@@ -293,6 +296,7 @@ def build_content2_auto_indexer(
             mirror_blob=False,
             dynamic_category_from_path=True,
             force_generic_parsing=True,
+            dynamic_record_parsing=True,
         ),
         blob_manager=blob_manager,
         search_manager=SearchManager(

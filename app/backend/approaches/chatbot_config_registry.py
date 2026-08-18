@@ -4,7 +4,11 @@ from functools import lru_cache
 from importlib import import_module
 from typing import Optional
 
-from approaches.chatbot_prompt_registry import CHATBOT_PROMPT_MODULES, normalize_chatbot_name
+from approaches.chatbot_prompt_registry import (
+    CHATBOT_PROMPT_MODULES,
+    is_builtin_chatbot_name,
+    normalize_chatbot_name,
+)
 from approaches.chatbots.chatbot_config import ChatbotConfig
 
 logger = logging.getLogger(__name__)
@@ -28,6 +32,12 @@ LANGUAGE_CODE_TO_NAME = {
 }
 
 DEFAULT_LANGUAGE = "German"
+
+# Per-document citation mode used by provisioned ("generic") bots: the page URL when the retrieved
+# document has one, else its source file. Deliberately NOT a `ChatbotConfig.citation_target` literal
+# - it is synthesised for bots that have no config module, and a built-in bot must not be able to
+# select it (the same way `"storage_url"` is handled by `get_document_citation` without being one).
+CITATION_TARGET_URL_OR_SOURCEPAGE = "url_or_sourcepage"
 
 
 def get_language_name(language_code: Optional[str]) -> str:
@@ -73,10 +83,33 @@ def get_chatbot_config(chatbot_name: Optional[str]) -> Optional[ChatbotConfig]:
     normalized = normalize_chatbot_name(chatbot_name)
     if not normalized:
         return None
+    # Only built-in bots can have a config module, and the name reaching here is unvalidated client
+    # input (`context.overrides.include_category`). Without this gate every provisioned bot - and
+    # every junk value - reaches `import_module` below, where a miss logs a full traceback and is
+    # memoised in an unbounded lru_cache. Same reasoning as the KNOWN_CHATBOT_NAMES gate on
+    # `/speech/token?chatbot=`.
+    if not is_builtin_chatbot_name(normalized):
+        return None
     return load_chatbot_config(normalized)
 
 
 def get_chatbot_citation_target(chatbot_name: Optional[str]) -> str:
+    """Resolve how a bot's retrieved documents should be cited.
+
+    Built-in bots are declarative: their own `config.py` says `"sourcepage"` (the default) or
+    `"url"`, all-or-nothing for the whole corpus, which works because each one's corpus comes from a
+    single known feed.
+
+    Provisioned ("generic") bots have no config module and a mixed corpus - a customer drops PDFs,
+    Markdown and scraped-web JSON into the same content2 folder - so neither fixed value is right.
+    They get `CITATION_TARGET_URL_OR_SOURCEPAGE`, which decides per document: link to the page when
+    the document carries one, otherwise cite the source file. See `Approach.get_document_citation`.
+
+    This is keyed on "is it a built-in name", not on "does a config module exist", so a built-in bot
+    that ships no `config.py` can never silently change citation behaviour.
+    """
+    if not is_builtin_chatbot_name(chatbot_name):
+        return CITATION_TARGET_URL_OR_SOURCEPAGE
     cfg = get_chatbot_config(chatbot_name)
     return cfg.citation_target if cfg else "sourcepage"
 

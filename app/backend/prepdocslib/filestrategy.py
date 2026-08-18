@@ -12,6 +12,8 @@ from pypdf import PdfReader
 
 from .blobmanager import AdlsBlobManager, BaseBlobManager, BlobManager
 from .bbsajson import build_bbsa_sections_if_applicable
+from .dynamicjson import build_dynamic_json_sections_if_applicable
+from .dynamicxml import build_dynamic_xml_sections_if_applicable
 from .embeddings import ImageEmbeddings, OpenAIEmbeddings
 from .figureprocessor import FigureProcessor, MediaDescriptionStrategy, process_page_image
 from .fhgjson import build_fhg_sections_if_applicable
@@ -66,11 +68,13 @@ async def parse_file(
     user_oid: Optional[str] = None,
     check_cancel: Optional[Callable[[], Awaitable[None]]] = None,
     force_generic: bool = False,
+    dynamic_record_parsing: bool = False,
 ) -> list[Section]:
     key = file.file_extension().lower()
-    # When force_generic is set, skip every content-specific custom parser (hyrox/lemon/snap/bbsa/fhg/feed)
-    # and route straight to the generic extension-based parsers below. Used by the content2 dynamic
-    # auto-indexer so provisioned-bot files are always parsed generically regardless of category.
+    # When force_generic is set, skip every *category-keyed* content-specific parser
+    # (hyrox/lemon/snap/bbsa/fhg/feed) and route to the parsers below. Used by the content2 dynamic
+    # auto-indexer so a provisioned bot can never be claimed by a built-in bot's feed parser just
+    # because its folder happens to be named after one.
     if not force_generic:
         hyrox_sections = await build_hyrox_sections_if_applicable(
             file=file,
@@ -120,6 +124,28 @@ async def parse_file(
         )
         if feed_sections is not None:
             return feed_sections
+
+    # Provisioned ("generic") chatbot knowledge bases. Opt-in rather than category-keyed, because a
+    # dynamic bot's category is whatever folder the customer's file landed in - there is no name to
+    # gate on. Only the content2 dynamic indexer sets this, so `/admin/uploads`, `scripts/prepdocs`
+    # and every built-in feed keep exactly the behaviour they have today. Ordered after the block
+    # above so a built-in category still reaches its own parser first when force_generic is off.
+    if dynamic_record_parsing:
+        dynamic_json_sections = await build_dynamic_json_sections_if_applicable(
+            file=file,
+            category=category,
+            check_cancel=check_cancel,
+        )
+        if dynamic_json_sections is not None:
+            return dynamic_json_sections
+
+        dynamic_xml_sections = await build_dynamic_xml_sections_if_applicable(
+            file=file,
+            category=category,
+            check_cancel=check_cancel,
+        )
+        if dynamic_xml_sections is not None:
+            return dynamic_xml_sections
 
     processor = file_processors.get(key)
     if processor is None:

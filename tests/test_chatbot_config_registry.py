@@ -1,4 +1,7 @@
+from approaches import chatbot_config_registry
+from approaches.chatbot_prompt_registry import BUILTIN_CHATBOT_NAMES
 from approaches.chatbot_config_registry import (
+    CITATION_TARGET_URL_OR_SOURCEPAGE,
     get_chatbot_citation_target,
     get_chatbot_config,
     get_chatbot_prompt_mode,
@@ -99,8 +102,60 @@ def test_chatbot_config_registry_returns_defaults_for_unknown_chatbots() -> None
     load_chatbot_config.cache_clear()
 
     assert get_chatbot_config("unknown-bot") is None
-    assert get_chatbot_citation_target("unknown-bot") == "sourcepage"
+    # A name that is not a built-in bot is a provisioned (dynamic) bot, whose corpus mixes uploaded
+    # files with scraped pages, so it is cited per document rather than all-as-file.
+    assert get_chatbot_citation_target("unknown-bot") == CITATION_TARGET_URL_OR_SOURCEPAGE
     assert get_chatbot_prompt_mode("unknown-bot") == "override"
+
+
+def test_builtin_chatbot_names_matches_the_routing_side_set() -> None:
+    # BUILTIN_CHATBOT_NAMES lives in the approaches layer because app.py imports that layer, so the
+    # reverse import would be a cycle. The two must stay equal: the citation target of every bot is
+    # decided by membership of the approaches-side set, while routing uses the app-side one, so a
+    # bot present in only one would be routed as built-in and cited as dynamic (or vice versa).
+    import app
+
+    assert set(BUILTIN_CHATBOT_NAMES) == set(app.KNOWN_CHATBOT_NAMES)
+
+
+def test_provisioned_bots_are_cited_per_document_and_builtins_are_not() -> None:
+    load_chatbot_config.cache_clear()
+
+    # Provisioned bots: category == bot name, no config module.
+    for dynamic_name in ("xba", "tdiso", "fhg-2", "fhp", "rptestbot"):
+        assert get_chatbot_citation_target(dynamic_name) == CITATION_TARGET_URL_OR_SOURCEPAGE
+
+    # Built-ins keep exactly what their own config.py declares. `rak` is the load-bearing case: it
+    # has documents carrying a url but deliberately cites the source file, so a global "url when
+    # present" default would silently change its citations.
+    assert get_chatbot_citation_target("rak") == "sourcepage"
+    assert get_chatbot_citation_target("demo") == "sourcepage"
+    assert get_chatbot_citation_target("fhg") == "url"
+    assert get_chatbot_citation_target("snap") == "url"
+    assert get_chatbot_citation_target("moodle") == "url"
+    # `public-test` is an alias of `free`; the alias must resolve as built-in, not as a dynamic bot.
+    assert get_chatbot_citation_target("public-test") == "sourcepage"
+
+
+def test_config_lookup_never_imports_a_module_for_a_non_builtin_name(monkeypatch) -> None:
+    # `include_category` is unvalidated client input and reaches here on every turn. Before the
+    # built-in gate it was fed straight into import_module, which logs a full traceback on a miss and
+    # memoises the result in an unbounded lru_cache - an arbitrary-import and log-flood vector.
+    load_chatbot_config.cache_clear()
+    attempted: list[str] = []
+
+    real_import_module = chatbot_config_registry.import_module
+
+    def recording_import_module(module_name: str):
+        attempted.append(module_name)
+        return real_import_module(module_name)
+
+    monkeypatch.setattr(chatbot_config_registry, "import_module", recording_import_module)
+
+    for junk in ("../etc/passwd", "os", "unknown-bot", "xba", "", "  "):
+        assert get_chatbot_config(junk) is None
+
+    assert attempted == []
 
 
 def test_snap_prompt_requests_url_citations_instead_of_suppressing_them() -> None:
