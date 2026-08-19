@@ -221,10 +221,12 @@
     "llmSettings": "LLM settings",
     "newChat": "New chat",
     "avatar": {
+        "title": "Live avatar",
         "start": "Start live avatar",
         "stop": "Stop live avatar",
         "close": "Close avatar",
         "connecting": "Connecting avatar…",
+        "reconnecting": "Reconnecting…",
         "error": "The avatar could not be started.",
         "disclosure": "AI-generated avatar",
         "listening": "Listening…",

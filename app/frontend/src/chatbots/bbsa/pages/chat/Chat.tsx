@@ -773,33 +773,27 @@ const Chat = () => {
                 <title>{t("pageTitle")}</title>
             </Helmet>
             <div className={`${styles.chatRoot} ${isHistoryPanelOpen ? styles.chatRootHistoryOpen : ""}`}>
+                {/* Mounted here rather than inside the composer that opens it: the panel is a
+                    full-screen fixed overlay, and .chatInput is a sticky z-index:10 stacking
+                    context, which would trap it underneath the navbar.
+                    Always mounted, only hidden: AvatarSession.start() binds the WebRTC tracks to
+                    these elements, so the refs must already exist at the moment the user clicks
+                    start — and unmounting mid-session would drop the stream. */}
                 {showSpeechAvatar && (
-                    <>
-                        <AvatarToggleButton
-                            className={styles.avatarToggle}
-                            isActive={avatar.isActive}
-                            isBusy={avatar.status === "connecting"}
-                            onStart={() => void avatar.start()}
-                            onStop={avatar.stop}
-                        />
-                        {/* Always mounted, only hidden: AvatarSession.start() binds the WebRTC
-                            tracks to these elements, so the refs must already exist at the moment
-                            the user clicks start — and unmounting mid-session would drop the
-                            stream. */}
-                        <AvatarPanel
-                            hidden={avatar.status === "idle"}
-                            status={avatar.status}
-                            error={avatar.error}
-                            videoRef={avatar.videoRef}
-                            audioRef={avatar.audioRef}
-                            onClose={avatar.stop}
-                            isSpeaking={avatar.isSpeaking}
-                            isListening={avatar.isListening}
-                            isBusy={isLoading || isStreaming}
-                            interimTranscript={avatar.interimTranscript}
-                            onInterrupt={avatar.stopSpeaking}
-                        />
-                    </>
+                    <AvatarPanel
+                        hidden={avatar.status === "idle"}
+                        status={avatar.status}
+                        error={avatar.error}
+                        videoRef={avatar.videoRef}
+                        audioRef={avatar.audioRef}
+                        onClose={avatar.stop}
+                        isSpeaking={avatar.isSpeaking}
+                        isListening={avatar.isListening}
+                        isReconnecting={avatar.isReconnecting}
+                        isBusy={isLoading || isStreaming}
+                        interimTranscript={avatar.interimTranscript}
+                        onInterrupt={avatar.stopSpeaking}
+                    />
                 )}
                 <div className={styles.chatContainer} ref={chatContainerRef}>
                     <div className={styles.chatMessageStream}>
@@ -880,6 +874,16 @@ const Chat = () => {
                             isLoading={isLoading}
                             onStop={onStopClick}
                             initQuestion={restoredQuestion}
+                            trailingAction={
+                                showSpeechAvatar ? (
+                                    <AvatarToggleButton
+                                        isActive={avatar.isActive}
+                                        isBusy={avatar.status === "connecting"}
+                                        onStart={() => void avatar.start()}
+                                        onStop={avatar.stop}
+                                    />
+                                ) : undefined
+                            }
                         />
                         <p className={styles.inputDisclaimer}>
                             <Trans

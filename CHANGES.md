@@ -15,7 +15,231 @@ Two categories per date:
 
 ---
 
+## 2026-08-19
+
+### bbsa live avatar: a transient network blip no longer ends the session mid-answer
+
+#### Decisions
+
+- **Reported: "the live chat avatar sometimes disappears, i.e. closes on its own mid answer."**
+  Diagnosed with five independent investigation lenses plus an adversarial refutation pass; all five
+  lenses independently landed on the same primary cause.
+- **Root cause: `iceConnectionState === "disconnected"` was treated as fatal.** The WebRTC spec
+  defines that state as transient - it "may trigger intermittently and resolve just as spontaneously
+  on less reliable networks, or during temporary disconnections" - and the ICE agent returns to
+  `connected` on its own. Only `failed` is terminal. The old handler fired `onDisconnected()` on the
+  first `disconnected` edge, and because `stopAvatarAsync()` is equivalent to `close()` there was no
+  way back: the panel simply vanished mid-sentence with no error (status went to `idle`, not `error`,
+  so not even the error overlay rendered). A Wi-Fi roam, a cell handover, a lift, a moment of uplink
+  saturation, or the radio power-saving that kicks in when the screen dims all produce it routinely -
+  and most resolve within a second or two.
+- **The fix is a grace window, not a removed guard.** A transient verdict arms ONE
+  `ICE_RECOVERY_GRACE_MS` (8s) timer and re-checks; healthy clears it, terminal skips it entirely. 8s
+  sits between the blips that recover and the ~30s at which browsers report `failed` anyway. Cost of
+  the worst case is 8 extra seconds of a per-second billed session, about $0.07 - the price of not
+  killing the healthy ones. Every existing cost guard (explicit-click start, idle, visibilitychange,
+  unmount, unload) is untouched, and a genuinely dead connection still closes.
+- **One timer for the first bad edge, deliberately not re-armed per edge.** A connection flapping
+  once a second would otherwise hold the window open forever, which is the opposite of a watchdog.
+- **Two orderings in `classifyConnectivity` are load-bearing** (both now documented in the file, the
+  second was pointed out by the review): `healthy` is tested before `transient`, so if the two states
+  disagree the benign reading wins - correct bias for a bug about closing too eagerly, and the worst
+  case is no worse than what it replaced. And `new`/`checking`/`connecting` fall through to `healthy`
+  because the handlers are attached BEFORE `startAvatarAsync` and therefore see the whole handshake:
+  classifying setup states as trouble would arm the window mid-handshake and tear down any connection
+  slower than 8s, recreating the exact reported bug.
+- **`connectionState` is now watched too.** It is the aggregate that also reflects DTLS, so a silent
+  remote teardown that leaves the ICE transports claiming `connected` was previously invisible: the
+  panel stayed up showing a frozen frame, `isSpeaking` was never cleared, and because the half-duplex
+  reconciliation requires `!isSpeaking` the microphone never reopened - a dead conversation the UI
+  insisted was live.
+- **The grace window is made visible.** A frozen last frame with no message is indistinguishable from
+  the app hanging, so `onConnectionUnstable` (edge-triggered) drives an `isReconnecting` overlay. Its
+  wash is deliberately lighter than the connecting one (0.55 vs 0.94 alpha) so the face stays visible
+  behind it: the session is recovering, not gone.
+- **The busy watchdog was a tie, not a margin, so it was split.** `AVATAR_BUSY_TIMEOUT_MS` (300s,
+  shared by generating and speaking) became `AVATAR_GENERATING_TIMEOUT_MS` = 240s and
+  `AVATAR_SPEAKING_TIMEOUT_MS` = 360s. While generating the avatar is silent, so the *service*
+  considers the session idle and its own 5-minute clock is already running: at exactly 300s the two
+  were equal, and the service winning arrives as an ICE state change rather than an orderly close.
+  While speaking the service is sending media and is not idle, so only utterance length bounds it.
+- **The speaking watchdog was pulled back from 10 minutes to 6 before shipping.** The one case that
+  can abuse it is a `speakSsmlAsync` promise that never settles, holding `isSpeaking` true and
+  re-arming nothing: ~$3 at 6 minutes versus ~$5 at 10, and 6 minutes is still roughly 900 spoken
+  words, far beyond anything this bot produces.
+- **Correction recorded against my own earlier claim.** I fixed a real filter bug in
+  `select_turn_ice_servers` (`startswith("turn:")` silently dropped `turns:`, because the `s` sits
+  where the colon is expected) and initially described it as buying a TCP/443 failover path. Then I
+  queried the live relay: it returns exactly ONE url, `turn:relay.communication.microsoft.com:3478`,
+  with no `turns:` and no `stun:`. So the fix is **latent correctness only** - it changes nothing
+  today. What the check did confirm is that every session rides a single UDP allocation for a 1080p
+  stream with no alternative path, which nothing server-side can change and which is precisely why
+  the client-side grace window is the only available mitigation.
+- **Deferred, from the review, deliberately not done now:** the reconnecting wash and the
+  whose-turn-is-it pill can render at the same time (cosmetic; suppressing the *pill* would be the
+  polish). The panel has `role="dialog" aria-modal="true"` without focus containment, so Tab still
+  reaches the composer underneath. Explicitly **rejected**: gating `shouldListen` on `isReconnecting`
+  - on the healing path that silently discards the user's utterance with no re-solicitation.
+
+#### Changes
+
+- `app/frontend/src/chatbots/shared/speech/avatar/avatarSession.ts` - added
+  `ICE_RECOVERY_GRACE_MS`, `AVATAR_GENERATING_TIMEOUT_MS`, `AVATAR_SPEAKING_TIMEOUT_MS` (removing
+  `AVATAR_BUSY_TIMEOUT_MS`), the `classifyConnectivity` helper and `ConnectivityVerdict` type, the
+  `handleConnectivityChange` / `clearIceRecoveryTimer` / `reportUnstable` methods, the
+  `onConnectionUnstable` callback, `onconnectionstatechange` wiring alongside the ICE event, and a
+  grace-timer cancel in `close()`.
+- `app/frontend/src/chatbots/shared/speech/avatar/useAvatarSession.ts` - `isReconnecting` state wired
+  to `onConnectionUnstable` and cleared by `stop()`; the timeout choice now picks speaking first,
+  then generating, then idle.
+- `app/frontend/src/chatbots/shared/speech/avatar/AvatarPanel.tsx` + `.module.css` - `isReconnecting`
+  prop and the light `noticeOverlaySubtle` wash, guarded so it cannot fight the connecting/error
+  notices.
+- `app/frontend/src/chatbots/shared/speech/avatar/index.ts` - export list updated for the new/renamed
+  constants.
+- `app/frontend/src/chatbots/bbsa/pages/chat/Chat.tsx` - passes `isReconnecting` to the panel.
+- `app/frontend/src/chatbots/bbsa/locales/{de,en,nl}/translation.json` - added `avatar.reconnecting`.
+- `app/backend/core/speechavatar.py` - the relay filter accepts `("turn:", "turns:")` via
+  `TURN_URL_SCHEMES`; `stun:`-only still raises; docstring records the live-relay finding above.
+- `tests/test_speechavatar.py` - two new cases (mixed payload keeps both schemes and drops `stun:`;
+  a `turns:`-only payload is usable on its own). 9 passed.
+- `CLAUDE.md` - the live-avatar bullet now documents the transient-vs-terminal contract, the grace
+  window, the two load-bearing orderings, `connectionState` monitoring, the split watchdogs, the
+  single-UDP-path reality, and the fact that the classifier has no committed coverage.
+
+#### Verification
+
+- The state machine was driven in a real browser (Playwright against the vite dev server) against the
+  **real** `AvatarSession` with a fake `RTCPeerConnection` - `handleConnectivityChange` only reads the
+  session's own flags and the two peer-connection states, and TypeScript `private` is compile-time
+  only, so no Azure handshake is needed. All six scenarios pass: transient blip heals -> session
+  survives (`disconnected=0`, unstable `[true,false]`); sustained disconnect -> closes after the grace
+  window and not before (`atEdge=0 beforeGrace=0 afterGrace=1`); ICE `failed` -> immediate; aggregate
+  `failed` while ICE `connected` -> immediate; `close()` cancels a pending window; five repeated
+  `disconnected` edges -> one timer, fires once.
+- CSS precedence checked in the browser: the reconnecting wash computes
+  `rgba(255, 255, 255, 0.55)` against the connecting wash's `rgba(255, 255, 255, 0.94)`, and the
+  document still overflows by 0px in both axes.
+- `npx tsc --noEmit` and `npm run build` clean. `pytest tests/test_speechavatar.py` - 9 passed.
+- The live relay was queried directly with an Entra token to settle the `turns:` question (see the
+  correction above).
+- An adversarial review (5 lenses + 6 skeptics + synthesis) returned **SHIP** with zero blockers and
+  zero must-fix items; every finding was refuted. It also confirmed no dangling
+  `AVATAR_BUSY_TIMEOUT_MS` reference survives, all three locales carry the new key, `.panelHidden`
+  keeps the always-mounted full-screen overlay from being an invisible click-eater, and the
+  half-duplex reconciliation is byte-identical.
+- **Known coverage gap:** `classifyConnectivity`/`handleConnectivityChange` are pinned by no committed
+  test - this repo has no JS test runner (pytest + Playwright e2e only), and the browser harness above
+  is not part of the suite. A future edit to that truth table will be caught by nothing.
+
+
+---
+
 ## 2026-08-18
+
+### bbsa: live-avatar control moved into the composer, panel opens full screen
+
+#### Decisions
+
+- **Requested: take the live-avatar button out of the top-right corner of the chat and put it inside
+  the question input, right of the mic; and make the panel open full screen over the chat instead of
+  as a small popup.** Both done; the two changes are independent of each other and of the session
+  machinery, which is untouched.
+- **The control drops the launcher styling.** It was a 3rem solid brand-teal circle with a shadow,
+  which was right for a floating launcher over the chat and wrong inside the composer: next to the
+  28px send and mic glyphs it dwarfed both and read as a different class of control. It is now the
+  same shape as its neighbours - a bare `VideoPersonSparkle28Filled` on the default Fluent surface,
+  black at rest. `AvatarToggleButton.module.css` is deleted; the composer owns the layout.
+- **A live session recolours the glyph red instead of swapping in an "off" icon.** `VideoPersonOff`
+  only ships at 20/24px, and the mic beside it already signals "running, tap to stop" purely by
+  turning `rgba(250, 0, 0, 0.7)` - reusing that reads correctly and keeps all three buttons the same
+  size. (The stop state is largely dead UI now: the full-screen panel covers the composer whenever a
+  session is up, so the panel's own close button is the real way out. Kept correct anyway.)
+- **The panel is `position: fixed; inset: 0`, not `absolute` inside `.chatRoot`.** Fixed covers the
+  navbar too (z-index 1100 against its sticky 1000) and, more importantly, keeps the invariant that
+  made the old panel absolute: bbsa's chat is `calc(100vh - 56px)` and the e2e tests assert the
+  document never exceeds the viewport, so nothing here may enter normal flow. Verified in a real
+  browser at 1280x800 and 390x844: the overlay is exactly the viewport, covers the navbar, and the
+  document overflows by 0px in both axes.
+- **It must stay mounted outside the composer that opens it.** `.chatInput` is
+  `position: sticky; z-index: 10`, i.e. a stacking context - an overlay rendered inside it would be
+  trapped below the navbar no matter what z-index it declares. It stays a direct child of
+  `.chatRoot`, which no longer needs `position: relative` at all (that and `.avatarToggle` are gone).
+- **White ground, `object-fit: cover`, `object-position: center top`.** The stream arrives with a
+  solid `#FFFFFFFF` background (real-time avatar ignores alpha), so matching it makes any crop edge
+  invisible. `contain` was rejected: on a portrait phone it leaves the figure tiny in a band of
+  white. `top` anchoring means the vertical crop a short landscape viewport forces takes the feet,
+  not the face.
+- **The chrome floats over the video and stays sparse** so nothing competes with the face: close
+  top-right, the Microsoft-required synthetic-media disclosure top-left, and the whose-turn-is-it
+  pill bottom-centre (clamped to two lines so a long interim transcript cannot grow it). The close
+  button is a plain `<button>` rather than a Fluent one - a CSS-module class and Griffel's runtime
+  classes have the same specificity, so injection order would decide who wins the round surface. All
+  three get `env(safe-area-inset-*)` padding.
+- **Escape closes the overlay.** Standard for a full-screen takeover, and here also the cheapest way
+  out of a session billed per second it stays open.
+- **Connecting and failed-to-start are now a centred card, not a full-bleed tint.** At 15rem a pink
+  wash was a corner panel with a message in it; at full screen it reads as a broken page. Same
+  overlay, message in a bordered card, and `connecting` gained a `Spinner` because a full-screen
+  wait with only static text looks stalled.
+- **Deliberately not touched:** the session lifecycle, the half-duplex conversation reconciliation,
+  the cost guards (explicit-click start, idle/hidden/unmount/unload close), the per-answer speak
+  button, and the composer's mic. The avatar remains an additional feature.
+- **Not done:** no "minimize to corner" state, and no toast for a failed start (the overlay carries
+  the error and Escape/close dismisses it). Neither was asked for.
+
+#### Changes
+
+- `app/frontend/src/chatbots/shared/speech/avatar/AvatarToggleButton.tsx` - rewritten as a composer
+  icon button: `VideoPersonSparkle28Filled` on a Fluent `Button size="large"`, `idleColor` prop
+  (default black), red while a session is live, no wrapper div (the host owns placement). Dropped the
+  `className` prop and the launcher docs.
+- `app/frontend/src/chatbots/shared/speech/avatar/AvatarToggleButton.module.css` - **deleted** (the
+  launcher circle no longer exists).
+- `app/frontend/src/chatbots/shared/speech/avatar/AvatarPanel.tsx` - full-screen dialog:
+  `role="dialog" aria-modal aria-label={t("avatar.title")}`, Escape-to-close effect, close button
+  moved out of the footer to a floating top-right control, disclosure moved to a top-left pill,
+  status pill last, and the connecting/error overlays replaced by a centred notice card (+ `Spinner`).
+- `app/frontend/src/chatbots/shared/speech/avatar/AvatarPanel.module.css` - rewritten for the
+  overlay: `position: fixed; inset: 0; z-index: 1100`, video `cover`/`center top`, floating
+  close/disclosure/status-pill with safe-area insets, `noticeOverlay`/`notice`/`noticeError`
+  replacing `statusOverlay`/`errorOverlay`.
+- `app/frontend/src/chatbots/bbsa/components/QuestionInput/QuestionInput.tsx` - new optional
+  `trailingAction?: ReactNode`, rendered after the mic inside a `questionInputButtonsContainer` so it
+  bottom-aligns with send and mic. The composer stays unaware of what the control does.
+- `app/frontend/src/chatbots/bbsa/pages/chat/Chat.tsx` - the toggle moves into
+  `<QuestionInput trailingAction={...}>`; only `AvatarPanel` stays at `.chatRoot`, with a comment on
+  why it cannot move inside the composer.
+- `app/frontend/src/chatbots/bbsa/pages/chat/Chat.module.css` - removed `.avatarToggle` (and its
+  media query) and `.chatRoot { position: relative }`; nothing else inside it is positioned.
+- `app/frontend/src/chatbots/bbsa/locales/{de,en,nl}/translation.json` - added `avatar.title`
+  ("Live-Avatar" / "Live avatar" / "Live-avatar") for the dialog's accessible name.
+- `tests/e2e.py` - `test_bbsa_live_avatar_is_offered_without_costing_the_page_any_height` renamed to
+  `test_bbsa_live_avatar_opens_full_screen_from_the_composer` and extended: the toggle is inside the
+  composer box, in the mic's row, to its right; and the (unhidden) panel is `fixed`, exactly the
+  viewport, above z-index 1000, covering the navbar, with zero overflow in both axes. Panel checks
+  run last because the overlay covers the composer the earlier steps click.
+- `tests/e2e.py` - fixed pre-existing drift unrelated to this change: four bbsa tests still looked
+  for the placeholder `"Stellen Sie Ihre Frage zu Glasfaser in Tirol"`, which commit 89d3dfc6
+  renamed to `"Geben Sie Ihre Nachricht ein"` (6 call sites). They could not have passed.
+- `CLAUDE.md` - the live-avatar bullet now documents the composer placement, the red-glyph live
+  state, the fixed full-screen overlay and its stacking-context constraint, the video fit, the
+  Escape affordance and `avatar.title`; the bbsa bullet no longer claims `QuestionInput.tsx` is
+  byte-identical to lemon's.
+
+#### Verification
+
+- `npx tsc --noEmit` and `npm run build` clean; `ty check tests/e2e.py` reports the same 9
+  pre-existing diagnostics as HEAD, none in the new code.
+- The new e2e assertions were run verbatim against the real app (vite dev + Playwright route mocks)
+  at 1280x720 / 1280x800 / 390x844 / 320x640 - placement, overflow, and panel geometry all pass.
+  Also exercised the real error path (a 500 from `/speech/avatar-token` renders the notice card
+  full-screen) and Escape-to-close.
+- `tests/e2e.py`'s own live server could not start in this environment (it needs real blob storage /
+  fresh azd auth - the known baseline), which is why the assertions were validated through the
+  dev-server harness.
+- `pytest tests/test_speechavatar.py tests/test_bot_config.py tests/test_chatbot_config_registry.py`
+  - 48 passed.
 
 ### content2: record parsers for provisioned-bot JSON/XML, and per-document URL citations
 

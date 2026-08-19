@@ -1,21 +1,19 @@
-/* The panel is absolutely positioned so it contributes ZERO layout height.
-   Its host (bbsa's .chatRoot) sizes the chat as calc(100vh - 56px), and tests/e2e.py asserts the
-   document never exceeds the viewport — anything in normal flow here would break both. */
+/* Full-screen avatar stage.
+
+   `position: fixed` is doing two jobs: it covers the whole viewport (navbar included, hence a
+   z-index above the sticky header's 1000), and it keeps the panel out of normal flow so it
+   contributes ZERO layout height — its host chat is sized calc(100vh - 56px) and tests/e2e.py
+   asserts the document never exceeds the viewport, so anything in flow here would give every page
+   a permanent scrollbar.
+
+   White ground on purpose: the real-time avatar ignores alpha, so the stream arrives with a solid
+   #FFFFFF background. Matching it means any crop or letterbox edge is invisible instead of framing
+   the figure in a visible box. */
 .panel {
-    position: absolute;
-    right: 1rem;
-    /* Anchored to the TOP of the chat area: the composer is sticky at the bottom, and bbsa has no
-       command bar at the top, so this corner is the only one that is reliably free. Clears the
-       3rem launcher (top: 0.5rem) plus a gap, so the two never overlap. */
-    top: 4.25rem;
-    z-index: 20;
-    width: 15rem;
-    display: flex;
-    flex-direction: column;
-    border-radius: 0.75rem;
-    overflow: hidden;
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
     background: #ffffff;
-    box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.25);
 }
 
 /* Hidden, not unmounted, so the <video>/<audio> refs exist before a session is started. */
@@ -24,57 +22,92 @@
 }
 
 .videoWrapper {
-    position: relative;
-    width: 100%;
-    /* Portrait-ish crop of the 16:9 stream keeps the figure large in a narrow panel. */
-    aspect-ratio: 3 / 4;
-    background: #ffffff;
+    position: absolute;
+    inset: 0;
     overflow: hidden;
 }
 
+/* cover, not contain: on a portrait phone a contained 16:9 stream leaves the figure tiny in a band
+   of white, and cropping costs nothing when the cropped pixels are the avatar's white background.
+   Anchored to the top so the vertical crop a short landscape viewport forces takes the feet, never
+   the face. */
 .video {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    object-position: center top;
     display: block;
 }
 
-.statusOverlay {
+/* Connecting and failed-to-start both land here. The wash is near-opaque white to match the
+   stream's own background, so the arriving video does not appear behind a tint. */
+.noticeOverlay {
     position: absolute;
     inset: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 0.75rem;
-    text-align: center;
-    font-size: 13px;
-    color: #ffffff;
-    background: rgba(0, 0, 0, 0.55);
+    padding: 1.5rem;
+    background: rgba(255, 255, 255, 0.94);
 }
 
-.errorOverlay {
-    composes: statusOverlay;
-    background: rgba(120, 20, 20, 0.85);
-}
-
-/* Whose turn it is. Sits between the video and the disclosure so the eye finds it without
-   leaving the avatar. Fixed min-height so a changing status line can't resize the panel. */
-.statusBar {
+.notice {
     display: flex;
     align-items: center;
-    gap: 0.375rem;
-    min-height: 2rem;
-    padding: 0.25rem 0.5rem;
+    gap: 0.625rem;
+    max-width: 26rem;
+    padding: 0.875rem 1.25rem;
+    border-radius: 0.75rem;
+    text-align: center;
+    font-size: 15px;
+    line-height: 1.4;
+    color: #222222;
     background: #ffffff;
-    border-top: 1px solid #e6e6e6;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.14);
+}
+
+/* Deliberately lighter than the connecting wash: the last decoded frame stays visible behind it, so
+   the message reads as "still here, reconnecting" rather than "gone". Declared after .noticeOverlay
+   so it wins the background on equal specificity. */
+.noticeOverlaySubtle {
+    background: rgba(255, 255, 255, 0.55);
+}
+
+.noticeError {
+    color: #7a1414;
+    border-color: rgba(162, 29, 35, 0.35);
+}
+
+/* Whose turn it is, floating at the bottom where it does not cover the face. The user needs it:
+   the microphone is shut while the avatar talks, so without this cue they speak into a closed mic.
+   Fixed min-height so a changing status line cannot make the pill jump. */
+.statusBar {
+    position: absolute;
+    left: 50%;
+    bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
+    transform: translateX(-50%);
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    box-sizing: border-box;
+    max-width: min(90vw, 36rem);
+    min-height: 2.75rem;
+    padding: 0.375rem 0.75rem 0.375rem 1rem;
+    border-radius: 1.5rem;
+    background: rgba(255, 255, 255, 0.94);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.18);
 }
 
 .statusText {
     flex: 1;
-    font-size: 12px;
-    line-height: 1.3;
+    min-width: 0;
+    font-size: 15px;
+    line-height: 1.35;
     color: #222222;
-    /* A long interim transcript must not grow the panel — clamp to two lines. */
+    /* A long interim transcript must not grow the pill — clamp to two lines. */
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -108,26 +141,72 @@
     }
 }
 
-.footer {
-    display: flex;
+/* Top-right, the conventional place to leave a full-screen view. A plain button rather than a
+   Fluent one so the round surface is owned by this stylesheet and cannot lose a specificity race
+   with Griffel's runtime classes. */
+.closeButton {
+    position: absolute;
+    top: calc(1rem + env(safe-area-inset-top, 0px));
+    right: 1rem;
+    z-index: 3;
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    display: inline-flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-    padding: 0.375rem 0.5rem;
-    background: #f3f2f1;
+    justify-content: center;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    background: rgba(255, 255, 255, 0.92);
+    color: #222222;
+    box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.14);
+    cursor: pointer;
+    transition:
+        background-color 0.15s ease,
+        box-shadow 0.15s ease;
 }
 
-/* Microsoft requires the synthetic nature of the avatar to be disclosed to users. */
+.closeButton:hover {
+    background: #ffffff;
+    box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.2);
+}
+
+.closeButton:focus-visible {
+    outline: 2px solid #032d3c;
+    outline-offset: 2px;
+}
+
+.closeButton svg {
+    display: block;
+}
+
+/* Kept small and quiet: it is a required disclosure, not a headline. */
 .disclosure {
-    font-size: 11px;
-    line-height: 1.3;
-    color: #444444;
+    position: absolute;
+    top: calc(1rem + env(safe-area-inset-top, 0px));
+    left: 1rem;
+    z-index: 2;
     margin: 0;
+    padding: 0.25rem 0.625rem;
+    border-radius: 1rem;
+    font-size: 12px;
+    line-height: 1.4;
+    color: #444444;
+    background: rgba(255, 255, 255, 0.88);
+    border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 @media (max-width: 768px) {
-    .panel {
-        width: 10.5rem;
+    .closeButton {
         right: 0.75rem;
+    }
+
+    .disclosure {
+        left: 0.75rem;
+    }
+
+    .statusBar {
+        max-width: calc(100vw - 1.5rem);
+        padding-left: 0.75rem;
     }
 }

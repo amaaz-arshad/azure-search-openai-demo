@@ -83,6 +83,50 @@ def test_only_turn_urls_are_kept():
     ]
 
 
+def test_the_tls_relay_is_kept_because_turns_is_not_a_turn_prefix():
+    """`turns:` (TURN over TLS, port 443) must survive the stun: filter.
+
+    It used not to: the test was `startswith("turn:")`, and "turns:" does not start with "turn:"
+    — the `s` sits where the colon is expected — so a TLS entry would have been discarded along with
+    the STUN entry the filter is actually about.
+
+    Latent rather than live: the nerilio relay was checked on 2026-08-19 and returns only
+    `turn:relay.communication.microsoft.com:3478`, so there is no TLS entry to keep yet. This pins
+    the behaviour for the day there is one.
+    """
+    ice_servers = select_turn_ice_servers(
+        {
+            "Urls": [
+                "stun:relay.communication.microsoft.com:3478",
+                "turn:relay.communication.microsoft.com:3478",
+                "turns:relay.communication.microsoft.com:443",
+            ],
+            "Username": "user",
+            "Password": "secret",
+        }
+    )
+
+    assert ice_servers == [
+        {
+            "urls": [
+                "turn:relay.communication.microsoft.com:3478",
+                "turns:relay.communication.microsoft.com:443",
+            ],
+            "username": "user",
+            "credential": "secret",
+        }
+    ]
+
+
+def test_a_turns_only_response_is_usable_on_its_own():
+    """A relay that offers only the TLS endpoint must not read as "no relay at all"."""
+    ice_servers = select_turn_ice_servers(
+        {"Urls": ["turns:relay.communication.microsoft.com:443"], "Username": "u", "Password": "p"}
+    )
+
+    assert ice_servers[0]["urls"] == ["turns:relay.communication.microsoft.com:443"]
+
+
 def test_a_response_without_a_turn_url_raises():
     with pytest.raises(ValueError):
         select_turn_ice_servers({"Urls": ["stun:relay.communication.microsoft.com:3478"], "Username": "u", "Password": "p"})

@@ -842,7 +842,7 @@ def test_bbsa_forces_german_for_english_browser_locale(browser: Browser, live_se
 
         expect(page).to_have_title("Breitband.Tirol")
         expect(page.get_by_text("Grüß Gott!", exact=False)).to_be_visible()
-        question_input = page.get_by_placeholder("Stellen Sie Ihre Frage zu Glasfaser in Tirol")
+        question_input = page.get_by_placeholder("Geben Sie Ihre Nachricht ein")
         expect(question_input).to_be_visible()
 
         # The navbar menu stays German despite the en-US browser locale.
@@ -1016,12 +1016,12 @@ def test_bbsa_chat_fits_the_viewport_without_a_page_scrollbar(page: Page, live_s
     )
 
     page.goto(f"{live_server_url}bbsa")
-    expect(page.get_by_placeholder("Stellen Sie Ihre Frage zu Glasfaser in Tirol")).to_be_visible()
+    expect(page.get_by_placeholder("Geben Sie Ihre Nachricht ein")).to_be_visible()
 
     document_overflow = page.evaluate("() => document.documentElement.scrollHeight - window.innerHeight")
     assert document_overflow <= 0, f"empty chat overflows the viewport by {document_overflow}px"
 
-    page.get_by_placeholder("Stellen Sie Ihre Frage zu Glasfaser in Tirol").fill("Was ist Glasfaser?")
+    page.get_by_placeholder("Geben Sie Ihre Nachricht ein").fill("Was ist Glasfaser?")
     page.get_by_label("Frage einreichen").click()
     expect(page.get_by_text("The capital of France is Paris.")).to_be_visible()
 
@@ -1051,7 +1051,7 @@ def test_bbsa_uses_lemons_answer_and_composer_design_with_speech(page: Page, liv
     # Speech input: the mic renders next to the send button.
     expect(page.get_by_label("Frage per Stimme stellen")).to_be_visible()
 
-    question_input = page.get_by_placeholder("Stellen Sie Ihre Frage zu Glasfaser in Tirol")
+    question_input = page.get_by_placeholder("Geben Sie Ihre Nachricht ein")
     question_input.fill("Was ist Glasfaser?")
     page.get_by_label("Frage einreichen").click()
     expect(page.get_by_text("The capital of France is Paris.")).to_be_visible()
@@ -1073,14 +1073,16 @@ def test_bbsa_uses_lemons_answer_and_composer_design_with_speech(page: Page, liv
     expect(page.get_by_label("Antwort sprechen").first).to_be_visible()
 
 
-def test_bbsa_live_avatar_is_offered_without_costing_the_page_any_height(page: Page, live_server_url: str):
+def test_bbsa_live_avatar_opens_full_screen_from_the_composer(page: Page, live_server_url: str):
     """The live avatar is an ADDITIONAL feature: the mic and the per-answer speak button must both
-    survive it, and its toggle/panel must add no layout height.
+    survive it, its control belongs in the composer's button row (rightmost, after the mic), and
+    opening it takes over the whole viewport.
 
-    That last part is the regression this feature is most likely to cause. bbsa's chat is sized
-    calc(100vh - 56px), so anything placed in normal flow between the navbar and the chat gives
-    every page a permanent scrollbar — exactly the bug the 56px navbar border caused once before.
-    The toggle and the panel are therefore absolutely positioned inside .chatRoot."""
+    Neither of those may add layout height — the regression this feature is most likely to cause.
+    bbsa's chat is sized calc(100vh - 56px), so anything placed in normal flow between the navbar
+    and the chat gives every page a permanent scrollbar — exactly the bug the 56px navbar border
+    caused once before. Hence a control inside the existing composer row and a `position: fixed`
+    panel."""
 
     def handle_config(route: Route):
         response = route.fetch()
@@ -1099,13 +1101,29 @@ def test_bbsa_live_avatar_is_offered_without_costing_the_page_any_height(page: P
     )
 
     page.goto(f"{live_server_url}bbsa")
-    expect(page.get_by_placeholder("Stellen Sie Ihre Frage zu Glasfaser in Tirol")).to_be_visible()
+    expect(page.get_by_placeholder("Geben Sie Ihre Nachricht ein")).to_be_visible()
 
     # The avatar toggle is offered, and the existing speech features are untouched by it. The
     # avatar is an ADDITIONAL feature: hands-free conversation does not replace the composer's mic
     # button, which still dictates into the text box.
-    expect(page.get_by_label("Live-Avatar starten")).to_be_visible()
-    expect(page.get_by_label("Frage per Stimme stellen")).to_be_visible()
+    avatar_toggle = page.get_by_label("Live-Avatar starten")
+    mic_button = page.get_by_label("Frage per Stimme stellen")
+    expect(avatar_toggle).to_be_visible()
+    expect(mic_button).to_be_visible()
+
+    # It sits in the composer's own button row, right of the mic, so the three voice-adjacent
+    # actions are together instead of the avatar floating over the chat in its own corner.
+    composer = page.locator("xpath=//textarea/ancestor::div[contains(@class,'questionInputContainer')]").first
+    composer_box = composer.bounding_box()
+    toggle_box = avatar_toggle.bounding_box()
+    mic_box = mic_button.bounding_box()
+    assert composer_box is not None and toggle_box is not None and mic_box is not None
+    assert composer_box["x"] <= toggle_box["x"]
+    assert toggle_box["x"] + toggle_box["width"] <= composer_box["x"] + composer_box["width"] + 1
+    assert composer_box["y"] <= toggle_box["y"]
+    assert toggle_box["y"] + toggle_box["height"] <= composer_box["y"] + composer_box["height"] + 1
+    assert toggle_box["x"] > mic_box["x"], (toggle_box, mic_box)
+    assert abs(toggle_box["y"] - mic_box["y"]) <= 1, (toggle_box, mic_box)
 
     # The panel is mounted (so its <video>/<audio> refs exist before a session starts) but hidden,
     # and neither it nor the toggle may push the document past the viewport.
@@ -1113,13 +1131,42 @@ def test_bbsa_live_avatar_is_offered_without_costing_the_page_any_height(page: P
     document_overflow = page.evaluate("() => document.documentElement.scrollHeight - window.innerHeight")
     assert document_overflow <= 0, f"the avatar toggle overflows the viewport by {document_overflow}px"
 
-    page.get_by_placeholder("Stellen Sie Ihre Frage zu Glasfaser in Tirol").fill("Was ist Glasfaser?")
+    page.get_by_placeholder("Geben Sie Ihre Nachricht ein").fill("Was ist Glasfaser?")
     page.get_by_label("Frage einreichen").click()
     expect(page.get_by_text("The capital of France is Paris.")).to_be_visible()
 
     expect(page.get_by_label("Antwort sprechen").first).to_be_visible()
     document_overflow = page.evaluate("() => document.documentElement.scrollHeight - window.innerHeight")
     assert document_overflow <= 0, f"chat with an answer overflows the viewport by {document_overflow}px"
+
+    # An open session needs a live Azure relay, so the panel's geometry is checked by unhiding the
+    # mounted panel: full viewport, over the sticky navbar, and still no layout height. Done last,
+    # because the overlay covers the composer the assertions above interact with.
+    panel_geometry = page.evaluate(
+        """() => {
+            const panel = document.querySelector('[data-testid="avatar-panel"]');
+            panel.classList.remove(Array.from(panel.classList).find(name => name.includes('panelHidden')));
+            const rect = panel.getBoundingClientRect();
+            const computed = getComputedStyle(panel);
+            // 28px down the middle is inside the 56px navbar.
+            const overNavbar = document.elementFromPoint(Math.round(window.innerWidth / 2), 28);
+            return {
+                position: computed.position,
+                zIndex: Number(computed.zIndex),
+                coversViewport:
+                    rect.x === 0 && rect.y === 0 && rect.width === window.innerWidth && rect.height === window.innerHeight,
+                coversNavbar: panel === overNavbar || panel.contains(overNavbar),
+                overflowY: document.documentElement.scrollHeight - window.innerHeight,
+                overflowX: document.documentElement.scrollWidth - window.innerWidth
+            };
+        }"""
+    )
+    assert panel_geometry["position"] == "fixed", panel_geometry
+    assert panel_geometry["coversViewport"], panel_geometry
+    # The navbar is sticky at z-index 1000; a full-screen takeover has to win against it.
+    assert panel_geometry["zIndex"] > 1000, panel_geometry
+    assert panel_geometry["coversNavbar"], panel_geometry
+    assert panel_geometry["overflowY"] <= 0 and panel_geometry["overflowX"] <= 0, panel_geometry
 
 
 def test_nerilio_answer_places_avatar_outside_card(page: Page, live_server_url: str):

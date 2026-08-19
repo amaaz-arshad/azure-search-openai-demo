@@ -15,12 +15,56 @@ import { AvatarTokenResponse, getAvatarToken } from "../azureSpeech";
 export const AVATAR_IDLE_TIMEOUT_MS = 90_000;
 
 /**
- * Ceiling while an answer is generating or the avatar is speaking.
+ * Watchdog while an answer is generating.
  *
- * Those are activity, not idleness, so the short timeout must not apply — but a request that never
- * resolves still must not hold a billing session open until the service's 30-minute cap.
+ * Generating is activity, not idleness, so the short timeout must not apply — but a request that
+ * never resolves still must not hold a billing session open.
+ *
+ * It has to stay BELOW the service's own 5-minute idle disconnect, because while we wait for a
+ * answer the avatar is silent and the service therefore considers the session idle: its clock is
+ * already running. At the previous 300_000 the two were a tie rather than a margin, so on a slow
+ * answer the service could tear the session down first — and its teardown does not arrive as an
+ * orderly close, it arrives as an ICE state change handled below.
  */
-export const AVATAR_BUSY_TIMEOUT_MS = 300_000;
+export const AVATAR_GENERATING_TIMEOUT_MS = 240_000;
+
+/**
+ * Watchdog while the avatar is speaking.
+ *
+ * Longer than the generating one and NOT tied to the 5-minute idle cutoff: while the avatar speaks
+ * the service is sending media, so it is not idle and that clock is not running. The only thing this
+ * has to outlast is the longest plausible single utterance, because cutting a long answer off
+ * mid-sentence is the exact complaint this file exists to avoid.
+ *
+ * 6 minutes is roughly 900 spoken words — far beyond any answer this bot produces — while keeping the
+ * cost of the one case that can abuse it bounded. That case is a `speakSsmlAsync` promise that never
+ * settles, which would hold `isSpeaking` true and re-arm nothing: at ~$0.50/min that is ~$3 rather
+ * than the ~$5 a 10-minute ceiling would allow. It is also much less reachable now than it was,
+ * because a silent connection death is what `connectionState` monitoring below finally catches.
+ */
+export const AVATAR_SPEAKING_TIMEOUT_MS = 360_000;
+
+/**
+ * How long a transient loss of connectivity is given to heal before the session is torn down.
+ *
+ * This is the fix for "the avatar disappears mid-answer". `iceConnectionState === "disconnected"`
+ * is NOT a failure: the spec defines it as the state entered when consent-freshness checks stop
+ * getting answers, and says it "may trigger intermittently and resolve just as spontaneously on
+ * less reliable networks, or during temporary disconnections" — the ICE agent keeps the candidate
+ * pair alive and returns to `connected` by itself. Only `failed` is terminal.
+ *
+ * Treating the first `disconnected` edge as death was therefore fatal to sessions that would have
+ * survived: a Wi-Fi roam, a cell handover, a lift, a moment of uplink saturation, or the radio
+ * power-saving that kicks in when the screen dims all produce it routinely — and most resolve
+ * within a second or two. Because `stopAvatarAsync()` is equivalent to `close()`, there was no way
+ * back: the panel simply vanished mid-sentence with no error.
+ *
+ * 8s is chosen to sit between the two: comfortably longer than the sub-second-to-few-second blips
+ * that recover, and well short of the ~30s at which the browser gives up and reports `failed`
+ * anyway. A dead connection therefore costs at most 8 extra seconds of a per-second billed session
+ * (~$0.07) — the price of not killing the healthy ones.
+ */
+export const ICE_RECOVERY_GRACE_MS = 8_000;
 
 /** 1080p rather than the SDK's 4K default: the panel is small and 4K costs more per minute. */
 const AVATAR_VIDEO_WIDTH = 1920;
@@ -31,8 +75,21 @@ export type AvatarSessionStatus = "idle" | "connecting" | "ready" | "speaking" |
 export interface AvatarSessionCallbacks {
     onStatusChange?: (status: AvatarSessionStatus) => void;
     onError?: (message: string) => void;
-    /** Fires when the peer connection drops on its own (network, or a service-side timeout). */
+    /**
+     * Fires when the peer connection is genuinely gone (network, or a service-side timeout).
+     *
+     * Only after `ICE_RECOVERY_GRACE_MS` of unbroken trouble, or immediately on a terminal
+     * `failed` — never on the first transient `disconnected` edge.
+     */
     onDisconnected?: () => void;
+    /**
+     * Fires with `true` when connectivity is wobbling and `false` when it recovers.
+     *
+     * Without this the grace window is invisible: the video simply freezes on its last decoded
+     * frame, which looks exactly like the app hanging. Edge-triggered, so it is safe to map
+     * straight onto a piece of UI state.
+     */
+    onConnectionUnstable?: (unstable: boolean) => void;
     /**
      * Fires when the avatar starts and stops talking, from the service's own avatar events.
      * This is what drives half-duplex conversation mode: the microphone must be closed for
@@ -106,12 +163,55 @@ export const buildAvatarSsml = (text: string, voice: string): string => {
     );
 };
 
+/** What a peer-connection state change means for the life of the session. */
+type ConnectivityVerdict = "healthy" | "transient" | "terminal";
+
+/**
+ * Decide whether a connectivity change ends the session, is worth waiting out, or is fine.
+ *
+ * Both states are consulted because they answer different questions. `iceConnectionState` covers
+ * the transport path; `connectionState` is the aggregate that ALSO reflects DTLS, so a DTLS-level
+ * failure or a remote teardown that leaves the ICE transports reporting `connected` is only ever
+ * visible here — previously nothing watched it at all, and that case left the panel on screen
+ * showing a frozen frame while the session was already dead.
+ *
+ * `closed` is not treated as terminal on purpose: per spec only a local `close()` reaches it, and
+ * that path is already guarded by the session's own `closed` flag.
+ *
+ * Two ordering decisions here are load-bearing, so do not "tidy" them:
+ *
+ * 1. `healthy` is tested BEFORE `transient`, so if the two states ever disagree the benign reading
+ *    wins. The bug this file is fixing is closing too eagerly, so that is the correct bias: the
+ *    worst case is a real drop that goes unnoticed until the idle watchdog fires, which is no worse
+ *    than the behaviour this replaced.
+ * 2. `new` / `checking` / `connecting` fall through to `healthy` rather than `transient`. These
+ *    handlers are attached BEFORE `startAvatarAsync`, so they see the whole handshake: treating
+ *    setup states as trouble would arm the recovery window mid-handshake and tear down any
+ *    connection that took longer than the grace period to establish — recreating "the avatar closes
+ *    on its own" for slow networks, which is the exact complaint being fixed.
+ */
+const classifyConnectivity = (ice: RTCIceConnectionState, aggregate: RTCPeerConnectionState): ConnectivityVerdict => {
+    if (ice === "failed" || aggregate === "failed") {
+        return "terminal";
+    }
+    if (ice === "connected" || ice === "completed" || aggregate === "connected") {
+        return "healthy";
+    }
+    if (ice === "disconnected" || aggregate === "disconnected") {
+        return "transient";
+    }
+    // new / checking / closed: setup or our own teardown, nothing to act on.
+    return "healthy";
+};
+
 export class AvatarSession {
     private synthesizer: SpeechSDK.AvatarSynthesizer | null = null;
     private peerConnection: RTCPeerConnection | null = null;
     private callbacks: AvatarSessionCallbacks;
     private closed = false;
     private tokenResponse: AvatarTokenResponse | null = null;
+    private iceRecoveryTimer: number | null = null;
+    private unstable = false;
 
     constructor(callbacks: AvatarSessionCallbacks = {}) {
         this.callbacks = callbacks;
@@ -151,6 +251,70 @@ export class AvatarSession {
         return { token: token.token, region: token.region };
     }
 
+    private clearIceRecoveryTimer(): void {
+        if (this.iceRecoveryTimer !== null) {
+            window.clearTimeout(this.iceRecoveryTimer);
+            this.iceRecoveryTimer = null;
+        }
+    }
+
+    /** Edge-triggered, so the consumer can map it straight onto UI state. */
+    private reportUnstable(unstable: boolean): void {
+        if (this.unstable === unstable) {
+            return;
+        }
+        this.unstable = unstable;
+        this.callbacks.onConnectionUnstable?.(unstable);
+    }
+
+    /**
+     * React to a connectivity change: heal, wait, or die.
+     *
+     * The grace window is the whole point — a transient `disconnected` used to end the session on
+     * its first edge, which is why the avatar vanished mid-answer on networks that were about to
+     * recover. One timer is armed for the first bad edge and left running: re-arming it on every
+     * subsequent event would let a connection that flaps once per second hold the window open
+     * forever, which is the opposite of a watchdog.
+     */
+    private handleConnectivityChange(peerConnection: RTCPeerConnection): void {
+        if (this.closed) {
+            return;
+        }
+
+        const verdict = classifyConnectivity(peerConnection.iceConnectionState, peerConnection.connectionState);
+
+        if (verdict === "terminal") {
+            this.clearIceRecoveryTimer();
+            this.reportUnstable(false);
+            this.callbacks.onDisconnected?.();
+            return;
+        }
+
+        if (verdict === "healthy") {
+            // Recovered on its own, which is exactly what the grace window exists for.
+            this.clearIceRecoveryTimer();
+            this.reportUnstable(false);
+            return;
+        }
+
+        if (this.iceRecoveryTimer !== null) {
+            return;
+        }
+        this.reportUnstable(true);
+        this.iceRecoveryTimer = window.setTimeout(() => {
+            this.iceRecoveryTimer = null;
+            if (this.closed) {
+                return;
+            }
+            const stillBroken =
+                classifyConnectivity(peerConnection.iceConnectionState, peerConnection.connectionState) !== "healthy";
+            this.reportUnstable(false);
+            if (stillBroken) {
+                this.callbacks.onDisconnected?.();
+            }
+        }, ICE_RECOVERY_GRACE_MS);
+    }
+
     /**
      * Open the session and attach the media tracks.
      *
@@ -187,13 +351,12 @@ export class AvatarSession {
         peerConnection.addTransceiver("video", { direction: "sendrecv" });
         peerConnection.addTransceiver("audio", { direction: "sendrecv" });
 
+        // Both events, one handler: see `classifyConnectivity` for why the aggregate state matters.
         peerConnection.oniceconnectionstatechange = () => {
-            if (this.closed) {
-                return;
-            }
-            if (peerConnection.iceConnectionState === "disconnected" || peerConnection.iceConnectionState === "failed") {
-                this.callbacks.onDisconnected?.();
-            }
+            this.handleConnectivityChange(peerConnection);
+        };
+        peerConnection.onconnectionstatechange = () => {
+            this.handleConnectivityChange(peerConnection);
         };
 
         this.peerConnection = peerConnection;
@@ -297,6 +460,8 @@ export class AvatarSession {
         // nobody can see. Cheap insurance against the most expensive failure mode this file has.
         const wasClosed = this.closed;
         this.closed = true;
+        // Otherwise a pending grace window would fire onDisconnected after the session is gone.
+        this.clearIceRecoveryTimer();
 
         try {
             this.synthesizer?.close();

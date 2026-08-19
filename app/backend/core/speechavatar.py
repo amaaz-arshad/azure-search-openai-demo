@@ -44,18 +44,34 @@ def build_relay_token_url(speech_service_id: str) -> str:
     return f"https://{account_name}.cognitiveservices.azure.com{RELAY_TOKEN_PATH}"
 
 
+TURN_URL_SCHEMES = ("turn:", "turns:")
+
+
 def select_turn_ice_servers(relay_payload: dict) -> list[dict]:
     """Shape a relay token response into RTCPeerConnection `iceServers` entries.
 
-    Only ``turn:`` URLs are kept. The relay endpoint may also return a ``stun:`` URL, which the
-    avatar docs explicitly say to exclude — a STUN entry alongside the TURN one makes the browser
-    try a direct path that the avatar service does not accept, so the connection stalls in ICE
-    gathering instead of failing fast.
+    Relay URLs are kept, ``stun:`` is dropped. The relay endpoint may also return a ``stun:`` URL,
+    which the avatar docs explicitly say to exclude — a STUN entry alongside the TURN one makes the
+    browser try a direct path that the avatar service does not accept, so the connection stalls in
+    ICE gathering instead of failing fast.
+
+    ``turns:`` (TURN over TLS, normally port 443) is kept deliberately. The test used to be
+    ``startswith("turn:")``, and ``"turns:"`` does not start with ``"turn:"`` — the ``s`` sits where the
+    colon is expected — so a TLS relay entry would have been silently discarded along with the STUN
+    entry the filter is actually about.
+
+    This is latent correctness, not a live improvement: checked against the nerilio Speech resource
+    on 2026-08-19, the relay returns exactly ONE url, ``turn:relay.communication.microsoft.com:3478``
+    — no ``turns:`` and no ``stun:``. So today every avatar session rides a single UDP allocation for a
+    1080p stream with no alternative path, and nothing here can change that; the client-side
+    ICE recovery grace window in ``avatarSession.ts`` is what actually has to absorb the resulting
+    packet loss. The filter is fixed so that if Microsoft ever does return a TLS entry it is used
+    instead of dropped on the floor.
     """
     urls = relay_payload.get("Urls") or []
-    turn_urls = [url for url in urls if isinstance(url, str) and url.lower().startswith("turn:")]
+    turn_urls = [url for url in urls if isinstance(url, str) and url.lower().startswith(TURN_URL_SCHEMES)]
     if not turn_urls:
-        raise ValueError("Avatar relay token response contained no turn: URL")
+        raise ValueError("Avatar relay token response contained no turn: or turns: URL")
 
     return [
         {

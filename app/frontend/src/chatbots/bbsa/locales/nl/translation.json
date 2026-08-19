@@ -222,10 +222,12 @@
     "newChat": "Nieuwe chat",
     "inputDisclaimer": "<nerilio>nerilio</nerilio> genereert antwoorden automatisch op basis van de aangeboden inhoud; officiële bronnen zijn bindend.",
     "avatar": {
+        "title": "Live-avatar",
         "start": "Live-avatar starten",
         "stop": "Live-avatar stoppen",
         "close": "Avatar sluiten",
         "connecting": "Avatar wordt verbonden…",
+        "reconnecting": "Verbinding wordt hersteld …",
         "error": "De avatar kon niet worden gestart.",
         "disclosure": "AI-gegenereerde avatar",
         "listening": "Ik luister …",

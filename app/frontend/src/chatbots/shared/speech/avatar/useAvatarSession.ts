@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { AVATAR_BUSY_TIMEOUT_MS, AVATAR_IDLE_TIMEOUT_MS, AvatarSession, AvatarSessionStatus } from "./avatarSession";
+import {
+    AVATAR_GENERATING_TIMEOUT_MS,
+    AVATAR_IDLE_TIMEOUT_MS,
+    AVATAR_SPEAKING_TIMEOUT_MS,
+    AvatarSession,
+    AvatarSessionStatus
+} from "./avatarSession";
 import { ConversationListener } from "./conversationListener";
 import { getSpeechToken } from "../azureSpeech";
 
@@ -31,6 +37,8 @@ export interface UseAvatarSessionResult {
     isActive: boolean;
     isSpeaking: boolean;
     isListening: boolean;
+    /** Connectivity is wobbling and the session is inside its recovery grace window. */
+    isReconnecting: boolean;
     interimTranscript: string;
     error: string | null;
     videoRef: React.RefObject<HTMLVideoElement>;
@@ -46,6 +54,7 @@ export function useAvatarSession(options: UseAvatarSessionOptions = {}): UseAvat
     const [error, setError] = useState<string | null>(null);
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [isListening, setIsListening] = useState(false);
+    const [isReconnecting, setIsReconnecting] = useState(false);
     const [interimTranscript, setInterimTranscript] = useState("");
     // State, not just the ref below: the reconciling effect has to re-run when the listener comes
     // into existence. The listener is built after `session.start()` resolves, which is *after*
@@ -80,6 +89,7 @@ export function useAvatarSession(options: UseAvatarSessionOptions = {}): UseAvat
         sessionRef.current = null;
         setIsListening(false);
         setIsSpeaking(false);
+        setIsReconnecting(false);
         setInterimTranscript("");
         setStatus("idle");
     }, [clearIdleTimer]);
@@ -104,8 +114,11 @@ export function useAvatarSession(options: UseAvatarSessionOptions = {}): UseAvat
             onStatusChange: setStatus,
             onError: message => setError(message),
             onSpeakingChange: setIsSpeaking,
+            onConnectionUnstable: setIsReconnecting,
             onDisconnected: () => {
-                // A dropped peer connection cannot be revived on the same synthesizer.
+                // A dropped peer connection cannot be revived on the same synthesizer. This now
+                // fires only after the recovery grace window has elapsed without healing, or on a
+                // terminal `failed` — not on the first transient blip.
                 stop();
             }
         });
@@ -210,7 +223,15 @@ export function useAvatarSession(options: UseAvatarSessionOptions = {}): UseAvat
         if (!sessionRef.current) {
             return;
         }
-        armIdleTimer(conversationBusy || isSpeaking ? AVATAR_BUSY_TIMEOUT_MS : AVATAR_IDLE_TIMEOUT_MS);
+        // Speaking is checked first: media is flowing, so the service is not idle and only the
+        // length of the utterance bounds this. Generating is the case that must stay under the
+        // service's own 5-minute idle cutoff.
+        const nextTimeout = isSpeaking
+            ? AVATAR_SPEAKING_TIMEOUT_MS
+            : conversationBusy
+              ? AVATAR_GENERATING_TIMEOUT_MS
+              : AVATAR_IDLE_TIMEOUT_MS;
+        armIdleTimer(nextTimeout);
     }, [conversationBusy, isSpeaking, armIdleTimer]);
 
     // Close when the tab is hidden: a backgrounded tab keeps billing otherwise.
@@ -248,6 +269,7 @@ export function useAvatarSession(options: UseAvatarSessionOptions = {}): UseAvat
         isActive: status !== "idle" && status !== "error",
         isSpeaking,
         isListening,
+        isReconnecting,
         interimTranscript,
         error,
         videoRef,

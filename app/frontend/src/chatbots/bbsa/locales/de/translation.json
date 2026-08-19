@@ -223,10 +223,12 @@
     "newChat": "Neuer Chat",
     "inputDisclaimer": "<nerilio>nerilio</nerilio> generiert Antworten automatisiert aus den bereitgestellten Inhalten; verbindlich sind die offiziellen Quellen.",
     "avatar": {
+        "title": "Live-Avatar",
         "start": "Live-Avatar starten",
         "stop": "Live-Avatar beenden",
         "close": "Avatar schließen",
         "connecting": "Avatar wird verbunden …",
+        "reconnecting": "Verbindung wird wiederhergestellt …",
         "error": "Der Avatar konnte nicht gestartet werden.",
         "disclosure": "KI-generierter Avatar",
         "listening": "Ich höre zu …",

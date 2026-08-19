@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext } from "react";
+import { ReactNode, useState, useEffect, useContext } from "react";
 import { Stack, TextField } from "@fluentui/react";
 import { Button, Tooltip } from "@fluentui/react-components";
 import { Send28Filled } from "@fluentui/react-icons";
@@ -26,9 +26,25 @@ interface Props {
     onStop: () => void;
     isStreaming: boolean;
     isLoading: boolean;
+    /**
+     * Extra control for the composer's button row, rendered rightmost, after the mic. bbsa puts the
+     * live-avatar toggle here; the composer itself stays unaware of what the control does.
+     */
+    trailingAction?: ReactNode;
 }
 
-export const QuestionInput = ({ onSend, onStop, disabled, placeholder, clearOnSend, initQuestion, showSpeechInput, isStreaming, isLoading }: Props) => {
+export const QuestionInput = ({
+    onSend,
+    onStop,
+    disabled,
+    placeholder,
+    clearOnSend,
+    initQuestion,
+    showSpeechInput,
+    isStreaming,
+    isLoading,
+    trailingAction
+}: Props) => {
     const [question, setQuestion] = useState<string>("");
     const { loggedIn } = useContext(LoginContext);
     const { t } = useTranslation();
@@ -120,6 +136,7 @@ export const QuestionInput = ({ onSend, onStop, disabled, placeholder, clearOnSe
                 )}
             </div>
             {showSpeechInput && <SpeechInput updateQuestion={setQuestion} />}
+            {trailingAction && <div className={styles.questionInputButtonsContainer}>{trailingAction}</div>}
         </Stack>
     );
 };
