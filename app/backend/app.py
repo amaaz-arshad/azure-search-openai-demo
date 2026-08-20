@@ -1,3 +1,4 @@
+import csv
 import dataclasses
 import io
 import json
@@ -7,6 +8,7 @@ import os
 import time
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import nullcontext
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, cast
 from urllib.parse import urlparse
@@ -188,6 +190,7 @@ from config import (
     CONFIG_SPEECH_SERVICE_LOCATION,
     CONFIG_SPEECH_SERVICE_TOKEN,
     CONFIG_SPEECH_SERVICE_VOICE,
+    CONFIG_TELEMETRY_STORE,
     CONFIG_STREAMING_ENABLED,
     CONFIG_USER_BLOB_MANAGER,
     CONFIG_USER_UPLOAD_ENABLED,
@@ -224,6 +227,11 @@ from core.freeauth import (
 )
 from core.hubspot import HubSpotContactStore
 from core.sessionhelper import create_session_id
+from core.telemetry import aggregate as telemetry_aggregate
+from core.telemetry import records as telemetry_records
+from core.telemetry import recorder as telemetry
+from core.telemetry.pricing import micros_to_units, parse_price_mapping
+from core.telemetry.store import TelemetryStore, clamp_day_range
 from core.speechavatar import fetch_avatar_ice_servers
 from core.simplechatbotauth import (
     SIMPLE_CHATBOT_AUTH_INVALID_CREDENTIALS_MESSAGE,
@@ -533,6 +541,104 @@ async def stream_with_openlit_chatbot_attributes(
     with openlit_chatbot_attributes_context(attributes):
         async for event in stream:
             yield event
+
+
+# Module level, not `current_app.logger`: `finish_telemetry_turn` runs from the streaming path, which
+# executes outside the app context (see its docstring).
+telemetry_logger = logging.getLogger("telemetry")
+
+
+def unwrap_current_app() -> Any:
+    """The real app object behind the `current_app` proxy.
+
+    Needed because the streaming telemetry write happens after the app context has been popped, so
+    the proxy would raise there; the caller has to capture the object itself while the context is
+    still live. `current_app` is a `LocalProxy` at runtime but is typed as `Quart`, so the unwrap is
+    invisible to the type checker.
+    """
+    return getattr(current_app, "_get_current_object")()
+
+
+def open_telemetry_turn(request_json: dict[str, Any], *, route: str, streaming: bool):
+    """Open the per-request telemetry envelope and attach whatever identity is already known.
+
+    Deliberately opened here, right after the JSON is parsed and BEFORE the chatbot gates: both chat
+    routes run override normalization, the free/rak login check and the provisioned-bot session quota
+    before any model work, and every one of those can return early. Opening the envelope after them
+    would make each of those failures invisible -- and an operator investigating "customer says the
+    bot is broken" needs the 401s and the quota rejections most of all.
+    """
+    record = telemetry.begin_turn(route=route, streaming=streaming)
+    if record is not None:
+        telemetry.set_identity_from_attributes(get_openlit_chatbot_attributes(request_json, None))
+        telemetry.set_request_details(
+            messages=request_json.get("messages"),
+            overrides=(request_json.get("context") or {}).get("overrides"),
+        )
+    return record
+
+
+def finish_telemetry_turn(app_object, store, record, *, status: str, error: BaseException | None = None) -> None:
+    """Finalize and hand the write to a background task.
+
+    `app_object` and `store` are bound by the CALLER, while the request context is still live. Quart
+    pops the request and app contexts when the view returns, and a streaming response body is
+    iterated afterwards by the ASGI layer -- outside any context -- so `current_app` raises
+    `RuntimeError: Working outside of application context` there. (The repo already carries the scar:
+    `format_as_ndjson` uses a module-level logger rather than `current_app.logger`, unlike every other
+    error path in this file.) `add_background_task` pushes its own app context, so the write itself is
+    fine; it just cannot be *looked up* from inside the generator.
+
+    A background task rather than an awaited write, so a client disconnect -- which raises
+    `CancelledError` into the generator's `finally` -- cannot cancel the write half way through.
+
+    Idempotent on `finalized_at`, which `telemetry.finalize` stamps. Both chat routes call this on
+    their success path AND from a belt-and-braces `finally`, and without the guard every request would
+    issue two identical blob PUTs.
+    """
+    if record is None or record.finalized_at is not None:
+        return
+    try:
+        price_table = getattr(store, "price_table", None) if store is not None else None
+        telemetry.finalize(record, status=status, error=error, price_table=price_table)
+        if store is not None and app_object is not None:
+            app_object.add_background_task(store.write, record)
+    except Exception:
+        telemetry_logger.exception("Failed to schedule the telemetry write")
+    finally:
+        telemetry.clear_current()
+
+
+async def stream_with_telemetry(stream: AsyncGenerator[dict, None], app_object, store, record):
+    """Wrap the response generator so the turn is finalized when the stream ends, however it ends.
+
+    This is the only construct that spans the whole streaming lifetime: `run_stream` merely builds the
+    generator, and the actual model work happens later, inside `format_as_ndjson`, when the ASGI layer
+    iterates the response body.
+
+    The ContextVar is set here and never reset. Async generators do not get their own context, so the
+    `set` lands in whichever context is driving `__anext__`, and this `finally` can be driven from a
+    different one (a Quart- or GC-scheduled `aclose()`), where `ContextVar.reset(token)` raises
+    `ValueError: Token was created in a different Context`. Setting back to None is always legal.
+    """
+    if record is not None:
+        telemetry.current_turn.set(record)
+    status = telemetry_records.STATUS_OK
+    failure: BaseException | None = None
+    try:
+        async for event in stream:
+            yield event
+    except GeneratorExit:
+        # The client went away mid-answer. Still a real, billable turn: whatever tokens were spent
+        # before the disconnect were spent.
+        status = telemetry_records.STATUS_ABORTED
+        raise
+    except BaseException as error:  # noqa: BLE001 - re-raised immediately
+        status = telemetry_records.STATUS_ERROR
+        failure = error if isinstance(error, Exception) else None
+        raise
+    finally:
+        finish_telemetry_turn(app_object, store, record, status=status, error=failure)
 
 
 def build_chat_model_deployments(default_model: str, default_deployment: str | None) -> dict[str, str | None]:
@@ -2127,51 +2233,85 @@ async def chat(auth_claims: dict[str, Any]):
         return jsonify({"error": "request must be json"}), 415
     request_json = await request.get_json()
     error_context = get_request_error_context(request_json)
+    telemetry_app = unwrap_current_app()
+    telemetry_store = current_app.config.get(CONFIG_TELEMETRY_STORE)
+    telemetry_record = open_telemetry_turn(request_json, route="/chat", streaming=False)
     try:
-        normalize_chatbot_request_overrides(request_json)
-    except ValueError as error:
-        return jsonify({"error": str(error)}), 400
-    context = request_json.get("context", {})
-    requested_chatbot_name = await apply_saved_chatbot_prompt_override(request_json)
-    if requested_chatbot_name in {FREE_CHATBOT_NAME, RAK_CHATBOT_NAME}:
-        chatbot_user = await get_user_scoped_chatbot_user(requested_chatbot_name)
-        if chatbot_user is None:
-            return jsonify({"error": f"{requested_chatbot_name} requires login"}), 401
-        overrides = context.setdefault("overrides", {})
-        overrides["user"] = chatbot_user
-    context["auth_claims"] = auth_claims
-    # Reject stopped (inactive) dynamic bots and enforce the number_sessions quota before any model
-    # work; built-in bots are never gated. A new session = the first turn of a chat (len(messages)<=1).
-    is_new_session = len(request_json.get("messages") or []) <= 1
-    gate = await enforce_dynamic_chatbot_gate(requested_chatbot_name, is_new_session=is_new_session)
-    if gate is not None:
-        return gate
-    try:
-        chatbot_approaches: dict[str, Approach] = current_app.config.get(CONFIG_CHATBOT_CHAT_APPROACHES, {})
-        approach: Approach = (
-            chatbot_approaches.get(requested_chatbot_name, current_app.config[CONFIG_CHAT_APPROACH])
-            if requested_chatbot_name
-            else current_app.config[CONFIG_CHAT_APPROACH]
+        try:
+            normalize_chatbot_request_overrides(request_json)
+        except ValueError as error:
+            finish_telemetry_turn(
+                telemetry_app, telemetry_store, telemetry_record, status=telemetry_records.STATUS_REJECTED
+            )
+            return jsonify({"error": str(error)}), 400
+        context = request_json.get("context", {})
+        requested_chatbot_name = await apply_saved_chatbot_prompt_override(request_json)
+        telemetry.set_identity_from_attributes(
+            get_openlit_chatbot_attributes(request_json, requested_chatbot_name)
         )
+        if requested_chatbot_name in {FREE_CHATBOT_NAME, RAK_CHATBOT_NAME}:
+            chatbot_user = await get_user_scoped_chatbot_user(requested_chatbot_name)
+            if chatbot_user is None:
+                finish_telemetry_turn(
+                    telemetry_app, telemetry_store, telemetry_record, status=telemetry_records.STATUS_REJECTED
+                )
+                return jsonify({"error": f"{requested_chatbot_name} requires login"}), 401
+            overrides = context.setdefault("overrides", {})
+            overrides["user"] = chatbot_user
+        context["auth_claims"] = auth_claims
+        # Reject stopped (inactive) dynamic bots and enforce the number_sessions quota before any model
+        # work; built-in bots are never gated. A new session = the first turn of a chat (len(messages)<=1).
+        is_new_session = len(request_json.get("messages") or []) <= 1
+        gate = await enforce_dynamic_chatbot_gate(requested_chatbot_name, is_new_session=is_new_session)
+        if gate is not None:
+            finish_telemetry_turn(
+                telemetry_app, telemetry_store, telemetry_record, status=telemetry_records.STATUS_REJECTED
+            )
+            return gate
+        try:
+            chatbot_approaches: dict[str, Approach] = current_app.config.get(CONFIG_CHATBOT_CHAT_APPROACHES, {})
+            approach: Approach = (
+                chatbot_approaches.get(requested_chatbot_name, current_app.config[CONFIG_CHAT_APPROACH])
+                if requested_chatbot_name
+                else current_app.config[CONFIG_CHAT_APPROACH]
+            )
 
-        # If session state is provided, persists the session state,
-        # else creates a new session_id depending on the chat history options enabled.
-        session_state = request_json.get("session_state")
-        if session_state is None:
-            session_state = create_session_id(
-                current_app.config[CONFIG_CHAT_HISTORY_COSMOS_ENABLED],
-                current_app.config[CONFIG_CHAT_HISTORY_BROWSER_ENABLED],
+            # If session state is provided, persists the session state,
+            # else creates a new session_id depending on the chat history options enabled.
+            session_state = request_json.get("session_state")
+            if session_state is None:
+                session_state = create_session_id(
+                    current_app.config[CONFIG_CHAT_HISTORY_COSMOS_ENABLED],
+                    current_app.config[CONFIG_CHAT_HISTORY_BROWSER_ENABLED],
+                )
+            telemetry.set_session_id(session_state)
+            openlit_attributes = get_openlit_chatbot_attributes(request_json, requested_chatbot_name)
+            with openlit_chatbot_attributes_context(openlit_attributes):
+                result = await approach.run(
+                    request_json["messages"],
+                    context=context,
+                    session_state=session_state,
+                )
+            finish_telemetry_turn(
+                telemetry_app, telemetry_store, telemetry_record, status=telemetry_records.STATUS_OK
             )
-        openlit_attributes = get_openlit_chatbot_attributes(request_json, requested_chatbot_name)
-        with openlit_chatbot_attributes_context(openlit_attributes):
-            result = await approach.run(
-                request_json["messages"],
-                context=context,
-                session_state=session_state,
+            return jsonify(result)
+        except Exception as error:
+            finish_telemetry_turn(
+                telemetry_app,
+                telemetry_store,
+                telemetry_record,
+                status=telemetry_records.STATUS_ERROR,
+                error=error,
             )
-        return jsonify(result)
-    except Exception as error:
-        return error_response(error, "/chat", error_context=error_context)
+            return error_response(error, "/chat", error_context=error_context)
+    finally:
+        # Belt and braces: `finish_telemetry_turn` is idempotent, so a path that somehow returned
+        # without calling it still gets its row rather than leaking the envelope into the next
+        # request on this task.
+        finish_telemetry_turn(
+            telemetry_app, telemetry_store, telemetry_record, status=telemetry_records.STATUS_OK
+        )
 
 
 @bp.route("/chat/stream", methods=["POST"])
@@ -2181,15 +2321,27 @@ async def chat_stream(auth_claims: dict[str, Any]):
         return jsonify({"error": "request must be json"}), 415
     request_json = await request.get_json()
     error_context = get_request_error_context(request_json)
+    # Bound while the request context is still live -- see `finish_telemetry_turn` for why the
+    # streaming path cannot look either of these up later.
+    telemetry_app = unwrap_current_app()
+    telemetry_store = current_app.config.get(CONFIG_TELEMETRY_STORE)
+    telemetry_record = open_telemetry_turn(request_json, route="/chat/stream", streaming=True)
     try:
         normalize_chatbot_request_overrides(request_json)
     except ValueError as error:
+        finish_telemetry_turn(
+            telemetry_app, telemetry_store, telemetry_record, status=telemetry_records.STATUS_REJECTED
+        )
         return jsonify({"error": str(error)}), 400
     context = request_json.get("context", {})
     requested_chatbot_name = await apply_saved_chatbot_prompt_override(request_json)
+    telemetry.set_identity_from_attributes(get_openlit_chatbot_attributes(request_json, requested_chatbot_name))
     if requested_chatbot_name in {FREE_CHATBOT_NAME, RAK_CHATBOT_NAME}:
         chatbot_user = await get_user_scoped_chatbot_user(requested_chatbot_name)
         if chatbot_user is None:
+            finish_telemetry_turn(
+                telemetry_app, telemetry_store, telemetry_record, status=telemetry_records.STATUS_REJECTED
+            )
             return jsonify({"error": f"{requested_chatbot_name} requires login"}), 401
         overrides = context.setdefault("overrides", {})
         overrides["user"] = chatbot_user
@@ -2199,6 +2351,9 @@ async def chat_stream(auth_claims: dict[str, Any]):
     is_new_session = len(request_json.get("messages") or []) <= 1
     gate = await enforce_dynamic_chatbot_gate(requested_chatbot_name, is_new_session=is_new_session)
     if gate is not None:
+        finish_telemetry_turn(
+            telemetry_app, telemetry_store, telemetry_record, status=telemetry_records.STATUS_REJECTED
+        )
         return gate
     try:
         chatbot_approaches: dict[str, Approach] = current_app.config.get(CONFIG_CHATBOT_CHAT_APPROACHES, {})
@@ -2216,6 +2371,7 @@ async def chat_stream(auth_claims: dict[str, Any]):
                 current_app.config[CONFIG_CHAT_HISTORY_COSMOS_ENABLED],
                 current_app.config[CONFIG_CHAT_HISTORY_BROWSER_ENABLED],
             )
+        telemetry.set_session_id(session_state)
         openlit_attributes = get_openlit_chatbot_attributes(request_json, requested_chatbot_name)
         with openlit_chatbot_attributes_context(openlit_attributes):
             result = await approach.run_stream(
@@ -2224,11 +2380,17 @@ async def chat_stream(auth_claims: dict[str, Any]):
                 session_state=session_state,
             )
         result = stream_with_openlit_chatbot_attributes(result, openlit_attributes)
+        # Outermost, so it spans the entire stream: `run_stream` above only BUILDS the generator, and
+        # every token of model work happens later, when the ASGI layer iterates the response body.
+        result = stream_with_telemetry(result, telemetry_app, telemetry_store, telemetry_record)
         response = await make_response(format_as_ndjson(result, error_context=error_context))
         response.timeout = None  # type: ignore
         response.mimetype = "application/json-lines"
         return response
     except Exception as error:
+        finish_telemetry_turn(
+            telemetry_app, telemetry_store, telemetry_record, status=telemetry_records.STATUS_ERROR, error=error
+        )
         return error_response(error, "/chat", error_context=error_context)
 
 
@@ -2891,6 +3053,478 @@ async def download_hyrox_assessment_visits_csv():
     )
 
 
+# ---------------------------------------------------------------------------------------------
+# LLM telemetry dashboard (/admin/telemetry). Every route is admin-gated by the same
+# `internal_tools_admin_session` cookie the rest of the admin shell uses, and every read degrades to
+# an empty payload rather than a 500 -- a dashboard that shows fewer rows beats one that shows an
+# error. See core/telemetry/ for the recording side.
+
+TELEMETRY_DEFAULT_RANGE = "7d"
+TELEMETRY_MAX_REQUEST_PAGE = 200
+# Stands in for `range=all` until the store can say when recording actually began. It is never
+# queried: `telemetry_resolve_range_async` replaces it before the range reaches the store.
+TELEMETRY_ALL_TIME_PLACEHOLDER = "2020-01-01"
+TELEMETRY_RANGE_DAYS = {"24h": 1, "7d": 7, "30d": 30, "90d": 90}
+
+
+def telemetry_resolve_range(args) -> tuple[str, str, str | None]:
+    """(from_day, to_day, error). `from`/`to` win over `range`; both are inclusive UTC days."""
+    today = datetime.now(timezone.utc).date()
+    explicit_from = (args.get("from") or "").strip()
+    explicit_to = (args.get("to") or "").strip()
+
+    if explicit_from or explicit_to:
+        if not telemetry_records.is_valid_day(explicit_from) or not telemetry_records.is_valid_day(explicit_to):
+            return "", "", "from and to must both be dates in YYYY-MM-DD format."
+        if explicit_to < explicit_from:
+            return "", "", "The end of the range must not be before its start."
+        return explicit_from, explicit_to, None
+
+    requested = (args.get("range") or TELEMETRY_DEFAULT_RANGE).strip()
+    if requested == "all":
+        # A placeholder only. `all` means "from the first day recording produced anything", which
+        # only the store knows -- `telemetry_resolve_range_async` is what resolves it, and every
+        # route must go through that. See the note there for what a compiled date did instead.
+        return TELEMETRY_ALL_TIME_PLACEHOLDER, today.isoformat(), None
+    if requested == "month":
+        return today.replace(day=1).isoformat(), today.isoformat(), None
+    days = TELEMETRY_RANGE_DAYS.get(requested)
+    if days is None:
+        return "", "", "range must be one of 24h, 7d, 30d, 90d, month, all."
+    return (today - timedelta(days=days - 1)).isoformat(), today.isoformat(), None
+
+
+def telemetry_parse_facets(args) -> dict[str, set[str]]:
+    """CSV per facet. Composition is OR within a facet and AND across facets -- the rule the UI
+    states on the filter bar."""
+    facets: dict[str, set[str]] = {}
+    for param, field in (("chatbot", "chatbot"), ("model", "model"), ("path", "path"), ("status", "status")):
+        raw = (args.get(param) or "").strip()
+        if not raw or raw == "all":
+            continue
+        values = {value.strip() for value in raw.split(",") if value.strip()}
+        if values:
+            facets[field] = values
+    return facets
+
+
+async def telemetry_earliest_day(store) -> str | None:
+    if store is None:
+        return None
+    return await store.earliest_day()
+
+
+def telemetry_range_is_all_time(args) -> bool:
+    """`all` only applies when no explicit `from`/`to` was given -- those always win."""
+    if (args.get("from") or "").strip() or (args.get("to") or "").strip():
+        return False
+    return (args.get("range") or TELEMETRY_DEFAULT_RANGE).strip() == "all"
+
+
+async def telemetry_effective_range(args, store, from_day: str, to_day: str) -> tuple[str, str]:
+    """The range actually queried: `all` resolved against the data, then the store's own clamp.
+
+    Called after `telemetry_resolve_range` has validated the arguments, so a bad range still 400s
+    before an unconfigured store 503s.
+
+    `all` used to resolve to a compiled `2020-01-01`. `day_range` then clamped that to the FIRST
+    MAX_RANGE_DAYS days -- a 400-day window ending in February 2021 -- so every tab drew an empty
+    dashboard, and each click folded a rollup for all 400 data-less days (400 such blobs were found
+    in the live container). Anchoring to the first recorded day makes the range mean what the button
+    says and touch only days that can hold data.
+
+    Applying the clamp here too means a route reports the window it queried rather than the one it
+    was asked for, which matters because the UI prints that range and sizes its axis from it.
+    """
+    if telemetry_range_is_all_time(args):
+        # No data yet is a real state, not an error: fall back to a single day so an empty dashboard
+        # renders against today rather than against a placeholder decades in the past.
+        from_day = await telemetry_earliest_day(store) or to_day
+    return clamp_day_range(from_day, to_day) or (from_day, to_day)
+
+
+def telemetry_previous_window(from_day: str, to_day: str) -> tuple[str, str]:
+    """The equal-length window immediately before this one, for the KPI deltas."""
+    start = date.fromisoformat(from_day)
+    end = date.fromisoformat(to_day)
+    span = (end - start).days + 1
+    return (start - timedelta(days=span)).isoformat(), (start - timedelta(days=1)).isoformat()
+
+
+@bp.get("/internal-admin/telemetry/summary")
+@internal_admin_required
+async def get_telemetry_summary():
+    """Everything the Overview and Costs tabs draw, in one call."""
+    from_day, to_day, error = telemetry_resolve_range(request.args)
+    if error:
+        return jsonify({"message": error}), 400
+    granularity_arg = (request.args.get("granularity") or "auto").strip()
+    if granularity_arg not in {"auto", "hour", "day", "week", "month"}:
+        return jsonify({"message": "granularity must be one of auto, hour, day, week, month."}), 400
+
+    store: TelemetryStore | None = current_app.config.get(CONFIG_TELEMETRY_STORE)
+    if store is None:
+        return jsonify({"message": "Telemetry is not configured."}), 503
+    from_day, to_day = await telemetry_effective_range(request.args, store, from_day, to_day)
+
+
+    facets = telemetry_parse_facets(request.args)
+    span_days = (date.fromisoformat(to_day) - date.fromisoformat(from_day)).days + 1
+    granularity = telemetry_aggregate.resolve_granularity(
+        None if granularity_arg == "auto" else granularity_arg, span_days
+    )
+
+    result = await store.summarize(
+        from_day=from_day, to_day=to_day, granularity=granularity, filters=facets
+    )
+    aggregate = result["aggregate"]
+
+    data_starts_at = await telemetry_earliest_day(store)
+    previous_from, previous_to = telemetry_previous_window(from_day, to_day)
+    # A comparison window that predates recording is not "zero" -- it is "no comparison", and saying
+    # so is the difference between an honest empty state and every KPI reading +100% for a fortnight.
+    has_comparison = bool(data_starts_at) and previous_from >= data_starts_at
+    previous_kpis = None
+    if has_comparison:
+        previous = await store.summarize(
+            from_day=previous_from, to_day=previous_to, granularity=granularity, filters=facets
+        )
+        previous_kpis = previous["aggregate"].kpis()
+
+    return jsonify(
+        {
+            "range": {
+                "from": from_day,
+                "to": to_day,
+                "granularity": granularity_arg,
+                "resolvedGranularity": granularity,
+            },
+            "generatedAt": datetime.now(timezone.utc).isoformat(),
+            "dataStartsAt": data_starts_at,
+            "currency": telemetry_currency(store),
+            "kpis": aggregate.kpis(),
+            "previousTotals": previous_kpis,
+            "noComparisonPeriod": not has_comparison,
+            "series": aggregate.series_rows(),
+            "seriesByChatbot": aggregate.split_series_rows(aggregate.series_by_chatbot, "chatbot"),
+            "seriesByModel": aggregate.split_series_rows(aggregate.series_by_model, "model"),
+            "byChatbot": aggregate.facet_rows(aggregate.by_chatbot, "chatbot"),
+            "byModel": aggregate.facet_rows(aggregate.by_model, "model"),
+            "byPath": aggregate.facet_rows(aggregate.by_path, "path"),
+            "byStep": aggregate.step_rows(),
+            "latencyHistogram": telemetry_aggregate.histogram_display_buckets(aggregate.latency),
+            "errors": sorted(aggregate.errors.values(), key=lambda entry: -entry["count"]),
+            "unpricedModels": [
+                {"model": model, "requests": count}
+                for model, count in sorted(aggregate.unpriced_models.items(), key=lambda item: -item[1])
+            ],
+            "approximate": True,
+            "maxRelativeError": telemetry_aggregate.MAX_RELATIVE_ERROR,
+            "minSamplesForPercentile": telemetry_aggregate.MIN_SAMPLES_FOR_PERCENTILE,
+            "partial": result["partial"],
+        }
+    )
+
+
+def telemetry_currency(store) -> str:
+    price_table = getattr(store, "price_table", None)
+    if price_table is None:
+        return "EUR"
+    return getattr(price_table, "currency", None) or "EUR"
+
+
+@bp.get("/internal-admin/telemetry/requests")
+@internal_admin_required
+async def list_telemetry_requests():
+    from_day, to_day, error = telemetry_resolve_range(request.args)
+    if error:
+        return jsonify({"message": error}), 400
+
+    store: TelemetryStore | None = current_app.config.get(CONFIG_TELEMETRY_STORE)
+    if store is None:
+        return jsonify({"message": "Telemetry is not configured."}), 503
+    from_day, to_day = await telemetry_effective_range(request.args, store, from_day, to_day)
+
+
+    try:
+        limit = int((request.args.get("limit") or "50").strip())
+    except ValueError:
+        return jsonify({"message": "limit must be a number."}), 400
+    limit = max(1, min(TELEMETRY_MAX_REQUEST_PAGE, limit))
+
+    result = await store.list_requests(
+        from_day=from_day,
+        to_day=to_day,
+        filters=telemetry_parse_facets(request.args),
+        query=(request.args.get("q") or "").strip(),
+        limit=limit,
+        cursor=(request.args.get("cursor") or "").strip() or None,
+    )
+    return jsonify(
+        {
+            "rows": result["rows"],
+            "cursor": result["cursor"],
+            "hasMore": result["hasMore"],
+            "scannedDays": result["scannedDays"],
+            "currency": telemetry_currency(store),
+        }
+    )
+
+
+async def load_telemetry_record(trace_id: str):
+    """One full turn record, or None. `blob` comes from a listing row, but it is re-parsed through the
+    same codec that produced it before any read, and the trace id in the path must match what the name
+    encodes -- so a caller-supplied value cannot address a blob outside the requests prefix."""
+    if not telemetry_records.is_valid_trace_id(trace_id):
+        return None, "traceId must be 16 hex characters."
+    store: TelemetryStore | None = current_app.config.get(CONFIG_TELEMETRY_STORE)
+    if store is None:
+        return None, "Telemetry is not configured."
+
+    blob_name = (request.args.get("blob") or "").strip()
+    key = telemetry_records.parse_request_blob_name(blob_name)
+    if key is None:
+        return None, "A valid blob reference from the request list is required."
+    if key.trace_id != trace_id:
+        return None, "The blob reference does not match the requested trace id."
+    return await store.read_request(key.blob_name), None
+
+
+@bp.get("/internal-admin/telemetry/requests/<trace_id>")
+@internal_admin_required
+async def get_telemetry_request(trace_id: str):
+    record, error = await load_telemetry_record(trace_id)
+    if error:
+        return jsonify({"message": error}), 400
+    if record is None:
+        return jsonify({"message": "That request is no longer stored.", "traceId": trace_id}), 404
+    return jsonify(record)
+
+
+@bp.get("/internal-admin/telemetry/requests/<trace_id>.json")
+@internal_admin_required
+async def download_telemetry_request(trace_id: str):
+    """The same body as a file, for attaching one failing turn to a bug report."""
+    record, error = await load_telemetry_record(trace_id)
+    if error:
+        return jsonify({"message": error}), 400
+    if record is None:
+        return jsonify({"message": "That request is no longer stored.", "traceId": trace_id}), 404
+    payload = io.BytesIO(json.dumps(record, ensure_ascii=False, indent=2).encode("utf-8"))
+    return await send_file(
+        payload,
+        mimetype="application/json",
+        as_attachment=True,
+        attachment_filename=f"telemetry-{trace_id}.json",
+    )
+
+
+@bp.get("/internal-admin/telemetry/filters")
+@internal_admin_required
+async def get_telemetry_filters():
+    """The chatbot and model pickers. Built-ins come from the compiled name set and provisioned bots
+    from the registry, the same two sources the chatbot directory merges."""
+    store: TelemetryStore | None = current_app.config.get(CONFIG_TELEMETRY_STORE)
+    chatbots = [{"name": name, "kind": "builtin"} for name in sorted(KNOWN_CHATBOT_NAMES)]
+
+    registry_store: ChatbotRegistryStore | None = current_app.config.get(CONFIG_CHATBOT_REGISTRY_STORE)
+    if registry_store is not None:
+        try:
+            # list_records returns a MAPPING of bot name -> record; iterating it directly yields the
+            # string keys, not the records.
+            for record in (await registry_store.list_records()).values():
+                chatbots.append(
+                    {
+                        "name": record.bot_name,
+                        "displayName": record.display_name or record.bot_name,
+                        "kind": "dynamic",
+                    }
+                )
+        except Exception:
+            telemetry_logger.exception("Could not list provisioned bots for the telemetry filters")
+
+    return jsonify(
+        {
+            "chatbots": chatbots,
+            "models": sorted(current_app.config.get(CONFIG_AVAILABLE_CHAT_MODELS, []) or []),
+            "paths": list(telemetry_records.ALL_PATHS),
+            "statuses": list(telemetry_records.ALL_STATUSES),
+            "dataStartsAt": await telemetry_earliest_day(store),
+            "currency": telemetry_currency(store),
+            "timezone": "UTC",
+            "storesBodies": telemetry.should_store_bodies(),
+        }
+    )
+
+
+@bp.get("/internal-admin/telemetry/pricing")
+@internal_admin_required
+async def get_telemetry_pricing():
+    store: TelemetryStore | None = current_app.config.get(CONFIG_TELEMETRY_STORE)
+    if store is None:
+        return jsonify({"message": "Telemetry is not configured."}), 503
+    await store.refresh_price_table()
+    return jsonify(store.price_table.as_payload())
+
+
+@bp.put("/internal-admin/telemetry/pricing")
+@internal_admin_required
+async def save_telemetry_pricing():
+    """The only write route on the dashboard. Editing a price never rewrites history -- stored rows
+    keep the cost that was computed at the time, stamped with the price version."""
+    if not request.is_json:
+        return jsonify({"message": "request must be json"}), 415
+    body = await request.get_json()
+    prices = body.get("prices") if isinstance(body, dict) else None
+    if not isinstance(prices, dict) or not prices:
+        return jsonify({"message": "A prices object is required."}), 400
+    parsed = parse_price_mapping(prices, source="blob")
+    if not parsed:
+        return jsonify({"message": "No valid prices were supplied. Each model needs input and output."}), 400
+
+    store: TelemetryStore | None = current_app.config.get(CONFIG_TELEMETRY_STORE)
+    if store is None:
+        return jsonify({"message": "Telemetry is not configured."}), 503
+    await store.save_price_overrides(
+        {model: price.as_dict() for model, price in parsed.items()},
+        note=str(body.get("note") or "")[:500],
+    )
+    return jsonify(store.price_table.as_payload())
+
+
+TELEMETRY_CSV_VIEWS = {"chatbot", "model", "path", "step", "requests"}
+
+
+@bp.get("/internal-admin/telemetry/export.csv")
+@internal_admin_required
+async def download_telemetry_csv():
+    """Aggregates and request rows, never message text. The single-request JSON download is the
+    deliberate one-at-a-time exception for reading a conversation."""
+    from_day, to_day, error = telemetry_resolve_range(request.args)
+    if error:
+        return jsonify({"message": error}), 400
+    view = (request.args.get("view") or "chatbot").strip()
+    if view not in TELEMETRY_CSV_VIEWS:
+        return jsonify({"message": f"view must be one of {', '.join(sorted(TELEMETRY_CSV_VIEWS))}."}), 400
+
+    store: TelemetryStore | None = current_app.config.get(CONFIG_TELEMETRY_STORE)
+    if store is None:
+        return jsonify({"message": "Telemetry is not configured."}), 503
+    from_day, to_day = await telemetry_effective_range(request.args, store, from_day, to_day)
+
+
+    facets = telemetry_parse_facets(request.args)
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    currency = telemetry_currency(store)
+
+    if view == "requests":
+        result = await store.list_requests(
+            from_day=from_day, to_day=to_day, filters=facets, limit=TELEMETRY_MAX_REQUEST_PAGE
+        )
+        writer.writerow(
+            [
+                "timestamp_utc",
+                "trace_id",
+                "chatbot",
+                "path",
+                "model",
+                "status",
+                "duration_ms",
+                "tokens_in",
+                "tokens_out",
+                "tokens_cached",
+                f"estimated_cost_{currency.lower()}",
+            ]
+        )
+        for row in result["rows"]:
+            writer.writerow(
+                [
+                    row["startedAt"],
+                    row["traceId"],
+                    row["chatbot"],
+                    row["path"],
+                    row["model"] or "",
+                    row["status"],
+                    row["durationMs"],
+                    row["tokensIn"],
+                    row["tokensOut"],
+                    row["tokensCached"],
+                    format_micros_for_csv(row["estCostMicros"]),
+                ]
+            )
+    else:
+        span_days = (date.fromisoformat(to_day) - date.fromisoformat(from_day)).days + 1
+        granularity = telemetry_aggregate.resolve_granularity(None, span_days)
+        result = await store.summarize(
+            from_day=from_day, to_day=to_day, granularity=granularity, filters=facets
+        )
+        aggregate = result["aggregate"]
+        if view == "step":
+            writer.writerow(
+                ["path", "step", "type", "calls", "avg_ms", "p95_ms", "total_ms", "tokens_in", "tokens_out"]
+            )
+            for row in aggregate.step_rows():
+                writer.writerow(
+                    [
+                        row["path"],
+                        row["step"],
+                        row["type"],
+                        row["calls"],
+                        row["avgMs"],
+                        "" if row["p95Ms"] is None else round(row["p95Ms"]),
+                        row["totalMs"],
+                        row["tokensIn"],
+                        row["tokensOut"],
+                    ]
+                )
+        else:
+            facet_map = {
+                "chatbot": (aggregate.by_chatbot, "chatbot"),
+                "model": (aggregate.by_model, "model"),
+                "path": (aggregate.by_path, "path"),
+            }[view]
+            writer.writerow(
+                [
+                    view,
+                    "requests",
+                    "tokens_in",
+                    "tokens_out",
+                    "tokens_cached",
+                    f"estimated_cost_{currency.lower()}",
+                    "avg_ms",
+                    "p95_ms",
+                ]
+            )
+            for row in aggregate.facet_rows(*facet_map):
+                writer.writerow(
+                    [
+                        row[facet_map[1]],
+                        row["requests"],
+                        row["tokensIn"],
+                        row["tokensOut"],
+                        row["tokensCached"],
+                        format_micros_for_csv(row["estCostMicros"]),
+                        row["avgMs"],
+                        "" if row["p95Ms"] is None else round(row["p95Ms"]),
+                    ]
+                )
+
+    payload = io.BytesIO(buffer.getvalue().encode("utf-8"))
+    return await send_file(
+        payload,
+        mimetype="text/csv",
+        as_attachment=True,
+        attachment_filename=f"telemetry-{view}-{from_day}-to-{to_day}.csv",
+    )
+
+
+def format_micros_for_csv(micros) -> str:
+    """Six decimals, so a sub-cent per-step cost is not rounded away to 0.00 in a spreadsheet."""
+    value = micros_to_units(micros)
+    return "" if value is None else f"{value:.6f}"
+
+
 @bp.before_app_serving
 async def setup_clients():
     # Replace these with your own values, either in environment variables or directly here
@@ -3173,6 +3807,14 @@ async def setup_clients():
     free_upload_file_count_limit = 1  # e.g. 1 for a single PDF
     chatbot_prompt_store = ChatbotPromptStore(blob_manager=global_blob_manager)
     current_app.config[CONFIG_CHATBOT_PROMPT_STORE] = chatbot_prompt_store
+
+    # First-party LLM telemetry. The store writes into its OWN private container, never `content` --
+    # `/content/<path>` is served unauthenticated in this deployment and turn records hold verbatim
+    # end-user conversations. Constructed unconditionally so the write path exists from the first
+    # request; TELEMETRY_ENABLED gates recording, not construction.
+    telemetry_store = TelemetryStore(blob_manager=global_blob_manager)
+    current_app.config[CONFIG_TELEMETRY_STORE] = telemetry_store
+
     current_app.config[CONFIG_CHATBOT_EMBED_CONFIG_STORE] = ChatbotEmbedConfigStore(blob_manager=global_blob_manager)
 
     # Dynamic chatbot provisioning (external PHP control panel). The registry store is the
@@ -3580,6 +4222,10 @@ def create_app():
     # The HYROX assessment state engine logs completion/LMS-report lines and model-marker-drift warnings
     # on this logger; without an explicit level they are swallowed by the WARNING root config above.
     logging.getLogger("hyrox_assessment").setLevel(app_level)
+    # Telemetry logs unattributed turns, zero-token agentic turns (the tripwire for a search-SDK field
+    # rename) and every swallowed write failure; without an explicit level the WARNING root config
+    # above hides them.
+    logging.getLogger("telemetry").setLevel(app_level)
 
     if allowed_origin := os.getenv("ALLOWED_ORIGIN"):
         allowed_origins = allowed_origin.split(";")

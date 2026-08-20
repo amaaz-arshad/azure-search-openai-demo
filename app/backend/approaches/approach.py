@@ -53,6 +53,9 @@ from approaches.chatbot_config_registry import (
 )
 from approaches.chatbot_prompt_registry import get_chatbot_prompt, normalize_chatbot_name
 from approaches.promptmanager import PromptManager
+from core.telemetry import records as telemetry_records
+from core.telemetry import recorder as telemetry
+from core.telemetry.agentic import record_agentic_activity_steps
 from prepdocslib.blobmanager import AdlsBlobManager, BlobManager
 from prepdocslib.embeddings import ImageEmbeddings
 
@@ -611,6 +614,12 @@ class Approach(ABC):
         }
         request_kwargs.update(agentic_retrieval_input)
 
+        retrieve_step = telemetry.open_step(
+            telemetry_records.STEP_AGENTIC_RETRIEVE,
+            telemetry_records.STEP_TYPE_RETRIEVAL,
+            model=self.knowledgebase_model,
+            deployment=self.knowledgebase_deployment,
+        )
         response = await knowledgebase_client.retrieve(
             retrieval_request=KnowledgeBaseRetrievalRequest(**request_kwargs),
             x_ms_query_source_authorization=access_token,
@@ -619,6 +628,12 @@ class Approach(ABC):
         # Map activity id -> agent's internal search query and citation
         activities = response.activity or []
         activity_details_by_id: dict[int, ActivityDetail] = {}
+        record_agentic_activity_steps(
+            retrieve_step,
+            activities,
+            model=self.knowledgebase_model,
+            deployment=self.knowledgebase_deployment,
+        )
 
         for index, activity in enumerate(activities):
             search_query = None
@@ -989,6 +1004,17 @@ class Approach(ABC):
         return None
 
     async def compute_text_embedding(self, q: str):
+        """Unchanged signature, so no existing caller or subclass is affected."""
+        query_vector, _usage = await self.compute_text_embedding_with_usage(q)
+        return query_vector
+
+    async def compute_text_embedding_with_usage(self, q: str):
+        """The real body, additionally returning the embeddings call's usage object.
+
+        Note this is a `CreateEmbeddingResponse.Usage` -- it carries only `prompt_tokens` and
+        `total_tokens`, and has none of `CompletionUsage`'s detail attributes. It must never be fed
+        to `TokenUsageProps.from_completion_usage`, which reads `completion_tokens_details`.
+        """
         SUPPORTED_DIMENSIONS_MODEL = {
             "text-embedding-ada-002": False,
             "text-embedding-3-small": True,
@@ -1010,7 +1036,10 @@ class Approach(ABC):
         query_vector = embedding.data[0].embedding
         # This performs an oversampling due to how the search index was setup,
         # so we do not need to explicitly pass in an oversampling parameter here
-        return VectorizedQuery(vector=query_vector, k=50, fields=self.embedding_field)
+        return (
+            VectorizedQuery(vector=query_vector, k=50, fields=self.embedding_field),
+            getattr(embedding, "usage", None),
+        )
 
     async def compute_multimodal_embedding(self, q: str):
         if not self.image_embeddings_client:

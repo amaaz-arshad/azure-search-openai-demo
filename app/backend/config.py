@@ -65,4 +65,6 @@ CONFIG_WEB_SOURCE_ENABLED = "web_source_enabled"
 CONFIG_SHAREPOINT_SOURCE_ENABLED = "sharepoint_source_enabled"
 CONFIG_CHATBOT_CHAT_APPROACHES = "chatbot_chat_approaches"
 CONFIG_CHATBOT_WIKI_STORE = "chatbot_wiki_store"
+# First-party LLM telemetry: the blob-backed turn store behind the /admin/telemetry dashboard.
+CONFIG_TELEMETRY_STORE = "telemetry_store"
 CONFIG_LLM_WIKI_ENABLED = "llm_wiki_enabled"

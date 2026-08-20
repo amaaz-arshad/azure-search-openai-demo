@@ -1,5 +1,6 @@
 import json
 import re
+import time
 from collections.abc import AsyncGenerator, Awaitable
 from dataclasses import asdict
 from typing import Any, Optional, cast
@@ -104,6 +105,8 @@ from approaches.approach import (
 )
 from approaches.chatbot_config_registry import get_chatbot_citation_target
 from approaches.promptmanager import PromptManager
+from core.telemetry import records as telemetry_records
+from core.telemetry import recorder as telemetry
 from core.chatbotwikistore import ChatbotWikiStore, normalize_slug
 from prepdocslib.blobmanager import AdlsBlobManager, BlobManager
 from prepdocslib.embeddings import ImageEmbeddings
@@ -176,6 +179,37 @@ def parse_wiki_page_selection(completion: ChatCompletion) -> tuple[list[str], bo
     fallback = re.findall(r'"([a-z0-9][a-z0-9-]*)"', content)
     return fallback, not fallback
 # ---------------------------------------------------------------------------
+
+
+def telemetry_source_summaries(extra_info: ExtraInfo) -> list[dict[str, Any]]:
+    """A compact record of what the answer was grounded in.
+
+    Citations and their external titles/URLs only -- never the retrieved chunk bodies. Those are
+    already several kilobytes each, they are reproducible from the index, and copying every source
+    text into every turn record would multiply the store's size for no forensic gain: what an
+    operator needs to know is WHICH sources were used, and the drawer already shows the prompt that
+    carried them.
+    """
+    try:
+        data_points = extra_info.data_points
+        titles_by_citation: dict[str, dict[str, Any]] = {}
+        for entry in data_points.external_results_metadata or []:
+            if isinstance(entry, dict) and isinstance(entry.get("citation"), str):
+                titles_by_citation[entry["citation"]] = entry
+        summaries: list[dict[str, Any]] = []
+        for citation in (data_points.citations or [])[:100]:
+            if not isinstance(citation, str):
+                continue
+            metadata = titles_by_citation.get(citation) or {}
+            summary: dict[str, Any] = {"citation": citation}
+            for source_key, target_key in (("title", "title"), ("url", "url"), ("kind", "kind")):
+                value = metadata.get(source_key)
+                if isinstance(value, str) and value:
+                    summary[target_key] = value
+            summaries.append(summary)
+        return summaries
+    except Exception:
+        return []
 
 
 class ChatReadRetrieveReadApproach(Approach):
@@ -286,6 +320,10 @@ class ChatReadRetrieveReadApproach(Approach):
             messages, overrides, auth_claims, should_stream=False
         )
         chat_completion_response: ChatCompletion = await cast(Awaitable[ChatCompletion], chat_coroutine)
+        # Closed unconditionally on the usage the SDK returned -- deliberately NOT behind the
+        # `include_token_usage` / `thoughts` guard below, which is about what the frontend's thought
+        # panel shows and would otherwise hide the cost of every turn for a bot that has it off.
+        telemetry.close_answer_step(usage=chat_completion_response.usage)
         content = chat_completion_response.choices[0].message.content
         role = chat_completion_response.choices[0].message.role
         if overrides.get("suggest_followup_questions"):
@@ -328,6 +366,13 @@ class ChatReadRetrieveReadApproach(Approach):
         # TODO: Update for agentic? This isn't still true?
         if self.include_token_usage and extra_info.thoughts and chat_completion_response.usage:
             extra_info.thoughts[-1].update_token_usage(chat_completion_response.usage)
+        telemetry.set_response_details(
+            content=content,
+            finish_reason=chat_completion_response.choices[0].finish_reason,
+            citations=extra_info.data_points.citations,
+            followup_questions=extra_info.followup_questions,
+            sources=telemetry_source_summaries(extra_info),
+        )
         chat_app_response = {
             "message": {"content": content, "role": role},
             "context": {
@@ -372,6 +417,14 @@ class ChatReadRetrieveReadApproach(Approach):
             if is_lemon:
                 content = _sanitize_lemon_text(content)
 
+            telemetry.close_answer_step(usage=chat_result.usage)
+            telemetry.set_response_details(
+                content=content,
+                finish_reason=chat_result.choices[0].finish_reason,
+                citations=extra_info.data_points.citations,
+                followup_questions=extra_info.followup_questions,
+                sources=telemetry_source_summaries(extra_info),
+            )
             if self.include_token_usage and extra_info.thoughts and chat_result.usage:
                 extra_info.thoughts[-1].update_token_usage(chat_result.usage)
 
@@ -390,51 +443,99 @@ class ChatReadRetrieveReadApproach(Approach):
             return
 
         chat_result = cast(AsyncStream[ChatCompletionChunk], chat_result)
+        # The streamed answer is emitted chunk by chunk and never assembled anywhere, so the record
+        # would otherwise have no response text for the majority of turns.
+        streamed_answer: list[str] = []
+        answer_usage: Any = None
+        first_token_at: Optional[float] = None
+        answer_started_at = telemetry.answer_step_started_at()
 
-        async for event_chunk in chat_result:
-            # "2023-07-01-preview" API version has a bug where first response has empty choices
-            event = event_chunk.model_dump()  # Convert pydantic model to dict
-            if event["choices"]:
-                # No usage during streaming
-                completion = {
-                    "delta": {
-                        "content": event["choices"][0]["delta"].get("content"),
-                        "role": event["choices"][0]["delta"]["role"],
+        try:
+            async for event_chunk in chat_result:
+                # "2023-07-01-preview" API version has a bug where first response has empty choices
+                event = event_chunk.model_dump()  # Convert pydantic model to dict
+                if event["choices"]:
+                    if first_token_at is None:
+                        first_token_at = time.perf_counter()
+                    raw_delta = (event["choices"][0].get("delta") or {}).get("content")
+                    if isinstance(raw_delta, str):
+                        streamed_answer.append(raw_delta)
+                    # No usage during streaming
+                    completion = {
+                        "delta": {
+                            "content": event["choices"][0]["delta"].get("content"),
+                            "role": event["choices"][0]["delta"]["role"],
+                        }
                     }
-                }
-                # if event contains << and not >>, it is start of follow-up question, truncate
-                delta_content_raw = completion["delta"].get("content")
-                delta_content: str = (
-                    delta_content_raw or ""
-                )  # content may either not exist in delta, or explicitly be None
-                if overrides.get("suggest_followup_questions") and "<<" in delta_content:
-                    followup_questions_started = True
-                    earlier_content = delta_content[: delta_content.index("<<")]
-                    if earlier_content:
-                        if lemon_stream_sanitizer is not None:
-                            earlier_content = lemon_stream_sanitizer.feed(earlier_content)
-                            if not earlier_content:
-                                # everything in this chunk was buffered; nothing to emit yet
-                                pass
+                    # if event contains << and not >>, it is start of follow-up question, truncate
+                    delta_content_raw = completion["delta"].get("content")
+                    delta_content: str = (
+                        delta_content_raw or ""
+                    )  # content may either not exist in delta, or explicitly be None
+                    if overrides.get("suggest_followup_questions") and "<<" in delta_content:
+                        followup_questions_started = True
+                        earlier_content = delta_content[: delta_content.index("<<")]
                         if earlier_content:
-                            completion["delta"]["content"] = earlier_content
-                            yield completion
-                    followup_content += delta_content[delta_content.index("<<") :]
-                elif followup_questions_started:
-                    followup_content += delta_content
+                            if lemon_stream_sanitizer is not None:
+                                earlier_content = lemon_stream_sanitizer.feed(earlier_content)
+                                if not earlier_content:
+                                    # everything in this chunk was buffered; nothing to emit yet
+                                    pass
+                            if earlier_content:
+                                completion["delta"]["content"] = earlier_content
+                                yield completion
+                        followup_content += delta_content[delta_content.index("<<") :]
+                    elif followup_questions_started:
+                        followup_content += delta_content
+                    else:
+                        if lemon_stream_sanitizer is not None:
+                            sanitized = lemon_stream_sanitizer.feed(delta_content)
+                            if not sanitized:
+                                continue
+                            completion["delta"]["content"] = sanitized
+                        yield completion
                 else:
-                    if lemon_stream_sanitizer is not None:
-                        sanitized = lemon_stream_sanitizer.feed(delta_content)
-                        if not sanitized:
-                            continue
-                        completion["delta"]["content"] = sanitized
-                    yield completion
-            else:
-                # Final chunk at end of streaming should contain usage
-                # https://cookbook.openai.com/examples/how_to_stream_completions#4-how-to-get-token-usage-data-for-streamed-chat-completion-response
-                if event_chunk.usage and extra_info.thoughts and self.include_token_usage:
-                    extra_info.thoughts[-1].update_token_usage(event_chunk.usage)
-                    yield {"delta": {"role": "assistant"}, "context": extra_info, "session_state": session_state}
+                    # A choice-less chunk is NOT necessarily the last one. Azure opens the stream with one
+                    # carrying `prompt_filter_results` -- the comment at the top of this loop has always
+                    # said so -- and only the terminal chunk carries usage. Treating the first one as the
+                    # end closed the answer step at time-to-first-chunk with `usage=None`, and because
+                    # `close_answer_step` clears the handle, the real usage that arrived later was
+                    # silently dropped: every streamed turn recorded a short answer step with no tokens
+                    # and no cost, and the whole generation showed up as "unaccounted" time.
+                    # https://cookbook.openai.com/examples/how_to_stream_completions#4-how-to-get-token-usage-data-for-streamed-chat-completion-response
+                    if event_chunk.usage:
+                        answer_usage = event_chunk.usage
+                        if extra_info.thoughts and self.include_token_usage:
+                            extra_info.thoughts[-1].update_token_usage(event_chunk.usage)
+                            yield {
+                                "delta": {"role": "assistant"},
+                                "context": extra_info,
+                                "session_state": session_state,
+                            }
+        finally:
+            # In a `finally` so an abandoned stream still records what it spent: the client
+            # disconnecting raises GeneratorExit at a `yield` above, and the normal path below
+            # would never run. Nothing here yields, which would be illegal during GeneratorExit.
+            # Closed once the stream is exhausted rather than at a chunk, so the step spans the whole
+            # generation. `time_to_first_token_ms` is what separates "the model was thinking" from "the
+            # model was emitting"; the two cannot be split into separate steps because generation and
+            # delivery interleave -- every `yield` above suspends until the client takes the chunk.
+            telemetry.close_answer_step(
+                usage=answer_usage,
+                payload={
+                    "time_to_first_token_ms": (
+                        None
+                        if first_token_at is None or answer_started_at is None
+                        else int(round((first_token_at - answer_started_at) * 1000))
+                    ),
+                    "chunks": len(streamed_answer),
+                },
+            )
+            telemetry.set_response_details(
+                content="".join(streamed_answer),
+                citations=extra_info.data_points.citations,
+                sources=telemetry_source_summaries(extra_info),
+            )
 
         if lemon_stream_sanitizer is not None:
             tail = lemon_stream_sanitizer.flush()
@@ -481,6 +582,14 @@ class ChatReadRetrieveReadApproach(Approach):
             overrides, self.chatgpt_model, self.chatgpt_deployment
         )
 
+        # The authoritative per-request model, after the per-request `chat_model` override has been
+        # applied -- not the bot's configured default, which a Settings override can differ from.
+        telemetry.set_model(
+            model=effective_chatgpt_model,
+            deployment=effective_chatgpt_deployment,
+            reasoning_effort=overrides.get("reasoning_effort") or self.reasoning_effort,
+        )
+
         reasoning_model_support = self.GPT_REASONING_MODELS.get(effective_chatgpt_model)
         if reasoning_model_support and (not reasoning_model_support.streaming and should_stream):
             raise Exception(
@@ -495,6 +604,7 @@ class ChatReadRetrieveReadApproach(Approach):
             # reused when rendering the response in run_without_streaming.
             from approaches.chatbots.hyrox_assessment.results import derive_turn_state
 
+            telemetry.set_path(telemetry_records.PATH_ASSESSMENT)
             extra_info = ExtraInfo(DataPoints(text=[]))
             extra_info.assessment_state = derive_turn_state(cast(list[dict[str, Any]], messages))
         elif overrides.get("use_llm_wiki") and self.wiki_store is not None:
@@ -502,14 +612,23 @@ class ChatReadRetrieveReadApproach(Approach):
             # degrades to standard search when no wiki exists for the category, so no other
             # bot's behavior changes. Produces sources only (answer=None) so the per-bot
             # answer prompt below still runs — Q&A and Tutor flows are untouched.
+            telemetry.set_path(telemetry_records.PATH_WIKI)
             extra_info = await self.run_wiki_approach(messages, overrides, auth_claims)
         elif use_agentic_knowledgebase:
             if should_stream and overrides.get("use_web_source"):
                 raise Exception(
                     "Streaming is not supported with agentic retrieval when web source is enabled. Please disable streaming or web source."
                 )
+            telemetry.set_path(telemetry_records.PATH_AGENTIC)
             extra_info = await self.run_agentic_retrieval_approach(messages, overrides, auth_claims)
+            if extra_info.answer:
+                # The agentic service synthesized the answer itself, so the short-circuit below makes
+                # NO final LLM call. Detected from `extra_info.answer` rather than from the
+                # `use_web_source` override, because a web-source turn that came back without text
+                # does still make a real call.
+                telemetry.set_path(telemetry_records.PATH_AGENTIC_WEB)
         else:
+            telemetry.set_path(telemetry_records.PATH_CLASSIC)
             extra_info = await self.run_search_approach(messages, overrides, auth_claims)
 
         if extra_info.answer:
@@ -590,6 +709,14 @@ class ChatReadRetrieveReadApproach(Approach):
             past_messages=past_messages,
         )
 
+        # Opened here and closed at whichever exit actually consumed the awaitable
+        # (`run_without_streaming`, or the stream's terminal usage chunk in `run_with_streaming`).
+        # `create_chat_completion` is not `async def` -- it returns the SDK awaitable -- so the call
+        # cannot be wrapped; the duration is taken across the two frames instead.
+        telemetry.open_answer_step(
+            model=effective_chatgpt_model,
+            deployment=effective_chatgpt_deployment,
+        )
         chat_coroutine = cast(
             Awaitable[ChatCompletion] | Awaitable[AsyncStream[ChatCompletionChunk]],
             self.create_chat_completion(
@@ -643,6 +770,12 @@ class ChatReadRetrieveReadApproach(Approach):
 
         # STEP 1: Generate an optimized keyword search query based on the chat history and the last question
 
+        rewrite_step = telemetry.open_step(
+            telemetry_records.STEP_QUERY_REWRITE,
+            telemetry_records.STEP_TYPE_LLM,
+            model=effective_chatgpt_model,
+            deployment=effective_chatgpt_deployment,
+        )
         rewrite_result = await self.rewrite_query(
             prompt_template="query_rewrite.system.jinja2",
             prompt_variables={
@@ -661,6 +794,11 @@ class ChatReadRetrieveReadApproach(Approach):
             no_response_token=self.NO_RESPONSE,
         )
 
+        rewrite_step.close(
+            usage=getattr(rewrite_result.completion, "usage", None),
+            payload={"query": rewrite_result.query},
+        )
+
         query_text = rewrite_result.query
 
         # STEP 2: Retrieve relevant documents from the search index with the GPT optimized query
@@ -668,10 +806,25 @@ class ChatReadRetrieveReadApproach(Approach):
         vectors: list[VectorQuery] = []
         if use_vector_search:
             if search_text_embeddings:
-                vectors.append(await self.compute_text_embedding(query_text))
+                with telemetry.open_step(
+                    telemetry_records.STEP_EMBEDDING,
+                    telemetry_records.STEP_TYPE_EMBEDDING,
+                    model=self.embedding_model,
+                    deployment=self.embedding_deployment,
+                ) as embedding_step:
+                    vector, embedding_usage = await self.compute_text_embedding_with_usage(query_text)
+                    vectors.append(vector)
+                    embedding_step.close(usage=embedding_usage)
             if search_image_embeddings:
-                vectors.append(await self.compute_multimodal_embedding(query_text))
+                # Azure AI Vision, not Azure OpenAI: a different service on a different meter, with no
+                # token usage at all. Timed, but deliberately given no model, so the pricer cannot
+                # invent an OpenAI cost for it.
+                with telemetry.open_step(
+                    telemetry_records.STEP_IMAGE_EMBEDDING, telemetry_records.STEP_TYPE_EMBEDDING
+                ):
+                    vectors.append(await self.compute_multimodal_embedding(query_text))
 
+        search_step = telemetry.open_step(telemetry_records.STEP_SEARCH, telemetry_records.STEP_TYPE_INDEX)
         results = await self.search(
             top,
             query_text,
@@ -685,6 +838,16 @@ class ChatReadRetrieveReadApproach(Approach):
             minimum_reranker_score,
             use_query_rewriting,
             access_token,
+        )
+        search_step.close(
+            payload={
+                "top": top,
+                "filter": search_index_filter,
+                "resultCount": len(results),
+                "semanticRanker": use_semantic_ranker,
+                "vectorSearch": use_vector_search,
+                "textSearch": use_text_search,
+            }
         )
 
         # STEP 3: Generate a contextual and content specific answer using the search results and chat history
@@ -843,6 +1006,15 @@ class ChatReadRetrieveReadApproach(Approach):
         loaded_pages: list[tuple[str, str]] = []  # (slug, raw page markdown)
         discovered_links: list[str] = []
         thoughts: list[ThoughtStep] = [ThoughtStep("Read wiki index", wiki_index, {"category": category})]
+        telemetry.add_step(
+            telemetry_records.STEP_WIKI_INDEX_READ,
+            telemetry_records.STEP_TYPE_IO,
+            duration_ms=0,
+            payload={"category": category, "indexLength": len(wiki_index)},
+        )
+        wiki_pages_step = telemetry.open_step(
+            telemetry_records.STEP_WIKI_PAGES_LOAD, telemetry_records.STEP_TYPE_IO
+        )
 
         for round_number in range(1, max_rounds + 1):
             if len(loaded_pages) >= max_pages:
@@ -859,6 +1031,13 @@ class ChatReadRetrieveReadApproach(Approach):
                     },
                 )
             ]
+            navigate_step = telemetry.open_step(
+                telemetry_records.STEP_WIKI_NAVIGATE,
+                telemetry_records.STEP_TYPE_LLM,
+                model=effective_chatgpt_model,
+                deployment=effective_chatgpt_deployment,
+                payload={"round": round_number},
+            )
             selection_completion = cast(
                 ChatCompletion,
                 await self.create_chat_completion(
@@ -871,6 +1050,7 @@ class ChatReadRetrieveReadApproach(Approach):
                     reasoning_effort=nav_reasoning_effort,
                 ),
             )
+            navigate_step.close(usage=selection_completion.usage, payload={"round": round_number})
             requested_slugs, navigation_done = parse_wiki_page_selection(selection_completion)
             thoughts.append(
                 self.format_thought_step_for_chatcompletion(
@@ -919,6 +1099,7 @@ class ChatReadRetrieveReadApproach(Approach):
                 text_sources.append(f"{citation}: {body.strip()}")
 
         data_points = DataPoints(text=text_sources, images=[], citations=citations)
+        wiki_pages_step.close(payload={"pageCount": len(loaded_pages), "slugs": [slug for slug, _ in loaded_pages]})
         thoughts.append(
             ThoughtStep(
                 "Wiki pages loaded",
