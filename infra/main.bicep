@@ -101,6 +101,8 @@ param storageContainerName string = 'content'
 // (content2/<bot_name>/<file>). Watched by the content2 dynamic auto-indexer. Keep the default in
 // sync with CONTENT2_AUTO_INDEX_CONTAINER (defaults to 'content2' in the auto-indexer function).
 param content2ContainerName string = 'content2'
+@description('Private container holding first-party LLM telemetry (turn records, daily rollups, the Azure cost cache). Never served by any route.')
+param telemetryContainerName string = 'telemetry'
 param storageSkuName string // Set in main.parameters.json
 
 param defaultReasoningEffort string // Set in main.parameters.json
@@ -308,6 +310,11 @@ param publicTestEmailFromName string = 'Public Test'
 param hubspotApiKey string = ''
 
 param openLitEndpoint string = ''
+
+@description('Record one telemetry row per chat turn.')
+param telemetryEnabled bool = true
+@description('Store prompt and response text in telemetry records. Turn off to keep every metric but no conversation text.')
+param telemetryStoreBodies bool = true
 param clientAppId string = ''
 @secure()
 param clientAppSecret string = ''
@@ -678,6 +685,8 @@ var appEnvVariables = {
   PUBLIC_TEST_EMAIL_FROM: publicTestEmailFrom
   PUBLIC_TEST_EMAIL_FROM_NAME: publicTestEmailFromName
   OPENLIT_ENDPOINT: openLitEndpoint
+  TELEMETRY_ENABLED: string(telemetryEnabled)
+  TELEMETRY_STORE_BODIES: string(telemetryStoreBodies)
 }
 
 // App Service for the web application (Python Quart app with JS frontend)
@@ -1063,6 +1072,14 @@ module storage 'core/storage/storage-account.bicep' = {
       }
       {
         name: tokenStorageContainerName
+        publicAccess: 'None'
+      }
+      {
+        // Deliberately its OWN container rather than a prefix inside `content`: with
+        // AZURE_USE_AUTHENTICATION false the backend serves /content/<path> unauthenticated, and turn
+        // records hold verbatim end-user conversations from every bot, including the ungated ones.
+        // No route reads this container.
+        name: telemetryContainerName
         publicAccess: 'None'
       }
     ]

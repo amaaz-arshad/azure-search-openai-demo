@@ -341,6 +341,12 @@
     "openLitEndpoint": {
       "value": "${OPENLIT_ENDPOINT}"
     },
+    "telemetryEnabled": {
+      "value": "${TELEMETRY_ENABLED=true}"
+    },
+    "telemetryStoreBodies": {
+      "value": "${TELEMETRY_STORE_BODIES=true}"
+    },
     "clientAppId": {
       "value": "${AZURE_CLIENT_APP_ID}"
     },
