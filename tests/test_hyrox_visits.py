@@ -116,6 +116,7 @@ def test_each_ping_is_its_own_blob_so_concurrent_visits_never_overwrite_each_oth
 
     assert len({name for name, _ in blob_manager.writes}) == 2
     assert blob_manager.writes[0][1]["user_id"] == "104477"
+    # Stored in UTC; only what the admin reads is converted.
     assert blob_manager.writes[0][1]["recorded_at"] == NOON.isoformat()
 
 
@@ -179,23 +180,63 @@ def test_a_storage_failure_degrades_to_fewer_rows_not_a_500() -> None:
     assert asyncio.run(visits.collect_rows(None)) == []
 
 
-def test_rows_slice_by_utc_month_and_summarize_per_month() -> None:
+def test_rows_slice_by_german_month_and_summarize_per_month() -> None:
     rows = [
-        visits.VisitRow("104477", datetime(2026, 7, 31, 23, 59, tzinfo=timezone.utc)),
+        # 01:30 on 1 August German time -> the August bucket, matching the date the preview shows.
+        visits.VisitRow("104477", datetime(2026, 7, 31, 23, 30, tzinfo=timezone.utc)),
+        # 23:30 on 31 July German time -> still July, though UTC already calls it August.
+        visits.VisitRow("104477", datetime(2026, 7, 31, 21, 30, tzinfo=timezone.utc)),
         visits.VisitRow("104477", NOON),
         visits.VisitRow("200", NOON),
     ]
 
-    assert len(visits.filter_rows_by_month(rows, "2026-08")) == 2
+    assert len(visits.filter_rows_by_month(rows, "2026-08")) == 3
     assert len(visits.filter_rows_by_month(rows, "2026-07")) == 1
-    assert len(visits.filter_rows_by_month(rows, visits.ALL_MONTHS)) == 3
-    assert len(visits.filter_rows_by_month(rows, "")) == 3
+    assert len(visits.filter_rows_by_month(rows, visits.ALL_MONTHS)) == 4
+    assert len(visits.filter_rows_by_month(rows, "")) == 4
 
     # Newest month first, so the picker opens on the month an admin is most likely exporting.
     assert visits.month_summaries(rows) == [
-        {"month": "2026-08", "totalCount": 2},
+        {"month": "2026-08", "totalCount": 3},
         {"month": "2026-07", "totalCount": 1},
     ]
+
+
+def test_the_displayed_month_and_the_blob_folder_are_allowed_to_disagree() -> None:
+    # The folder is UTC forever (one unchanging storage convention, and no read depends on it); the
+    # export bucket is the German-time month, so it matches the timestamp an admin is looking at.
+    late_july = datetime(2026, 7, 31, 23, 30, tzinfo=timezone.utc)
+
+    assert visits.blob_month_of(late_july) == "2026-07"
+    assert visits.display_month_of(late_july) == "2026-08"
+    assert visits.visit_blob_name("104477", late_july, "ff00ff00").startswith("hyrox-assessment-visits/2026-07/")
+    # ... and the row is still recovered from the file name, not from the folder it sits in.
+    row = visits.parse_visit_blob_name(visits.visit_blob_name("104477", late_july, "ff00ff00"))
+    assert row is not None and row.timestamp == late_july
+
+
+def test_german_time_follows_the_eu_daylight_saving_rule() -> None:
+    # CET in winter, CEST in summer, switching at 01:00 UTC on the last Sunday of March/October.
+    # Computed from the rule rather than read from `zoneinfo`, which cannot resolve Europe/Berlin on
+    # a stock Windows dev machine -- so these are the assertions that pin it.
+    assert visits.last_sunday_at_one_utc(2026, 3) == datetime(2026, 3, 29, 1, tzinfo=timezone.utc)
+    assert visits.last_sunday_at_one_utc(2026, 10) == datetime(2026, 10, 25, 1, tzinfo=timezone.utc)
+    assert visits.last_sunday_at_one_utc(2027, 3) == datetime(2027, 3, 28, 1, tzinfo=timezone.utc)
+    assert visits.last_sunday_at_one_utc(2027, 10) == datetime(2027, 10, 31, 1, tzinfo=timezone.utc)
+
+    winter = datetime(2026, 1, 15, 12, 0, tzinfo=timezone.utc)
+    summer = datetime(2026, 8, 14, 12, 0, tzinfo=timezone.utc)
+    assert visits.to_german_time(winter).isoformat() == "2026-01-15T13:00:00+01:00"
+    assert visits.to_german_time(summer).isoformat() == "2026-08-14T14:00:00+02:00"
+
+    # The exact changeover instants, from either side.
+    assert visits.to_german_time(datetime(2026, 3, 29, 0, 59, 59, tzinfo=timezone.utc)).isoformat() == "2026-03-29T01:59:59+01:00"
+    assert visits.to_german_time(datetime(2026, 3, 29, 1, 0, tzinfo=timezone.utc)).isoformat() == "2026-03-29T03:00:00+02:00"
+    assert visits.to_german_time(datetime(2026, 10, 25, 0, 59, 59, tzinfo=timezone.utc)).isoformat() == "2026-10-25T02:59:59+02:00"
+    assert visits.to_german_time(datetime(2026, 10, 25, 1, 0, tzinfo=timezone.utc)).isoformat() == "2026-10-25T02:00:00+01:00"
+
+    # A naive timestamp is read as UTC rather than dropped, exactly like everywhere else here.
+    assert visits.to_german_time(datetime(2026, 8, 14, 12, 0)).isoformat() == "2026-08-14T14:00:00+02:00"
 
 
 def test_month_parameters_are_validated() -> None:
@@ -209,10 +250,11 @@ def test_month_parameters_are_validated() -> None:
 def test_the_csv_is_exactly_user_id_and_timestamp() -> None:
     rows = [visits.VisitRow("104477", NOON), visits.VisitRow("200", NOON + timedelta(seconds=5))]
 
+    # German local time carrying its offset: the clock the admin reads, unmistakable for UTC.
     assert visits.render_visits_csv(rows).splitlines() == [
         "user_id,timestamp",
-        "104477,2026-08-14T12:00:00Z",
-        "200,2026-08-14T12:00:05Z",
+        "104477,2026-08-14T14:00:00+02:00",
+        "200,2026-08-14T14:00:05+02:00",
     ]
     assert visits.csv_filename("2026-08") == "hyrox-visits-2026-08.csv"
     assert visits.csv_filename(visits.ALL_MONTHS) == "hyrox-visits-all.csv"
@@ -228,6 +270,6 @@ def test_a_recorded_visit_is_readable_back_out_of_the_listing() -> None:
 
     assert visits.render_visits_csv(rows).splitlines() == [
         "user_id,timestamp",
-        "104477,2026-08-14T12:00:00Z",
-        "200,2026-08-14T12:01:00Z",
+        "104477,2026-08-14T14:00:00+02:00",
+        "200,2026-08-14T14:01:00+02:00",
     ]

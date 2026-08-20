@@ -25,6 +25,12 @@ container. A request whose Host is positively a loopback name is dropped. The ch
 one-directional — anything not recognised as local still records — because silently recording
 nothing in production is a far worse failure than a stray local row.
 
+Timestamps are STORED in UTC (the blob name, the JSON body, the month folder) and SHOWN in German
+time (the admin preview table and the CSV). See ``to_german_time`` for why the conversion is computed
+rather than looked up, and ``blob_month_of``/``display_month_of`` for the one place the two clocks
+disagree: a visit just before UTC midnight is filed in the older month's folder but exports under the
+German-time month its displayed date reads.
+
 Both prefixes live in the ``content`` container, which ``/content/<path>`` serves unauthenticated
 (the same accepted residual the session logs carry). A visit blob holds only an account id and a
 timestamp, and its name embeds a random nonce, so it is not enumerable — but it is not secret either.
@@ -37,7 +43,7 @@ import logging
 import re
 import secrets
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from typing import Any, Optional
 
@@ -101,9 +107,58 @@ def should_record_visit(account_id: Any, host: Optional[str]) -> bool:
     return not is_local_request_host(host)
 
 
-def month_of(moment: datetime) -> str:
-    """``YYYY-MM`` in UTC — the month folder, and the unit the export is sliced by."""
+# Everything the export SHOWS is German time; everything it STORES is UTC.
+#
+# The admins reading this log live on a German clock, so the preview table and the CSV both read in
+# it. The offset is computed here rather than resolved through `zoneinfo` because no IANA database is
+# available across this project's environments: `ZoneInfo("Europe/Berlin")` resolves inside the Linux
+# container but raises on a stock Windows dev machine (no `tzdata` package), and a helper that only
+# works in production is one no test can pin. Germany's rule is fixed EU law (Directive 2000/84/EC,
+# unchanged since 1996) and is pure arithmetic: CET = UTC+1, CEST = UTC+2 from 01:00 UTC on the last
+# Sunday of March until 01:00 UTC on the last Sunday of October. If the EU ever abolishes the
+# switch, this is the one place to change. (The telemetry dashboard shows the same zone but converts
+# browser-side, where the full IANA data does exist — see charts/scales.ts.)
+GERMAN_STANDARD_OFFSET = timedelta(hours=1)
+GERMAN_SUMMER_OFFSET = timedelta(hours=2)
+
+
+def last_sunday_at_one_utc(year: int, month: int) -> datetime:
+    """01:00 UTC on the last Sunday of a month — the instant the EU clocks change."""
+    next_month_year = year + 1 if month == 12 else year
+    next_month = 1 if month == 12 else month + 1
+    # Midnight on the month's last day, so every time field below is already zero.
+    last_day = datetime(next_month_year, next_month, 1, tzinfo=timezone.utc) - timedelta(days=1)
+    # weekday() is Monday=0..Sunday=6, so (weekday + 1) % 7 is "days back to the last Sunday".
+    return (last_day - timedelta(days=(last_day.weekday() + 1) % 7)).replace(hour=1)
+
+
+def german_timezone(moment: datetime) -> timezone:
+    """CET or CEST for one instant, as a fixed-offset zone that names itself."""
+    moment = to_utc(moment)
+    summer_starts = last_sunday_at_one_utc(moment.year, 3)
+    summer_ends = last_sunday_at_one_utc(moment.year, 10)
+    if summer_starts <= moment < summer_ends:
+        return timezone(GERMAN_SUMMER_OFFSET, "CEST")
+    return timezone(GERMAN_STANDARD_OFFSET, "CET")
+
+
+def to_german_time(moment: datetime) -> datetime:
+    """The same instant, read on a German clock."""
+    return to_utc(moment).astimezone(german_timezone(moment))
+
+
+def blob_month_of(moment: datetime) -> str:
+    """``YYYY-MM`` in UTC — the month FOLDER, and nothing else. Storage keeps one unchanging
+    convention (every blob ever written is filed by its UTC month) and no read depends on it: a row
+    is recovered from the timestamp in the file name, not from the folder. The month an admin exports
+    by is ``display_month_of``, which differs for a visit in the hour or two before UTC midnight."""
     return to_utc(moment).strftime("%Y-%m")
+
+
+def display_month_of(moment: datetime) -> str:
+    """``YYYY-MM`` in German time — what the month picker labels and the export slices by, so a row's
+    displayed date always matches the month it is exported under."""
+    return to_german_time(moment).strftime("%Y-%m")
 
 
 def is_valid_month(month: str) -> bool:
@@ -133,7 +188,7 @@ def visit_blob_name(user_id: str, moment: datetime, nonce: str) -> str:
 
     The nonce keeps two visits that land in the same millisecond from overwriting each other."""
     return (
-        f"{VISIT_LOG_PREFIX}/{month_of(moment)}/"
+        f"{VISIT_LOG_PREFIX}/{blob_month_of(moment)}/"
         f"{format_visit_timestamp(moment)}{NAME_FIELD_SEPARATOR}{user_id}"
         f"{NAME_FIELD_SEPARATOR}{nonce}.json"
     )
@@ -217,25 +272,28 @@ async def collect_rows(blob_manager: Any) -> list[VisitRow]:
 
 
 def filter_rows_by_month(rows: list[VisitRow], month: Optional[str]) -> list[VisitRow]:
-    """Rows in one ``YYYY-MM`` month. An empty month or ``all`` keeps everything."""
+    """Rows in one ``YYYY-MM`` German-time month. An empty month or ``all`` keeps everything."""
     if not month or month == ALL_MONTHS:
         return list(rows)
-    return [row for row in rows if month_of(row.timestamp) == month]
+    return [row for row in rows if display_month_of(row.timestamp) == month]
 
 
 def month_summaries(rows: list[VisitRow]) -> list[dict[str, Any]]:
     """Per-month counts for the admin month picker, newest month first."""
     counts: dict[str, int] = {}
     for row in rows:
-        month = month_of(row.timestamp)
+        month = display_month_of(row.timestamp)
         counts[month] = counts.get(month, 0) + 1
     return [{"month": month, "totalCount": counts[month]} for month in sorted(counts, reverse=True)]
 
 
 def format_csv_timestamp(moment: datetime) -> str:
-    """UTC ISO 8601 to the second — unambiguous in any spreadsheet, and what the month boundary of
-    the export is measured against."""
-    return to_utc(moment).strftime("%Y-%m-%dT%H:%M:%SZ")
+    """German local time as ISO 8601 to the second, carrying its offset
+    (``2026-08-14T14:00:00+02:00``) — the clock the admins reading the export live in, stated
+    precisely enough that a reader can never mistake it for UTC and can tell CET from CEST without a
+    second column. Same clock the preview table reads on, and the same one the export's month
+    boundary is measured against."""
+    return to_german_time(moment).isoformat(timespec="seconds")
 
 
 def render_visits_csv(rows: list[VisitRow]) -> str:

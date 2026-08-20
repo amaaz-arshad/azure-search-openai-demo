@@ -15,6 +15,69 @@ Two categories per date:
 
 ---
 
+## 2026-08-20
+
+### `/admin/hyrox-visits`: timestamps read in German time, not UTC
+
+#### Decisions
+
+- **Asked for: show the HYROX visit timestamps in German time instead of UTC.** Applied to both
+  places an admin reads one — the preview table and the exported CSV. Changing only the table would
+  have broken the invariant the old code comment named out loud ("a row here and the same row in the
+  CSV always read the same"), which is exactly why the preview used to say UTC rather than quietly
+  following the browser's zone.
+- **The export month had to move with the timestamps, or the table would contradict itself.** Rows
+  are sliced by month, so leaving the bucket on UTC would print `1 Aug 2026, 01:30` inside the July
+  export. The month picker and `filter_rows_by_month` now run on the German clock
+  (`display_month_of`).
+- **The blob month FOLDER stays UTC** (`blob_month_of`). It is a storage-layout detail no read
+  depends on — `collect_rows` recovers a row from the timestamp in the file name, never from the
+  folder — so keeping one unchanging convention beats a layout where blobs written before today
+  disagree with blobs written after it. The two clocks therefore disagree for a visit in the hour or
+  two before UTC midnight, which is documented in both helpers.
+- **The offset is computed from the EU rule, not looked up in `zoneinfo`.** `ZoneInfo("Europe/Berlin")`
+  resolves inside the `python:3.13-bookworm` container but raises `ZoneInfoNotFoundError` on a stock
+  Windows dev machine (no `tzdata` package; verified in the repo venv), and a helper that only works
+  in production is one no test can pin. Germany's rule is fixed EU law (Directive 2000/84/EC,
+  unchanged since 1996): CET = UTC+1, CEST = UTC+2 between 01:00 UTC on the last Sunday of March and
+  01:00 UTC on the last Sunday of October. Adding `tzdata` to `requirements.in` was the alternative
+  and was rejected as a runtime dependency added for one CSV column; the trade is that an EU decision
+  to abolish the switch means editing `german_timezone`, which the comment says.
+- **The CSV keeps ISO 8601 and carries the offset** (`2026-08-14T14:00:00+02:00`) rather than a bare
+  local time: it cannot be misread as UTC, and it distinguishes CET from CEST without a second
+  column. The recorded blob (name, `recorded_at` body field) is untouched and still UTC — only what
+  an admin reads is converted.
+- **The frontend imports `DISPLAY_TIME_ZONE` from the telemetry page** instead of repeating
+  `"Europe/Berlin"`, so the two admin tabs that show timestamps can never name different zones. Note
+  the two features are deliberately opposite in *where* they convert: telemetry converts browser-side
+  and keeps its CSV in UTC (its buckets are chart labels over whole-UTC-day rollups), while this
+  export converts server-side because its CSV is the deliverable.
+
+#### Changes
+
+- `app/backend/approaches/chatbots/hyrox_assessment/visits.py`: added `GERMAN_STANDARD_OFFSET`/
+  `GERMAN_SUMMER_OFFSET`, `last_sunday_at_one_utc`, `german_timezone`, `to_german_time`; split
+  `month_of` into `blob_month_of` (UTC, the folder) and `display_month_of` (German, the export
+  bucket) and repointed `visit_blob_name` / `filter_rows_by_month` / `month_summaries` accordingly;
+  `format_csv_timestamp` now emits German local ISO 8601 with its offset. Module docstring states the
+  stored-vs-shown split.
+- `app/frontend/src/pages/HyroxVisits/HyroxVisitsPage.tsx`: `formatTimestamp` formats in
+  `DISPLAY_TIME_ZONE` (imported from `../Telemetry/charts/scales`), the column header reads
+  `Timestamp (German time)`, and a new note line names the zone (via `timeZoneLabel()`), the CSV
+  offset, and the month-picker clock.
+- `tests/test_hyrox_visits.py`: `test_rows_slice_by_german_month_and_summarize_per_month` (both sides
+  of the July/August boundary), `test_the_displayed_month_and_the_blob_folder_are_allowed_to_disagree`,
+  `test_german_time_follows_the_eu_daylight_saving_rule` (changeover instants from both sides, the
+  2026/2027 last-Sunday dates, naive-is-UTC); CSV expectations updated. 18 passed.
+- `tests/test_app.py`: the visits-export test derives its expected month with
+  `hyrox_visits.display_month_of(...)` so it cannot flake in the hours where the German and UTC
+  months differ. (Both `test_app.py` visit tests still error at fixture setup offline — the
+  pre-existing `FreeAuthStore.setup` blob-storage timeout, unrelated to this change.)
+- `CLAUDE.md`: the visit-tracking bullet now records the stored-UTC / shown-German split, the
+  folder-vs-export-month divergence, and why the conversion is computed rather than looked up.
+
+---
+
 ## 2026-08-19
 
 ### bbsa live avatar: a transient network blip no longer ends the session mid-answer

@@ -14,6 +14,7 @@ from openai import BadRequestError
 from quart import Response as QuartResponse
 
 import app
+from approaches.chatbots.hyrox_assessment import visits as hyrox_visits
 from core import freeauth as free_auth
 from core.dynamic_bot_config import DEFAULT_DYNAMIC_QNA_MODEL, DEFAULT_DYNAMIC_TUTOR_MODEL
 from core.internaladminauth import (
@@ -1013,7 +1014,9 @@ async def test_hyrox_visits_admin_lists_months_and_exports_csv(client):
     client.app.config[app.CONFIG_GLOBAL_BLOB_MANAGER] = blob_manager
     for account_id in ["104477", "104477", "200"]:
         await client.post("/hyrox-assessment/visit", json={"account_id": account_id}, headers=DEPLOYED_HOST)
-    month = datetime.now(timezone.utc).strftime("%Y-%m")
+    # The German-time month, which is what the export buckets by -- computing it in UTC here would
+    # flake in the hour or two before UTC midnight on the last of a month.
+    month = hyrox_visits.display_month_of(datetime.now(timezone.utc))
 
     response = await client.get("/internal-admin/hyrox-visits")
     assert response.status_code == 200

@@ -3,6 +3,9 @@ import { Helmet } from "react-helmet-async";
 
 import { ALL_MONTHS, HyroxVisitsResponse, downloadHyroxVisitsCsvApi, listHyroxVisitsApi } from "./hyroxVisitsApi";
 import { useAdminShell } from "../admin/AdminShellContext";
+// Imported rather than repeated so both admin tabs that show timestamps name one zone; that module
+// also explains why the conversion happens in the browser at all.
+import { DISPLAY_TIME_ZONE, timeZoneLabel } from "../Telemetry/charts/scales";
 import styles from "./HyroxVisitsPage.module.css";
 
 // Rendered inside the /admin shell (see pages/admin/AdminLayout). The shell owns the auth gate;
@@ -16,14 +19,16 @@ const formatMonthLabel = (month: string) => {
     return new Intl.DateTimeFormat(undefined, { month: "long", year: "numeric", timeZone: "UTC" }).format(parsed);
 };
 
-// Timestamps are stored and exported in UTC; the preview says so rather than silently switching to
-// the admin's local zone, so a row here and the same row in the CSV always read the same.
+// Timestamps are recorded in UTC and shown in German time — the clock the admins reading this live
+// in. Pinned to Europe/Berlin rather than left to the browser's own zone so a row here and the same
+// row in the CSV always read the same wherever the tab is opened; the CSV carries the matching UTC
+// offset per row, and the month picker slices on this same clock.
 const formatTimestamp = (timestamp: string) => {
     const parsed = new Date(timestamp);
     if (Number.isNaN(parsed.getTime())) {
         return timestamp;
     }
-    return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "medium", timeZone: "UTC" }).format(parsed);
+    return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "medium", timeZone: DISPLAY_TIME_ZONE }).format(parsed);
 };
 
 const HyroxVisitsPage = () => {
@@ -154,7 +159,7 @@ const HyroxVisitsPage = () => {
                                     <thead>
                                         <tr>
                                             <th scope="col">User id</th>
-                                            <th scope="col">Timestamp (UTC)</th>
+                                            <th scope="col">Timestamp (German time)</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -182,6 +187,10 @@ const HyroxVisitsPage = () => {
                         <p className={styles.notesText}>
                             One row every time the bot is opened, timestamped at that moment — so the same learner appears once per visit, and a reload counts
                             again.
+                        </p>
+                        <p className={styles.notesText}>
+                            Times are German time (currently {timeZoneLabel() || "CET/CEST"}), here and in the CSV, which carries each row&rsquo;s UTC offset.
+                            The month picker slices on the same clock, so a visit just before midnight German time belongs to the day and month it reads as.
                         </p>
                         <p className={styles.notesText}>
                             Only launches from Lemon are counted. The LMS puts the learner&rsquo;s <code>account_id</code> on the launch URL, so opening the
