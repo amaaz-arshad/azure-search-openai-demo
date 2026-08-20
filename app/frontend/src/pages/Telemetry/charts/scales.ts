@@ -134,6 +134,11 @@ export function timeZoneLabel(at: Date = new Date()): string {
 }
 
 /** Bucket labels follow the granularity. See DISPLAY_TIME_ZONE for which of these shift. */
+/** "1 request" / "2 requests". Prose, so the singular has to be right. */
+export function formatRequestCount(count: number): string {
+    return `${formatExactCount(count)} ${count === 1 ? "request" : "requests"}`;
+}
+
 export function formatBucket(bucket: string, granularity: string): string {
     if (granularity === "hour") {
         const parsed = new Date(bucket);

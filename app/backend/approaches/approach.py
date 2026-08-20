@@ -551,6 +551,16 @@ class Approach(ABC):
                 overrides, self.chatgpt_model, self.chatgpt_deployment
             )
 
+            # Instrumented like the classic path's rewrite (chatreadretrieveread). Without this the
+            # call's tokens reach the display thought step but never the recorder, so an entire LLM
+            # call -- carrying the whole chat history as its prompt -- is missing from the turn's
+            # tokens, cost and timeline.
+            rewrite_step = telemetry.open_step(
+                telemetry_records.STEP_QUERY_REWRITE,
+                telemetry_records.STEP_TYPE_LLM,
+                model=effective_chatgpt_model,
+                deployment=self.chatgpt_deployment,
+            )
             rewrite_result = await self.rewrite_query(
                 prompt_template="query_rewrite.system.jinja2",
                 prompt_variables={"user_query": original_user_query, "past_messages": messages[:-1]},
@@ -565,6 +575,7 @@ class Approach(ABC):
                 temperature=0.0,  # Minimize creativity for search query generation
                 no_response_token=self.QUERY_REWRITE_NO_RESPONSE,
             )
+            rewrite_step.close(usage=getattr(rewrite_result.completion, "usage", None))
             thoughts.append(
                 self.format_thought_step_for_chatcompletion(
                     title="Prompt to generate search query",

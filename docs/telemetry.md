@@ -87,7 +87,10 @@ first write of a new day, so a day is materialised whether or not anyone queries
 Latency percentiles come from fixed-edge log-spaced histograms (72 buckets, base 20 ms, ratio 1.15),
 never from stored percentiles: percentiles are not mergeable, histograms are. A quantile is known to
 within **one bucket width, 15%**, which the API reports as `maxRelativeError`, and is suppressed
-entirely below 20 samples.
+entirely below 20 samples. Where a percentile is suppressed, the UI falls back to the
+**mean** and labels it as such rather than hiding the row or substituting a different metric -- a mean
+needs no minimum sample count, and a blank cell tells an operator nothing about a bot that has served
+two requests.
 
 ### Ranges
 
@@ -147,7 +150,9 @@ publicly embeddable ones. Therefore:
   this dashboard groups by user, and a module-salted hash of a low-entropy identifier is a lookup
   table away from the identifier itself, sitting next to a transcript.
 - `TELEMETRY_STORE_BODIES=false` keeps every metric, chart and cost figure while storing no message
-  text at all.
+  text at all -- including the prompt preview, which is 120 verbatim characters of the user's last
+  message. It lives in blob metadata rather than the body, which once made it look like a different
+  class of thing; it is not, and the request table renders an empty preview as "not stored".
 - The drawer renders message bodies as **plain text, never markdown or HTML** — rendering would hide
   the very control markers (`[[CHOICES]]`, `[[SCORE]]`, `[[SPLIT]]`) an operator opens it to inspect,
   and would make stored end-user input an injection surface inside the admin tool.

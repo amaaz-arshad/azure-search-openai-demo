@@ -1,3 +1,4 @@
+import contextlib
 import csv
 import dataclasses
 import io
@@ -539,8 +540,16 @@ async def stream_with_openlit_chatbot_attributes(
     stream: AsyncGenerator[dict, None], attributes: dict[str, str]
 ) -> AsyncGenerator[dict, None]:
     with openlit_chatbot_attributes_context(attributes):
-        async for event in stream:
-            yield event
+        try:
+            async for event in stream:
+                yield event
+        finally:
+            # `async for` does NOT close its iterator, and closing a generator does not cascade to
+            # what it wraps -- the inner is left to garbage collection, which runs its `finally` at an
+            # arbitrary later moment. Every wrapper in this chain has to close what it wraps, or an
+            # abandoned stream unwinds outside-in and the innermost cleanup runs too late to matter.
+            with contextlib.suppress(Exception):
+                await stream.aclose()
 
 
 # Module level, not `current_app.logger`: `finish_telemetry_turn` runs from the streaming path, which
@@ -638,6 +647,12 @@ async def stream_with_telemetry(stream: AsyncGenerator[dict, None], app_object, 
         failure = error if isinstance(error, Exception) else None
         raise
     finally:
+        # Close the wrapped stream FIRST. `finish_telemetry_turn` clears the ContextVar, and
+        # `run_with_streaming` closes its answer step from its own `finally` -- which, without this,
+        # runs after the clear (verified: the step and the response body were both silently dropped on
+        # every aborted turn). Awaiting here is legal during GeneratorExit; yielding would not be.
+        with contextlib.suppress(Exception):
+            await stream.aclose()
         finish_telemetry_turn(app_object, store, record, status=status, error=failure)
 
 
@@ -3813,6 +3828,15 @@ async def setup_clients():
     # end-user conversations. Constructed unconditionally so the write path exists from the first
     # request; TELEMETRY_ENABLED gates recording, not construction.
     telemetry_store = TelemetryStore(blob_manager=global_blob_manager)
+    # Load the blob price overrides now. Without this, `TelemetryStore.__init__` leaves the table at
+    # compiled+env and only the GET /pricing route ever refreshes it -- so a price saved in the editor
+    # applied to the one replica that served the PUT, was lost on its next restart, and every other
+    # replica went on recording that model as unpriced. Cost is frozen at write time, so those rows
+    # would be permanently wrong. One blob read, and failure must not stop startup.
+    try:
+        await telemetry_store.refresh_price_table()
+    except Exception:
+        telemetry_logger.exception("Could not load the telemetry price overrides at startup")
     current_app.config[CONFIG_TELEMETRY_STORE] = telemetry_store
 
     current_app.config[CONFIG_CHATBOT_EMBED_CONFIG_STORE] = ChatbotEmbedConfigStore(blob_manager=global_blob_manager)

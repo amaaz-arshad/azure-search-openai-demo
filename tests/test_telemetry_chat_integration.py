@@ -375,3 +375,54 @@ def test_an_abandoned_stream_still_records_what_the_answer_spent():
     answers = [step for step in record.steps if step.name == rec.STEP_ANSWER]
     assert len(answers) == 1
     assert answers[0].duration_ms >= 0
+
+
+def test_an_aborted_stream_records_its_answer_step_through_the_real_wrapper_chain():
+    """The regression guard for cleanup ordering.
+
+    `stream_with_telemetry.finally` -> `finish_telemetry_turn` -> `clear_current()`. An `async for`
+    does NOT close its iterator, and closing a generator does not cascade into what it wraps, so
+    without an explicit `aclose()` the inner generator's `finally` ran after the ContextVar was gone:
+    `close_answer_step` and `set_response_details` both silently no-opped, and every aborted turn lost
+    its answer step (duration, model, TTFT, chunk count) and its response body.
+
+    Driving `run_with_streaming` directly cannot catch this -- there is no wrapper to unwind through.
+    """
+
+    async def scenario():
+        record = tr.begin_turn(route="/chat/stream", streaming=True, started_at=NOON)
+        seen_context = []
+
+        async def inner():
+            tr.open_answer_step(model="gpt-5.4-mini", deployment="gpt-5.4-mini")
+            try:
+                for index in range(10):
+                    await asyncio.sleep(0.005)
+                    yield {"delta": {"content": str(index)}}
+            finally:
+                seen_context.append(tr.get_current() is not None)
+                tr.close_answer_step(usage=None, payload={"chunks": 3})
+                tr.set_response_details(content="partial answer")
+
+        app_object, store = RecordingApp(), ExplodingStore()
+        stream = app_module.stream_with_telemetry(inner(), app_object, store, record)
+
+        consumed = 0
+        async for _ in stream:
+            consumed += 1
+            if consumed == 3:
+                break
+        await stream.aclose()
+        for _ in range(3):
+            await asyncio.sleep(0.01)
+        tr.clear_current()
+        return record, seen_context
+
+    record, seen_context = run(scenario())
+
+    assert seen_context == [True], "the inner cleanup must run while the turn is still current"
+    assert record.status == rec.STATUS_ABORTED
+    answers = [step for step in record.steps if step.name == rec.STEP_ANSWER]
+    assert len(answers) == 1, "an aborted turn must still record what its answer spent"
+    assert answers[0].duration_ms >= 0
+    assert record.response and record.response.get("content") == "partial answer"

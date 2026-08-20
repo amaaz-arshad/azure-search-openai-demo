@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { HBars, HBarRow } from "./charts/HBars";
 import { assignSeriesColors } from "./charts/palette";
-import { formatCost, formatCount, formatExactCount } from "./charts/scales";
+import { formatCost, formatCount, formatExactCount, formatRequestCount } from "./charts/scales";
 import { formatChatbotLabel } from "../shared/chatbotDisplay";
 import styles from "./TelemetryPage.module.css";
 import { PricePayload, TelemetrySummary, getTelemetryPricingApi, saveTelemetryPricingApi } from "./telemetryApi";
@@ -32,7 +32,7 @@ export function CostsTab({ summary, onSelectChatbot }: CostsTabProps) {
         value: row.estCostMicros,
         color: chatbotColors[row.chatbot ?? ""] ?? "#9a90a3",
         formatted: formatCost(row.estCostMicros, currency),
-        detail: `${formatExactCount(row.requests)} requests`
+        detail: formatRequestCount(row.requests)
     }));
 
     const modelRows: HBarRow[] = summary.byModel.map(row => ({
@@ -144,6 +144,8 @@ function PriceEditor({ currency }: { currency: string }) {
     const [draft, setDraft] = useState<Record<string, { input: string; cachedInput: string; output: string }>>({});
     const [status, setStatus] = useState("");
     const [isSaving, setIsSaving] = useState(false);
+    const [newModel, setNewModel] = useState("");
+    const [newPrice, setNewPrice] = useState({ input: "", cachedInput: "", output: "" });
 
     useEffect(() => {
         const controller = new AbortController();
@@ -172,14 +174,23 @@ function PriceEditor({ currency }: { currency: string }) {
         setIsSaving(true);
         setStatus("");
         try {
+            const entries = Object.entries(draft);
+            const trimmed = newModel.trim();
+            if (trimmed) {
+                // A new model only needs an input price to be worth saving; the backend fills the
+                // rest, and an omitted cached rate is better than a guessed one.
+                entries.push([trimmed, newPrice]);
+            }
             const prices = Object.fromEntries(
-                Object.entries(draft).map(([model, values]) => [
+                entries.map(([model, values]) => [
                     model,
                     { input: Number(values.input), cachedInput: Number(values.cachedInput), output: Number(values.output) }
                 ])
             );
             const saved = await saveTelemetryPricingApi(prices, "edited from the telemetry dashboard");
             setPayload(saved);
+            setNewModel("");
+            setNewPrice({ input: "", cachedInput: "", output: "" });
             setStatus("Prices saved. Existing records keep the cost they were written with.");
         } catch (error) {
             setStatus(error instanceof Error ? error.message : String(error));
@@ -231,6 +242,37 @@ function PriceEditor({ currency }: { currency: string }) {
                                 <td className={styles.mutedCell}>{price.source}</td>
                             </tr>
                         ))}
+                        {/* Without this row the editor cannot do the job the docs give it: an
+                            unpriced model is by construction absent from `payload.prices`, so it
+                            never appears above, and there is no other way to add a price. */}
+                        <tr>
+                            <th scope="row">
+                                <input
+                                    className={styles.priceInput}
+                                    type="text"
+                                    placeholder="new model id"
+                                    value={newModel}
+                                    onChange={event => setNewModel(event.target.value)}
+                                    aria-label="New model id"
+                                />
+                            </th>
+                            {(["input", "cachedInput", "output"] as const).map(field => (
+                                <td key={field}>
+                                    <input
+                                        className={styles.priceInput}
+                                        type="number"
+                                        min="0"
+                                        step="0.0001"
+                                        value={newPrice[field]}
+                                        onChange={event =>
+                                            setNewPrice(previous => ({ ...previous, [field]: event.target.value }))
+                                        }
+                                        aria-label={`New model ${field} price`}
+                                    />
+                                </td>
+                            ))}
+                            <td className={styles.mutedCell}>new</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>

@@ -47,7 +47,6 @@ export interface BarsProps {
     valueLabel?: string;
     formatValue?: (value: number) => string;
     /** Buckets before recording began are left blank rather than zero-filled. */
-    blankBefore?: string;
     onAnnounce?: (message: string) => void;
 }
 
@@ -67,21 +66,17 @@ export function Bars({
     footnote,
     valueLabel = "Requests",
     formatValue = formatCount,
-    blankBefore,
     onAnnounce
 }: BarsProps) {
     const [hidden, setHidden] = useState<Set<string>>(new Set());
     const [tooltip, setTooltip] = useState<TooltipState | null>(null);
 
     const visible = series.filter(item => !hidden.has(item.key));
-    const isBlank = (bucket: string) => (blankBefore ? bucket < blankBefore : false);
 
-    const totals = buckets.map((bucket, index) =>
-        isBlank(bucket)
-            ? 0
-            : grouped
-              ? Math.max(0, ...visible.map(item => item.values[index] ?? 0))
-              : visible.reduce((sum, item) => sum + (item.values[index] ?? 0), 0)
+    const totals = buckets.map((_bucket, index) =>
+        grouped
+            ? Math.max(0, ...visible.map(item => item.values[index] ?? 0))
+            : visible.reduce((sum, item) => sum + (item.values[index] ?? 0), 0)
     );
     const maxValue = niceCeiling(Math.max(1, ...totals));
     const lineValues = (line?.values ?? []).filter((value): value is number => value !== null && Number.isFinite(value));
@@ -99,7 +94,7 @@ export function Bars({
         columns: [granularity === "hour" ? "Hour" : "Date", ...series.map(item => item.label), ...(line ? [line.label] : [])],
         rows: buckets.map((bucket, index) => [
             formatBucket(bucket, granularity),
-            ...series.map(item => (isBlank(bucket) ? "no data" : formatValue(item.values[index] ?? 0))),
+            ...series.map(item => formatValue(item.values[index] ?? 0)),
             ...(line ? [line.values[index] === null || line.values[index] === undefined ? "no data" : line.format(line.values[index] as number)] : [])
         ])
     };
@@ -145,7 +140,7 @@ export function Bars({
                     ? buckets
                           .map((bucket, index) => {
                               const value = line.values[index];
-                              if (value === null || value === undefined || !Number.isFinite(value) || isBlank(bucket)) return null;
+                              if (value === null || value === undefined || !Number.isFinite(value)) return null;
                               return { x: x(index) + x.bandwidth / 2, y: yLine(value), index };
                           })
                           .filter((point): point is { x: number; y: number; index: number } => point !== null)
@@ -194,7 +189,6 @@ export function Bars({
                                     : null}
 
                                 {buckets.map((bucket, index) => {
-                                    if (isBlank(bucket)) return null;
                                     let offset = 0;
                                     return (
                                         <g key={bucket}>
@@ -283,30 +277,24 @@ export function Bars({
                                                 content: (
                                                     <>
                                                         <strong>{formatBucket(bucket, granularity)}</strong>
-                                                        {isBlank(bucket) ? (
-                                                            <div className={styles.tooltipRow}>Before recording started</div>
-                                                        ) : (
-                                                            <>
-                                                                {visible.map(item => (
-                                                                    <div key={item.key} className={styles.tooltipRow}>
-                                                                        <span className={styles.tooltipSwatch} style={{ background: item.color }} />
-                                                                        {item.label}
-                                                                        <span className={styles.tooltipValue}>
-                                                                            {formatValue(item.values[index] ?? 0)}
-                                                                        </span>
-                                                                    </div>
-                                                                ))}
-                                                                {line && line.values[index] !== null && line.values[index] !== undefined ? (
-                                                                    <div className={styles.tooltipRow}>
-                                                                        <span className={styles.tooltipSwatch} style={{ background: line.color }} />
-                                                                        {line.label}
-                                                                        <span className={styles.tooltipValue}>
-                                                                            {line.format(line.values[index] as number)}
-                                                                        </span>
-                                                                    </div>
-                                                                ) : null}
-                                                            </>
-                                                        )}
+                                                            {visible.map(item => (
+                                                                <div key={item.key} className={styles.tooltipRow}>
+                                                                    <span className={styles.tooltipSwatch} style={{ background: item.color }} />
+                                                                    {item.label}
+                                                                    <span className={styles.tooltipValue}>
+                                                                        {formatValue(item.values[index] ?? 0)}
+                                                                    </span>
+                                                                </div>
+                                                            ))}
+                                                            {line && line.values[index] !== null && line.values[index] !== undefined ? (
+                                                                <div className={styles.tooltipRow}>
+                                                                    <span className={styles.tooltipSwatch} style={{ background: line.color }} />
+                                                                    {line.label}
+                                                                    <span className={styles.tooltipValue}>
+                                                                        {line.format(line.values[index] as number)}
+                                                                    </span>
+                                                                </div>
+                                                            ) : null}
                                                     </>
                                                 )
                                             });

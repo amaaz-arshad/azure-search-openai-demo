@@ -5,7 +5,15 @@ import { HBars, HBarRow } from "./charts/HBars";
 import { Histogram } from "./charts/Histogram";
 import { StackedBar } from "./charts/Sparkline";
 import { assignSeriesColors, COST_LINE_COLOR, ERROR_COLOR, statusColor, stepTypeColor } from "./charts/palette";
-import { formatCost, formatCount, formatDay, formatDuration, formatExactCount, formatTimestamp } from "./charts/scales";
+import {
+    formatCost,
+    formatCount,
+    formatDay,
+    formatDuration,
+    formatExactCount,
+    formatRequestCount,
+    formatTimestamp
+} from "./charts/scales";
 import { formatChatbotLabel } from "../shared/chatbotDisplay";
 import styles from "./TelemetryPage.module.css";
 import { TelemetrySummary } from "./telemetryApi";
@@ -130,6 +138,11 @@ export function OverviewTab({
 
     const chatbotRows: HBarRow[] = summary.byChatbot.map(row => {
         const name = row.chatbot ?? "";
+        // A median needs `minSamplesForPercentile` samples; a mean does not. Below the threshold the
+        // row shows the mean and says so, rather than falling back to a DIFFERENT metric -- it used
+        // to print the request count here, under a "Latency" heading and beside a bar still drawn
+        // from the latency, so the label and the bar were two unrelated quantities.
+        const latencyMs = row.p50Ms ?? row.avgMs;
         const value =
             measure === "cost"
                 ? row.estCostMicros
@@ -137,7 +150,7 @@ export function OverviewTab({
                   ? row.requests
                   : measure === "tokens"
                     ? row.tokensIn + row.tokensOut
-                    : (row.p50Ms ?? row.avgMs);
+                    : latencyMs;
         const formatted =
             measure === "cost"
                 ? `est. ${formatCost(row.estCostMicros, currency)}`
@@ -145,16 +158,20 @@ export function OverviewTab({
                   ? formatExactCount(row.requests)
                   : measure === "tokens"
                     ? formatCount(row.tokensIn + row.tokensOut)
-                    : row.p50Ms === null
-                      ? `${formatExactCount(row.requests)} requests`
-                      : formatDuration(row.p50Ms);
+                    : formatDuration(latencyMs);
+        const detail =
+            measure === "cost"
+                ? formatRequestCount(row.requests)
+                : measure === "latency"
+                  ? `${row.p50Ms === null ? "mean" : "median"} of ${formatRequestCount(row.requests)}`
+                  : undefined;
         return {
             key: name,
             label: formatChatbotLabel(name),
             value,
             color: chatbotColors[name] ?? "#9a90a3",
             formatted,
-            detail: measure === "cost" ? `${formatExactCount(row.requests)} requests` : undefined,
+            detail,
             badge: row.unpricedCount > 0 && measure === "cost" ? "partly unpriced" : undefined
         };
     });
@@ -196,7 +213,6 @@ export function OverviewTab({
                 buckets={buckets}
                 granularity={resolvedGranularity}
                 series={trafficSeries}
-                blankBefore={summary.dataStartsAt ?? undefined}
                 line={{
                     key: "cost",
                     label: "Est. cost",
@@ -261,9 +277,13 @@ export function OverviewTab({
                 <HBars
                     title="By chatbot"
                     subtitle="Click a row to narrow the whole page to that bot."
-                    summary={`Each chatbot's ${measure} over the selected range.`}
+                    summary={
+                        measure === "latency"
+                            ? `Median latency per chatbot over the selected range, or the mean where there are fewer than ${summary.minSamplesForPercentile} requests.`
+                            : `Each chatbot's ${measure} over the selected range.`
+                    }
                     rows={chatbotRows}
-                    valueColumn={measure === "cost" ? `Estimated cost (${currency})` : measure === "requests" ? "Requests" : measure === "tokens" ? "Tokens" : "Median latency"}
+                    valueColumn={measure === "cost" ? `Estimated cost (${currency})` : measure === "requests" ? "Requests" : measure === "tokens" ? "Tokens" : "Latency"}
                     onSelect={onSelectChatbot}
                     emptyMessage="No requests from any chatbot in this range."
                     actions={
@@ -283,8 +303,10 @@ export function OverviewTab({
                     }
                     footnote={
                         measure === "cost"
-                            ? "Estimated from recorded tokens. Only this figure can be split by chatbot — Azure billing has no chatbot dimension."
-                            : undefined
+                            ? "Estimated from recorded tokens, priced with the table on the Costs tab. Chat requests only — ingestion and the refresh scripts are not included."
+                            : measure === "latency"
+                              ? `Median where a chatbot has at least ${summary.minSamplesForPercentile} requests, mean below that — a median needs samples, a mean does not.`
+                              : undefined
                     }
                 />
 

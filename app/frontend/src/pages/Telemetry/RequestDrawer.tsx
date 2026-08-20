@@ -137,7 +137,7 @@ export function RequestDrawer({
                         </h2>
                         <p className={styles.drawerMeta}>
                             {formatTimestamp(record?.startedAt ?? row.startedAt)} {timeZoneLabel()} /{" "}
-                            {formatChatbotLabel(record?.chatbot.name ?? row.chatbot)} /{" "}
+                            {formatChatbotLabel(record?.chatbot?.name ?? row.chatbot)} /{" "}
                             {PATH_LABELS[record?.path ?? row.path] ?? record?.path ?? row.path} /{" "}
                             {record?.model ?? row.model ?? "unknown model"}
                             {(record?.streaming ?? row.streaming) ? " / streamed" : ""}
@@ -177,24 +177,24 @@ export function RequestDrawer({
                         </div>
                         <div>
                             <dt>Tokens in</dt>
-                            <dd>{formatCount(record?.usage.promptTokens ?? row.tokensIn)}</dd>
+                            <dd>{formatCount(record?.usage?.promptTokens ?? row.tokensIn)}</dd>
                         </div>
                         <div>
                             <dt>Tokens out</dt>
-                            <dd>{formatCount(record?.usage.completionTokens ?? row.tokensOut)}</dd>
+                            <dd>{formatCount(record?.usage?.completionTokens ?? row.tokensOut)}</dd>
                         </div>
                         <div>
                             <dt>Est. cost</dt>
                             <dd>
                                 {formatCost(
-                                    record?.cost.micros ?? row.estCostMicros,
-                                    record?.cost.currency ?? row.currency ?? currency
+                                    record?.cost?.micros ?? row.estCostMicros,
+                                    record?.cost?.currency ?? row.currency ?? currency
                                 )}
                             </dd>
                         </div>
                         <div>
                             <dt>Steps</dt>
-                            <dd>{record?.steps.length ?? row.steps.length}</dd>
+                            <dd>{record?.steps?.length ?? row.steps.length}</dd>
                         </div>
                     </dl>
 
@@ -210,9 +210,9 @@ export function RequestDrawer({
                             <div className={styles.skeletonBlock} aria-busy="true" />
                         ) : record ? (
                             <StepTimeline
-                                steps={record.steps}
+                                steps={record.steps ?? []}
                                 totalMs={record.durationMs}
-                                currency={record.cost.currency ?? currency}
+                                currency={record.cost?.currency ?? currency}
                                 expanded={expandedStep}
                                 onToggle={index => setExpandedStep(current => (current === index ? null : index))}
                             />

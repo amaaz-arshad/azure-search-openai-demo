@@ -395,8 +395,18 @@ def test_bodies_are_omitted_when_body_storage_is_off(monkeypatch):
     assert "a secret question" not in body and "a secret answer" not in body
     # The metrics are unaffected -- turning off bodies must not turn off the dashboard.
     assert record.usage.prompt == 100 and record.cost_micros is not None
-    # The preview is metadata rather than a body, and is what keeps the request table scannable.
-    assert record.prompt_preview == "a secret question"
+
+    # The prompt preview used to be kept here, on the grounds that it is metadata rather than a body.
+    # It is 120 verbatim characters of the user's message, so it is message text by any reading, and
+    # the flag is documented as "no message text at all" -- someone flips it for a legal reason. The
+    # request table already renders an empty preview as "not stored".
+    assert record.prompt_preview == ""
+
+    # And the check has to cover the METADATA, not just the body: the preview never travelled in the
+    # body, so asserting only on `record.body()` passed happily while the text leaked anyway.
+    metadata = json.dumps(rec.encode_metadata(record))
+    assert "a secret question" not in metadata
+    assert rec.decode_prompt_preview(rec.encode_metadata(record).get("promptb64", "")) == ""
 
 
 def test_a_failed_turn_is_still_recorded_with_its_error():

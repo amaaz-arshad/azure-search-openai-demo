@@ -244,8 +244,13 @@ def set_request_details(
     overrides: Any = None,
     system_prompt: Any = None,
 ) -> None:
-    """Capture the inputs. The prompt preview is always taken (it is metadata, not a body, and it is
-    what makes the request table scannable); the full messages only when body storage is on."""
+    """Capture the inputs, but nothing at all when body storage is off.
+
+    The prompt preview is 120 verbatim characters of the user's last message. It lives in blob
+    METADATA rather than the body, which once made it look like a different class of thing -- it is
+    not. `TELEMETRY_STORE_BODIES=false` is the documented privacy switch ("no message text at all"),
+    and someone flips that for a legal reason, so the preview has to fall under it. The request table
+    already renders an empty preview as "not stored"."""
     record = get_current()
     if record is None:
         return
@@ -260,10 +265,9 @@ def set_request_details(
                 if isinstance(content, str):
                     last_user = content
                     break
-        record.prompt_preview = last_user
-
         if not should_store_bodies():
             return
+        record.prompt_preview = last_user
 
         stored: list[dict[str, Any]] = []
         for message in conversation:

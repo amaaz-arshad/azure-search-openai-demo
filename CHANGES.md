@@ -245,6 +245,88 @@ Two categories per date:
   removed endpoint** and zero horizontal overflow at 1440 / 768 / 375 px, and a mock timestamp of
   09:00:11 UTC renders as 11:00:11 CEST.
 
+#### Audit: six defects found across the telemetry dashboard, five fixed
+
+Asked to check for further bugs. Ran a six-lens adversarial review over the whole surface (cost
+arithmetic, aggregation, routes, recording lifecycle, frontend state, chart rendering) plus a runtime
+probe against hostile API responses. 55 candidates, 9 confirmed, merged into six real defects. The
+review's verifiers refuted nothing, which is itself a warning sign, so every finding below was
+re-checked by hand and two were materially corrected in the process.
+
+- **Weekly and monthly charts blanked the bucket holding the first recorded day.** `Bars.tsx`
+  compared a bucket LABEL to a full `YYYY-MM-DD` day as strings: a month label (`2026-08`) or a week
+  label (its Monday) always sorts before a start day inside that same bucket, so the bucket with the
+  data was hidden while the KPI row above reported it. With all traffic in one month this emptied the
+  headline chart completely. The mechanism could never do anything useful either -- `RangeAggregate.series`
+  is populated only on ingest and `series_rows` emits only buckets that received rows, so an empty
+  bucket never reaches the frontend -- so `blankBefore` was deleted rather than repaired.
+- **`TELEMETRY_STORE_BODIES=false` still stored verbatim user text.** The 120-character prompt preview
+  was assigned before the gate, on the reasoning that it is blob metadata rather than a body. It is
+  120 verbatim characters of the user's last message, the flag is documented as "no message text at
+  all", and someone flips that for a legal reason -- so the preview now falls under it. **This
+  reverses a deliberate, tested decision**; the test that pinned the old behaviour asserted only on
+  `record.body()`, which the preview never travelled in, so it passed while the text leaked through
+  metadata. The test now checks the metadata too.
+- **Aborted streaming turns lost their answer step and response body -- including through the fix
+  shipped earlier today.** `stream_with_telemetry.finally` calls `finish_telemetry_turn`, which clears
+  the ContextVar; an `async for` does not close its iterator and closing a generator does not cascade
+  into what it wraps, so `run_with_streaming`'s own `finally` ran *after* the clear and both
+  `close_answer_step` and `set_response_details` silently no-opped. Each wrapper now closes what it
+  wraps, and `stream_with_telemetry` does so BEFORE finalizing. The earlier test could not catch this
+  because it drove `run_with_streaming` directly, with no wrapper to unwind through; the new test uses
+  the real chain and fails (`[False] == [True]`) without the fix.
+- **The price editor could not add a model, and saved prices never reached the recording path.** Two
+  halves of one broken workflow: the editor renders one row per existing entry with the model name as
+  static text, and an unpriced model is by construction absent from that map -- while its own copy says
+  "add it here to price it". And `refresh_price_table()` was only ever called by the GET route, so a
+  saved override applied to the single replica that served the PUT and was lost on its next restart.
+  Both fixed: an add-model row, and a startup load. This matters more since the derived-from-billing
+  price layer was removed earlier today, which made manual entry the only path.
+- **Drawer race: one request's transcript under another's identity.** The record fetch had no abort or
+  sequence guard, while hold-to-repeat on the arrow keys is the documented triage path. Bodies differ
+  enormously in size, so they resolve out of order; the header comes from the row and the conversation
+  from the record, and nothing on screen would reveal the mismatch. Guarded with a monotonic token.
+- **The agentic query-rewrite call was never instrumented**, so an LLM call carrying the whole chat
+  history as its prompt was missing from the turn's tokens, cost and timeline. The review's finder
+  called this the default path; it is not -- the deployed env pins `low`, where the call does not
+  happen at all. It is reachable by a user picking Minimal in Developer Settings, or by one env edit.
+  Fixed for parity with the classic path.
+- **Also fixed from the runtime probe:** `record?.usage.promptTokens` and five sibling chains guarded
+  `record` and then dereferenced the next field anyway, crashing the WHOLE page (the drawer has no
+  boundary of its own, so the route boundary replaces the dashboard) on any record missing an optional
+  field. Latent today -- the turn encoder writes those fields unconditionally -- but the step encoder
+  already omits empty usage, so the same optimisation one level up would have shipped a white screen.
+  `StepTimeline`'s phase maths also guarded against `Math.min(...[])` returning Infinity.
+- **Two stale claims removed**: the first-run panel still told operators "the Costs tab is not empty --
+  it reads actual billed spend straight from Azure", and the by-chatbot cost footnote still said
+  "Azure billing has no chatbot dimension". Both described an integration removed earlier today.
+- Verified: 16 runtime resilience checks (503, empty store, a record with no optional fields, a
+  zero-duration turn) with no NaN or Infinity reaching any SVG attribute; a browser check that the
+  monthly bucket now renders its 204 requests; `ty` clean with no new diagnostics; `tsc` clean; suite
+  at baseline.
+
+#### Fix: the by-chatbot Latency measure printed a request count instead of a latency
+
+- **Reported: with Latency selected, every chatbot except the busy one read "2 requests".** A median
+  is suppressed below `MIN_SAMPLES_FOR_PERCENTILE` (20) because a percentile from two samples is
+  noise, and the row then fell back to printing the request count -- under a "Latency" heading.
+- **The bar and the label were two different quantities.** The bar length used `p50Ms ?? avgMs`, so it
+  was still drawn from the latency while the number beside it was a request count. That is why the
+  bars had plausible, varying lengths and the labels did not match them at all.
+- **Fixed by showing the statistic that IS available.** A median needs samples; a mean does not, and
+  `avgMs` is already in the payload. A low-sample row now shows its mean and says so -- `mean of 2
+  requests` against `median of 212 requests` -- instead of silently switching to a different metric.
+  The column header changed from "Median latency" to "Latency" because it is now honestly either, and
+  the footnote states the rule.
+- **`1 requests` is gone**: one `formatRequestCount` helper now owns the plural everywhere a count is
+  written into prose.
+- **A stale line went with it**: the by-chatbot cost footnote still read "Azure billing has no chatbot
+  dimension", months after the billing integration was removed. It now says what is actually true --
+  estimated from recorded tokens, chat requests only.
+- Verified in a browser against the reported shape (one bot at 212 requests, four at 1-2): the
+  high-sample bot keeps its median, the rest show real durations with `mean of N`, singular and plural
+  are right, and cost rows still carry their request counts. `tsc` clean, frontend rebuilt.
+
 #### Fix: the "unaccounted" time was the answer itself, and its tokens were being thrown away
 
 - **Asked what the timeline's "unaccounted" segment actually is.** It was not a labelling problem. On

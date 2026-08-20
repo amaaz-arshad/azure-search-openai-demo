@@ -41,8 +41,11 @@ export function StepTimeline({ steps, totalMs, currency, expanded, onToggle }: S
      * is large, something in that phase is slow and worth knowing about, which is precisely why they
      * are named rather than pooled.
      */
-    const firstStart = Math.min(...topLevel.map(step => step.startMs));
-    const lastEnd = Math.max(...topLevel.map(step => step.startMs + step.durationMs));
+    // Guarded: `Math.min(...[])` is Infinity, which would reach both formatDuration and an SVG
+    // attribute. `topLevel` is only empty if every step claims a parent, which no writer produces --
+    // but a malformed record must degrade, not render `Infinity ms`.
+    const firstStart = topLevel.length ? Math.min(...topLevel.map(step => step.startMs)) : 0;
+    const lastEnd = topLevel.length ? Math.max(...topLevel.map(step => step.startMs + step.durationMs)) : 0;
     const setupMs = Math.max(0, firstStart);
     const wrapUpMs = Math.max(0, totalMs - lastEnd);
 
