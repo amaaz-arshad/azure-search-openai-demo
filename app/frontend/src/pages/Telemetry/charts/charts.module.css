@@ -1,0 +1,423 @@
+/* Chart chrome shared by every mark on the telemetry page.
+   Colours come from the page's own token block (see TelemetryPage.module.css) so the charts cannot
+   drift from the surrounding admin surface; series fills are passed in as concrete values because an
+   SVG fill has to resolve at render time for the data-table swatches to match. */
+
+.chartCard {
+    display: flex;
+    flex-direction: column;
+    /* Same reason as the grid chain in TelemetryPage.module.css: without this the measured SVG width
+       can only grow, never shrink back when the window narrows. */
+    min-width: 0;
+    gap: 14px;
+    border: 1px solid rgba(172, 68, 198, 0.12);
+    border-radius: 24px;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.72);
+}
+
+.chartHeader {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.chartTitle {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--text-strong);
+}
+
+.chartSubtitle {
+    margin: 4px 0 0;
+    font-size: 13px;
+    color: var(--text-muted);
+    max-width: 70ch;
+}
+
+.chartActions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.chartBody {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+}
+
+.chartEmpty {
+    margin: 0;
+    padding: 32px 0;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+.plotWrap {
+    position: relative;
+}
+
+.plot {
+    display: block;
+    overflow: visible;
+}
+
+/* box-shadow does not paint on an SVG element, so the focus ring has to be a real outline. */
+.plot:focus-visible {
+    outline: 3px solid rgba(172, 68, 198, 0.55);
+    outline-offset: 2px;
+    border-radius: 8px;
+}
+
+.gridLine {
+    stroke: rgba(36, 24, 43, 0.08);
+    stroke-width: 1;
+}
+
+.axisLabel {
+    font-size: 11px;
+    fill: var(--text-muted);
+}
+
+.referenceLine {
+    stroke: rgba(36, 24, 43, 0.5);
+    stroke-width: 1;
+    stroke-dasharray: 3 3;
+}
+
+.referenceLabel {
+    font-size: 10px;
+    font-weight: 600;
+    fill: var(--text-strong);
+}
+
+.hitFocused {
+    fill: rgba(172, 68, 198, 0.08);
+}
+
+/* ---------------------------------------------------------------- tooltip */
+
+.tooltip {
+    position: absolute;
+    z-index: 5;
+    min-width: 160px;
+    max-width: 260px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    border: 1px solid rgba(172, 68, 198, 0.16);
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 12px 30px rgba(77, 42, 103, 0.18);
+    backdrop-filter: blur(10px);
+    font-size: 12px;
+    color: var(--text-strong);
+    pointer-events: none;
+}
+
+.tooltipRow {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 5px;
+    color: var(--text-muted);
+}
+
+.tooltipSwatch {
+    width: 9px;
+    height: 9px;
+    border-radius: 3px;
+    flex: none;
+}
+
+.tooltipValue {
+    margin-left: auto;
+    font-weight: 700;
+    color: var(--text-strong);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------------- legend */
+
+.legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.legendItem {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    border: 0;
+    background: none;
+    padding: 4px 6px;
+    border-radius: 10px;
+    font: inherit;
+    font-size: 12px;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+button.legendItem:hover {
+    background: rgba(172, 68, 198, 0.08);
+}
+
+.legendItemHidden {
+    opacity: 0.42;
+    text-decoration: line-through;
+}
+
+.legendSwatch {
+    width: 11px;
+    height: 11px;
+    border-radius: 3px;
+    flex: none;
+}
+
+/* Provisional/lagging series carry a hatch as well as a colour. */
+.legendSwatchHatched {
+    background-image: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.7) 0 2px, transparent 2px 4px);
+}
+
+.legendValue {
+    font-weight: 700;
+    color: var(--text-strong);
+    font-variant-numeric: tabular-nums;
+}
+
+.chartFootnote {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+/* ---------------------------------------------------------------- data table */
+
+.dataTable {
+    border-top: 1px solid rgba(172, 68, 198, 0.1);
+    padding-top: 10px;
+    font-size: 13px;
+}
+
+.dataTable > summary {
+    cursor: pointer;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+/* Same containment as the request table: an auto-layout table's intrinsic width otherwise escapes
+   this scroll box and widens the document. */
+.dataTableWrap {
+    margin-top: 10px;
+    max-height: 260px;
+    contain: paint;
+    overflow: auto;
+    border-radius: 12px;
+}
+
+.dataTableWrap table {
+    width: 100%;
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+}
+
+.dataTableWrap th,
+.dataTableWrap td {
+    padding: 6px 10px;
+    text-align: left;
+    white-space: nowrap;
+    border-bottom: 1px solid rgba(172, 68, 198, 0.08);
+}
+
+.dataTableWrap thead th {
+    position: sticky;
+    top: 0;
+    background: rgba(255, 255, 255, 0.96);
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.visuallyHidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* ---------------------------------------------------------------- horizontal bars */
+
+.hbars {
+    display: grid;
+    gap: 6px;
+}
+
+.hbarRow {
+    display: grid;
+    grid-template-columns: 12px minmax(110px, 22%) 1fr auto;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 7px 8px;
+    border: 0;
+    border-radius: 12px;
+    background: none;
+    text-align: left;
+    font: inherit;
+    color: var(--text-strong);
+}
+
+.hbarRowInteractive {
+    cursor: pointer;
+    transition: background-color 140ms ease;
+}
+
+.hbarRowInteractive:hover,
+.hbarRowInteractive:focus-visible {
+    background: rgba(172, 68, 198, 0.08);
+    outline: none;
+}
+
+.hbarRowInteractive:focus-visible {
+    box-shadow: 0 0 0 3px rgba(172, 68, 198, 0.28);
+}
+
+.hbarChip {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+}
+
+.hbarLabel {
+    font-size: 13px;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.hbarBadge {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #8a5a00;
+    background: rgba(224, 138, 30, 0.16);
+    border-radius: 999px;
+    padding: 2px 7px;
+}
+
+.hbarTrack {
+    position: relative;
+    height: 12px;
+    border-radius: 999px;
+    background: rgba(36, 24, 43, 0.06);
+    overflow: hidden;
+}
+
+.hbarFill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    border-radius: 999px;
+}
+
+.hbarFillOutline {
+    background: none;
+    border: 1px dashed;
+    box-sizing: border-box;
+}
+
+.hbarValue {
+    font-size: 13px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.hbarDetail {
+    display: block;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted);
+}
+
+.showAll {
+    justify-self: start;
+    margin-top: 4px;
+    border: 0;
+    background: none;
+    padding: 4px 6px;
+    border-radius: 8px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent-dark);
+    cursor: pointer;
+}
+
+.showAll:hover {
+    background: rgba(172, 68, 198, 0.08);
+}
+
+/* ---------------------------------------------------------------- sparkline + stacked bar */
+
+.sparkline {
+    display: block;
+}
+
+.stacked {
+    display: flex;
+    width: 100%;
+    border-radius: 999px;
+    overflow: hidden;
+    background: rgba(36, 24, 43, 0.06);
+}
+
+.stackedEmpty {
+    display: block;
+    width: 100%;
+    height: 8px;
+    border-radius: 999px;
+    background: rgba(36, 24, 43, 0.06);
+}
+
+.stackedSegment {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2px;
+    overflow: hidden;
+}
+
+.stackedLabel {
+    font-size: 10px;
+    font-weight: 700;
+    color: #fffaff;
+    white-space: nowrap;
+    padding: 0 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .hbarRowInteractive {
+        transition: none;
+    }
+}

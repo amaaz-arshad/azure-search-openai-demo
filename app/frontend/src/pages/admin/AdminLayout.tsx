@@ -20,6 +20,7 @@ import styles from "./AdminLayout.module.css";
  */
 const ADMIN_TABS = [
     { to: "/admin/chatbots", label: "Chatbots" },
+    { to: "/admin/telemetry", label: "Telemetry" },
     { to: "/admin/prompts", label: "Prompts" },
     { to: "/admin/uploads", label: "Uploads" },
     { to: "/admin/users", label: "nerilio users" },

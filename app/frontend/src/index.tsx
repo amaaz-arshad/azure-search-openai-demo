@@ -21,6 +21,7 @@ import ChatbotDirectory from "./pages/ChatbotDirectory";
 import ManagePromptsPage from "./pages/ManagePrompts";
 import FreeUsersPage from "./pages/FreeUsers";
 import HyroxVisitsPage from "./pages/HyroxVisits";
+import TelemetryPage from "./pages/Telemetry";
 import UploadFilesPage from "./pages/UploadFiles";
 import { AdminLayout, EmbedDemoTab } from "./pages/admin";
 import { msalConfig, useLogin } from "./authConfig";
@@ -96,6 +97,7 @@ const router = createBrowserRouter([
                     { path: "uploads", element: <UploadFilesPage /> },
                     { path: "users", element: <FreeUsersPage /> },
                     { path: "hyrox-visits", element: <HyroxVisitsPage /> },
+                    { path: "telemetry", element: <TelemetryPage /> },
                     { path: "embed", element: <EmbedDemoTab /> }
                 ]
             },
