@@ -76,6 +76,387 @@ Two categories per date:
 - `CLAUDE.md`: the visit-tracking bullet now records the stored-UTC / shown-German split, the
   folder-vs-export-month divergence, and why the conversion is computed rather than looked up.
 
+### First-party LLM telemetry, and the `/admin/telemetry` dashboard that replaces OpenLIT
+
+#### Decisions
+
+- **Asked for: our own dashboard for LLM cost, per-request detail and per-chatbot attribution,
+  replacing the OpenLIT dashboard, and "show the existing data, don't start from an empty state".**
+- **Finding that reframed the whole task: OpenLIT has never held any production data.** Checked
+  against live Azure: `OPENLIT_ENDPOINT` is `""` on the only active backend revision, so the app takes
+  the plain `OpenAIInstrumentor` branch and has never sent it a span; and every table in the running
+  `openlit` Container App's ClickHouse database has **0 rows** (verified with `clickhouse-client` via
+  `containerapp exec`), with `EmptyDir` volumes regardless. There is no export to write and no
+  migration to run.
+- **Application Insights holds about an hour, and was deliberately not imported.** A 365-day range
+  query returns zero rows before 2026-08-19T16:11Z. It also carries no cost and no chatbot
+  attribution, and truncates each custom dimension at ~8 KB. Retroactively bulk-copying every user's
+  questions into a new store is a privacy decision nobody made, for a few hours of bot-less rows.
+- **Azure Cost Management is the one place with real history, so it carries the launch.** A live query
+  returned ~13 months of actual per-meter daily spend; 2026-08 alone is EUR 302.40 across 19 days
+  (gpt-5.4-mini 294.97, text-embedding-3-large 5.71, gpt-4.1 1.45, gpt-5 0.20). So the Costs tab has
+  months of real data on day one even though per-request telemetry necessarily starts now.
+- **Two cost numbers, side by side, never summed, and never rescaled into each other.** Estimated
+  (our tokens x an EUR price table) is the only figure that can be per-chatbot; actual (Azure) has no
+  chatbot dimension and covers every workload on the resource. Rescaling estimated to match billed was
+  considered and rejected: for the embedding model the ratio is dominated by ingestion, so it would
+  multiply every bot's embedding cost by the ingestion multiple and collapse the honest "not
+  attributable to a chat request" remainder to ~0.
+- **Priced in EUR because the subscription bills EUR** (every Cost Management row returns
+  `Currency: "EUR"`). A USD table rendered with a euro sign would bake an ~8-15% FX-plus-markup error
+  into the estimated-vs-actual reconciliation, which is the one number that panel exists to check.
+- **Retention: forever** (the user's choice). This also removed a problem the plan had: a storage
+  lifecycle policy has nowhere clean to live, since `main.bicep` is `targetScope = 'subscription'` and
+  the account is created inside a module scoped to `storageResourceGroup`. `TELEMETRY_RETENTION_DAYS`
+  ships as a knob defaulting to 0 so pruning later is a setting, not a code change.
+- **Charts are hand-rolled inline SVG; no charting dependency was added** (the user's choice, and the
+  project had none, not even transitively). The admin routes are statically imported into the main SPA
+  bundle that every chatbot page downloads, including the ungated `/bbsa` and every provisioned
+  customer's iframe. One `ChartFrame` owns axes, tooltip, legend, keyboard navigation and an
+  accessible `<details>` data table generated from the same array the marks consume, so it cannot
+  drift from what is drawn.
+- **The biggest measurement gap this closes: agentic turns reported ZERO LLM tokens.** The
+  `response.activity` records carry `elapsed_ms`, `input_tokens` and `output_tokens`, were dumped raw
+  into a `ThoughtStep` prop and never summed, and `ActivityDetail` drops them outright. They are now
+  read defensively (no SDK import, so a beta rename degrades rather than raises) and attributed to the
+  knowledge-base model rather than the chat model, which is priced very differently.
+- **Design review caught four bugs before they shipped**, each fixed and pinned by a test: the
+  streaming write reached for `current_app` after Quart had popped the app context (silent zero
+  telemetry for the route that carries most traffic); `<day>/<chatbot>/` blob naming is not
+  chronological across bots, which the whole request explorer rests on; a `..` segment survives the
+  blob sanitizer, which permits `.` and `-`; and the eager rollup fold raced the previous day's final
+  writes. Two more were caught while building: the answer-step handle was on the shared approach
+  instance (a race between concurrent requests), and embeddings usage is
+  `CreateEmbeddingResponse.Usage`, which has none of `CompletionUsage`'s detail attributes.
+- **Deliberately not done:** `TokenUsageProps` was left alone rather than gaining a `cached_tokens`
+  field — it is serialized into every bot's thought-process panel and into the committed snapshots, and
+  telemetry reads usage directly. The OpenLIT identity helper keeps its name for now; renaming it
+  belongs with the removal, so the existing tests stay green.
+
+#### Changes
+
+- **Added** `app/backend/core/telemetry/`: `records.py` (record shapes, blob-name/metadata/step-digest
+  codecs), `recorder.py` (ContextVar envelope, never-raise wrappers), `store.py` (own container
+  client, writes, rollups, the range planner), `pricing.py` (EUR price table, cost arithmetic),
+  `azure_cost.py` (Cost Management client, meter matcher, blob-lease serialisation, backoff),
+  `aggregate.py` (histograms, deterministic folds, facet breakdowns), `agentic.py` (activity records).
+- **Added** `app/backend/prep_telemetry_cost_backfill.py` — resumable ~13-month cost history import.
+- **Modified** `app/backend/app.py` — telemetry envelope on both chat routes (opened before the gates),
+  the streaming wrapper, eight `@internal_admin_required` `/internal-admin/telemetry/*` routes, store
+  and cost-client wiring at startup, and the `telemetry` logger level.
+- **Modified** `app/backend/approaches/approach.py` — `compute_text_embedding_with_usage` (leaving
+  `compute_text_embedding` byte-identical for its other callers), agentic activity steps.
+- **Modified** `app/backend/approaches/chatreadretrieveread.py` — timed the rewrite, embedding, search,
+  wiki-navigation and answer call sites; path labelling; both finalisation exits.
+- **Modified** `app/backend/config.py` — `CONFIG_TELEMETRY_STORE`, `CONFIG_AZURE_COST_CLIENT`.
+- **Added** the frontend at `app/frontend/src/pages/Telemetry/` — page shell, URL-synced filter state,
+  filter bar, KPI row, Overview/Costs/Requests tabs, request drawer with a step-timeline Gantt, and
+  `charts/` (ChartFrame, Bars, HBars, Histogram, Sparkline/StackedBar, scales, palette).
+- **Modified** `app/frontend/src/pages/admin/AdminLayout.tsx` and `src/index.tsx` — the new tab and route.
+- **Modified** `infra/main.bicep` (private `telemetry` container, Cost Management Reader at
+  `openAiResourceGroup`, three env vars), `infra/main.parameters.json`, and both pipeline YAMLs.
+- **Added** `tests/test_telemetry.py` (70 cases), `tests/test_telemetry_routes.py` (23),
+  `tests/test_telemetry_chat_integration.py` (9).
+- **Added** `docs/telemetry.md`.
+
+#### Verified
+
+- 102 new tests pass; the rest of the suite is unchanged at its recorded baseline (44 failed / 86
+  errors, identical with and without these changes), and `ty check` is back to its 35-diagnostic
+  baseline.
+- The cost backfill was run against live Azure and returned real per-model spend, recovering from two
+  429s on the way.
+- The dashboard was rendered end to end against realistic mocked payloads: six KPI tiles, four charts,
+  24 request rows, the drawer with a nested agentic timeline, control markers rendered literally,
+  Escape closing and returning focus, and **zero horizontal overflow at 1440, 768 and 375 px** with no
+  console errors.
+
+#### Fixes (same day, from testing the running page)
+
+- **Reported: "there are 2 scroll bars".** `.page` carried `overflow-x: hidden`, and per the CSS spec
+  a non-visible value on one axis computes the *other* to `auto` -- so the page element silently
+  became a scroll container, and the decorative glow blobs (positioned at `top: -80px` /
+  `bottom: -100px`) gave it exactly 100px of scrollable excess nested inside the document's own
+  scrollbar. It also meant the sticky filter bar had been sticking to a scrollport that never moves,
+  so it never actually worked. The glows are now clipped by their own absolutely-positioned layer and
+  `.page` carries no overflow at all.
+- **Removing that clip exposed a real layout bug it had been hiding.** Grid items default to
+  `min-width: auto` and refuse to shrink below their content, so the wide request table was forcing
+  every container open -- meaning at narrow widths its right-hand columns were *clipped and
+  unreachable* rather than scrollable. Every container from `.shell` down to `.tableWrap` now carries
+  `min-width: 0` / `minmax(0, 1fr)`.
+- **An auto-layout table's intrinsic width escapes its own scroll container.** Even with the wrapper
+  correctly sized at 1278px and `overflow-x: auto` engaged, the document still scrolled 197px sideways.
+  Measured on the real page: `overflow: hidden` on the wrapper does **not** stop it and neither does a
+  fixed width -- only `contain: paint` (or `table-layout: fixed`, which would wreck the column sizing).
+  Both table wrappers now use containment.
+- **The date-range segmented control alone measured 425px**, so it overflowed a 375px viewport on its
+  own; the segmented groups and the action row now wrap.
+- **The request table's header is deliberately not sticky.** `.tableWrap` needs `overflow-x: auto` for
+  wide tables, which makes it a scroll container by the same spec rule -- so a sticky header there
+  sticks to a scrollport that never moves and silently scrolls away. The alternative (a `max-height`
+  so the table scrolls internally) works but reintroduces the second scrollbar, so it was dropped
+  along with the `ResizeObserver` machinery that measured the filter bar's height for it.
+- **`/internal-admin/telemetry/filters` raised on every call.**
+  `ChatbotRegistryStore.list_records()` returns a *mapping* of bot name to record, so iterating it
+  directly yielded strings and `record.bot_name` raised `AttributeError`. The endpoint's own
+  never-fail wrapper caught it, so the page worked but silently listed no provisioned bots. Fixed to
+  iterate `.values()`, with two regression tests (one for the mapping shape, one for a registry that
+  raises).
+- Verified after: **one scrollbar per view at 1440 / 1100 / 768 / 375 px, zero horizontal overflow**,
+  and the only remaining nested scroll boxes are inside collapsed "View data as a table" details.
+
+#### Requested changes: Azure billing removed, times shown in German time
+
+- **Azure Cost Management removed entirely.** The dashboard now reports only what it records itself:
+  our own token counts priced with the versioned EUR table. Gone are `core/telemetry/azure_cost.py`,
+  `prep_telemetry_cost_backfill.py`, the `/internal-admin/telemetry/azure-cost` route, the
+  `CONFIG_AZURE_COST_CLIENT` wiring, the `Cost Management Reader` role assignment in bicep, the
+  `useCostManagement` / `AZURE_COST_MANAGEMENT_ENABLED` plumbing in both pipelines, and the meter
+  matcher's tests.
+- **One consequence handled rather than ignored: the price table lost its self-healing layer.** The
+  `derived` layer was fed from the billed meters and was what priced a model nobody had entered by
+  hand. Prices now resolve compiled -> env -> blob override only, so **adding a new model to the price
+  table is a manual step**. That degrades visibly, not silently: an unpriced model's requests are
+  excluded from the totals (never counted as free) and surface in the dashboard's unpriced strip,
+  which now points at the price editor instead of telling the operator to wait for a bill.
+- **The Costs tab was rebuilt rather than gutted.** The estimated-vs-actual chart, the reconciliation
+  panel and the unmapped-meter list all existed only to compare against billing. In their place: cost
+  by chatbot, cost by model, a new **tokens-by-step** breakdown (which stage of a turn actually spends
+  the tokens), a "what this covers" panel that is explicit that these are chat requests only and not a
+  bill, and the price editor. The "Azure actual" KPI tile became **cost per request**, which is a
+  metric the dashboard can actually stand behind.
+- **Times are displayed in German time (Europe/Berlin).** The conversion is deliberately display-only,
+  in the browser: storage stays UTC (the blob layout keys on UTC days and the rollups aggregate whole
+  UTC days), and `zoneinfo` cannot resolve `Europe/Berlin` in this backend's environment without
+  adding a `tzdata` dependency, while every browser carries complete IANA data.
+- **Which timestamps shift, and which deliberately do not.** Point-in-time values (request rows, the
+  drawer, "last seen") and hour buckets are exact local times -- hour buckets convert exactly because
+  the offset is a whole number of hours. **Day, week and month buckets stay UTC calendar days**: the
+  rollups aggregate whole UTC days, so a shifted label would claim a boundary the data does not have.
+  The filter bar states both facts, and the UI names the zone it is showing (`CET`/`CEST`) rather than
+  asserting a fixed offset. CSV exports keep UTC, with the column named `timestamp_utc`.
+- **Two rendering bugs caught by looking at the result.** A `—` escape was written into JSX
+  *text*, where it is literal characters rather than an escape (only string literals interpret it), so
+  the Costs tab was showing a raw `—` on screen; and the unpriced-model strip still advised
+  waiting for Azure to bill the model.
+- Verified: 78 telemetry tests pass, the rest of the suite is unchanged at its baseline (44 failed /
+  86 errors, as before), `tsc` clean, bicep compiles, the dashboard renders with **zero calls to the
+  removed endpoint** and zero horizontal overflow at 1440 / 768 / 375 px, and a mock timestamp of
+  09:00:11 UTC renders as 11:00:11 CEST.
+
+#### Fix: the "unaccounted" time was the answer itself, and its tokens were being thrown away
+
+- **Asked what the timeline's "unaccounted" segment actually is.** It was not a labelling problem. On
+  a streamed turn it was the answer being generated, sitting outside every step -- and the same bug
+  was discarding the answer's token counts, so **every streamed turn under-reported its cost**.
+- **Measured before touching anything.** Decomposing 218 real records showed the remainder is
+  negligible on non-streamed turns (`before` 59 ms, `between` 0 ms, `after` 30 ms -- 97% of wall clock
+  inside the steps) but that streamed turns spent a median **1709 ms, 28.6% of wall clock, AFTER the
+  last step closed**. A stored record then showed the `answer` step carrying no `usage` key at all
+  while `query_rewrite` and `embedding` carried theirs, and the turn's totals summing to just those
+  two.
+- **Root cause: a choice-less chunk is not necessarily the last one.** Azure opens a stream with a
+  chunk carrying `prompt_filter_results` and no choices -- the comment at the top of that loop has
+  always said so -- and only the terminal chunk carries usage. The loop treated ANY choice-less chunk
+  as terminal, so `close_answer_step(usage=None)` fired on the first one: the step closed at
+  time-to-first-chunk, and because `close_answer_step` clears the handle, the real usage arriving at
+  the end hit a no-op and was dropped. The largest LLM call of a turn recorded no tokens and no cost.
+- **The fix closes the step when the stream is exhausted**, in a `finally` so an abandoned stream
+  still records what it spent (the client disconnecting raises `GeneratorExit` at a `yield`, and the
+  normal path below would never run; nothing in that `finally` yields, which would be illegal there).
+  Usage is captured from whichever chunk carries it.
+- **`time_to_first_token_ms` is recorded alongside it.** Now that the step spans the whole generation,
+  TTFT is what separates "the model was thinking" from "the model was emitting". They cannot be
+  separate steps: generation and delivery interleave, because every `yield` in that loop suspends
+  until the client takes the chunk. The drawer spells it out -- "612 ms, the remaining 2.4 s was spent
+  streaming the answer".
+- **The timeline no longer says "unaccounted".** The remainder is entirely made of known phases, so it
+  is drawn as `request setup` (validation, the saved-prompt blob read, auth and quota checks, prompt
+  rendering) and `response wrap-up` (follow-up parsing, serialisation, writing the record), each at
+  its true position on the axis rather than pooled into one bar parked at the end. Both are exact,
+  not estimates: the first step's `startMs` IS the setup, and the turn minus the end of the last step
+  IS the wrap-up.
+- **Records written before this fix cannot be repaired**: the usage was never captured, so those turns
+  are permanently missing their answer tokens and cost. Six streamed turns are affected.
+- Verified by re-injecting the old behaviour and watching the new test fail (`assert 0 == 3000`), then
+  restoring it. Three tests drive the REAL `run_with_streaming` through a stubbed model: Azure's
+  leading choice-less chunk, a stream that never reports usage, and an abandoned stream. `ty` clean,
+  `tsc` clean, frontend rebuilt, and a browser check confirms the timeline renders `request setup` /
+  `response wrap-up` with the answer's tokens and cost now on its row.
+
+#### Requests tab: real pagination, and a search box that can be typed in
+
+- **Asked for: pagination on the requests table, and a search that does not reload after every
+  letter.**
+- **The search field was fighting the typist, and the debounce was not the problem.** A 300 ms
+  debounce was already there. The bug was that the input rendered `value={search}` -- the *debounced*
+  URL state -- so it was a controlled field whose value lagged the keystrokes. Any re-render landing
+  mid-word reset it to the last value that had reached the URL and ate everything typed since, and a
+  completing fetch is exactly such a re-render. That is why it felt like it reloaded on every letter:
+  the reload was eating the word. The field now holds the typed text in local state
+  (`SearchField`), adopts an external change (Reset, a pasted link) but never echoes its own
+  debounced write back, and the debounce moved to 400 ms since a search walks up to 14 days of blob
+  listings. Measured in a real browser: six keystrokes in ~360 ms now produce **one** request, and a
+  response landing mid-word no longer touches the field.
+- **Paging replaced the accumulating "Load more".** The API is cursor-paged and has no total -- an
+  offset cursor would skip and duplicate rows when a turn finishes mid-read -- so page N is reachable
+  only by having walked pages 1..N-1. The page keeps that walk in refs (`cursorsRef` for the cursor
+  that fetches each page, `offsetsRef` for how many rows precede it) rather than state, because
+  writing them on every fetch would retrigger the fetch that wrote them. Prev / Page N / Next, plus a
+  25 / 50 / 100 rows-per-page selector (the API caps `limit` at 200).
+- **Row numbers are tracked, not computed.** `index * pageSize` would be wrong the moment the
+  day-scan cap returns a short page while more rows still exist, which it can.
+- **The total is shown only when no search is active.** The summary applies the facets but not the
+  free-text query, so quoting its count next to a searched list would be a wrong number rather than a
+  missing one.
+- **Two traps handled while building it.** A filter, search or page-size change resets to page 1
+  behind a key guard, so a cursor from the previous result set is never read against the new one --
+  the fetch waits one render for the reset rather than firing with a stale cursor. And the pager
+  renders outside the empty-state branch: the scan cap can report "more" and then hand back an empty
+  last page, and a pager that vanished with the rows would strand the reader there with no way back.
+- `PAGE_SIZE_OPTIONS` lives in `useTelemetryQuery.ts`, not `TelemetryPage.tsx`, because `RequestsTab`
+  importing it from the page that imports `RequestsTab` is a cycle.
+- Verified with 34 browser checks against the real components and a mocked cursor-paged API: page 1
+  starts at row 0 with Previous disabled, Next advances and replaces rather than appends, Previous
+  returns, Next disables on the last page, the page-size selector resets to page 1 and reaches the API
+  as `limit=25`, a range change resets to page 1, one request per typed word, the field keeps every
+  character through a deliberately slowed response, and no horizontal overflow at 1440 / 1100 / 768 /
+  375 px. `tsc` clean, frontend rebuilt.
+
+#### Fix: "All time" showed no data on any tab
+
+- **Reported: selecting All time displays nothing.** Reproduced, and it was not a display problem --
+  the range being queried contained no data by construction. `range=all` resolved to a compiled
+  `2020-01-01`, and `day_range` then clamped a too-wide range by keeping the **first**
+  `MAX_RANGE_DAYS` (400) days and discarding the rest. So All time asked for `2020-01-01 .. 2021-02-03`
+  on every tab: Overview, Costs, the request explorer and the CSV export alike.
+- **It was also writing junk.** Every closed day in a query with no rollup is folded on demand, and
+  `fold_and_store_day` wrote the result even when the day had zero rows -- so each All time click
+  performed ~400 listings, ~400 404s and ~400 writes. Confirmed in the live container: **489 rollup
+  blobs, of which 400 covered 2020-01-01 .. 2021-02-03** -- exactly `2020-01-01` plus 399 days, the
+  fingerprint of the clamp. The remaining 89 (2026-05-23 .. 2026-08-19) are the same effect from a
+  90-day range. Real traffic at the time: 198 request blobs, all on 2026-08-20.
+- **Three changes, each fixing a distinct half of it.** (1) `clamp_day_range` clamps by moving the
+  **start** forward, keeping the most recent days -- discarding the newest days is never the right
+  reading of "too wide" on a dashboard of recent activity, and it is what an over-wide custom
+  `from`/`to` hit too. (2) `range=all` resolves to the store's `earliest_day()` via the new
+  `telemetry_effective_range`, so the range means what the button says and touches only days that can
+  hold data. (3) `fold_and_store_day` no longer writes a rollup for a day with zero rows: re-deriving
+  it costs one listing of an empty prefix, cheaper than reading the blob it would replace.
+- **Routes now report the range they queried, not the one they were asked for.** `range.from`/`to`
+  come back clamped, because the UI prints that range and (since the granularity change above) sizes
+  its axis from it.
+- **`earliest_day()` is memoized**, because it is now on the path of every all-time summary, request
+  page and export. Only a non-None value is cached -- retention is forever so the first day never
+  moves, but a `None` must not freeze an empty deployment into never noticing its first turn.
+- **A guard was already there and did not catch this.** `test_a_window_that_predates_recording...`
+  queried `range=all` on every run, but only asserted the *comparison* flags, never that the range
+  returned its own rows -- so it passed against a window containing nothing. The new tests assert the
+  data: all-time on two recorded days, all-time when every turn is in the still-open day (the exact
+  live shape, where today is served raw rather than from a rollup), and all-time on an empty store.
+- Verified against the **live** container by driving the real `TelemetryStore` read-only with the
+  fold stubbed out: all-time now resolves to `2026-08-20 .. 2026-08-20` and returns **200 requests,
+  6.28M/69K tokens, EUR 4.43, across azw / bbsa / fhg / fhg-2 / hyrox-assessment**, folding zero days.
+  86 telemetry tests pass, `ty` clean on `store.py` with no new diagnostics in `app.py`.
+- **Not done, needs a decision:** the 489 stale rollup blobs are still in the live container. They are
+  inert now (all-time can no longer reach the 2020-21 ones, and the 2026 ones are simply empty days a
+  90-day query reads and skips), so this is hygiene rather than a fix. Deleting them is a destructive
+  change to a live store and was left for the user to approve.
+
+#### Follow-up: bucket granularity moved onto its chart, and hourly ranges clamped
+
+- **The granularity control was in the wrong place, so it moved rather than being deleted.** It sat in
+  the page-level filter bar beside range, chatbot, model, path and status -- controls that all narrow
+  every panel on the page -- while it changes the x-axis bucket width of exactly one chart and nothing
+  else. That is a reach the UI advertised and did not have. It is now a segmented control on the
+  "Traffic and cost over time" chart itself, next to the existing group-by control, where its scope is
+  self-evident. Removing it outright was considered and rejected: `auto` only picks hourly for a span
+  of two days, so without the control there is no way to ask "which hour of the day is busy?" across a
+  week, nor to force weekly bucketing on a 30-day range to flatten the weekday/weekend sawtooth.
+- **It stays in the URL.** It is not a filter, but a shared link still has to render the same picture,
+  so `granularity` remains a query parameter. It was dropped from `hasActiveFilters`, though, so a
+  chart display option no longer lights up "Reset filters"; `reset` still clears it, because it clears
+  the whole query string.
+- **An explicit hourly range is now clamped, which closes a real hole.** An hourly axis is the one
+  granularity a rollup cannot serve -- a daily rollup aggregates each key across the whole day and
+  cannot be split back apart -- so `summarize` lifts its `MAX_RAW_DAYS_PER_QUERY = 3` budget to the
+  whole range for it. `auto` never asks for more than two days, but a caller could ask for any span,
+  and `range=all&granularity=hour` would have listed up to `MAX_RANGE_DAYS = 400` days of raw blobs to
+  draw an axis of ~9,600 columns. `resolve_granularity` now clamps `hour` to `day` past
+  `HOURLY_MAX_DAYS = 7`.
+- **Seven days, not three.** Matching the raw-day budget exactly would have killed the one question an
+  hourly axis answers, which needs a full week to show a weekday pattern. Seven raw day-listings is a
+  bounded, modest read, and ~168 columns is roughly where a column chart stops being readable anyway.
+- **The clamp is visible, never silent.** The summary payload already reported the requested and the
+  resolved granularity separately, so the UI greys the Hourly button out past a week, gives it a title
+  explaining why, and shows a note beside the control. An hourly choice made on a narrow range is kept
+  in the URL rather than rewritten, so widening and then narrowing the range returns to it; while it
+  is unavailable, `Auto` reads as pressed, so the highlighted button always matches what is drawn.
+- **The constant is a cross-language pair**: `HOURLY_MAX_DAYS` in `core/telemetry/aggregate.py` and
+  `HOURLY_MAX_RANGE_DAYS` in `useTelemetryQuery.ts` must stay in lockstep. The backend clamp is the
+  enforcement for every caller; the frontend constant only greys out the control.
+- **Two leftovers from the billing removal, cleaned up while in there.** The "what this covers" panel
+  was still using the `.reconciliation` class from the deleted reconciliation panel, which would have
+  told the next reader that panel still exists -- renamed to `.factGrid`. And `.controlSelect` became
+  dead CSS the moment the granularity `<select>` left the filter bar -- deleted.
+- Verified: 80 telemetry tests pass (two new ones pin the auto ladder and the clamp, including that
+  `day`/`week`/`month` are never clamped), `ty` and `tsc` clean, the frontend rebuilt, and 21 browser
+  checks against the real components pass -- the control is gone from the filter bar and present on the
+  chart, choosing a bucket writes the URL and reaches the API as `granularity=hour`, the choice
+  survives a reload, Hourly is disabled with its explanation past a week, and there is no horizontal
+  overflow at 1440 / 1100 / 768 / 375 px.
+
+#### Investigation: where the old OpenLIT dashboard data went
+
+Asked to check properly whether the previous OpenLIT data still exists anywhere in Azure. It does
+not, and now there is a full account of why, so nobody has to search again.
+
+- **A dedicated storage account was found: `openlitnerilistorage`** (rg-agentic-retrieval-nerilio,
+  created 2026-04-14), holding four Azure File shares: `clickhouse-data`, `openlit-data`,
+  `otel-config`, `nginx-config`. The running container app only mounts the last two; the first two are
+  orphans from the original deployment.
+- **`clickhouse-data` holds a complete ClickHouse tree with the `openlit` database and all its table
+  definitions** (`otel_traces`, `otel_logs`, the five `otel_metrics_*`, and the 24 `openlit_*` app
+  tables). So the schema was created and the collector was pointed at it.
+- **Every table has ZERO committed parts.** All data on that share sits in `tmp_insert_*`
+  directories, which ClickHouse writes during an insert and renames into place on commit. Nothing was
+  ever renamed. `detached/` is empty everywhere.
+- **This is conclusive proof of the Azure Files SMB problem CLAUDE.md already documents**, and it is
+  broader than "unsafe": ClickHouse could not commit a single part for ANY table, including its own
+  `system.query_log`, `system.trace_log`, `system.metric_log` and `system.asynchronous_metric_log`
+  (73 / 69 / 79 / 83 uncommitted, 0 committed). SMB does not support the atomic rename/hardlink
+  operations MergeTree needs.
+- **The uncommitted rows, in full:** `otel_traces` 224 rows across 130 parts, `otel_metrics_histogram`
+  1,680 rows across 83 parts, plus OpenLIT's own seed data (147 provider models, 28 provider
+  metadata, 22 evaluation defaults, 3 boards). **Every trace row is in a single partition,
+  `20260421`** — the partition key is `toDate(Timestamp)`, so all 224 spans were produced on
+  2026-04-21 and no other day.
+- **The timing lines up exactly.** The only surviving container-app revision, `openlit--0000006`, was
+  created 2026-04-21T10:11:51Z and is the one that switched `clickhousedata` to `EmptyDir` — so the
+  share was abandoned that day with its 224 uncommitted rows frozen in it. Its replica has since
+  restarted (2026-06-27), wiping the EmptyDir, and the backend has never had a non-empty
+  `OPENLIT_ENDPOINT` anyway.
+- **Consequence worth stating plainly: the OpenLIT dashboard has never displayed real data.**
+  ClickHouse only answers queries from committed parts, and none were ever committed.
+- **Nothing else holds a copy.** No file-share snapshots (soft delete is on at 7 days, nothing
+  deleted); `openlit-data/openlit.db` — OpenLIT's own SQLite for saved dashboards and config — is
+  **0 bytes**; no managed disks, no snapshots, no container instances anywhere in the subscription;
+  the only other storage account in the resource group holds Functions deployment artefacts; and
+  there is exactly one `openlit` container app across all nine resource groups.
+- **Recovery is technically possible and almost certainly not worth it.** The 130 part directories
+  are structurally complete (`data.bin`, `checksums.txt`, `columns.txt`, `count.txt`, `primary.cidx`),
+  so they could be renamed into `detached/` on a working filesystem and re-attached with
+  `ALTER TABLE ... ATTACH PART`. That would recover 224 LLM spans from one day in April. For contrast,
+  the Cost Management backfill already imported ~13 months of real per-model spend.
+
+#### Still to do
+
+- Remove OpenLIT once the dashboard has been verified in production: the code branches in `app.py`,
+  the `openlit` dependency (also in all four Functions lockfiles), the `OPENLIT_ENDPOINT` plumbing,
+  the four repo-root compose/collector/ACI files, the two `test_app_config.py` cases, and the running
+  `openlit` Container App with its Azure Files config shares.
+
 ---
 
 ## 2026-08-19
